@@ -64,6 +64,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
     _voice.understood.addListener(_onUnderstood);
     // Every utterance, key-held or hands-free, starts here.
     _startSub = _engine.utteranceStarts.listen((_) {
+      // The scribe is writing down a consultation: not a command.
+      if (_engine.isDictating) return;
       _voice.beginUtterance();
       if (mounted) {
         setState(() {
@@ -73,6 +75,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
       }
     });
     _sub = _engine.transcripts.listen((t) {
+      if (t.dictation) return;
       _voice.onTranscript(t);
       if (mounted) {
         setState(() {

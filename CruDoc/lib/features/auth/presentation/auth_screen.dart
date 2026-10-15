@@ -1762,7 +1762,7 @@ class _AuthForm extends StatelessWidget {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: DoctorSpecialty.all.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                separatorBuilder: (_, _) => const SizedBox(width: 6),
                 itemBuilder: (context, index) {
                   final spec = DoctorSpecialty.all[index];
                   final isSelected = selectedSpecialty!.type == spec.type;

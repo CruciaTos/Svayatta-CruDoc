@@ -27,6 +27,7 @@
 /// to model connection lifecycle (opening, per-doctor file switching,
 /// passphrase handling, corruption recovery) — that stays the
 /// responsibility of `LocalDatabaseService`, exactly as it is today.
+library;
 
 /// Conflict resolution strategies for [LocalDatabaseExecutor.insert] and
 /// [LocalDatabaseExecutor.update]. Mirrors SQLite's own `ON CONFLICT`

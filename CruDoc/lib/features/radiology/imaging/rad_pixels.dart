@@ -164,8 +164,9 @@ RadPixels _fromDicom(Uint8List bytes, int frame) {
 
 RadPixels _fromRaster(Uint8List bytes) {
   final image = img.decodeImage(bytes);
-  if (image == null)
+  if (image == null) {
     throw RadUnsupportedImage('This picture format is not supported');
+  }
   final w = image.width, h = image.height;
   final values = Float32List(w * h);
   final colour = image.numChannels >= 3 && _looksColour(image);

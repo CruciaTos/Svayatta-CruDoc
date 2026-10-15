@@ -45,8 +45,9 @@ class FieldCipher {
     if (!value.startsWith(_prefix)) return value;
 
     final key = EncryptionKeyManager.instance.currentKey;
-    if (key == null)
+    if (key == null) {
       return value; // can't decrypt yet — surface ciphertext rather than crash
+    }
 
     try {
       final body = value.substring(_prefix.length);

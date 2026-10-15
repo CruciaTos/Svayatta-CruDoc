@@ -15,8 +15,9 @@ enum HomeopathyThermalState {
     final lower = val.toLowerCase().trim();
     if (lower == 'chilly') return HomeopathyThermalState.chilly;
     if (lower == 'hot') return HomeopathyThermalState.hot;
-    if (lower == 'ambithermal' || lower == 'both')
+    if (lower == 'ambithermal' || lower == 'both') {
       return HomeopathyThermalState.ambithermal;
+    }
     return HomeopathyThermalState.unspecified;
   }
 
@@ -1385,13 +1386,16 @@ class HomeopathyCaseSheet {
     if (followUp.isCompleted) count++;
     if (childhoodHistory.isCompleted) count++;
     if (category == HomeopathyCaseSheetCategory.children &&
-        childrenCaseSheet.isCompleted)
+        childrenCaseSheet.isCompleted) {
       count++;
+    }
     if (category == HomeopathyCaseSheetCategory.femaleEndocrine &&
-        femaleEndocrine.isCompleted)
+        femaleEndocrine.isCompleted) {
       count++;
-    if (category == HomeopathyCaseSheetCategory.acute && acuteSheet.isCompleted)
+    }
+    if (category == HomeopathyCaseSheetCategory.acute && acuteSheet.isCompleted) {
       count++;
+    }
     return count;
   }
 
@@ -1401,8 +1405,9 @@ class HomeopathyCaseSheet {
     int base = isFemale ? 15 : 14;
     base++; // childhoodHistory
     if (caseSheetCategory == HomeopathyCaseSheetCategory.children) base++;
-    if (caseSheetCategory == HomeopathyCaseSheetCategory.femaleEndocrine)
+    if (caseSheetCategory == HomeopathyCaseSheetCategory.femaleEndocrine) {
       base++;
+    }
     if (caseSheetCategory == HomeopathyCaseSheetCategory.acute) base++;
     return base;
   }

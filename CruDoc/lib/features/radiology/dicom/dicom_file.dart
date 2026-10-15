@@ -93,8 +93,9 @@ abstract final class DicomSyntax {
     if (isUncompressed(ts)) return 'Uncompressed';
     if (ts == '1.2.840.10008.1.2.5') return 'RLE';
     if (ts.startsWith('1.2.840.10008.1.2.4.9')) return 'JPEG 2000';
-    if (ts == '1.2.840.10008.1.2.4.80' || ts == '1.2.840.10008.1.2.4.81')
+    if (ts == '1.2.840.10008.1.2.4.80' || ts == '1.2.840.10008.1.2.4.81') {
       return 'JPEG-LS';
+    }
     if (ts == '1.2.840.10008.1.2.4.57' || ts == '1.2.840.10008.1.2.4.70') {
       return 'JPEG Lossless';
     }
@@ -449,11 +450,13 @@ class DicomFile {
   int _frameOffset(int frame) {
     final e = _top[DicomTag.pixelData];
     if (e == null) throw DicomFormatException('No pixel data');
-    if (isCompressed)
+    if (isCompressed) {
       throw DicomUnsupportedException(DicomSyntax.name(transferSyntax));
+    }
     final off = e.valueOffset + frame * frameBytes;
-    if (off + frameBytes > bytes.length)
+    if (off + frameBytes > bytes.length) {
       throw DicomFormatException('Pixel data is cut short');
+    }
     return off;
   }
 

@@ -52,8 +52,9 @@ Future<ui.Image?> radRenderPaneView(
       roi: roi,
       px: px,
     ).paintAll(canvas, annotations);
-    if (mmPerPx != null && pane.zoom > 0)
+    if (mmPerPx != null && pane.zoom > 0) {
       radPaintScaleBar(canvas, size, mmPerPx / pane.zoom);
+    }
   }
   final picture = rec.endRecording();
   final out = await picture.toImage(
@@ -187,8 +188,9 @@ Future<List<(String, String)>> radDicomHeader(File f) {
     add('Series number', nums(DicomTag.seriesNumber));
     add('Instance', nums(DicomTag.instanceNumber));
     final acquired = d.date(DicomTag.acquisitionDate);
-    if (acquired != null)
+    if (acquired != null) {
       add('Acquired', DateFormat('d MMM yyyy').format(acquired));
+    }
     add('Body part', d.string(DicomTag.bodyPart));
     add('Transfer syntax', DicomSyntax.name(d.transferSyntax));
     add('Photometric', d.photometric);

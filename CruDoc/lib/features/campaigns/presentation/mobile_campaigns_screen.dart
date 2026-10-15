@@ -830,7 +830,7 @@ class _RecipientLogsModalContentState
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                   physics: const BouncingScrollPhysics(),
                   itemCount: filteredLogs.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       Divider(height: 1, color: c.separator),
                   itemBuilder: (context, i) {
                     final log = filteredLogs[i];

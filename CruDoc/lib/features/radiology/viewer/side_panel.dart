@@ -294,8 +294,9 @@ class _MeasureTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final pane = panel.pane;
-    if (pane.imageId.isEmpty)
+    if (pane.imageId.isEmpty) {
       return const _Quiet('Open an image to measure it.');
+    }
     final ruler = panel.paneStudy.calibration[pane.imageId];
     final fileSpacing = panel.paneStudy.images
         .where((i) => i.id == pane.imageId)
@@ -611,8 +612,9 @@ class _AnnotationEditorState extends State<_AnnotationEditor> {
 
   void _commit() {
     final v = _text.text.trim();
-    if (v != widget.annotation.text)
+    if (v != widget.annotation.text) {
       widget.panel.host.renameAnnotation(widget.annotation, v);
+    }
   }
 
   @override
@@ -750,8 +752,9 @@ class _KeyCardState extends State<_KeyCard> {
 
   void _commit() {
     final v = _caption.text.trim();
-    if (v != widget.keyImage.caption)
+    if (v != widget.keyImage.caption) {
       widget.panel.host.captionKeyImage(widget.keyImage, v);
+    }
   }
 
   @override

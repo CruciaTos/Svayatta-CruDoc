@@ -15,3 +15,6 @@ Never rename existing ids: saved patient findings point at them.
 
 License: Z-Anatomy / BodyParts3D models are CC BY-SA 4.0. Keep the credit line in the
 viewer and the About screen; edited model files stay under CC BY-SA.
+
+No Blender? `python catalog_from_glb.py` rebuilds `catalog.json` from the shipped `body.glb`
+(ids, names, sides, regions; no superficial flags or action tags).

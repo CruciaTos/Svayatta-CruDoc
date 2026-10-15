@@ -60,8 +60,9 @@ class RadRoiCache {
   /// "Mean 1234 ± 56" or null.
   String? text(RadAnnotation a, RadPixels? px) {
     if (px == null) return null;
-    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect)
+    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect) {
       return null;
+    }
     final hit = _cache[a.id];
     if (hit != null && identical(hit.$1, a.points)) return hit.$2;
     final s = RadMeasure.roiStats(a, px.values, px.width, px.height);

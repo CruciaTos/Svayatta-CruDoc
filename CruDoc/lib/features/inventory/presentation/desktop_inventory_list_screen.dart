@@ -387,7 +387,7 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
       );
     }
 
-    if (isExpired && expiryDays != null) {
+    if (isExpired) {
       final daysPast = -expiryDays;
       alerts.add(
         AlertData(

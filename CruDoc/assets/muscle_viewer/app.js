@@ -114,7 +114,10 @@ let bodyBox = new THREE.Box3();
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const loadBar = document.querySelector('#loading i');
 Promise.all([
-  fetch('catalog.json').then(r => r.json()),
+  fetch('catalog.json').then(r => {
+    if (!r.ok) throw new Error(`catalog.json missing (HTTP ${r.status}); see tool/muscle_pipeline`);
+    return r.json();
+  }),
   new Promise((res, rej) => loader.load('body.glb', res, e => {
     if (e.total) loadBar.style.width = `${(e.loaded / e.total) * 100}%`;
   }, rej)),

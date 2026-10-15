@@ -25,3 +25,15 @@ final notesForVisitProvider =
           .watch(consultationNoteRepositoryProvider)
           .watchNotesForVisit(visitId),
     );
+
+// ---- Per-patient session history ----
+
+/// A patient's session history: their confirmed scribe notes, newest
+/// first. Updates when a note is confirmed or edited on this device, and
+/// pulls in sessions recorded on the clinic's other devices.
+final sessionHistoryProvider =
+    StreamProvider.family<List<ConsultationNote>, String>(
+      (ref, patientId) => ref
+          .watch(consultationNoteRepositoryProvider)
+          .watchSessionHistory(patientId),
+    );

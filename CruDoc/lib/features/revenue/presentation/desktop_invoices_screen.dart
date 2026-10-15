@@ -1096,7 +1096,7 @@ class _CreateInvoiceDialog extends StatefulWidget {
   )
   onSave;
 
-  const _CreateInvoiceDialog({required this.onSave, super.key});
+  const _CreateInvoiceDialog({required this.onSave});
 
   @override
   State<_CreateInvoiceDialog> createState() => _CreateInvoiceDialogState();
@@ -1389,14 +1389,16 @@ class _CreateInvoiceDialogState extends State<_CreateInvoiceDialog> {
       final patientName = _patientController.text.trim();
       final totalAmount = _calculatedTotal;
       final List<String> servicesList = [];
-      if (_treatments.isNotEmpty)
+      if (_treatments.isNotEmpty) {
         servicesList.add(
           'Treatments: ${_treatments.map((t) => t.name).join(", ")}',
         );
-      if (_medicines.isNotEmpty)
+      }
+      if (_medicines.isNotEmpty) {
         servicesList.add(
           'Medicines: ${_medicines.map((m) => m.name).join(", ")}',
         );
+      }
       final serviceSummary = servicesList.isNotEmpty
           ? servicesList.join(' | ')
           : 'Consultation & Services';
@@ -1484,7 +1486,7 @@ class _CreateInvoiceDialogState extends State<_CreateInvoiceDialog> {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    backgroundColor: primaryBlue.withOpacity(0.08),
+                    backgroundColor: primaryBlue.withValues(alpha: 0.08),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 6,
@@ -1714,7 +1716,7 @@ class _CreateInvoiceDialogState extends State<_CreateInvoiceDialog> {
                                         itemCount: suggestions.length > 5
                                             ? 5
                                             : suggestions.length,
-                                        separatorBuilder: (_, __) =>
+                                        separatorBuilder: (_, _) =>
                                             const Divider(
                                               height: 1,
                                             ),
@@ -2187,7 +2189,7 @@ class _CreateInvoiceDialogState extends State<_CreateInvoiceDialog> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: primaryBlue.withOpacity(0.3)),
+                        border: Border.all(color: primaryBlue.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,

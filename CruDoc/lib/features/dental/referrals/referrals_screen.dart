@@ -80,11 +80,13 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
     final query = _search.text.trim().toLowerCase();
     final filtered = referrals.where((r) {
       if (_tab == _ReferralTab.sent &&
-          (r.direction != ReferralDirection.out || !r.status.isOpen))
+          (r.direction != ReferralDirection.out || !r.status.isOpen)) {
         return false;
+      }
       if (_tab == _ReferralTab.received &&
-          (r.direction != ReferralDirection.inbound || !r.status.isOpen))
+          (r.direction != ReferralDirection.inbound || !r.status.isOpen)) {
         return false;
+      }
       if (_tab == _ReferralTab.completed && r.status.isOpen) return false;
 
       if (query.isNotEmpty) {

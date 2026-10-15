@@ -1,7 +1,6 @@
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/services/access_audit_service.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';

@@ -25,6 +25,14 @@ enum ConsultationNoteStatus {
   }
 }
 
+/// Which specialty's session a note records. Stored as a plain string so
+/// older notes (written before this field existed) read back as [none].
+abstract final class SessionSpecialty {
+  static const none = '';
+  static const homeopathy = 'homeopathy';
+  static const physiotherapy = 'physiotherapy';
+}
+
 /// A medicine mentioned during a consultation, extracted by the AI.
 ///
 /// Stored as JSON inside the `medicines` column/field — same approach
@@ -85,9 +93,28 @@ class NotedMedicine {
 /// [Patient.notes] and [Patient.diagnosis].
 class ConsultationNote {
   final String id;
+
+  /// The clinic (tenant) the note belongs to — the owner's uid for a solo
+  /// practice. Confirmed notes are shared with everyone in the clinic who
+  /// has clinical access, so this is never an individual member's uid.
   final String doctorId;
   final String patientId;
   final String visitId;
+
+  /// [SessionSpecialty] of the session this note records.
+  final String specialty;
+
+  /// The queue token whose consultation was recorded, when the scribe was
+  /// started from the queue.
+  final String? queueEntryId;
+
+  /// Uid of the person who recorded the session.
+  final String authorUid;
+
+  /// When a confirmed note was last changed after the session, and by whom.
+  /// Null for a note that hasn't been edited since it was confirmed.
+  final DateTime? editedAt;
+  final String? editedByUid;
 
   /// Raw transcript text as returned by the model. May be the full
   /// transcript or a summary — depends on audio length and the model's
@@ -136,6 +163,11 @@ class ConsultationNote {
     required this.doctorId,
     required this.patientId,
     required this.visitId,
+    this.specialty = SessionSpecialty.none,
+    this.queueEntryId,
+    this.authorUid = '',
+    this.editedAt,
+    this.editedByUid,
     this.transcript = '',
     this.chiefComplaint = '',
     this.symptoms = const [],
@@ -163,6 +195,11 @@ class ConsultationNote {
       'doctorId': doctorId,
       'patientId': patientId,
       'visitId': visitId,
+      'specialty': specialty,
+      'queueEntryId': queueEntryId,
+      'authorUid': authorUid,
+      'editedAt': editedAt != null ? Timestamp.fromDate(editedAt!) : null,
+      'editedByUid': editedByUid,
       'transcript': transcript,
       'chiefComplaint': chiefComplaint,
       'symptoms': jsonEncode(symptoms),
@@ -195,6 +232,11 @@ class ConsultationNote {
       'doctorId': doctorId,
       'patientId': patientId,
       'visitId': visitId,
+      'specialty': specialty,
+      'queueEntryId': queueEntryId,
+      'authorUid': authorUid,
+      'editedAt': editedAt?.millisecondsSinceEpoch,
+      'editedByUid': editedByUid,
       'transcript': transcript,
       'chiefComplaint': chiefComplaint,
       'symptoms': jsonEncode(symptoms),
@@ -224,6 +266,11 @@ class ConsultationNote {
       doctorId: map['doctorId'] as String? ?? '',
       patientId: map['patientId'] as String? ?? '',
       visitId: map['visitId'] as String? ?? '',
+      specialty: map['specialty'] as String? ?? SessionSpecialty.none,
+      queueEntryId: map['queueEntryId'] as String?,
+      authorUid: map['authorUid'] as String? ?? '',
+      editedAt: _parseNullableDate(map['editedAt']),
+      editedByUid: map['editedByUid'] as String?,
       transcript: map['transcript'] as String? ?? '',
       chiefComplaint: map['chiefComplaint'] as String? ?? '',
       symptoms: _parseStringList(map['symptoms']),
@@ -253,7 +300,16 @@ class ConsultationNote {
     return ConsultationNote.fromMap(data, id: doc.id);
   }
 
+  /// True once a confirmed note has been changed after the session.
+  bool get isEdited => editedAt != null;
+
   ConsultationNote copyWith({
+    String? doctorId,
+    String? specialty,
+    String? queueEntryId,
+    String? authorUid,
+    DateTime? editedAt,
+    String? editedByUid,
     String? transcript,
     String? chiefComplaint,
     List<String>? symptoms,
@@ -273,9 +329,14 @@ class ConsultationNote {
   }) {
     return ConsultationNote(
       id: id,
-      doctorId: doctorId,
+      doctorId: doctorId ?? this.doctorId,
       patientId: patientId,
       visitId: visitId,
+      specialty: specialty ?? this.specialty,
+      queueEntryId: queueEntryId ?? this.queueEntryId,
+      authorUid: authorUid ?? this.authorUid,
+      editedAt: editedAt ?? this.editedAt,
+      editedByUid: editedByUid ?? this.editedByUid,
       transcript: transcript ?? this.transcript,
       chiefComplaint: chiefComplaint ?? this.chiefComplaint,
       symptoms: symptoms ?? this.symptoms,

@@ -50,8 +50,9 @@ class CampaignAudienceHelper {
             .toString()
             .trim()
             .toLowerCase();
-        if (targetGender.isEmpty || targetGender == 'all')
+        if (targetGender.isEmpty || targetGender == 'all') {
           return activePatients;
+        }
 
         return activePatients.where((p) {
           return p.gender.trim().toLowerCase() == targetGender;

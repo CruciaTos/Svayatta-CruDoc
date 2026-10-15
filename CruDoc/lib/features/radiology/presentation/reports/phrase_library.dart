@@ -193,8 +193,9 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
   /// ".sinus": a dot, then letters or digits, no spaces, not taken.
   String? _checkTrigger(String? v) {
     final t = (v ?? '').trim();
-    if (t.length < 2 || !t.startsWith('.'))
+    if (t.length < 2 || !t.startsWith('.')) {
       return 'Start with a dot, like .sinus';
+    }
     if (t.contains(RegExp(r'\s'))) return 'No spaces in a shortcut.';
     final taken = widget.phrases.any(
       (p) =>

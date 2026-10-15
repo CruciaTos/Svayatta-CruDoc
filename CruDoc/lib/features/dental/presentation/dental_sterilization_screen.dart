@@ -176,8 +176,9 @@ class _DentalSterilizationScreenState
                             fontWeight: FontWeight.bold,
                           ),
                           onSelected: (sel) {
-                            if (sel)
+                            if (sel) {
                               setDialogState(() => result = 'incomplete');
+                            }
                           },
                         ),
                       ],

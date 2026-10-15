@@ -381,8 +381,9 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                       onChanged: _status.state.isCapturing
                           ? null
                           : (dev) {
-                              if (dev != null)
+                              if (dev != null) {
                                 setState(() => _selectedDevice = dev);
+                              }
                             },
                     ),
                   ),

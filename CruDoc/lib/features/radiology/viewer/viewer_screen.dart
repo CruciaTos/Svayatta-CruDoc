@@ -638,11 +638,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       await _ctl.saveStudy(next, auditAction: audit, detail: detail);
     } catch (_) {
       _dirty = true;
-      if (mounted)
+      if (mounted) {
         radToast(
           context,
           "Couldn't save the changes. They'll be saved again shortly.",
         );
+      }
       _scheduleSave();
     }
   }
@@ -1443,8 +1444,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         ? s.modality.short
         : 'Compare · ${s.modality.short} · ${RadFormat.date(s.studyDate)}';
     final st = p.stack;
-    if (st != null)
+    if (st != null) {
       return '$prefix · Slice ${p.sliceIndex + 1} of ${st.length}';
+    }
     final slots = _slots(s);
     final i = slots.indexOf(p.imageId);
     final series = _imageRef(p)?.seriesDescription ?? '';

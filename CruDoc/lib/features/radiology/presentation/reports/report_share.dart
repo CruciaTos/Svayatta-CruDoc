@@ -46,8 +46,9 @@ Future<RadReportPdfData> radCollectPdf(
     if (k == null) continue;
     try {
       final f = await rad.fileOf(study, k.pngPath);
-      if (await f.exists())
+      if (await f.exists()) {
         keys.add((caption: k.caption, png: await f.readAsBytes()));
+      }
     } catch (_) {
       // A missing picture is left out of the PDF, not a reason to fail.
     }
@@ -95,8 +96,9 @@ Future<String?> radSavePdfAs(
   );
   if (path == null) return null;
   final f = File(path);
-  if (!await f.exists() || await f.length() == 0)
+  if (!await f.exists() || await f.length() == 0) {
     await f.writeAsBytes(bytes, flush: true);
+  }
   await ref
       .read(radiologyProvider)
       .log(
@@ -152,8 +154,9 @@ String radShareSummary(RadStudy s, RadReport r, {required String signer}) {
   if (r.status == RadReportStatus.preliminary) {
     b.writeln('Preliminary report; the final signed report will follow.');
   }
-  if (s.critical)
+  if (s.critical) {
     b.writeln('Critical finding: please look at this report now.');
+  }
   final imp = r.impression.trim();
   if (imp.isNotEmpty) {
     b
@@ -244,12 +247,13 @@ class _ShareDialogState extends ConsumerState<_ShareDialog> {
             onLayout: (_) async => bytes,
           );
           if (done && _sendable) await widget.onShared('Print');
-          if (done)
+          if (done) {
             _say(
               _sendable
                   ? 'Printed. Recorded as handed over on paper.'
                   : 'Printed.',
             );
+          }
         case _Action.save:
           final path = await radSavePdfAs(ref, widget.study, widget.report);
           if (path != null) {

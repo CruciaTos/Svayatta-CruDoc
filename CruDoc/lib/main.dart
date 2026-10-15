@@ -27,6 +27,7 @@ import 'features/dental/records/dental_photo_cloud_sync.dart';
 import 'features/inventory/data/services/inventory_receipt_sync.dart';
 import 'features/radiology/data/radiology_cloud_sync.dart';
 import 'features/scribe/data/services/scribe_audio_sync.dart';
+import 'features/scribe/presentation/consultation_scribe_launcher.dart';
 import 'core/theme/cru_theme.dart';
 import 'features/settings/data/appearance_provider.dart';
 import 'features/voice/presentation/voice_overlay.dart';
@@ -367,7 +368,11 @@ class MoodyDashboardApp extends ConsumerWidget {
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(systemScale * textSize.scale),
           ),
-          child: VoiceOverlay(child: child ?? const SizedBox.shrink()),
+          child: VoiceOverlay(
+            child: ConsultationScribeLauncher(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         );
       },
     );

@@ -22,6 +22,10 @@ import 'package:doctor_management_app/features/patients/data/providers/patients_
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
+import 'package:doctor_management_app/core/errors/queue_exceptions.dart';
+import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
+import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/features/queue/data/repo/queue_repository.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_view_providers.dart';
 import 'package:doctor_management_app/features/revenue/domain/revenue_models.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
@@ -206,6 +210,8 @@ class VoiceController {
   }
 
   Future<void> onTranscript(VoiceTranscript t) async {
+    // A consultation the scribe is writing down, not a command.
+    if (t.dictation) return;
     if (t.source == 'fast') {
       await _onFastTranscript(t);
     } else {
@@ -313,6 +319,8 @@ class VoiceController {
       case VoiceIntent.deletePatient:
       case VoiceIntent.deleteFile:
         return;
+      case VoiceIntent.startConsultation:
+        await _startConsultationVoice(cmd, t);
       case VoiceIntent.editPatient:
         await _withPatient(cmd, intent, false, t.text);
       case VoiceIntent.addPatient:
@@ -525,6 +533,8 @@ class VoiceController {
         await _deletePatientVoice(cmd, t);
       case VoiceIntent.deleteFile:
         await _deleteFileVoice(cmd, t);
+      case VoiceIntent.startConsultation:
+        await _startConsultationVoice(cmd, t);
       case VoiceIntent.editPatient:
         final opened = await _withPatient(cmd, intent, t.isFinal, t.text);
         if (opened && t.isFinal && cmd.confirmAtEnd) {
@@ -1002,6 +1012,141 @@ class VoiceController {
     }
   }
 
+  // ── Start a consultation ─────────────────────────────────────────────
+
+  /// "Start the session", "start consultation with Rahul", "consulting
+  /// with the patient". Runs the same queue steps as the Start consult
+  /// button, so the scribe opens just as it does from there.
+  Future<void> _startConsultationVoice(
+    VoiceCommand cmd,
+    VoiceTranscript t,
+  ) async {
+    // It calls a patient in: only on the final words.
+    if (!t.isFinal) {
+      understood.value = cmd.name.isEmpty
+          ? 'Start consultation…'
+          : 'Start consultation · ${cmd.name}';
+      return;
+    }
+    _acted = true;
+    if (cmd.name.isNotEmpty) {
+      final m = matchPatient(cmd.name, _patients);
+      if (m.isSure) return _beginConsultation(m.best!);
+      if (m.runnerUp != null) {
+        _askPatient(m.tied.take(4).toList(), _beginConsultation);
+      } else {
+        understood.value = 'No patient called "${cmd.name}"';
+      }
+      return;
+    }
+    // "Start his session": whoever voice was just dealing with.
+    final focus = _focus;
+    if (focus != null && _refersBack(t.text, VoiceIntent.startConsultation)) {
+      return _beginConsultation(focus);
+    }
+    // "Consulting with the patient", "start this session": the patient
+    // open on screen, if one is.
+    final s = t.text.toLowerCase();
+    final detailsId = _ref.read(patientsListControllerProvider).detailsId;
+    final onScreen = detailsId == null ? null : _byId(detailsId);
+    if (onScreen != null &&
+        RegExp(r'\b(the|this|current) patient\b').hasMatch(s)) {
+      return _beginConsultation(onScreen);
+    }
+    // No one named: whoever the queue says is next.
+    await _beginConsultation(null);
+  }
+
+  /// Calls [p]'s token in (checking them in first if they have none today)
+  /// and starts the consultation. With no patient, starts whoever has been
+  /// called in, or calls the next in line.
+  Future<void> _beginConsultation(Patient? p) async {
+    final repo = _ref.read(queueRepositoryProvider);
+    // Physiotherapists run several sessions side by side.
+    final concurrent = _ref.read(isPhysiotherapyProvider);
+    String who(QueueEntry e) =>
+        _byId(e.patientId ?? '')?.fullName ?? e.walkInName ?? 'the patient';
+    try {
+      final today = (await repo.getTodaysQueue())
+          .where((e) => !e.isDeleted)
+          .toList();
+
+      if (p == null) {
+        final called = today
+            .where((e) => e.status == QueueStatus.called)
+            .firstOrNull;
+        if (called != null) {
+          await repo.startConsultation(called.id);
+          _said('Started consultation · ${who(called)}', called);
+          return;
+        }
+        final inSession = today
+            .where((e) => e.status == QueueStatus.inConsultation)
+            .toList();
+        if (inSession.isNotEmpty && !concurrent) {
+          QueueRepository.reannounceConsultation(inSession.first);
+          understood.value = 'In consultation · ${who(inSession.first)}';
+          return;
+        }
+        final next = await repo.callNext(allowConcurrent: concurrent);
+        await repo.startConsultation(next.id);
+        _said('Started consultation · ${who(next)}', next);
+        return;
+      }
+
+      _focus = p;
+      var entry = today
+          .where(
+            (e) =>
+                e.patientId == p.id &&
+                (e.status == QueueStatus.waiting || e.isActiveServing),
+          )
+          .firstOrNull;
+      if (entry == null) {
+        // Booked for today but not in the queue yet: their visit's token.
+        final visits = await _ref.read(todaysVisitsProvider.future);
+        final booked = visits
+            .where(
+              (v) =>
+                  v.patientId == p.id &&
+                  v.visitType == VisitType.clinic &&
+                  v.status == VisitStatus.scheduled,
+            )
+            .firstOrNull;
+        entry = booked != null
+            ? await repo.checkInVisit(booked)
+            : await repo.checkIn(patientId: p.id);
+      }
+      switch (entry.status) {
+        case QueueStatus.inConsultation:
+          QueueRepository.reannounceConsultation(entry);
+          understood.value = 'In consultation · ${p.fullName}';
+          return;
+        case QueueStatus.called:
+          break;
+        default:
+          entry = await repo.callEntry(entry.id, allowConcurrent: concurrent);
+      }
+      await repo.startConsultation(entry.id);
+      _said('Started consultation · ${p.fullName}', entry);
+    } on QueueAlreadyServingException catch (e) {
+      understood.value =
+          'Finish the consultation with ${who(e.activeEntry)} first';
+    } on QueueEmptyException {
+      understood.value = 'Nobody is waiting in the queue';
+    } on QueueException catch (e) {
+      understood.value = e.message;
+    } catch (e) {
+      understood.value = "Couldn't start the consultation: $e";
+    }
+  }
+
+  void _said(String message, QueueEntry entry) {
+    understood.value = message;
+    final p = _byId(entry.patientId ?? '');
+    if (p != null) _focus = p;
+  }
+
   // ── Quick actions: status, payment, note ─────────────────────────────
 
   /// Old status or old notes, for undoing 'status' and 'note'.
@@ -1204,12 +1349,17 @@ class VoiceController {
   bool _adopted = false;
 
   void _adopt(String kind) {
-    _start(switch (kind) {
+    final intent = switch (kind) {
       'addPatient' => VoiceIntent.addPatient,
       'editPatient' => VoiceIntent.editPatient,
       'reschedule' => VoiceIntent.reschedule,
-      _ => VoiceIntent.addAppointment,
-    }, null);
+      'appointment' => VoiceIntent.addAppointment,
+      // The scribe isn't a form voice fills: it writes down the
+      // consultation itself.
+      _ => null,
+    };
+    if (intent == null) return;
+    _start(intent, null);
     _adopted = true;
   }
 
@@ -1488,9 +1638,7 @@ class VoiceController {
     PatientFile? target;
     if (cmd.name.isNotEmpty) {
       final q = cmd.name.toLowerCase();
-      target = docs
-          .where((d) => d.name.toLowerCase().contains(q))
-          .firstOrNull;
+      target = docs.where((d) => d.name.toLowerCase().contains(q)).firstOrNull;
     }
     target ??= docs.first;
     final file = target;
@@ -1650,6 +1798,8 @@ class VoiceController {
       VoiceIntent.cancelAppointment,
       VoiceIntent.deletePatient,
       VoiceIntent.deleteFile,
+      // "Start scribe" starts a consultation, not the Scribe screen.
+      VoiceIntent.startConsultation,
     };
     final result = resolveNavigation(t.text, _visibleTabs(), DateTime.now());
     // Questions first: "when is Rahul's next appointment?" names a patient.
@@ -1979,16 +2129,12 @@ class VoiceController {
       case VoiceQuestion.revenue:
         if (ask.period == null) {
           const periods = ['today', 'week', 'month', 'year'];
-          _ask(
-            'Collected over which period?',
-            const [
-              VoiceChoice('Today', words: ['today', 'daily', 'day']),
-              VoiceChoice('This week', words: ['week', 'weekly']),
-              VoiceChoice('This month', words: ['month', 'monthly']),
-              VoiceChoice('This year', words: ['year', 'yearly', 'annual']),
-            ],
-            (i) => _answer(NavAsk(VoiceQuestion.revenue, period: periods[i])),
-          );
+          _ask('Collected over which period?', const [
+            VoiceChoice('Today', words: ['today', 'daily', 'day']),
+            VoiceChoice('This week', words: ['week', 'weekly']),
+            VoiceChoice('This month', words: ['month', 'monthly']),
+            VoiceChoice('This year', words: ['year', 'yearly', 'annual']),
+          ], (i) => _answer(NavAsk(VoiceQuestion.revenue, period: periods[i])));
           return;
         }
         final period = switch (ask.period) {
@@ -2434,6 +2580,7 @@ class VoiceController {
     VoiceIntent.addNote => 'Add note',
     VoiceIntent.deletePatient => 'Delete patient',
     VoiceIntent.deleteFile => 'Delete file',
+    VoiceIntent.startConsultation => 'Start consultation',
     _ => '',
   };
 

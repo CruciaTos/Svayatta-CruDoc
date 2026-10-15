@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
-import 'package:doctor_management_app/features/dental/data/models/dental_procedure_catalog_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/data/repositories/dental_repository.dart';

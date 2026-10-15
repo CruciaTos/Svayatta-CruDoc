@@ -726,8 +726,9 @@ class _OverlayPainter extends CustomPainter {
       _paintAiFindings(canvas, size);
     }
     final mm = mmPerPx;
-    if (mm != null && pane.zoom > 0)
+    if (mm != null && pane.zoom > 0) {
       radPaintScaleBar(canvas, size, mm / pane.zoom);
+    }
     canvas.restore();
   }
 

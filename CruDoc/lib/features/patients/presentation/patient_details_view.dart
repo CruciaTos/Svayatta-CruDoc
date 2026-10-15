@@ -27,6 +27,8 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/medical_history_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/payments_block.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/session_history_card.dart';
+import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
@@ -206,6 +208,13 @@ class _DetailsBody extends ConsumerWidget {
     final noPlan = isDentist && !planLoading && items.isEmpty
         ? NoPlanCard(patient: p)
         : null;
+    // Consultations recorded with the AI scribe; hidden until there is one.
+    final sessions = clinical
+        ? ref.watch(sessionHistoryProvider(s.id)).value
+        : null;
+    final sessionHistory = sessions == null || sessions.isEmpty
+        ? null
+        : SessionHistoryCard(patient: p, sessions: sessions);
     final visits = VisitsCard(
       summary: s,
       now: now,
@@ -274,6 +283,7 @@ class _DetailsBody extends ConsumerWidget {
                       child: _Stack([
                         ?imaging,
                         ?chart,
+                        ?sessionHistory,
                         ?muscleChart,
                         ?noPlan,
                         planOrPayments,
@@ -298,6 +308,7 @@ class _DetailsBody extends ConsumerWidget {
                 _Stack([
                   ?imaging,
                   ?chart,
+                  ?sessionHistory,
                   ?muscleChart,
                   ?noPlan,
                   planOrPayments,

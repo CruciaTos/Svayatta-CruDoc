@@ -135,8 +135,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     if (dob == null) return null;
     final now = DateTime.now();
     var y = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day))
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
       y--;
+    }
     return y;
   }
 
@@ -259,8 +260,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       );
       _persisted = true;
       _savedAt = DateTime.now();
-      if (mounted)
+      if (mounted) {
         setState(() => _state = _dirty ? _SaveState.pending : _SaveState.saved);
+      }
     } catch (_) {
       _dirty = true;
       if (mounted) setState(() => _state = _SaveState.failed);
@@ -287,8 +289,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
   String _me() {
     final s = ref.read(radSettingsProvider).value;
-    if (s != null && s.signatureName.trim().isNotEmpty)
+    if (s != null && s.signatureName.trim().isNotEmpty) {
       return s.signatureName.trim();
+    }
     return ref.read(doctorIdentityProvider).fullName ?? '';
   }
 
@@ -591,11 +594,12 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           studyAsync.hasValue &&
           reportsAsync.hasValue &&
           (templatesAsync.hasValue || templatesAsync.hasError);
-      if (!ready)
+      if (!ready) {
         return _shell(
           c,
           Text('Opening the report…', style: CruType.subhead.tint(c.label3)),
         );
+      }
       if (study == null) {
         return _shell(
           c,

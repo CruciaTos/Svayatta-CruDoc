@@ -41,9 +41,12 @@ from pathlib import Path
 from urllib.parse import unquote
 
 PORT = 8765
+# Every mode uses large-v3-turbo: one model on disk and in GPU memory, and
+# the accurate model's words even for live partials. "fast" still decodes
+# with beam size 1, so live words stay quick.
 MODELS = {
-    "fast": ("base.en", "float16"),
-    "short": ("small.en", "float16"),
+    "fast": ("large-v3-turbo", "int8_float16"),
+    "short": ("large-v3-turbo", "int8_float16"),
     "accurate": ("large-v3-turbo", "int8_float16"),
 }
 
@@ -77,14 +80,19 @@ def _path(name):
 def _load():
     try:
         loaded = {}
-        for key, (name, compute) in MODELS.items():
-            m = WhisperModel(_path(name), device="cuda", compute_type=compute)
-            list(m.transcribe(np.zeros(16000, dtype=np.float32), language="en")[0])
-            loaded[key] = m
+        # Modes that share a model share one loaded copy.
+        by_model = {}
+        for key, spec in MODELS.items():
+            if spec not in by_model:
+                name, compute = spec
+                m = WhisperModel(_path(name), device="cuda", compute_type=compute)
+                list(m.transcribe(np.zeros(16000, dtype=np.float32), language="en")[0])
+                by_model[spec] = m
+            loaded[key] = by_model[spec]
         return loaded, "cuda"
     except Exception as e:  # no GPU / CUDA libs: slower, still works
         print(f"GPU unavailable ({e}); using CPU", flush=True)
-        m = WhisperModel(_path("small.en"), device="cpu", compute_type="int8")
+        m = WhisperModel(_path("large-v3-turbo"), device="cpu", compute_type="int8")
         return {key: m for key in MODELS}, "cpu"
 
 
@@ -142,18 +150,51 @@ locks = {key: threading.Lock() for key in models}
 print(f"Voice server ready on :{PORT} ({device})", flush=True)
 
 
-def transcribe(pcm: bytes, hints: str, which: str) -> str:
+# VOICE_DEBUG=1: print every transcription (length, loudness, result).
+# Off by default: it would put what patients say in the console.
+DEBUG = os.environ.get("VOICE_DEBUG") == "1"
+
+# Quieter than this (RMS of the whole clip) is room noise, not speech:
+# Whisper turns it into "Thank you." or repeats the prompt back.
+SILENCE_RMS = 0.004
+
+
+def _echoes_prompt(text: str, prompt: str) -> bool:
+    """Whisper sometimes "hears" its own prompt in near-silence."""
+    t = "".join(c for c in text.lower() if c.isalnum() or c == " ").strip()
+    p = "".join(c for c in prompt.lower() if c.isalnum() or c == " ")
+    return len(t) > 8 and t in p
+
+
+def transcribe(
+    pcm: bytes, hints: str, which: str, mode: str = "", context: str = ""
+) -> str:
     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    if audio.size == 0 or float(np.sqrt(np.mean(audio * audio))) < SILENCE_RMS:
+        return ""
     which = which if which in models else "accurate"
-    # The command words steer spelling ("Add appointment", not "At
-    # appointment"); naming the patients gets Indian names right. Names go
-    # last: Whisper keeps the end of a long prompt.
-    prompt = (
-        "Doctor's voice commands in a clinic app: add patient, book an "
-        "appointment, reschedule, move, open, go to schedule, confirm, "
-        "cancel. Date of birth, mobile, email, allergic to."
-        + (f" Patients: {hints}." if hints else "")
-    )
+    names = f" Patients: {hints}." if hints else ""
+    if mode == "dictation":
+        # A consultation being written down: clinical words, and the end of
+        # what was said before, so names and terms stay spelled the same.
+        prompt = (
+            "A doctor's consultation with a patient: complaints, pain score, "
+            "duration, history, examination, range of motion, diagnosis, "
+            "advice, exercises, remedy, potency, follow-up."
+            + names
+            + (f" {context[-300:]}" if context else "")
+        )
+    else:
+        # The command words steer spelling ("Add appointment", not "At
+        # appointment"); naming the patients gets Indian names right.
+        # Names go last: Whisper keeps the end of a long prompt.
+        prompt = (
+            "Doctor's voice commands in a clinic app: add patient, book an "
+            "appointment, reschedule, move, open, go to schedule, confirm, "
+            "cancel, start session, start consultation, call next patient, "
+            "mark done, paid. Date of birth, mobile, email, allergic to."
+            + names
+        )
     with locks[which]:
         segments, _ = models[which].transcribe(
             audio,
@@ -164,7 +205,14 @@ def transcribe(pcm: bytes, hints: str, which: str) -> str:
             without_timestamps=True,
             vad_filter=False,
         )
-        return " ".join(s.text.strip() for s in segments).strip()
+        # Drop what Whisper itself thinks wasn't speech.
+        kept = [
+            s.text.strip()
+            for s in segments
+            if not (s.no_speech_prob > 0.6 and s.avg_logprob < -0.8)
+        ]
+    text = " ".join(t for t in kept if t).strip()
+    return "" if _echoes_prompt(text, prompt) else text
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -202,13 +250,29 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
+        if not self.path.startswith("/transcribe"):
+            self._error(404, f"no such endpoint: {self.path}")
+            return
+
         # ── Fast path: Whisper transcription ─────────────────────────────────
         pcm = body
         hints = unquote(self.headers.get("X-Hints", ""))
         which = self.headers.get("X-Model", "accurate")
+        mode = self.headers.get("X-Mode", "")
+        context = unquote(self.headers.get("X-Context", ""))
         t0 = time.perf_counter()
-        text = transcribe(pcm, hints, which) if pcm else ""
-        self._json({"text": text, "ms": int((time.perf_counter() - t0) * 1000)})
+        text = transcribe(pcm, hints, which, mode, context) if pcm else ""
+        ms = int((time.perf_counter() - t0) * 1000)
+        if DEBUG:
+            audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+            rms = float(np.sqrt(np.mean(audio * audio))) if audio.size else 0.0
+            peak = float(np.abs(audio).max()) if audio.size else 0.0
+            print(
+                f"[{which:8} {mode or 'command':9}] {audio.size / 16000:5.1f}s "
+                f"rms={rms:.4f} peak={peak:.3f} {ms:4}ms -> {text!r}",
+                flush=True,
+            )
+        self._json({"text": text, "ms": ms})
 
     def log_message(self, *args):
         pass

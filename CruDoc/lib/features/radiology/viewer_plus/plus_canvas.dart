@@ -48,8 +48,9 @@ String plusImageLabel(RadStudy s, String imageId) {
   for (var i = 0; i < s.images.length; i++) {
     final ref = s.images[i];
     if (ref.id != imageId) continue;
-    if (ref.seriesDescription.trim().isNotEmpty)
+    if (ref.seriesDescription.trim().isNotEmpty) {
       return ref.seriesDescription.trim();
+    }
     return s.images.length == 1 ? s.modality.label : 'Image ${i + 1}';
   }
   return 'Image';
@@ -63,10 +64,12 @@ Future<RadPixels> plusLoadPixels(
   String imageId,
 ) async {
   final ref = plusImageRef(s, imageId);
-  if (ref == null)
+  if (ref == null) {
     throw RadUnsupportedImage('This image is no longer in the study');
-  if (ref.compressed)
+  }
+  if (ref.compressed) {
     throw RadUnsupportedImage("This image format isn't supported yet");
+  }
   return loadRadPixels(await rad.fileOf(s, ref.path), ref.kind);
 }
 

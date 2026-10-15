@@ -151,13 +151,15 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
 
   void _applyPrefs(Map<String, dynamic> v) {
     final left = v['plus.ceph.left'], right = v['plus.ceph.right'];
-    if (left is num)
+    if (left is num) {
       _leftWidth = left.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
-    if (right is num)
+    }
+    if (right is num) {
       _rightWidth = right.toDouble().clamp(
         PlusSize.panelMin,
         PlusSize.panelMax,
       );
+    }
     final analysis = v['plus.ceph.analysis'];
     if (analysis is String) _analysis = cephAnalysis(analysis).key;
     if (v['plus.ceph.planes'] is bool) _planes = v['plus.ceph.planes'] as bool;
@@ -478,11 +480,12 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
       // Millimetre values can be worked out now: refresh the saved ones.
       _dirty = true;
       unawaited(_write(_saveNow));
-      if (mounted)
+      if (mounted) {
         radToast(
           context,
           'Scale set: ${(mm / px).toStringAsFixed(3)} mm per pixel',
         );
+      }
     } catch (_) {
       if (mounted) radToast(context, "Couldn't save the scale");
     }

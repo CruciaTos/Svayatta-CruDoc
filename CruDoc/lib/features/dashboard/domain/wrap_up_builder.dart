@@ -51,8 +51,9 @@ WrapUpData buildWrapUp({
   final byId = {for (final p in patients) p.id: p};
   final draftPatientIds = <String>{};
   for (final n in notes) {
-    if (n.status == ConsultationNoteStatus.draft)
+    if (n.status == ConsultationNoteStatus.draft) {
       draftPatientIds.add(n.patientId);
+    }
   }
   final draftNames = [
     for (final id in draftPatientIds)

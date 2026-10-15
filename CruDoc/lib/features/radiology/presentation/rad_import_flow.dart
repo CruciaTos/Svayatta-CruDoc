@@ -100,8 +100,9 @@ class _SourceDialog extends StatelessWidget {
       dialogTitle: 'Pick scans (DICOM, JPG, PNG, TIFF or ZIP)',
     );
     final paths = r?.files.map((f) => f.path).whereType<String>().toList();
-    if (paths != null && paths.isNotEmpty && context.mounted)
+    if (paths != null && paths.isNotEmpty && context.mounted) {
       Navigator.of(context).pop(paths);
+    }
   }
 
   Future<void> _folder(BuildContext context) async {
@@ -373,8 +374,9 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
               .toLowerCase()
               .replaceAll('dr. ', '')
               .replaceAll('dr ', '');
-          if (n.isNotEmpty && (fromScan.contains(n) || n.contains(fromScan)))
+          if (n.isNotEmpty && (fromScan.contains(n) || n.contains(fromScan))) {
             _referrer = r;
+          }
         }
       }
     }

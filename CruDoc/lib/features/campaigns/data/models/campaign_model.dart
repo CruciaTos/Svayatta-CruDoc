@@ -58,8 +58,9 @@ class CampaignModel {
   double get successRate {
     final totalAttempts = totalSent + totalFailed;
     if (totalAttempts == 0) {
-      if (totalRecipients > 0 && status == CampaignStatus.completed)
+      if (totalRecipients > 0 && status == CampaignStatus.completed) {
         return 100.0;
+      }
       return 0.0;
     }
     return (totalSent / totalAttempts) * 100.0;

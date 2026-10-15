@@ -111,8 +111,9 @@ TextEditingValue radInsertPhrase(
 TextSelection? radNextBlank(TextEditingValue v) {
   final from = v.selection.isValid ? v.selection.end : 0;
   for (final m in RegExp('_{2,}').allMatches(v.text)) {
-    if (m.start >= from)
+    if (m.start >= from) {
       return TextSelection(baseOffset: m.start, extentOffset: m.end);
+    }
   }
   return null;
 }

@@ -2,18 +2,20 @@
 
 Local Whisper speech-to-text for the CruDoc voice scribe. Runs on `127.0.0.1:8765`; nothing leaves the machine.
 
-| Mode | Model | Used for |
+Every mode runs on one model, `large-v3-turbo` (INT8_FP16 on GPU, INT8 on CPU), loaded once:
+
+| Mode | Decoding | Used for |
 |---|---|---|
-| `fast` | `base.en` (FP16, ~60 ms) | Live words while the talk key is held |
-| `short` | `small.en` (FP16 GPU / INT8 CPU, ~140 ms) | Short utterances (< 2.5 s); also the CPU fallback |
-| `accurate` | `large-v3-turbo` (INT8_FP16) | Final clinical transcription pass |
+| `fast` | beam 1 | Live words while the talk key is held |
+| `short` | beam 3 | Short utterances (< 2.5 s) |
+| `accurate` | beam 3 | Final clinical transcription pass |
 
 ## 1. Requirements
 
 - Windows 10/11, Python 3.10–3.12
 - **GPU (recommended):** NVIDIA GPU with a recent driver (CUDA 12 capable). The CUDA/cuDNN libraries come from pip — no CUDA Toolkit install needed.
-- **No GPU:** still works — the server falls back to `small.en` on CPU (slower).
-- ~2.5 GB free disk for models.
+- **No GPU:** still works — the server runs `large-v3-turbo` on CPU (much slower).
+- ~1.7 GB free disk for models.
 
 ## 2. Install
 
@@ -31,16 +33,12 @@ py -3.12 -m venv .venv
 .venv\Scripts\python download_models.py
 ```
 
-This saves the three Whisper models into `tool/voice_server/models/` (git-ignored) and caches the
+This saves `large-v3-turbo` into `tool/voice_server/models/` (git-ignored) and caches the
 `all-MiniLM-L6-v2` embedding model used by `/intent`. After this, the server runs fully offline.
 
-Sources (Hugging Face):
-
-- `Systran/faster-whisper-base.en`
-- `Systran/faster-whisper-small.en`
-- `mobiuslabsgmbh/faster-whisper-large-v3-turbo` (the repo faster-whisper itself uses for `large-v3-turbo`)
-
-Download just one: `.venv\Scripts\python download_models.py small.en`
+Source (Hugging Face): `mobiuslabsgmbh/faster-whisper-large-v3-turbo` (the repo faster-whisper
+itself uses for `large-v3-turbo`). `base.en` and `small.en` can still be fetched by name
+(`download_models.py small.en`) if `MODELS` in `server.py` is pointed back at them.
 
 > Skipping this step is fine too — `server.py` downloads anything missing on first start.
 

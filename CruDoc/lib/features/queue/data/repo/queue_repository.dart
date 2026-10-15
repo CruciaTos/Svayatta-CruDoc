@@ -38,6 +38,15 @@ class QueueRepository {
   final PatientRepository _patientRepository;
   final VisitLocalService _visitLocalService;
 
+  static final StreamController<QueueEntry> _consultationStarts =
+      StreamController<QueueEntry>.broadcast();
+
+  /// Consultations started on this device, as they start — never ones
+  /// started elsewhere and synced in. The AI scribe listens to this to open
+  /// as soon as the doctor begins seeing a patient.
+  static Stream<QueueEntry> get consultationStarts =>
+      _consultationStarts.stream;
+
   /// The signed-in doctor's UID — see PatientRepository for why this
   /// matters and what it guards against.
   String get _currentDoctorId {
@@ -106,7 +115,8 @@ class QueueRepository {
     final now = DateTime.now();
     final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
-    final attending = (attendingDoctorUid != null && attendingDoctorUid.trim().isNotEmpty)
+    final attending =
+        (attendingDoctorUid != null && attendingDoctorUid.trim().isNotEmpty)
         ? attendingDoctorUid.trim()
         : (isDoctor ? currentAuthUid : '');
     final creator = (createdByUid != null && createdByUid.trim().isNotEmpty)
@@ -187,6 +197,50 @@ class QueueRepository {
     return next.copyWith(status: QueueStatus.called, calledAt: calledAt);
   }
 
+  /// Calls one particular waiting token, out of call order — the doctor
+  /// asked for this patient by name. A pre-booked token whose slot hasn't
+  /// come yet counts as arrived.
+  ///
+  /// Throws [QueueAlreadyServingException] like [callNext], and
+  /// [QueueInvalidTransitionException] if [entryId] isn't waiting.
+  Future<QueueEntry> callEntry(
+    String entryId, {
+    bool allowConcurrent = false,
+  }) async {
+    final entry = await _requireEntry(entryId);
+    if (entry.status != QueueStatus.waiting) {
+      throw QueueInvalidTransitionException(entry, QueueStatus.called);
+    }
+    if (!allowConcurrent) {
+      final today = await _localService.getTodaysQueue();
+      final active = today.where((e) => e.isActiveServing && e.id != entryId);
+      if (active.isNotEmpty) throw QueueAlreadyServingException(active.first);
+    }
+    final now = DateTime.now();
+    await _updateStatus(
+      entry,
+      QueueStatus.called,
+      extra: {
+        'calledAt': now,
+        if (entry.checkedInAt.isAfter(now)) 'checkedInAt': now,
+      },
+    );
+    unawaited(_syncService.triggerPostWriteSync());
+    return entry.copyWith(status: QueueStatus.called, calledAt: now);
+  }
+
+  /// Today's tokens, every status.
+  Future<List<QueueEntry>> getTodaysQueue() => _localService.getTodaysQueue();
+
+  /// Announces a consultation that is already under way on
+  /// [consultationStarts] again, so the scribe opens for it — "start the
+  /// session" said after it was started by hand.
+  static void reannounceConsultation(QueueEntry entry) {
+    if (entry.status == QueueStatus.inConsultation) {
+      _consultationStarts.add(entry);
+    }
+  }
+
   /// Marks a pre-booked token as arrived: its check-in time moves from the
   /// appointment slot to now, so it joins the waiting line (and can be
   /// called) before its slot. No-op once the slot has passed.
@@ -209,7 +263,13 @@ class QueueRepository {
   ///
   /// Throws [QueueInvalidTransitionException] if [entryId] isn't
   /// currently [QueueStatus.called].
-  Future<QueueEntry> startConsultation(String entryId) async {
+  ///
+  /// Announced on [consultationStarts] unless [announce] is false (seeding
+  /// demo data, where nobody is actually being seen).
+  Future<QueueEntry> startConsultation(
+    String entryId, {
+    bool announce = true,
+  }) async {
     final entry = await _requireEntry(entryId);
     if (entry.status != QueueStatus.called) {
       throw QueueInvalidTransitionException(entry, QueueStatus.inConsultation);
@@ -221,10 +281,12 @@ class QueueRepository {
       extra: {'consultationStartedAt': startedAt},
     );
     unawaited(_syncService.triggerPostWriteSync());
-    return entry.copyWith(
+    final started = entry.copyWith(
       status: QueueStatus.inConsultation,
       consultationStartedAt: startedAt,
     );
+    if (announce) _consultationStarts.add(started);
+    return started;
   }
 
   /// Marks a token [QueueStatus.completed] — the visit is done.

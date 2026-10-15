@@ -163,8 +163,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     try {
       final settings = await ref.read(radSettingsProvider.future);
       final w = settings.viewer['plus.sub.panel'];
-      if (w is num)
+      if (w is num) {
         _panelWidth = w.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
+      }
     } catch (_) {
       // Preferences are a convenience; the defaults work.
     }
@@ -486,8 +487,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
   // ───────────────────────────── Input ─────────────────────────────
 
   bool _down(Offset p) {
-    if (_a?.image == null || _b?.image == null || _mode == _Mode.a)
+    if (_a?.image == null || _b?.image == null || _mode == _Mode.a) {
       return false;
+    }
     _moveFrom = p;
     return true;
   }
@@ -553,8 +555,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
     if (e is KeyUpEvent) return KeyEventResult.ignored;
     final kb = HardwareKeyboard.instance;
-    if (kb.isControlPressed || kb.isMetaPressed || kb.isAltPressed)
+    if (kb.isControlPressed || kb.isMetaPressed || kb.isAltPressed) {
       return KeyEventResult.ignored;
+    }
     final k = e.logicalKey;
     final step = kb.isShiftPressed ? 10.0 : 1.0;
     final nudge = switch (k) {

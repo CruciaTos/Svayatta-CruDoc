@@ -124,7 +124,7 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
                             ? email
                             : 'Not Connected',
                         loading: () => 'Checking connection...',
-                        error: (_, __) => 'Not Connected',
+                        error: (_, _) => 'Not Connected',
                       ),
                       style: TextStyle(
                         fontSize: 12.5,
@@ -133,7 +133,7 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
                               ? const Color(0xFF0D9488)
                               : const Color(0xFF64748B),
                           loading: () => const Color(0xFF64748B),
-                          error: (_, __) => const Color(0xFF64748B),
+                          error: (_, _) => const Color(0xFF64748B),
                         ),
                         fontWeight: FontWeight.w500,
                       ),
@@ -154,7 +154,7 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                error: (_, __) => _buildStatusBadge(false),
+                error: (_, _) => _buildStatusBadge(false),
               ),
             ],
           ),
@@ -176,7 +176,7 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
               return _buildActionButton(isConnected);
             },
             loading: () => const SizedBox.shrink(),
-            error: (_, __) => _buildActionButton(false),
+            error: (_, _) => _buildActionButton(false),
           ),
         ],
       ),

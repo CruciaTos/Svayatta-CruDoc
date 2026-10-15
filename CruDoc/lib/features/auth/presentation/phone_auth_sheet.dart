@@ -22,7 +22,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
 
-  String _countryCode = '+91';
+  final String _countryCode = '+91';
   String? _verificationId;
   int? _resendToken;
   bool _isLoading = false;
@@ -167,7 +167,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -190,7 +190,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 13,
                   ),
                 ),
@@ -207,7 +207,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                           vertical: 13,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -240,11 +240,11 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                             hintText: 'Phone number',
                             hintStyle: TextStyle(
                               fontFamily: AppColors.bodyFontFamily,
-                              color: Colors.white.withOpacity(0.4),
+                              color: Colors.white.withValues(alpha: 0.4),
                               fontSize: 13,
                             ),
                             filled: true,
-                            fillColor: Colors.white.withOpacity(0.12),
+                            fillColor: Colors.white.withValues(alpha: 0.12),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
@@ -279,12 +279,12 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                       hintText: '• • • • • •',
                       hintStyle: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         fontSize: 24,
                         letterSpacing: 12,
                       ),
                       filled: true,
-                      fillColor: Colors.white.withOpacity(0.12),
+                      fillColor: Colors.white.withValues(alpha: 0.12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none,
@@ -308,8 +308,8 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         color: _resendCountdown > 0
-                            ? Colors.white.withOpacity(0.4)
-                            : Colors.white.withOpacity(0.9),
+                            ? Colors.white.withValues(alpha: 0.4)
+                            : Colors.white.withValues(alpha: 0.9),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -346,7 +346,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                         : _sendOTP,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.white.withOpacity(0.5),
+                      disabledBackgroundColor: Colors.white.withValues(alpha: 0.5),
                       foregroundColor: const Color(0xFF087DFF),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -389,11 +389,11 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                       'Change phone number',
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         decoration: TextDecoration.underline,
-                        decorationColor: Colors.white.withOpacity(0.5),
+                        decorationColor: Colors.white.withValues(alpha: 0.5),
                       ),
                     ),
                   ),

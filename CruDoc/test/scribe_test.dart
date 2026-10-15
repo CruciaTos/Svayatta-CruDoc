@@ -139,6 +139,55 @@ void main() {
     });
   });
 
+  group('Session history fields', () {
+    final session = _note(chiefComplaint: 'Migraine').copyWith(
+      specialty: SessionSpecialty.homeopathy,
+      queueEntryId: 'q7',
+      authorUid: 'doc-2',
+      editedAt: DateTime(2026, 10, 1, 9),
+      editedByUid: 'doc-3',
+    );
+
+    void expectSessionFields(ConsultationNote n) {
+      expect(n.specialty, SessionSpecialty.homeopathy);
+      expect(n.queueEntryId, 'q7');
+      expect(n.authorUid, 'doc-2');
+      expect(n.editedAt, DateTime(2026, 10, 1, 9));
+      expect(n.editedByUid, 'doc-3');
+      expect(n.isEdited, isTrue);
+    }
+
+    test('survive the local storage round trip', () {
+      expectSessionFields(
+        ConsultationNote.fromMap(session.toLocalMap(), id: 'n1'),
+      );
+    });
+
+    test('survive the Firestore round trip', () {
+      expectSessionFields(ConsultationNote.fromMap(session.toMap(), id: 'n1'));
+    });
+
+    test('older notes without them read back as a plain, unedited note', () {
+      final legacy = _note().toLocalMap()
+        ..remove('specialty')
+        ..remove('queueEntryId')
+        ..remove('authorUid')
+        ..remove('editedAt')
+        ..remove('editedByUid');
+      final n = ConsultationNote.fromMap(legacy, id: 'n1');
+      expect(n.specialty, SessionSpecialty.none);
+      expect(n.queueEntryId, isNull);
+      expect(n.authorUid, '');
+      expect(n.isEdited, isFalse);
+    });
+
+    test('the review form keeps them when the doctor edits the note', () {
+      final form = ScribeDraftFormController(session);
+      addTearDown(form.dispose);
+      expectSessionFields(form.toNote());
+    });
+  });
+
   group('ConsultationNoteRepository helpers', () {
     test('mergeDiagnoses dedupes case-insensitively', () {
       final result = ConsultationNoteRepository.mergeDiagnoses(

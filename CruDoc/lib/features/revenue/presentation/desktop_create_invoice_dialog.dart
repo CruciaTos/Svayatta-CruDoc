@@ -166,8 +166,9 @@ class _DesktopCreateInvoiceDialogState
     final t = widget.initialTreatmentName;
     if (t != null) _treatmentNameController.text = t;
     final price = widget.initialTreatmentPrice;
-    if (price != null)
+    if (price != null) {
       _treatmentPriceController.text = price.toStringAsFixed(0);
+    }
     final n = widget.initialNotes;
     if (n != null) _clinicalNotesController.text = n;
   }

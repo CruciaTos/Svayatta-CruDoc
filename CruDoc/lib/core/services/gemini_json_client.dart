@@ -7,9 +7,9 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-/// Sends audio (plus a prompt) to Gemini and returns the model's JSON reply,
-/// constrained by a response [Schema]. Shared by the AI Scribe and voice
-/// form filling.
+/// Sends a prompt (with optional audio) to Gemini and returns the model's
+/// JSON reply, constrained by a response [Schema]. Shared by the AI Scribe
+/// and voice form filling.
 ///
 /// Two transports:
 /// - **Direct REST** when an API key is available via constructor,
@@ -125,10 +125,12 @@ class GeminiJsonClient {
   /// Returns the decoded JSON object. Throws [FormatException] for an empty
   /// or non-JSON reply, [GeminiHttpException] for a REST error status, and
   /// passes through Firebase AI, timeout and network exceptions.
+  ///
+  /// Without [audioBytes] the request is the [prompt] text alone.
   Future<Map<String, dynamic>> generateJson({
     required String systemPrompt,
     required String prompt,
-    required Uint8List audioBytes,
+    Uint8List? audioBytes,
     required Schema schema,
     String mimeType = 'audio/mp4',
     int maxOutputTokens = 8192,
@@ -171,7 +173,7 @@ class GeminiJsonClient {
     String model,
     String systemPrompt,
     String prompt,
-    Uint8List audioBytes,
+    Uint8List? audioBytes,
     String mimeType,
     Schema schema,
     int maxOutputTokens,
@@ -191,7 +193,7 @@ class GeminiJsonClient {
         .generateContent([
           Content.multi([
             TextPart(prompt),
-            InlineDataPart(mimeType, audioBytes),
+            if (audioBytes != null) InlineDataPart(mimeType, audioBytes),
           ]),
         ])
         .timeout(timeout);
@@ -202,7 +204,7 @@ class GeminiJsonClient {
     String model,
     String systemPrompt,
     String prompt,
-    Uint8List audioBytes,
+    Uint8List? audioBytes,
     String mimeType,
     Schema schema,
     int maxOutputTokens,
@@ -236,12 +238,13 @@ class GeminiJsonClient {
                   'role': 'user',
                   'parts': [
                     {'text': prompt},
-                    {
-                      'inlineData': {
-                        'mimeType': mimeType,
-                        'data': base64Encode(audioBytes),
+                    if (audioBytes != null)
+                      {
+                        'inlineData': {
+                          'mimeType': mimeType,
+                          'data': base64Encode(audioBytes),
+                        },
                       },
-                    },
                   ],
                 },
               ],

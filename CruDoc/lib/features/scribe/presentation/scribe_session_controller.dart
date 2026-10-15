@@ -11,9 +11,6 @@ import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
-import 'package:doctor_management_app/features/scribe/data/services/scribe_audio_sync.dart';
-import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
-import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:doctor_management_app/features/voice/services/speech_engine.dart';
@@ -25,22 +22,25 @@ enum ScribeSessionPhase {
   recording,
   paused,
 
-  /// Audio is with the AI.
+  /// The session notes are being written.
   processing,
 
-  /// Processing failed; the recording is kept so the doctor can retry.
+  /// Writing the notes failed; the conversation is kept so the doctor can
+  /// retry or save the transcript.
   failed,
 
-  /// [ScribeSessionController.draft] is ready for review.
+  /// [ScribeSessionController.note] has been saved to the patient's record.
   done,
 }
 
-/// Recording → processing state machine shared by the mobile sheet and the
-/// desktop scribe screen, so both behave identically and only differ in
-/// layout.
+/// Listens to a consultation and turns it into a session note. Shared by
+/// the mobile sheet and the desktop scribe screen, so both behave
+/// identically and only differ in layout.
 ///
-/// Nothing here touches the patient record: a successful run only saves a
-/// local draft and exposes it via [draft] for the review UI.
+/// While the doctor and the patient talk, the conversation is transcribed
+/// on the device ([transcript]). Finishing hands that transcript to
+/// [ScribeProcessingService] to write the session notes, which are saved
+/// straight into the patient's session history ([note]).
 class ScribeSessionController extends ChangeNotifier {
   ScribeSessionController({
     required this.visit,
@@ -56,8 +56,9 @@ class ScribeSessionController extends ChangeNotifier {
   /// Number of bars the live waveform shows.
   static const levelCount = 48;
 
-  /// Mono 16 kHz AAC at a speech bitrate (~4 KB/s): plenty for transcription
-  /// and keeps long consultations under the inline upload limit.
+  /// Mono 16 kHz AAC at a speech bitrate. The recording only drives the
+  /// level meter and the silence check; it is deleted as soon as recording
+  /// stops and never leaves the device.
   static const recordConfig = RecordConfig(
     encoder: AudioEncoder.aacLc,
     bitRate: 32000,
@@ -73,7 +74,7 @@ class ScribeSessionController extends ChangeNotifier {
 
   final Visit visit;
 
-  /// [SessionSpecialty] stamped on every note this session produces.
+  /// [SessionSpecialty] stamped on the note this session produces.
   final String specialty;
 
   /// The queue token being seen, when the session was started from the queue.
@@ -82,6 +83,9 @@ class ScribeSessionController extends ChangeNotifier {
   final ScribeProcessingService _processingService;
   final ConsultationNoteRepository _repository;
   final AudioRecorder _recorder;
+
+  /// One note per session, so a retry never saves a second copy.
+  final String _noteId = const Uuid().v4();
 
   ScribeSessionPhase _phase = ScribeSessionPhase.ready;
   ScribeSessionPhase get phase => _phase;
@@ -97,16 +101,19 @@ class ScribeSessionController extends ChangeNotifier {
   ScribeFailureKind? _failureKind;
   bool get canRetry =>
       _phase == ScribeSessionPhase.failed &&
-      _audioPath != null &&
+      transcript.value.trim().isNotEmpty &&
       (_failureKind?.isRetryable ?? false);
 
-  ConsultationNote? _draft;
-  ConsultationNote? get draft => _draft;
+  /// Notes couldn't be written, but there is a transcript worth keeping.
+  bool get canSaveTranscript =>
+      _phase == ScribeSessionPhase.failed &&
+      transcript.value.trim().isNotEmpty;
 
-  ConsultationNote? _pendingDraft;
+  ConsultationNote? _note;
 
-  /// An unreviewed draft saved earlier for this visit, if any.
-  ConsultationNote? get pendingDraft => _pendingDraft;
+  /// The session note, once it has been written and saved to the patient's
+  /// record.
+  ConsultationNote? get note => _note;
 
   /// Elapsed recording time (excludes pauses). Separate notifier so the
   /// timer can tick without rebuilding the whole screen.
@@ -120,33 +127,22 @@ class ScribeSessionController extends ChangeNotifier {
   /// Seconds spent processing so far — drives the progress copy.
   final ValueNotifier<int> processingSeconds = ValueNotifier(0);
 
+  /// The conversation as heard so far: the sentences transcribed in full,
+  /// then the one being spoken.
+  final ValueNotifier<String> transcript = ValueNotifier('');
+
   bool get isBusy =>
       _phase == ScribeSessionPhase.recording ||
       _phase == ScribeSessionPhase.paused ||
       _phase == ScribeSessionPhase.processing;
 
-  /// True when closing now would lose a recording.
-  bool get hasUnsavedAudio =>
-      _audioPath != null && _phase != ScribeSessionPhase.done;
-
-  ScribeDraftFormController? activeDraftForm;
-
-  /// Hands over ownership of the [activeDraftForm] to the review UI,
-  /// clearing the local reference so disposing the session won't dispose it.
-  ScribeDraftFormController? takeActiveDraftForm() {
-    final form = activeDraftForm;
-    activeDraftForm = null;
-    return form;
-  }
-
-  final ScribeLiveExtractor _extractor = const ScribeLiveExtractor();
+  /// True when closing now would lose the conversation.
+  bool get hasUnsavedConversation =>
+      isBusy || _phase == ScribeSessionPhase.failed;
 
   /// Sentences already transcribed in full, and the one being spoken.
-  String _accumulatedTranscript = '';
-  String _livePiece = '';
-  String get accumulatedTranscript => _livePiece.isEmpty
-      ? _accumulatedTranscript
-      : '$_accumulatedTranscript $_livePiece'.trim();
+  String _heard = '';
+  String _speaking = '';
   StreamSubscription<VoiceTranscript>? _transcriptSub;
 
   String? _audioPath;
@@ -159,21 +155,10 @@ class ScribeSessionController extends ChangeNotifier {
   double? _firstDb;
   bool _levelsVaried = false;
   bool _finishing = false;
+  bool _saving = false;
   bool _disposed = false;
 
   // ---- Setup ----
-
-  /// Looks up an unreviewed draft for this visit so it can be resumed.
-  Future<void> loadPendingDraft() async {
-    try {
-      final pending = await _repository.getDraftForVisit(visit.id);
-      if (_disposed) return;
-      _pendingDraft = pending;
-      _notify();
-    } catch (e) {
-      debugPrint('[ScribeSession] Could not load pending draft: $e');
-    }
-  }
 
   void setConsent(bool value) {
     if (_phase != ScribeSessionPhase.ready) return;
@@ -194,33 +179,15 @@ class ScribeSessionController extends ChangeNotifier {
   Future<void> start() async {
     if (!_consentGiven || _phase != ScribeSessionPhase.ready) return;
     _error = null;
-
-    final doctorId = FirebaseAuth.instance.currentUser?.uid ?? 'local_doctor';
-    final initialNote =
-        _pendingDraft ??
-        ConsultationNote(
-          id: const Uuid().v4(),
-          doctorId: doctorId,
-          patientId: visit.patientId,
-          visitId: visit.id,
-          specialty: specialty,
-          queueEntryId: queueEntryId,
-          authorUid: doctorId,
-          consentGiven: true,
-          consentAt: DateTime.now(),
-          status: ConsultationNoteStatus.draft,
-          createdAt: DateTime.now(),
-        );
-    activeDraftForm ??= ScribeDraftFormController(initialNote);
-    _accumulatedTranscript = '';
-    _livePiece = '';
+    _heard = '';
+    _speaking = '';
+    transcript.value = '';
 
     // Mark openKind as scribe so VoiceController treats this as dedicated consultation session
     VoiceBus.openKind.value = 'scribe';
 
-    // Start live speech engine transcription: dictation, so the
-    // conversation is cut into sentences at pauses, each transcribed once
-    // in full, and push-to-talk can't stop it.
+    // Dictation: the conversation is cut into sentences at pauses, each
+    // transcribed once in full, and push-to-talk can't stop it.
     try {
       _transcriptSub?.cancel();
       _transcriptSub = SpeechEngine.instance.transcripts.listen(
@@ -228,9 +195,7 @@ class ScribeSessionController extends ChangeNotifier {
       );
       await SpeechEngine.instance.startDictation();
     } catch (e) {
-      debugPrint(
-        '[ScribeSession] Live speech engine transcription warning: $e',
-      );
+      debugPrint('[ScribeSession] Live transcription warning: $e');
     }
 
     if (!kIsWeb) {
@@ -269,48 +234,17 @@ class ScribeSessionController extends ChangeNotifier {
       return;
     }
     final text = t.text.trim();
-
-    // Fields the words are about dissolve while they fill in.
-    for (final field in _extractor.detectFieldCues(text)) {
-      activeDraftForm?.setFieldPending(field, true);
-    }
     if (t.isFinal) {
       // A finished sentence: kept as heard, never re-merged.
-      if (text.isNotEmpty) {
-        _accumulatedTranscript = '$_accumulatedTranscript $text'.trim();
-      }
-      _livePiece = '';
+      if (text.isNotEmpty) _heard = '$_heard $text'.trim();
+      _speaking = '';
     } else {
       // The sentence being spoken: each pass replaces the last.
-      _livePiece = text;
+      _speaking = text;
     }
-    final all = accumulatedTranscript;
-    if (all.isEmpty) return;
-    activeDraftForm?.mergeLiveExtraction(_extractor.extract(all));
-  }
-
-  /// Manually simulates a speech utterance for testing live consultation scribing
-  void simulateSpeechTurn(String text) {
-    _onLiveTranscript(
-      VoiceTranscript(
-        text,
-        isFinal: false,
-        source: 'accurate',
-        dictation: true,
-      ),
-    );
-    Future.delayed(const Duration(milliseconds: 180), () {
-      if (!_disposed) {
-        _onLiveTranscript(
-          VoiceTranscript(
-            text,
-            isFinal: true,
-            source: 'accurate',
-            dictation: true,
-          ),
-        );
-      }
-    });
+    transcript.value = _speaking.isEmpty
+        ? _heard
+        : '$_heard $_speaking'.trim();
   }
 
   Future<void> pause() async {
@@ -340,8 +274,9 @@ class ScribeSessionController extends ChangeNotifier {
     _notify();
   }
 
-  /// Stops recording and sends the audio for processing. On success the
-  /// phase becomes [ScribeSessionPhase.done] with [draft] set.
+  /// Stops recording and writes the session notes. On success the phase
+  /// becomes [ScribeSessionPhase.done] with [note] saved to the patient's
+  /// record.
   Future<void> finish() async {
     if (_finishing ||
         (_phase != ScribeSessionPhase.recording &&
@@ -359,9 +294,10 @@ class ScribeSessionController extends ChangeNotifier {
   Future<void> _finishRecording() async {
     final duration = _stopwatch.elapsed;
     await _stopRecorder();
+    await _deleteAudio();
 
     if (duration < ScribeProcessingService.minRecordingDuration) {
-      await _deleteAudio();
+      _resetConversation();
       _phase = ScribeSessionPhase.ready;
       _setError(
         'That recording was too short. Record at least '
@@ -374,7 +310,7 @@ class ScribeSessionController extends ChangeNotifier {
     // Only trust silence detection on platforms that actually reported
     // changing levels — a constant reading means levels are unsupported.
     if (_levelsVaried && _peakDb < _silenceThresholdDb) {
-      await _deleteAudio();
+      _resetConversation();
       _phase = ScribeSessionPhase.ready;
       _setError(
         'No speech was picked up. Check that the right microphone '
@@ -386,70 +322,58 @@ class ScribeSessionController extends ChangeNotifier {
     await _process();
   }
 
-  /// Re-sends the kept recording after a failure.
+  /// Tries writing the notes again after a failure.
   Future<void> retry() async {
     if (!canRetry) return;
     await _process();
   }
 
-  /// Stops and throws away the current recording without processing it.
+  /// Saves the transcript as the session note when the notes couldn't be
+  /// written, so the consultation isn't lost.
+  Future<void> saveTranscript() async {
+    if (!canSaveTranscript || _saving) return;
+    _saving = true;
+    try {
+      final text = ScribeProcessingService.cleanTranscript(transcript.value);
+      final saved = await _repository.saveSessionNote(
+        _newNote().copyWith(
+          transcript: text,
+          notes: text,
+          chiefComplaint: 'Consultation transcript',
+          confidenceNote:
+              "The AI couldn't write notes for this session, so the "
+              'transcript of the conversation was saved instead.',
+        ),
+      );
+      if (_disposed) return;
+      _note = saved;
+      _error = null;
+      _phase = ScribeSessionPhase.done;
+    } catch (e) {
+      debugPrint('[ScribeSession] Could not save the transcript: $e');
+      if (_disposed) return;
+      _error = "Couldn't save the transcript: $e";
+    } finally {
+      _saving = false;
+    }
+    _notify();
+  }
+
+  /// Stops and throws away the current conversation without writing notes.
   Future<void> discardRecording() async {
     if (_phase == ScribeSessionPhase.processing) return;
     await _stopRecorder(cancel: true);
     await _deleteAudio();
-    activeDraftForm?.dispose();
-    activeDraftForm = null;
-    _accumulatedTranscript = '';
-    _livePiece = '';
+    _resetConversation();
     _phase = ScribeSessionPhase.ready;
     _error = null;
     _failureKind = null;
-    elapsed.value = Duration.zero;
-    levels.value = List<double>.filled(levelCount, 0);
-    _notify();
-  }
-
-  /// Skips the AI and opens an empty note for the doctor to fill in —
-  /// used when the mic or AI is unavailable. Any kept recording is deleted.
-  Future<void> startManualNote() async {
-    if (_phase == ScribeSessionPhase.processing) return;
-    final doctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
-    await _stopRecorder(cancel: true);
-    await _deleteAudio();
-    activeDraftForm?.dispose();
-    activeDraftForm = null;
-    _draft = ConsultationNote(
-      id: const Uuid().v4(),
-      doctorId: doctorId,
-      patientId: visit.patientId,
-      visitId: visit.id,
-      specialty: specialty,
-      queueEntryId: queueEntryId,
-      authorUid: doctorId,
-      consentGiven: _consentAt != null,
-      consentAt: _consentAt,
-      status: ConsultationNoteStatus.draft,
-      createdAt: DateTime.now(),
-    );
-    _error = null;
-    _phase = ScribeSessionPhase.done;
-    _notify();
-  }
-
-  /// Re-opens [pendingDraft] for review.
-  void resumePendingDraft() {
-    final pending = _pendingDraft;
-    if (pending == null || isBusy) return;
-    _draft = pending;
-    _phase = ScribeSessionPhase.done;
     _notify();
   }
 
   // ---- Internals ----
 
   Future<void> _process() async {
-    final doctorId = FirebaseAuth.instance.currentUser?.uid ?? 'local_doctor';
-
     _error = null;
     _failureKind = null;
     _phase = ScribeSessionPhase.processing;
@@ -461,47 +385,57 @@ class ScribeSessionController extends ChangeNotifier {
     _notify();
 
     try {
-      // Process locally: uses live transcribed consultation and active draft fields
-      final draft = _processingService
-          .processLocally(
-            transcript: accumulatedTranscript,
-            noteId: const Uuid().v4(),
-            doctorId: doctorId,
-            patientId: visit.patientId,
-            visitId: visit.id,
-            consentAt: _consentAt ?? DateTime.now(),
-            existingDraft: activeDraftForm?.toNote(),
-          )
-          .copyWith(
-            specialty: specialty,
-            queueEntryId: queueEntryId,
-            authorUid: doctorId,
-          );
-
-      // The note is safe locally first; the recording then goes to the
-      // cloud in the background, so an offline doctor never waits on it.
-      await _repository.saveNote(draft);
-      await ScribeAudioSync.enqueueRecording(
-        note: draft,
-        localPath: _audioPath,
+      final written = await _processingService.writeSessionNote(
+        session: _newNote(),
+        transcript: transcript.value,
       );
-      await _deleteAudio();
+      // Saved even if the screen was closed meanwhile: the doctor was told
+      // the note would still reach the patient's record.
+      final saved = await _repository.saveSessionNote(written);
       if (_disposed) return;
-      _draft = draft;
+      _note = saved;
       _phase = ScribeSessionPhase.done;
+    } on ScribeProcessingException catch (e) {
+      if (_disposed) return;
+      _failureKind = e.kind;
+      _error = e.message;
+      _phase = ScribeSessionPhase.failed;
     } catch (e) {
-      debugPrint('[ScribeSession] Local processing error: $e');
+      debugPrint('[ScribeSession] Could not save the session note: $e');
       if (_disposed) return;
       _failureKind = ScribeFailureKind.unknown;
-      _error =
-          'Something went wrong while processing the note locally. Try '
-          'again, or write the note manually.';
+      _error = "The session note couldn't be saved. Try again.";
       _phase = ScribeSessionPhase.failed;
     } finally {
       _processingTicker?.cancel();
       _processingTicker = null;
     }
     _notify();
+  }
+
+  /// A blank note for this session, stamped with who, when and consent.
+  ConsultationNote _newNote() {
+    final doctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    return ConsultationNote(
+      id: _noteId,
+      doctorId: doctorId,
+      patientId: visit.patientId,
+      visitId: visit.id,
+      specialty: specialty,
+      queueEntryId: queueEntryId,
+      authorUid: doctorId,
+      consentGiven: _consentAt != null,
+      consentAt: _consentAt,
+      createdAt: _consentAt ?? DateTime.now(),
+    );
+  }
+
+  void _resetConversation() {
+    _heard = '';
+    _speaking = '';
+    transcript.value = '';
+    elapsed.value = Duration.zero;
+    levels.value = List<double>.filled(levelCount, 0);
   }
 
   void _tick() {
@@ -561,8 +495,8 @@ class ScribeSessionController extends ChangeNotifier {
     return '${dir.path}${Platform.pathSeparator}scribe_${const Uuid().v4()}.m4a';
   }
 
-  /// Removes recordings orphaned by a crash or force-quit (§10: unreviewed
-  /// audio shouldn't linger on the device).
+  /// Removes recordings orphaned by a crash or force-quit, so consultation
+  /// audio never lingers on the device.
   Future<void> _purgeStaleRecordings(Directory dir) async {
     try {
       final cutoff = DateTime.now().subtract(_staleRecordingAge);
@@ -609,8 +543,6 @@ class ScribeSessionController extends ChangeNotifier {
     _transcriptSub = null;
     unawaited(SpeechEngine.instance.stopDictation(keepLast: false));
     VoiceBus.openKind.value = null;
-    activeDraftForm?.dispose();
-    activeDraftForm = null;
     final path = _audioPath;
     _audioPath = null;
     // Recorder must be released before its file can be deleted on Windows.
@@ -631,6 +563,7 @@ class ScribeSessionController extends ChangeNotifier {
     elapsed.dispose();
     levels.dispose();
     processingSeconds.dispose();
+    transcript.dispose();
     super.dispose();
   }
 }

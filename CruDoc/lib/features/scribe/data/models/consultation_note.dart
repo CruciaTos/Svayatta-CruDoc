@@ -80,14 +80,16 @@ class NotedMedicine {
   }
 }
 
-/// Clinical consultation note produced by the AI Scribe.
+/// A session note: what the AI Scribe wrote from the conversation between
+/// the doctor and the patient, kept in the patient's session history.
 ///
-/// Created as [ConsultationNoteStatus.draft] immediately after the
-/// AI returns its structured output. Only promoted to
-/// [ConsultationNoteStatus.confirmed] when the doctor explicitly taps
-/// Confirm — never auto-saved into the patient record.
+/// The scribe saves it as [ConsultationNoteStatus.confirmed] as soon as the
+/// notes are written; anyone who writes clinical records can edit it later.
+/// Notes from before the scribe wrote free-text [notes] keep their
+/// structured fields ([symptoms], [vitals], [physio]…) instead, and may be
+/// [ConsultationNoteStatus.draft] if they were never reviewed.
 ///
-/// PHI fields ([transcript], [chiefComplaint], [symptoms],
+/// PHI fields ([notes], [transcript], [chiefComplaint], [symptoms],
 /// [diagnosisSuggestions], [advice], [medicines]) are encrypted with
 /// [FieldCipher] before leaving the device, exactly like
 /// [Patient.notes] and [Patient.diagnosis].
@@ -116,11 +118,15 @@ class ConsultationNote {
   final DateTime? editedAt;
   final String? editedByUid;
 
-  /// Raw transcript text as returned by the model. May be the full
-  /// transcript or a summary — depends on audio length and the model's
-  /// output for that call.
+  /// The conversation as transcribed on the device.
   final String transcript;
 
+  /// The session notes the scribe wrote from the conversation: short
+  /// headings, each followed by its content. Empty on older notes, which
+  /// hold the structured fields below instead.
+  final String notes;
+
+  /// What the session was about, in one line — the note's title.
   final String chiefComplaint;
   final List<String> symptoms;
   final List<String> diagnosisSuggestions;
@@ -136,16 +142,16 @@ class ConsultationNote {
   final Map<String, String?> vitals;
 
   /// Physiotherapy SOAP details (pain scores, ROM, MMT, special tests,
-  /// treatment given, home exercises, goals). Empty for older notes.
+  /// treatment given, home exercises, goals), on older structured notes.
   final PhysioFindings physio;
 
-  /// A brief note from the model about its own confidence in the
-  /// transcription (e.g. audio quality issues, overlapping speech).
+  /// What the model was unsure of when writing the notes (unclear words,
+  /// a medicine or number it couldn't make out). Shown with the note.
   final String confidenceNote;
 
   /// Whether the patient gave consent before the recording started.
-  /// Always true by the time this note is created (the UI gate prevents
-  /// recording without consent) — stored so the consent event is auditable.
+  /// Always true for a recorded session (the UI gate prevents recording
+  /// without consent) — stored so the consent event is auditable.
   final bool consentGiven;
   final DateTime? consentAt;
 
@@ -169,6 +175,7 @@ class ConsultationNote {
     this.editedAt,
     this.editedByUid,
     this.transcript = '',
+    this.notes = '',
     this.chiefComplaint = '',
     this.symptoms = const [],
     this.diagnosisSuggestions = const [],
@@ -201,6 +208,7 @@ class ConsultationNote {
       'editedAt': editedAt != null ? Timestamp.fromDate(editedAt!) : null,
       'editedByUid': editedByUid,
       'transcript': transcript,
+      'notes': notes,
       'chiefComplaint': chiefComplaint,
       'symptoms': jsonEncode(symptoms),
       'diagnosisSuggestions': jsonEncode(diagnosisSuggestions),
@@ -238,6 +246,7 @@ class ConsultationNote {
       'editedAt': editedAt?.millisecondsSinceEpoch,
       'editedByUid': editedByUid,
       'transcript': transcript,
+      'notes': notes,
       'chiefComplaint': chiefComplaint,
       'symptoms': jsonEncode(symptoms),
       'diagnosisSuggestions': jsonEncode(diagnosisSuggestions),
@@ -272,6 +281,7 @@ class ConsultationNote {
       editedAt: _parseNullableDate(map['editedAt']),
       editedByUid: map['editedByUid'] as String?,
       transcript: map['transcript'] as String? ?? '',
+      notes: map['notes'] as String? ?? '',
       chiefComplaint: map['chiefComplaint'] as String? ?? '',
       symptoms: _parseStringList(map['symptoms']),
       diagnosisSuggestions: _parseStringList(map['diagnosisSuggestions']),
@@ -311,6 +321,7 @@ class ConsultationNote {
     DateTime? editedAt,
     String? editedByUid,
     String? transcript,
+    String? notes,
     String? chiefComplaint,
     List<String>? symptoms,
     List<String>? diagnosisSuggestions,
@@ -338,6 +349,7 @@ class ConsultationNote {
       editedAt: editedAt ?? this.editedAt,
       editedByUid: editedByUid ?? this.editedByUid,
       transcript: transcript ?? this.transcript,
+      notes: notes ?? this.notes,
       chiefComplaint: chiefComplaint ?? this.chiefComplaint,
       symptoms: symptoms ?? this.symptoms,
       diagnosisSuggestions: diagnosisSuggestions ?? this.diagnosisSuggestions,

@@ -7,19 +7,17 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
-import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_review_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_session_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_draft_form.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_recorder_widgets.dart';
 import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Runs the mobile scribe flow for [visit]: the recording sheet, then the
-/// review screen for the resulting draft.
+/// session note it saved to the patient's record.
 ///
-/// Returns true if the doctor confirmed a note into the patient record, so
-/// the caller can refresh anything showing the visit's notes.
+/// Returns true if a session note was saved, so the caller can refresh
+/// anything showing the visit's notes.
 ///
 /// Pass [queueEntryId] (and [tokenNumber]) when the consultation was just
 /// started from the queue: the sheet then asks for the patient's consent
@@ -32,7 +30,7 @@ Future<bool> showScribeFlow(
   String? queueEntryId,
   int? tokenNumber,
 }) async {
-  final draft = await showModalBottomSheet<ConsultationNote>(
+  final note = await showModalBottomSheet<ConsultationNote>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -50,22 +48,28 @@ Future<bool> showScribeFlow(
       tokenNumber: tokenNumber,
     ),
   );
-  if (draft == null || !context.mounted) return false;
-
-  final confirmed = await Navigator.of(context).push<bool>(
-    MaterialPageRoute(
-      builder: (_) => ScribeDraftReviewScreen(note: draft, patient: patient),
-    ),
-  );
-  return confirmed ?? false;
+  if (note == null) return false;
+  if (context.mounted) {
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Session note saved to ${patient?.fullName ?? 'the patient'}’s '
+          'record.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    await openSessionNote(context, note: note, patient: patient);
+  }
+  return true;
 }
 
-/// Bottom sheet that captures patient consent and records the consultation.
+/// Bottom sheet that captures patient consent and listens to the
+/// consultation, then writes the session notes and saves them to the
+/// patient's record.
 ///
-/// Pops with the resulting draft [ConsultationNote] (AI-generated, resumed,
-/// or blank for manual entry), or null if the doctor closed it. Nothing is
-/// written to the patient record here — that only happens on Confirm in
-/// [ScribeDraftReviewScreen]. Use [showScribeFlow] to open it.
+/// Pops with the saved session [ConsultationNote], or null if the doctor
+/// closed it first. Use [showScribeFlow] to open it.
 class ScribeRecordingSheet extends ConsumerStatefulWidget {
   final Visit visit;
   final Patient? patient;
@@ -106,7 +110,6 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
       specialty: widget.specialty,
       queueEntryId: widget.queueEntryId,
     )..addListener(_onSessionChanged);
-    _session.loadPendingDraft();
   }
 
   @override
@@ -118,16 +121,16 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
   }
 
   void _onSessionChanged() {
-    final draft = _session.draft;
-    if (_session.phase == ScribeSessionPhase.done && draft != null) {
-      _close(draft);
+    final note = _session.note;
+    if (_session.phase == ScribeSessionPhase.done && note != null) {
+      _close(note);
     }
   }
 
-  void _close([ConsultationNote? draft]) {
+  void _close([ConsultationNote? note]) {
     if (_closed || !mounted) return;
     _closed = true;
-    Navigator.pop(context, draft);
+    Navigator.pop(context, note);
   }
 
   /// Close button / back gesture: confirm before losing a recording.
@@ -137,11 +140,10 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
         context,
         palette: _palette,
         icon: Icons.hourglass_top_rounded,
-        title: 'Still creating the draft',
+        title: 'Still writing the notes',
         message:
-            "If you close now and it finishes, the draft is saved and "
-            "you can review it the next time you open AI Voice Scribe for "
-            "this visit.",
+            "If you close now, the session note is still saved to the "
+            "patient's record once it's written.",
         confirmLabel: 'Close anyway',
         cancelLabel: 'Wait',
         destructive: false,
@@ -149,7 +151,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
       if (leave) _close();
       return;
     }
-    if (_session.hasUnsavedAudio) {
+    if (_session.hasUnsavedConversation) {
       final discard = await _confirmDiscard();
       if (!discard) return;
       await _session.discardRecording();
@@ -162,8 +164,8 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
       context,
       palette: _palette,
       icon: Icons.delete_outline_rounded,
-      title: 'Discard recording?',
-      message: 'The recording will be deleted and no note will be created.',
+      title: 'Discard this conversation?',
+      message: 'Nothing is saved to the patient’s record.',
       confirmLabel: 'Discard',
       cancelLabel: 'Keep',
     );
@@ -179,7 +181,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
     return ListenableBuilder(
       listenable: _session,
       builder: (context, _) {
-        final canPopFreely = !_session.isBusy && !_session.hasUnsavedAudio;
+        final canPopFreely = !_session.hasUnsavedConversation;
         return PopScope(
           canPop: canPopFreely,
           onPopInvokedWithResult: (didPop, _) {
@@ -315,22 +317,10 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
   }
 
   Widget _buildReady() {
-    if (widget.startedFromQueue && _session.pendingDraft == null) {
-      return _buildQueueReady();
-    }
-    final c = context.cru;
-    final pending = _session.pendingDraft;
+    if (widget.startedFromQueue) return _buildQueueReady();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (pending != null) ...[
-          ScribePendingDraftNotice(
-            createdAt: pending.createdAt,
-            palette: _palette,
-            onReview: _session.resumePendingDraft,
-          ),
-          const SizedBox(height: 20),
-        ],
         ScribeStepsStrip(palette: _palette),
         const SizedBox(height: 24),
         Text('PATIENT CONSENT', style: _palette.sectionLabel),
@@ -356,19 +346,6 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
           color: _palette.primary,
           onPressed: _session.consentGiven ? _session.start : null,
         ),
-        const SizedBox(height: 6),
-        TextButton(
-          onPressed: _session.startManualNote,
-          style: TextButton.styleFrom(
-            foregroundColor: c.label2,
-            textStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          child: const Text('Write the note without recording'),
-        ),
       ],
     );
   }
@@ -383,9 +360,10 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
         Text('BEFORE YOU BEGIN', style: _palette.sectionLabel),
         const SizedBox(height: 10),
         Text(
-          'Ask the patient if this consultation can be recorded. The audio is '
-          'only used to draft the session note and is deleted from this '
-          'device once the draft is ready.',
+          'Ask the patient if this consultation can be recorded. The '
+          'conversation is transcribed and an AI writes the session note '
+          'from it; the recording is deleted from this device as soon as it '
+          'stops.',
           style: TextStyle(
             fontFamily: AppColors.bodyFontFamily,
             fontSize: 13.5,
@@ -411,7 +389,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
         ),
         const SizedBox(height: 6),
         TextButton(
-          onPressed: _session.startManualNote,
+          onPressed: _close,
           style: TextButton.styleFrom(
             foregroundColor: c.label2,
             textStyle: const TextStyle(
@@ -420,7 +398,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          child: const Text('Patient declined — write the note myself'),
+          child: const Text('Patient declined — don’t record'),
         ),
       ],
     );

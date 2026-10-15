@@ -5,26 +5,19 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
-
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
-import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
-import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_transcript_formatter.dart';
 
-/// Handles the core AI processing step for the scribe:
-/// local audio → Gemini via Firebase AI Logic → structured draft note.
+/// Writes a session note from the conversation between the doctor and the
+/// patient.
 ///
-/// Model name is fetched from Remote Config (key: `scribe_gemini_model`)
-/// so it can be updated without a code change or app release. Falls back to
-/// [fallbackModel] if Remote Config is unreachable or the key is unset.
+/// The conversation is transcribed on the device while it happens; only
+/// that transcript text goes to Gemini (through [GeminiJsonClient]), never
+/// the recording. The model writes the notes as the clinician would, from
+/// what was actually said, and gives the session a one-line title.
 ///
-/// Follows §5/§10 of the feature plan:
-/// - Calls Gemini through [GeminiJsonClient] (Firebase AI Logic; a
-///   developer key only for demo builds)
-/// - Structured JSON output via a declared response schema
-/// - System prompt instructs the model to only extract what was said
-/// - Malformed JSON is retried once; any other failure surfaces as a
-///   [ScribeProcessingException]. A draft is never invented locally.
+/// Model name comes from Remote Config (key: `scribe_gemini_model`), see
+/// [GeminiJsonClient.modelName].
 class ScribeProcessingService {
   ScribeProcessingService({GeminiJsonClient? client})
     : _client = client ?? GeminiJsonClient();
@@ -34,290 +27,108 @@ class ScribeProcessingService {
   /// Recordings shorter than this are rejected before any API call.
   static const minRecordingDuration = Duration(seconds: 5);
 
-  /// Recording auto-stops here. At the recorder's 32 kbps this is ~11 MB,
-  /// which stays under Gemini's 20 MB inline request limit after base64.
+  /// Recording auto-stops here.
   static const maxRecordingDuration = Duration(minutes: 45);
 
-  static const _minAudioSizeBytes = 8 * 1024;
-  static const _maxInlineAudioBytes = 14 * 1024 * 1024;
-  static const _requestTimeout = Duration(seconds: 150);
+  /// Fewer words than this isn't a conversation to write notes from.
+  static const minTranscriptWords = 8;
 
-  // ---- Structured output schema ----
-  //
-  // General fields plus a `physio` object generated from the specs in
-  // [PhysioFindings], so the schema, review form and summary never drift.
+  static const _requestTimeout = Duration(seconds: 90);
+
   @visibleForTesting
-  static final Schema responseSchema = _buildSchema();
-
-  static Schema _buildSchema() {
-    final physioProps = <String, Schema>{
-      for (final f in PhysioFindings.textSpecs)
-        f.key: Schema.string(nullable: true, description: f.instruction),
-      for (final f in PhysioFindings.listSpecs)
-        f.key: Schema.array(items: Schema.string(), description: f.instruction),
-      for (final t in PhysioFindings.tableSpecs)
-        t.key: Schema.array(
-          description: t.instruction,
-          items: Schema.object(
-            properties: {
-              for (final c in t.columns)
-                c.key: Schema.string(nullable: true, description: c.label),
-            },
-          ),
-        ),
-    };
-
-    return Schema.object(
-      properties: {
-        'transcript': Schema.string(),
-        'chiefComplaint': Schema.string(
-          nullable: true,
-          description:
-              "The patient's main problem in one line, with side and "
-              'duration, e.g. "Right knee pain for 3 weeks".',
-        ),
-        'symptoms': Schema.array(
-          items: Schema.string(),
-          description:
-              'Associated symptoms reported (stiffness, swelling, giving '
-              'way, clicking, tingling...).',
-        ),
-        'diagnosisSuggestions': Schema.array(
-          items: Schema.string(),
-          description:
-              'Clinical impression / physiotherapy diagnosis the clinician '
-              'stated, or a diagnosis the patient reports from a referring '
-              'doctor.',
-        ),
-        'medicines': Schema.array(
-          description:
-              'Medicines the patient reports taking or the clinician named '
-              '(painkillers, gels, supplements).',
-          items: Schema.object(
-            properties: {
-              'name': Schema.string(),
-              'dosage': Schema.string(nullable: true),
-              'instructions': Schema.string(nullable: true),
-            },
-          ),
-        ),
-        'advice': Schema.string(
-          nullable: true,
-          description:
-              'Education and advice given: activity modification, '
-              'ergonomics, precautions, what to avoid, ice/heat at home.',
-        ),
-        'followUpDate': Schema.string(nullable: true),
-        'vitalsIfMentioned': Schema.object(
-          properties: {
-            'bp': Schema.string(nullable: true),
-            'temp': Schema.string(nullable: true),
-            'pulse': Schema.string(nullable: true),
-          },
-        ),
-        'physio': Schema.object(
-          properties: physioProps,
-          propertyOrdering: physioProps.keys.toList(),
-        ),
-        'transcriptSummaryConfidenceNote': Schema.string(nullable: true),
-      },
-      // Transcript first so every extracted field is grounded in it.
-      propertyOrdering: const [
-        'transcript',
-        'chiefComplaint',
-        'symptoms',
-        'diagnosisSuggestions',
-        'medicines',
-        'advice',
-        'followUpDate',
-        'vitalsIfMentioned',
-        'physio',
-        'transcriptSummaryConfidenceNote',
-      ],
-    );
-  }
+  static final Schema responseSchema = Schema.object(
+    properties: {
+      'notes': Schema.string(
+        description:
+            'The session notes: short headings, each on its own line and '
+            'followed by its content, sections separated by a blank line.',
+      ),
+      'title': Schema.string(
+        description:
+            'What the session was about, in under 8 words, e.g. "Lower '
+            'back pain radiating to right leg".',
+      ),
+      'confidenceNote': Schema.string(
+        nullable: true,
+        description:
+            'Words, names, numbers or doses in the transcript that were '
+            'unclear. Empty if nothing was.',
+      ),
+    },
+    propertyOrdering: const ['notes', 'title', 'confidenceNote'],
+  );
 
   @visibleForTesting
   static const systemPrompt = '''
-You are a clinical documentation assistant for physiotherapists in India.
-You transcribe a recorded physiotherapy session (assessment or treatment
-visit) and extract a structured SOAP note from it.
+You are a clinical scribe for a clinician in India. You are given the
+transcript of a normal conversation between the clinician and a patient
+during a visit, and you write the clinician's session notes for that visit.
 
-CRITICAL RULES — read these carefully:
-1. Only extract information that was ACTUALLY SAID during this recording.
-2. Do NOT infer, guess, or add any diagnosis, finding, measurement,
-   treatment or exercise that was not explicitly stated. A clinician
-   saying "let us check how far the knee bends" is not a measurement —
-   only record a value if it was spoken ("about 90 degrees").
-3. If a field cannot be filled from what was said, leave it empty (empty
-   string, empty list) or null — never fabricate content. Most sessions
-   will leave many fields empty; that is expected.
-4. Measurements: keep numbers exactly as spoken. Pain as "n/10". ROM in
-   degrees. Muscle strength as "n/5" ("four by five" → "4/5", "4 plus" →
-   "4+/5"). Always record the side (L / R / Bilateral) when it is stated.
-5. Special tests: record the test name and whether it was positive or
-   negative. Do not guess a result from the patient's reaction alone.
-6. Red flags: put signs reported as present in physio.redFlags, and red
-   flags the clinician asked about that the patient denied in
-   physio.redFlagsCleared. Never mark a red flag cleared unless it was
-   actually asked.
-7. Separate what was DONE today (physio.treatment — manual therapy,
-   electrotherapy with parameters, taping, dry needling, supervised
-   exercise) from what the patient must do at HOME
-   (physio.homeExercises, with sets, reps, hold time and frequency).
-8. Medicines: list only medicines named in the recording. Physiotherapists
-   usually record what the patient is taking — do not suggest any.
-9. Diagnosis suggestions: only what the clinician stated as the clinical
-   impression, or a diagnosis the patient reports from their doctor.
-10. Vitals: only fill bp / temp / pulse if a value was spoken aloud.
-11. followUpDate: an ISO date (YYYY-MM-DD) only if a specific next visit
-    was given; resolve relative phrases ("come after 2 days", "next
-    Monday") against the consultation date given in the request.
-12. transcript: a faithful transcript. Prefix turns with "Doctor:" (the
-    physiotherapist) or "Patient:" when it is clear who is speaking.
-    Hindi, Marathi or other Indian languages may be mixed with English —
-    transcribe them in Roman script. All other fields must be in concise
-    clinical English using standard physiotherapy terms.
-13. transcriptSummaryConfidenceNote: flag audio quality issues,
-    overlapping speech, numbers you could not hear clearly, or anything
-    you were unsure about. Leave it empty if the audio was clear.
-14. If the recording contains no consultation (silence, noise, unrelated
-    talk), return an empty transcript and empty fields, and explain in
-    transcriptSummaryConfidenceNote.
-15. Respond ONLY with a valid JSON object matching the requested schema.
+The transcript was made on the device as people spoke. It may contain
+recognition errors, repeated words and speaker labels ("Doctor:",
+"Patient:") that were guessed and can be wrong — judge who is speaking from
+what is said.
+
+RULES:
+1. Only write what was actually said in this conversation. Never add a
+   symptom, finding, diagnosis, test, medicine, dose or advice that was not
+   said. A question the clinician asked is not a finding — record the
+   patient's answer.
+2. Write as a clinician would: concise clinical English, standard medical
+   terms, third person ("Patient reports…", "Advised…"). Hindi, Marathi,
+   Gujarati or other Indian languages in the conversation are written in
+   English in the notes; keep a patient's own striking words in quotes.
+3. notes: plain text, no markdown (no #, no **). Put each heading on its own
+   line, its content on the lines after it, and a blank line between
+   sections. Use "- " for list items. Use only headings the conversation
+   has content for, in this order:
+     Presenting complaint, History, Examination, Assessment, Treatment
+     given, Medicines, Advice, Follow-up
+   Small talk and logistics (payment, directions) are left out.
+4. Keep numbers exactly as spoken: vitals, pain scores ("6/10"), durations,
+   measurements, doses. Record the side (left / right) when it is stated.
+5. Medicines: name, strength, dose, frequency and duration, only as said.
+   If a medicine name is unclear in the transcript, write it as heard and
+   flag it in confidenceNote — never substitute a different medicine.
+6. Follow-up: if a next visit was given, say when. Resolve relative phrases
+   ("after 5 days", "next Monday") against the session date in the request
+   and write the date as e.g. "20 Oct 2026".
+7. title: what the session was about in under 8 words.
+8. confidenceNote: anything you were unsure of in the transcript — unclear
+   words, a medicine, dose or number that looks misheard. Empty if clear.
+9. If the transcript holds no consultation (silence, noise, unrelated
+   talk), return empty notes and title and say so in confidenceNote.
+10. Respond ONLY with a JSON object matching the requested schema.
 ''';
 
-  /// Checks whether the audio file at [audioPath] is usable. Returns an
-  /// error message if it should be rejected, or null if it's fine.
-  Future<String?> validateAudio(String audioPath) async {
-    try {
-      final file = File(audioPath);
-      if (!await file.exists()) return 'Recording file not found.';
-      final size = await file.length();
-      if (size < _minAudioSizeBytes) {
-        return 'The recording is too short or empty. Please record at least '
-            '${minRecordingDuration.inSeconds} seconds of the consultation.';
-      }
-      if (size > _maxInlineAudioBytes) {
-        return 'The recording is too long to process in one go. Please keep '
-            'recordings under ${maxRecordingDuration.inMinutes} minutes.';
-      }
-      return null;
-    } catch (e) {
-      return 'Could not read the recording file: $e';
-    }
-  }
-
-  /// Processes consultation locally from live extracted data and transcript,
-  /// avoiding cloud Gemini API key requirement.
-  ConsultationNote processLocally({
-    required String transcript,
-    required String noteId,
-    required String doctorId,
-    required String patientId,
-    required String visitId,
-    required DateTime consentAt,
-    ConsultationNote? existingDraft,
-  }) {
-    final formatted = ScribeTranscriptFormatter.format(transcript);
-
-    if (existingDraft != null) {
-      return ConsultationNote(
-        id: noteId,
-        doctorId: doctorId,
-        patientId: patientId,
-        visitId: visitId,
-        transcript: formatted.isNotEmpty ? formatted : existingDraft.transcript,
-        chiefComplaint: existingDraft.chiefComplaint,
-        symptoms: existingDraft.symptoms,
-        diagnosisSuggestions: existingDraft.diagnosisSuggestions,
-        medicines: existingDraft.medicines,
-        advice: existingDraft.advice,
-        followUpDate: existingDraft.followUpDate,
-        vitals: existingDraft.vitals,
-        physio: existingDraft.physio,
-        confidenceNote: existingDraft.confidenceNote,
-        consentGiven: true,
-        consentAt: consentAt,
-        audioStoragePath: existingDraft.audioStoragePath,
-        status: ConsultationNoteStatus.draft,
-        createdAt: existingDraft.createdAt,
-        confirmedAt: existingDraft.confirmedAt,
-        updatedAt: DateTime.now(),
-      );
-    }
-
-    const extractor = ScribeLiveExtractor();
-    final ext = extractor.extract(
-      formatted.isNotEmpty ? formatted : transcript,
-    );
-
-    return ConsultationNote(
-      id: noteId,
-      doctorId: doctorId,
-      patientId: patientId,
-      visitId: visitId,
-      transcript: formatted,
-      chiefComplaint: ext.chiefComplaint ?? '',
-      symptoms: ext.symptoms,
-      diagnosisSuggestions: ext.diagnoses,
-      medicines: ext.medicines,
-      advice: ext.advice ?? '',
-      followUpDate: ext.followUpDate,
-      vitals: {'bp': ext.bp, 'temp': ext.temp, 'pulse': ext.pulse},
-      physio: PhysioFindings.fromJson({
-        if (ext.painNow != null) 'painNow': ext.painNow,
-        if (ext.painWorst != null) 'painWorst': ext.painWorst,
-        if (ext.painLocation != null) 'painLocation': [ext.painLocation!],
-        if (ext.painNature != null) 'painNature': ext.painNature,
-        if (ext.onset != null) 'onset': ext.onset,
-        if (ext.history != null) 'history': ext.history,
-        if (ext.patientGoals != null) 'patientGoals': ext.patientGoals,
-        if (ext.aggravating.isNotEmpty) 'aggravating': ext.aggravating,
-        if (ext.easing.isNotEmpty) 'easing': ext.easing,
-        if (ext.functionalLimits.isNotEmpty)
-          'functionalLimits': ext.functionalLimits,
-      }),
-      consentGiven: true,
-      consentAt: consentAt,
-      status: ConsultationNoteStatus.draft,
-      createdAt: DateTime.now(),
-    );
-  }
-
-  /// Processes the recorded audio and returns a structured draft note.
+  /// Writes the notes for [session] — a note carrying the visit, patient
+  /// and consent details — from the conversation's [transcript], and
+  /// returns the note with its title, notes and transcript filled in.
+  /// Nothing is saved here.
   ///
-  /// [consentAt] is the moment the doctor confirmed patient consent.
-  /// Throws [ScribeProcessingException] when no usable draft could be
-  /// produced — the caller keeps the audio so the doctor can retry.
-  Future<ConsultationNote> processAudio({
-    required String localAudioPath,
-    String? audioStoragePath,
-    required String noteId,
-    required String doctorId,
-    required String patientId,
-    required String visitId,
-    required DateTime consentAt,
+  /// Throws [ScribeProcessingException] when no notes could be written.
+  Future<ConsultationNote> writeSessionNote({
+    required ConsultationNote session,
+    required String transcript,
   }) async {
-    final Uint8List audioBytes;
-    try {
-      audioBytes = await File(localAudioPath).readAsBytes();
-    } catch (e) {
-      throw ScribeProcessingException(
-        'Could not read the recording from this device.',
-        kind: ScribeFailureKind.audio,
-        cause: e,
+    final text = cleanTranscript(transcript);
+    if (wordCount(text) < minTranscriptWords) {
+      throw const ScribeProcessingException(
+        'Not enough of the conversation was heard to write session notes. '
+        'Check that the microphone is picking up both of you and record '
+        'again.',
+        kind: ScribeFailureKind.noConversation,
       );
     }
 
     Map<String, dynamic> parsed;
     try {
-      parsed = await _callGemini(audioBytes, consentAt);
+      parsed = await _call(text, session);
     } on FormatException catch (e) {
       // Malformed or truncated JSON — retry once with a stricter prompt.
       debugPrint('[ScribeProcessing] Malformed response, retrying: $e');
       try {
-        parsed = await _callGemini(audioBytes, consentAt, strictRetry: true);
+        parsed = await _call(text, session, strict: true);
       } catch (retryError) {
         throw _classify(retryError);
       }
@@ -325,57 +136,77 @@ CRITICAL RULES — read these carefully:
       throw _classify(e);
     }
 
-    return noteFromParsed(
-      parsed: parsed,
-      noteId: noteId,
-      doctorId: doctorId,
-      patientId: patientId,
-      visitId: visitId,
-      consentAt: consentAt,
-      audioStoragePath: audioStoragePath,
-      now: DateTime.now(),
-    );
+    final note = noteFromParsed(parsed, session: session, transcript: text);
+    if (note.notes.isEmpty) {
+      throw ScribeProcessingException(
+        note.confidenceNote.isEmpty
+            ? 'No consultation was found in what was heard, so no notes '
+                  'were written.'
+            : 'No notes were written: ${note.confidenceNote}',
+        kind: ScribeFailureKind.noConversation,
+      );
+    }
+    return note;
   }
 
-  Future<Map<String, dynamic>> _callGemini(
-    Uint8List audioBytes,
-    DateTime consultationDate, {
-    bool strictRetry = false,
+  Future<Map<String, dynamic>> _call(
+    String transcript,
+    ConsultationNote session, {
+    bool strict = false,
   }) {
-    final date = consultationDate.toIso8601String().split('T').first;
-    final prompt = strictRetry
-        ? 'Consultation date: $date. Extract clinical information from this '
-              'consultation recording. Keep the transcript under 800 words. '
-              'Respond ONLY with a valid JSON object — no text outside it.'
-        : 'Consultation date: $date. Transcribe this physiotherapy '
-              'session and extract the clinical information into the '
-              'requested SOAP JSON structure.';
+    final date = session.createdAt.toIso8601String().split('T').first;
+    final clinician = switch (session.specialty) {
+      SessionSpecialty.physiotherapy => 'a physiotherapist',
+      SessionSpecialty.homeopathy => 'a homeopathic doctor',
+      _ => 'a doctor',
+    };
+    final prompt = [
+      'Session date: $date. The clinician is $clinician.',
+      strict
+          ? 'Write the session notes for this conversation. Respond ONLY '
+                'with a valid JSON object — no text outside it.'
+          : 'Write the session notes for this conversation.',
+      '',
+      'TRANSCRIPT:',
+      transcript,
+    ].join('\n');
 
     return _client.generateJson(
       systemPrompt: systemPrompt,
       prompt: prompt,
-      audioBytes: audioBytes,
       schema: responseSchema,
-      maxOutputTokens: 32768,
+      maxOutputTokens: 16384,
       timeout: _requestTimeout,
     );
   }
+
+  /// The live transcript tidied up: Whisper repetitions removed and turns
+  /// split into "Doctor:" / "Patient:" lines where they can be told apart.
+  static String cleanTranscript(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return '';
+    final formatted = ScribeTranscriptFormatter.format(text).trim();
+    return formatted.isEmpty ? text : formatted;
+  }
+
+  static int wordCount(String text) =>
+      text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
 
   ScribeProcessingException _classify(Object error) {
     debugPrint('[ScribeProcessing] Processing failed: $error');
     if (error is ScribeProcessingException) return error;
     if (error is TimeoutException) {
       return ScribeProcessingException(
-        'The AI took too long to respond. Your recording is still on this '
-        'device — try again.',
+        'The AI took too long to respond. The conversation is kept — try '
+        'again.',
         kind: ScribeFailureKind.timeout,
         cause: error,
       );
     }
     if (error is SocketException || error is HttpException) {
       return ScribeProcessingException(
-        "You appear to be offline. Your recording is still on this device — "
-        "retry once you're back online.",
+        "You appear to be offline. The conversation is kept — try again once "
+        "you're back online.",
         kind: ScribeFailureKind.offline,
         cause: error,
       );
@@ -384,7 +215,7 @@ CRITICAL RULES — read these carefully:
         (error is GeminiHttpException && error.isQuota)) {
       return ScribeProcessingException(
         'The AI usage limit has been reached. Try again in a few minutes, '
-        'or write the note manually.',
+        'or save the transcript instead.',
         kind: ScribeFailureKind.quota,
         cause: error,
       );
@@ -418,16 +249,16 @@ CRITICAL RULES — read these carefully:
         modelMissing) {
       return ScribeProcessingException(
         "AI Scribe isn't available for this clinic yet (Firebase AI Logic or "
-        "the configured model is not set up). You can still write the note "
-        "manually.",
+        "the configured model is not set up). You can save the transcript "
+        "instead.",
         kind: ScribeFailureKind.notConfigured,
         cause: error,
       );
     }
     if (error is FormatException) {
       return ScribeProcessingException(
-        "The AI couldn't produce a readable note from this recording. Try "
-        "again, or write the note manually.",
+        "The AI couldn't write readable notes from this conversation. Try "
+        "again, or save the transcript instead.",
         kind: ScribeFailureKind.badResponse,
         cause: error,
       );
@@ -437,105 +268,52 @@ CRITICAL RULES — read these carefully:
         raw.contains('failed host lookup') ||
         raw.contains('failed to resolve')) {
       return ScribeProcessingException(
-        "You appear to be offline. Your recording is still on this device — "
-        "retry once you're back online.",
+        "You appear to be offline. The conversation is kept — try again once "
+        "you're back online.",
         kind: ScribeFailureKind.offline,
         cause: error,
       );
     }
     return ScribeProcessingException(
-      'Something went wrong while analysing the recording. Try again, or '
-      'write the note manually.',
+      'Something went wrong while writing the session notes. Try again, or '
+      'save the transcript instead.',
       kind: ScribeFailureKind.unknown,
       cause: error,
     );
   }
 
-  /// Strips any surrounding markdown code fences or prose the model might
-  /// have added despite instructions.
+  /// Fills [session] in from the model's JSON. Tolerates missing keys and
+  /// wrong types — anything unusable becomes an empty field.
   @visibleForTesting
-  static String extractJson(String text) => GeminiJsonClient.extractJson(text);
-
-  /// Maps the model's JSON onto a draft [ConsultationNote]. Tolerates missing
-  /// keys and wrong types — anything unusable becomes an empty field.
-  @visibleForTesting
-  static ConsultationNote noteFromParsed({
-    required Map<String, dynamic> parsed,
-    required String noteId,
-    required String doctorId,
-    required String patientId,
-    required String visitId,
-    required DateTime consentAt,
-    String? audioStoragePath,
-    required DateTime now,
+  static ConsultationNote noteFromParsed(
+    Map<String, dynamic> parsed, {
+    required ConsultationNote session,
+    required String transcript,
   }) {
-    final vitalsRaw = parsed['vitalsIfMentioned'] is Map
-        ? parsed['vitalsIfMentioned'] as Map
-        : const {};
-    final vitals = <String, String?>{
-      for (final key in const ['bp', 'temp', 'pulse'])
-        key: _cleanString(vitalsRaw[key]).isEmpty
-            ? null
-            : _cleanString(vitalsRaw[key]),
-    };
-
-    final medicinesRaw = parsed['medicines'] is List
-        ? parsed['medicines'] as List
-        : const [];
-    final medicines = medicinesRaw
-        .whereType<Map>()
-        .map(
-          (m) => NotedMedicine(
-            name: _cleanString(m['name']),
-            dosage: _cleanString(m['dosage']),
-            instructions: _cleanString(m['instructions']),
-          ),
-        )
-        .where((m) => m.name.isNotEmpty)
-        .toList();
-
-    DateTime? followUpDate;
-    final followUpRaw = _cleanString(parsed['followUpDate']);
-    if (followUpRaw.isNotEmpty) {
-      followUpDate = DateTime.tryParse(followUpRaw);
-    }
-
-    return ConsultationNote(
-      id: noteId,
-      doctorId: doctorId,
-      patientId: patientId,
-      visitId: visitId,
-      transcript: _cleanString(parsed['transcript']),
-      chiefComplaint: _cleanString(parsed['chiefComplaint']),
-      symptoms: _toStringList(parsed['symptoms']),
-      diagnosisSuggestions: _toStringList(parsed['diagnosisSuggestions']),
-      medicines: medicines,
-      advice: _cleanString(parsed['advice']),
-      followUpDate: followUpDate,
-      vitals: vitals,
-      physio: PhysioFindings.fromJson(parsed['physio']),
-      confidenceNote: _cleanString(parsed['transcriptSummaryConfidenceNote']),
-      consentGiven: true,
-      consentAt: consentAt,
-      audioStoragePath: audioStoragePath,
-      status: ConsultationNoteStatus.draft,
-      createdAt: now,
+    return session.copyWith(
+      transcript: transcript,
+      notes: cleanNotes(_cleanString(parsed['notes'])),
+      chiefComplaint: _cleanString(parsed['title']),
+      confidenceNote: _cleanString(parsed['confidenceNote']),
     );
+  }
+
+  /// Strips markdown the model may add despite instructions and collapses
+  /// runs of blank lines, so the notes read as plain text.
+  @visibleForTesting
+  static String cleanNotes(String notes) {
+    final lines = notes
+        .replaceAll('\r\n', '\n')
+        .replaceAll('**', '')
+        .split('\n')
+        .map((l) => l.replaceFirst(RegExp(r'^\s*#+\s*'), '').trimRight());
+    return lines.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
   }
 
   static String _cleanString(Object? value) {
     if (value is! String) return '';
     final trimmed = value.trim();
     return trimmed.toLowerCase() == 'null' ? '' : trimmed;
-  }
-
-  static List<String> _toStringList(Object? value) {
-    if (value is! List) return const [];
-    final seen = <String>{};
-    return value
-        .map(_cleanString)
-        .where((e) => e.isNotEmpty && seen.add(e.toLowerCase()))
-        .toList();
   }
 }
 
@@ -546,13 +324,15 @@ enum ScribeFailureKind {
   notConfigured,
   quota,
   badResponse,
-  audio,
+
+  /// Too little was heard, or what was heard wasn't a consultation.
+  noConversation,
   unknown;
 
-  /// Whether retrying the same recording could plausibly succeed.
+  /// Whether retrying the same conversation could plausibly succeed.
   bool get isRetryable =>
       this != ScribeFailureKind.notConfigured &&
-      this != ScribeFailureKind.audio;
+      this != ScribeFailureKind.noConversation;
 }
 
 class ScribeProcessingException implements Exception {

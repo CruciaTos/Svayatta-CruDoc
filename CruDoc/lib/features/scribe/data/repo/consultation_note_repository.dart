@@ -7,41 +7,29 @@ import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
-import 'package:doctor_management_app/core/services/medical_storage_service.dart';
-import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
 import 'package:doctor_management_app/features/scribe/data/services/consultation_note_local_service.dart';
-import 'package:doctor_management_app/features/scribe/data/services/scribe_audio_sync.dart';
 
-/// Repository for consultation notes produced by the AI Scribe.
+/// Repository for the session notes the AI Scribe writes.
 ///
-/// The critical constraint from the feature plan (§1):
-/// **Nothing writes to Patient or Visit until [confirmNote] is called.**
-/// [saveNote] only stores a draft locally — it does not touch patient data.
-///
-/// Confirmed notes are the patient's session history. They are kept in the
+/// Session notes are the patient's session history. They are kept in the
 /// clinic-wide `consultation_notes` collection (keyed by the clinic's
 /// [ConsultationNote.doctorId], like `dental_records`), so every device and
-/// every clinician with clinical access sees the same history. Drafts never
-/// leave the device.
+/// every clinician with clinical access sees the same history.
 class ConsultationNoteRepository {
   ConsultationNoteRepository({
     ConsultationNoteLocalService? localService,
-    PatientRepository? patientRepository,
     VisitRepository? visitRepository,
     FirebaseFirestore? firestore,
   }) : _localService = localService ?? ConsultationNoteLocalService(),
-       _patientRepository = patientRepository ?? PatientRepository(),
        _visitRepository = visitRepository ?? VisitRepository(),
        _firestoreOverride = firestore;
 
   static const collection = 'consultation_notes';
 
   final ConsultationNoteLocalService _localService;
-  final PatientRepository _patientRepository;
   final VisitRepository _visitRepository;
   final FirebaseFirestore? _firestoreOverride;
 
@@ -52,6 +40,7 @@ class ConsultationNoteRepository {
   /// and map fields are JSON strings by the time they get here.
   static const _phiFields = [
     'transcript',
+    'notes',
     'chiefComplaint',
     'advice',
     'confidenceNote',
@@ -100,39 +89,17 @@ class ConsultationNoteRepository {
 
   // ---- Write operations ----
 
-  /// Saves an AI-produced draft note locally.
+  /// Adds the session note the scribe wrote to the patient's record:
   ///
-  /// Does NOT touch Patient or Visit — the doctor must call [confirmNote]
-  /// after reviewing the draft to commit it to the patient record.
-  Future<void> saveNote(ConsultationNote note) async {
-    // The recording's cloud path is filled in by a background upload, after
-    // the review screen has loaded its copy of the note. Saving that older
-    // copy must not wipe it.
-    var toSave = note;
-    if (note.audioStoragePath == null) {
-      final stored = await _localService.getNote(note.id);
-      final path = stored?.audioStoragePath;
-      if (path != null && path.isNotEmpty) {
-        toSave = note.copyWith(audioStoragePath: path);
-      }
-    }
-    await _localService.upsertNote(_encryptedForLocal(toSave));
-  }
-
-  /// Called when the doctor taps Confirm on the draft review screen, with
-  /// the doctor's edited version of the note.
+  /// 1. Saves it on this device as their newest session note
+  /// 2. Appends it to [Visit.therapistNotes] (existing text is kept)
+  /// 3. Uploads it to the clinic's `consultation_notes` collection, so the
+  ///    clinic's other devices see it (retried later if offline)
   ///
-  /// Performs in order:
-  /// 1. Saves the note locally as [ConsultationNoteStatus.confirmed]
-  /// 2. Merges diagnosis suggestions into [Patient.diagnosis] (deduped, capped at 4)
-  /// 3. Appends a dated summary to [Patient.notes]
-  /// 4. Appends a summary to [Visit.therapistNotes] (existing text is kept)
-  /// 5. Adds the note to the patient's session history in the clinic's
-  ///    `consultation_notes` collection
-  /// 6. Schedules audio deletion from Firebase Storage
-  Future<void> confirmNote(ConsultationNote note) async {
+  /// Returns the note as saved.
+  Future<ConsultationNote> saveSessionNote(ConsultationNote note) async {
     final now = DateTime.now();
-    final confirmed = note.copyWith(
+    final saved = note.copyWith(
       doctorId: _tenantId,
       authorUid: note.authorUid.isEmpty ? _currentUid : null,
       status: ConsultationNoteStatus.confirmed,
@@ -140,37 +107,28 @@ class ConsultationNoteRepository {
       updatedAt: now,
     );
 
-    // The recording is no longer needed: stop it uploading, and find the
-    // path of one that already has (the note passed in may predate it).
-    await ScribeAudioSync.cancelFor(note.id);
-    final audioPath = await _storedAudioPath(note);
+    if (kIsWeb) {
+      await _firestore
+          .collection(collection)
+          .doc(saved.id)
+          .set(_encryptNoteForFirestore(saved.toMap()));
+      ConsultationNoteLocalService.notifyChanged();
+    } else {
+      await _localService.upsertNote(
+        _encryptedForLocal(saved),
+        syncStatus: ConsultationNoteLocalService.syncPending,
+      );
+    }
 
-    // 1 — Persist the doctor's edits together with the confirmed status.
-    // The audio is about to be deleted, so the note stops pointing at it.
-    final withoutAudio = confirmed.copyWith(clearAudioStoragePath: true);
-    await _localService.upsertNote(
-      _encryptedForLocal(withoutAudio),
-      syncStatus: ConsultationNoteLocalService.syncPending,
-    );
-
-    // 2 & 3 — Merge into patient record
-    await _mergeIntoPatient(confirmed);
-
-    // 4 — Append to Visit.therapistNotes
-    await _mergeIntoVisit(confirmed);
-
-    // 5 — Session history in the cloud (retried later if offline)
-    unawaited(_upload(withoutAudio));
-
-    // 6 — Delete raw audio from Firebase Storage
-    if (audioPath != null) unawaited(_deleteAudio(audioPath));
+    await _mergeIntoVisit(saved);
+    if (!kIsWeb) unawaited(_upload(saved));
+    return saved;
   }
 
   /// Saves a doctor's later changes to a confirmed session note.
   ///
-  /// Only the note itself changes: the summary appended to the patient's
-  /// notes and the visit when it was confirmed is left as it was, so an
-  /// edit never duplicates text there.
+  /// Only the note itself changes: the copy appended to the visit when it
+  /// was saved is left as it was, so an edit never duplicates text there.
   Future<ConsultationNote> updateSessionNote(ConsultationNote note) async {
     final now = DateTime.now();
     final edited = note.copyWith(
@@ -198,39 +156,12 @@ class ConsultationNoteRepository {
     return edited;
   }
 
-  /// Called when the doctor taps Discard. Marks the note discarded locally
-  /// and schedules audio deletion. No patient-record changes are made.
-  Future<void> discardNote(ConsultationNote note) async {
-    await ScribeAudioSync.cancelFor(note.id);
-    final audioPath = await _storedAudioPath(note);
-    await _localService.updateNoteFields(note.id, {
-      'status': ConsultationNoteStatus.discarded.value,
-      'audioStoragePath': null,
-    });
-
-    if (audioPath != null) unawaited(_deleteAudio(audioPath));
-  }
-
-  /// The recording's cloud path as stored now, or null when there is none.
-  Future<String?> _storedAudioPath(ConsultationNote note) async {
-    final stored = await _localService.getNote(note.id);
-    final path = stored?.audioStoragePath ?? note.audioStoragePath;
-    return path == null || path.isEmpty ? null : path;
-  }
-
   // ---- Read operations ----
 
   Stream<List<ConsultationNote>> watchNotesForVisit(String visitId) =>
       _localService
           .watchNotesForVisit(visitId)
           .map((notes) => notes.map(_decryptedFromLocal).toList());
-
-  /// The newest unreviewed draft for [visitId], so an interrupted review
-  /// (app closed, sheet dismissed) can be resumed instead of re-recorded.
-  Future<ConsultationNote?> getDraftForVisit(String visitId) async {
-    final note = await _localService.getDraftForVisit(visitId);
-    return note == null ? null : _decryptedFromLocal(note);
-  }
 
   Future<ConsultationNote?> getNote(String noteId) async {
     final note = await _localService.getNote(noteId);
@@ -320,35 +251,18 @@ class ConsultationNoteRepository {
 
   // ---- Pure helpers (exposed for tests) ----
 
-  /// Merges [suggestions] into [existing] per §8 of the feature plan:
-  /// case-insensitive dedupe, capped at [Patient.maxDiagnoses], with the
-  /// overflow returned separately so it can go into notes rather than being
-  /// silently dropped. Also used by the review UI to preview the result.
-  static ({List<String> diagnoses, List<String> overflow}) mergeDiagnoses(
-    List<String> existing,
-    List<String> suggestions,
-  ) {
-    final seen = existing.map((d) => d.trim().toLowerCase()).toSet();
-    final added = <String>[];
-    for (final raw in suggestions) {
-      final d = raw.trim();
-      if (d.isEmpty || !seen.add(d.toLowerCase())) continue;
-      added.add(d);
-    }
-    final combined = [...existing, ...added];
-    return (
-      diagnoses: combined.take(Patient.maxDiagnoses).toList(),
-      overflow: combined.skip(Patient.maxDiagnoses).toList(),
-    );
-  }
-
-  /// The block appended to [Visit.therapistNotes] on confirm, laid out as a
-  /// SOAP note. Only filled fields are included.
+  /// The block appended to [Visit.therapistNotes] when a session note is
+  /// saved: the notes as written, or a SOAP layout of an older structured
+  /// note's filled fields.
   @visibleForTesting
   static String buildVisitSummary(ConsultationNote note) {
     final lines = <String>[
-      'AI Scribe note (${DateFormat('d MMM yyyy, h:mm a').format(note.createdAt)})',
+      'Session note (${DateFormat('d MMM yyyy, h:mm a').format(note.createdAt)})',
     ];
+    final notes = note.notes.trim();
+    if (notes.isNotEmpty) {
+      return [...lines, '', notes].join('\n');
+    }
     for (final group in soapSections(note)) {
       lines
         ..add('')
@@ -358,9 +272,10 @@ class ConsultationNoteRepository {
     return lines.join('\n');
   }
 
-  /// The note's filled fields grouped as a SOAP note, in SOAP order, with
-  /// empty sections left out. Shared by [buildVisitSummary] and the session
-  /// history view, so both always say the same thing.
+  /// An older structured note's filled fields grouped as a SOAP note, in
+  /// SOAP order, with empty sections left out. Shared by
+  /// [buildVisitSummary] and the session note view, so both always say the
+  /// same thing.
   static List<({SoapSection section, List<String> lines})> soapSections(
     ConsultationNote note,
   ) {
@@ -458,6 +373,7 @@ class ConsultationNoteRepository {
   ConsultationNote _encryptedForLocal(ConsultationNote note) {
     return note.copyWith(
       transcript: FieldCipher.encrypt(note.transcript),
+      notes: FieldCipher.encrypt(note.notes),
       chiefComplaint: FieldCipher.encrypt(note.chiefComplaint),
       advice: FieldCipher.encrypt(note.advice),
       confidenceNote: FieldCipher.encrypt(note.confidenceNote),
@@ -467,50 +383,16 @@ class ConsultationNoteRepository {
   ConsultationNote _decryptedFromLocal(ConsultationNote note) {
     return note.copyWith(
       transcript: FieldCipher.decrypt(note.transcript),
+      notes: FieldCipher.decrypt(note.notes),
       chiefComplaint: FieldCipher.decrypt(note.chiefComplaint),
       advice: FieldCipher.decrypt(note.advice),
       confidenceNote: FieldCipher.decrypt(note.confidenceNote),
     );
   }
 
-  /// Merges the confirmed note into the patient record (§8):
-  /// diagnoses via [mergeDiagnoses], plus a dated summary appended to
-  /// [Patient.notes] that also carries any diagnosis overflow.
-  Future<void> _mergeIntoPatient(ConsultationNote note) async {
-    final patient = await _patientRepository.getPatient(note.patientId);
-    if (patient == null) return;
-
-    final merged = mergeDiagnoses(patient.diagnosis, note.diagnosisSuggestions);
-
-    final redFlags = note.physio.listOf('redFlags');
-    final lines = <String>[
-      if (note.chiefComplaint.trim().isNotEmpty)
-        'Chief complaint: ${note.chiefComplaint.trim()}',
-      // Carried onto the patient record so they're seen on every future visit.
-      if (redFlags.isNotEmpty) '⚠ Red flags: ${redFlags.join('; ')}',
-      if (note.advice.trim().isNotEmpty) 'Advice: ${note.advice.trim()}',
-      if (merged.overflow.isNotEmpty)
-        'Additional diagnoses: ${merged.overflow.join(', ')}',
-    ];
-
-    final updates = <String, dynamic>{
-      'diagnosis': Patient.diagnosisToStored(merged.diagnoses),
-    };
-    if (lines.isNotEmpty) {
-      final block = [
-        '[Scribe ${DateFormat('d/M/yyyy').format(note.createdAt)}]',
-        ...lines,
-      ].join('\n');
-      updates['notes'] = patient.notes.trim().isEmpty
-          ? block
-          : '${patient.notes.trim()}\n\n$block';
-    }
-
-    await _patientRepository.updatePatient(note.patientId, updates);
-  }
-
-  /// Appends the confirmed note's summary to [Visit.therapistNotes] (§8),
-  /// keeping whatever the doctor had already written for this session.
+  /// Appends the session note to [Visit.therapistNotes], keeping whatever
+  /// the doctor had already written for this session. A walk-in's session
+  /// has no visit, so there is nothing to append to.
   Future<void> _mergeIntoVisit(ConsultationNote note) async {
     try {
       final visit = await _visitRepository.getVisit(note.visitId);
@@ -526,8 +408,8 @@ class ConsultationNoteRepository {
           'treatmentType': note.diagnosisSuggestions.first,
       });
     } catch (e) {
-      // Best-effort — don't fail the entire confirm flow if the visit update
-      // fails (e.g. visit was deleted between recording and confirm).
+      // Best-effort — the session note is already saved; don't fail it if
+      // the visit update fails (e.g. the visit was deleted meanwhile).
       debugPrint('[ScribeRepo] Visit update failed: $e');
     }
   }
@@ -552,19 +434,6 @@ class ConsultationNoteRepository {
       }
     } catch (e) {
       debugPrint('[ScribeRepo] Session note upload failed: $e');
-    }
-  }
-
-  Future<void> _deleteAudio(String storagePath) async {
-    try {
-      await MedicalStorageService.instance.delete(storagePath);
-    } on FirebaseException catch (e) {
-      // Already gone (the 14-day purge got there first) is the goal.
-      if (e.code != 'object-not-found') {
-        debugPrint('[ScribeRepo] Audio deletion failed: ${e.code}');
-      }
-    } catch (e) {
-      debugPrint('[ScribeRepo] Audio deletion failed: $e');
     }
   }
 }

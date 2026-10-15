@@ -18,8 +18,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
-import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
-import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
+import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
 
 Map<String, String> _env() {
@@ -71,73 +70,54 @@ void main() {
   }, skip: skip);
 
   test(
-    'AI Scribe: physiotherapy session → SOAP note',
+    'AI Scribe: physiotherapy conversation → session notes',
     () async {
-      final audio = File('${fixtures.path}/physio_session.wav');
+      const transcript = '''
+Doctor: Good morning, what brings you in today?
+Patient: My right knee has been hurting for about three weeks, since I twisted it playing football.
+Doctor: How bad is the pain right now, out of ten?
+Patient: Around six. At its worst it gets to eight, especially on the stairs.
+Doctor: Any locking? Any night pain, fever or weight loss?
+Patient: No locking, no fever, nothing like that.
+Doctor: Let me check. Right knee bends to about 95 degrees. McMurray is positive on the right. Quadriceps strength is four by five.
+Doctor: This looks like a medial meniscus injury. Are you taking anything for the pain?
+Patient: I take Combiflam sometimes, maybe once a day.
+Doctor: Today we will do IFT for fifteen minutes. At home do static quads, three sets of ten, hold five seconds, twice a day. Avoid squatting. Come back after two days.
+''';
       final watch = Stopwatch()..start();
-      final parsed = await client().generateJson(
-        systemPrompt: ScribeProcessingService.systemPrompt,
-        prompt:
-            'Consultation date: 2026-09-25. Transcribe this physiotherapy '
-            'session and extract the clinical information into the requested '
-            'SOAP JSON structure.',
-        audioBytes: await audio.readAsBytes(),
-        mimeType: 'audio/wav',
-        schema: ScribeProcessingService.responseSchema,
-        maxOutputTokens: 32768,
-        timeout: const Duration(seconds: 150),
-      );
-      final note = ScribeProcessingService.noteFromParsed(
-        parsed: parsed,
-        noteId: 'live',
-        doctorId: 'd',
-        patientId: 'p',
-        visitId: 'v',
-        consentAt: DateTime(2026, 9, 25, 10),
-        now: DateTime(2026, 9, 25, 10, 30),
-      );
+      final note = await ScribeProcessingService(client: client())
+          .writeSessionNote(
+            session: ConsultationNote(
+              id: 'live',
+              doctorId: 'd',
+              patientId: 'p',
+              visitId: 'v',
+              specialty: SessionSpecialty.physiotherapy,
+              createdAt: DateTime(2026, 9, 25, 10),
+            ),
+            transcript: transcript,
+          );
       // ignore: avoid_print
       print(
-        '--- ${watch.elapsed.inSeconds}s with $model ---\n'
-        '${ConsultationNoteRepository.buildVisitSummary(note)}\n'
-        '--- AI note: ${note.confidenceNote}',
+        '--- ${watch.elapsed.inSeconds}s with $model: ${note.chiefComplaint} ---\n'
+        '${note.notes}\n'
+        '--- Unsure: ${note.confidenceNote}',
       );
 
-      final p = note.physio;
-      String rows(String key) => p
-          .tableOf(key)
-          .map((r) => r.values.join(' '))
-          .join(' | ')
-          .toLowerCase();
-
+      final notes = note.notes.toLowerCase();
       expect(note.chiefComplaint.toLowerCase(), contains('knee'));
-      expect(p.textOf('painNow'), contains('6'));
-      expect(p.textOf('painWorst'), contains('8'));
-      expect(rows('rom'), contains('95'));
-      expect(rows('specialTests'), contains('mcmurray'));
-      expect(rows('strength'), contains('4'));
-      expect(rows('treatment'), contains('ift'));
-      expect(rows('homeExercises'), contains('quad'));
-      expect(
-        note.diagnosisSuggestions.join(' ').toLowerCase(),
-        contains('menisc'),
-      );
-      expect(
-        note.medicines.map((m) => m.name.toLowerCase()).join(' '),
-        contains('combiflam'),
-      );
-      expect(
-        p.listOf('redFlags'),
-        isEmpty,
-        reason: 'all red flags were denied',
-      );
-      expect(p.listOf('redFlagsCleared'), isNotEmpty);
-      expect(note.followUpDate, DateTime(2026, 9, 27));
-      expect(p.isEmpty, isFalse);
-      expect(PhysioFindings.fromStored(p.toStored()).toJson(), p.toJson());
+      expect(notes, contains('95'));
+      expect(notes, contains('mcmurray'));
+      expect(notes, contains('menisc'));
+      expect(notes, contains('combiflam'));
+      expect(notes, contains('ift'));
+      expect(notes, contains('quad'));
+      expect(notes, contains('27 sep'));
+      expect(notes, isNot(contains('**')));
+      expect(notes, isNot(contains('mri')), reason: 'nothing unsaid is added');
     },
     skip: skip,
-    timeout: const Timeout(Duration(minutes: 4)),
+    timeout: const Timeout(Duration(minutes: 2)),
   );
 
   test(

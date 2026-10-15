@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -66,9 +65,8 @@ class NoteItem extends StatelessWidget {
   }
 }
 
-/// "✦ Dictated with Scribe · reviewed by Dr. Deshpande" in AI violet.
-/// Shown only when the visit has a confirmed Scribe note; the reviewer
-/// part is dropped when the doctor's name isn't known.
+/// "✦ Session note by AI Scribe" in AI violet. Shown only when the visit
+/// has a session note the scribe wrote.
 class ScribeTag extends ConsumerWidget {
   const ScribeTag({super.key, required this.visitId});
   final String visitId;
@@ -80,11 +78,8 @@ class ScribeTag extends ConsumerWidget {
         notes?.any((n) => n.status == ConsultationNoteStatus.confirmed) ??
         false;
     if (!confirmed) return const SizedBox.shrink();
-    final doctor = ref.watch(doctorIdentityProvider).greetingName;
     final c = context.cru;
-    final text = doctor == null
-        ? 'Dictated with Scribe'
-        : 'Dictated with Scribe · reviewed by $doctor';
+    const text = 'Session note by AI Scribe';
     return Padding(
       padding: const EdgeInsets.only(top: CruSpace.s6),
       child: Row(

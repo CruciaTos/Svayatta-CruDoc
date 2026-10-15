@@ -11,8 +11,8 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Sessions shown before "See all".
 const int kSessionHistoryLimit = 4;
 
-/// The patient's session history: one row per consultation recorded with
-/// the AI scribe, newest first. Opening a row shows the full note, which
+/// The patient's session notes: one row per consultation the AI scribe
+/// wrote up, newest first. Opening a row shows the full note, which
 /// clinicians can edit. Only built when there is at least one session.
 class SessionHistoryCard extends StatefulWidget {
   const SessionHistoryCard({
@@ -23,7 +23,7 @@ class SessionHistoryCard extends StatefulWidget {
 
   final Patient patient;
 
-  /// Confirmed notes, newest first (see `sessionHistoryProvider`).
+  /// Session notes, newest first (see `sessionHistoryProvider`).
   final List<ConsultationNote> sessions;
 
   @override
@@ -42,7 +42,7 @@ class _SessionHistoryCardState extends State<SessionHistoryCard> {
         : sessions.take(kSessionHistoryLimit).toList();
 
     return CruCard(
-      semanticLabel: 'Session history',
+      semanticLabel: 'Session notes',
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -50,7 +50,7 @@ class _SessionHistoryCardState extends State<SessionHistoryCard> {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             child: DetailsCardHeader(
-              title: 'Session history',
+              title: 'Session notes',
               trailing: more
                   ? CruLink(
                       label: _all ? 'Show less' : 'See all',

@@ -6,14 +6,13 @@
 // container and header as DesktopQueueScreen / DesktopEventsScreen, so the
 // sidebar stays visible throughout the recording → review flow.
 //
-// Layout:
-//   • Session: today's visits on the left, the selected visit's consent /
-//     recording / processing panel on the right.
-//   • Review: the editable draft (shared ScribeDraftForm) with an action bar.
+// Layout: today's visits on the left, the selected visit's consent /
+// recording / processing / saved-note panel on the right. While recording,
+// the right side widens to show the conversation as it is transcribed.
 //
 // Recording and processing are driven by ScribeSessionController — the same
-// state machine the mobile sheet uses. Nothing is written to the patient
-// record until the doctor confirms the reviewed draft.
+// state machine the mobile sheet uses. When the doctor finishes, the
+// session notes are written and saved straight to the patient's record.
 
 import 'dart:ui' as ui;
 
@@ -25,10 +24,10 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
-import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_session_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_draft_form.dart';
+import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_recorder_widgets.dart';
 
@@ -46,21 +45,17 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   Visit? _visit;
   Patient? _patient;
   ScribeSessionController? _session;
-  ScribeDraftFormController? _form;
-  bool _busy = false;
 
   @override
   void dispose() {
     _disposeSession();
-    _form?.dispose();
     super.dispose();
   }
 
   // ---- Session lifecycle ----
 
-  /// Switching visits would drop an in-progress or kept recording.
-  bool get _sessionLocked =>
-      (_session?.isBusy ?? false) || (_session?.hasUnsavedAudio ?? false);
+  /// Switching visits would drop the conversation being recorded.
+  bool get _sessionLocked => _session?.hasUnsavedConversation ?? false;
 
   void _selectVisit(Visit visit, Patient? patient) {
     if (_sessionLocked) return;
@@ -71,7 +66,6 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
       processingService: ref.read(scribeProcessingServiceProvider),
       repository: ref.read(consultationNoteRepositoryProvider),
     )..addListener(_onSessionChanged);
-    session.loadPendingDraft();
     setState(() {
       _visit = visit;
       _patient = patient;
@@ -79,36 +73,7 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     });
   }
 
-  int _simulationStep = 0;
-
-  void _simulateSampleConsultation(ScribeSessionController session) {
-    const samples = [
-      'Patient came complaining of acute lower back pain radiating down right leg for 3 days.',
-      'Examination shows BP is 128 over 82, pulse 76, temperature 98.4 degrees.',
-      'Patient rates pain right now at 6 out of 10, worst pain 8 out of 10, sharp aching at lumbar spine.',
-      'Diagnosis is acute lumbar radiculopathy with muscle spasm.',
-      'Prescribing Tab Paracetamol 650mg three times daily after food for 5 days, and Tab Thiocolchicoside 4mg twice daily for 5 days.',
-      'Advised ice packs for 15 minutes twice daily, avoid forward bending, and follow up in 5 days.',
-    ];
-    final text = samples[_simulationStep % samples.length];
-    _simulationStep++;
-    session.simulateSpeechTurn(text);
-  }
-
-  void _onSessionChanged() {
-    final session = _session;
-    final draft = session?.draft;
-    if (session?.phase == ScribeSessionPhase.done &&
-        draft != null &&
-        _form == null) {
-      setState(
-        () => _form =
-            session?.takeActiveDraftForm() ?? ScribeDraftFormController(draft),
-      );
-    } else {
-      setState(() {});
-    }
-  }
+  void _onSessionChanged() => setState(() {});
 
   void _disposeSession() {
     _session
@@ -118,16 +83,11 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   }
 
   void _resetToIdle() {
-    final form = _form;
     _disposeSession();
     setState(() {
-      _form = null;
       _visit = null;
       _patient = null;
-      _busy = false;
     });
-    // Dispose after the review fields have been unmounted.
-    WidgetsBinding.instance.addPostFrameCallback((_) => form?.dispose());
   }
 
   Future<void> _discardRecording() async {
@@ -135,86 +95,12 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
       context,
       palette: _p,
       icon: Icons.delete_outline_rounded,
-      title: 'Discard recording?',
-      message: 'The recording will be deleted and no note will be created.',
+      title: 'Discard this conversation?',
+      message: 'Nothing is saved to the patient’s record.',
       confirmLabel: 'Discard',
       cancelLabel: 'Keep',
     );
     if (ok) await _session?.discardRecording();
-  }
-
-  // ---- Review actions ----
-
-  Future<void> _confirmNote() async {
-    final form = _form;
-    if (_busy || form == null || !form.canConfirm) return;
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(consultationNoteRepositoryProvider)
-          .confirmNote(form.toNote());
-      if (!mounted) return;
-      _showSnack(
-        'Note saved to ${_patient?.fullName ?? 'the patient'}’s record.',
-      );
-      _resetToIdle();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      _showSnack('Could not save the note: $e', isError: true);
-    }
-  }
-
-  Future<void> _discardNote() async {
-    final form = _form;
-    if (form == null) return;
-    final ok = await showScribeConfirmDialog(
-      context,
-      palette: _p,
-      icon: Icons.delete_outline_rounded,
-      title: 'Discard this note?',
-      message:
-          'The draft will be deleted. Nothing is added to the patient '
-          'record.',
-      confirmLabel: 'Discard',
-      cancelLabel: 'Keep reviewing',
-    );
-    if (!ok || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      await ref
-          .read(consultationNoteRepositoryProvider)
-          .discardNote(form.original);
-    } catch (_) {}
-    if (mounted) _resetToIdle();
-  }
-
-  Future<void> _saveForLater() async {
-    final form = _form;
-    if (form == null || _busy) return;
-    setState(() => _busy = true);
-    try {
-      if (!(form.isEmpty && form.original.transcript.trim().isEmpty)) {
-        await ref
-            .read(consultationNoteRepositoryProvider)
-            .saveNote(form.toNote());
-        if (mounted) {
-          _showSnack('Draft saved. Select the visit again to finish it.');
-        }
-      }
-    } catch (_) {}
-    if (mounted) _resetToIdle();
-  }
-
-  void _showSnack(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? _p.danger : const Color(0xFF1E293B),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 
   // =========================================================================
@@ -223,7 +109,6 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reviewing = _form != null;
     return SizedBox.expand(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
@@ -240,11 +125,9 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  reviewing ? _buildReviewHeader() : _buildSessionHeader(),
+                  _buildSessionHeader(),
                   const SizedBox(height: 20),
-                  Expanded(
-                    child: reviewing ? _buildReviewBody() : _buildSessionBody(),
-                  ),
+                  Expanded(child: _buildSessionBody()),
                 ],
               ),
             ),
@@ -260,21 +143,10 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     return _PageHeader(
       icon: Icons.mic_rounded,
       title: 'AI Voice Scribe',
-      subtitle: 'Record a consultation and get a draft clinical note to review',
-      pill: DateFormat('EEEE, MMM d').format(DateTime.now()),
-    );
-  }
-
-  Widget _buildReviewHeader() {
-    final form = _form!;
-    return _PageHeader(
-      icon: Icons.fact_check_outlined,
-      title: 'Review Clinical Note',
       subtitle:
-          '${_patient?.fullName ?? 'Unknown patient'} · '
-          '${DateFormat('d MMM yyyy, h:mm a').format(form.original.createdAt)}',
-      pill: 'Draft',
-      pillColor: _p.warning,
+          'Talk with the patient — the scribe writes the session notes and '
+          'saves them to their record',
+      pill: DateFormat('EEEE, MMM d').format(DateTime.now()),
     );
   }
 
@@ -441,7 +313,7 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                   const SizedBox(width: 8),
                   Tooltip(
                     message:
-                        'Finish or discard the current recording to switch visits',
+                        'Finish or discard the current conversation to switch visits',
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -496,8 +368,8 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
       listenable: session,
       builder: (context, _) {
         final body = switch (session.phase) {
-          ScribeSessionPhase.ready ||
-          ScribeSessionPhase.done => _buildReadyPanel(session),
+          ScribeSessionPhase.ready => _buildReadyPanel(session),
+          ScribeSessionPhase.done => _buildSavedPanel(session.note!),
           ScribeSessionPhase.recording ||
           ScribeSessionPhase.paused => ScribeRecorderPanel(
             controller: session,
@@ -514,7 +386,9 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             onDiscard: _discardRecording,
           ),
         };
-        final centred = session.phase != ScribeSessionPhase.ready;
+        final centred =
+            session.phase != ScribeSessionPhase.ready &&
+            session.phase != ScribeSessionPhase.done;
 
         return _Card(
           padding: EdgeInsets.zero,
@@ -548,7 +422,6 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   }
 
   Widget _buildLiveRecordingWorkspace(ScribeSessionController session) {
-    final activeForm = session.activeDraftForm;
     final paused = session.phase == ScribeSessionPhase.paused;
     final statusColor = paused ? _p.warning : _p.danger;
 
@@ -589,7 +462,7 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                       ),
                       const SizedBox(width: 7),
                       Text(
-                        paused ? 'PAUSED' : 'LIVE SCRIBE (LOCAL)',
+                        paused ? 'PAUSED' : 'LISTENING',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -624,30 +497,6 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                TextButton.icon(
-                  onPressed: () => _simulateSampleConsultation(session),
-                  icon: Icon(
-                    Icons.auto_fix_high_rounded,
-                    size: 16,
-                    color: _p.accent,
-                  ),
-                  label: Text(
-                    'Simulate Turn',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _p.accent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    backgroundColor: _p.accentSoft,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 IconButton(
                   tooltip: paused ? 'Resume recording' : 'Pause recording',
                   icon: Icon(
@@ -667,7 +516,7 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                 FilledButton.icon(
                   onPressed: session.finish,
                   icon: const Icon(Icons.stop_rounded, size: 18),
-                  label: const Text('Finish & Review'),
+                  label: const Text('Finish & write notes'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _p.primary,
                     foregroundColor: Colors.white,
@@ -685,19 +534,31 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             ),
           ),
           Divider(height: 1, color: _p.border),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Text('CONVERSATION', style: _p.sectionLabel),
+          ),
           Expanded(
-            child: activeForm != null
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: ScribeDraftForm(
-                      controller: activeForm,
-                      palette: _p,
-                      existingDiagnoses: _patient?.diagnosis ?? const [],
-                    ),
-                  )
-                : const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: ScribeLiveTranscript(
+                  transcript: session.transcript,
+                  palette: _p,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Text(
+              'Talk with the patient as you normally would. When you '
+              'finish, the session notes are written and saved to their '
+              'record.',
+              style: TextStyle(fontSize: 12.5, color: _p.textSecondary),
+            ),
           ),
         ],
       ),
@@ -705,18 +566,9 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   }
 
   Widget _buildReadyPanel(ScribeSessionController session) {
-    final pending = session.pendingDraft;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (pending != null) ...[
-          ScribePendingDraftNotice(
-            createdAt: pending.createdAt,
-            palette: _p,
-            onReview: session.resumePendingDraft,
-          ),
-          const SizedBox(height: 20),
-        ],
         ScribeStepsStrip(palette: _p),
         const SizedBox(height: 22),
         Text('PATIENT CONSENT', style: _p.sectionLabel),
@@ -743,138 +595,92 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
           color: _p.primary,
           onPressed: session.consentGiven ? session.start : null,
         ),
-        const SizedBox(height: 6),
-        TextButton(
-          onPressed: session.startManualNote,
-          style: TextButton.styleFrom(
-            foregroundColor: _p.textSecondary,
-            textStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          child: const Text('Write the note without recording'),
-        ),
       ],
     );
   }
 
-  // ---- Review ----
-
-  Widget _buildReviewBody() {
-    final form = _form!;
+  /// The session note just saved to the patient's record.
+  Widget _buildSavedPanel(ConsultationNote note) {
+    final unsure = note.confidenceNote.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: ScribeDraftForm(
-              controller: form,
-              palette: _p,
-              existingDiagnoses: _patient?.diagnosis ?? const [],
+        ScribeNotice(
+          icon: Icons.check_circle_rounded,
+          color: _p.success,
+          background: _p.success.withValues(alpha: 0.08),
+          title: 'Saved to the patient record',
+          message:
+              'Added to ${_patient?.fullName ?? 'the patient'}’s session '
+              'notes.',
+        ),
+        const SizedBox(height: 20),
+        Text('SESSION NOTE', style: _p.sectionLabel),
+        const SizedBox(height: 10),
+        Text(
+          sessionTitle(note),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: _p.textPrimary,
+          ),
+        ),
+        if (unsure.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          ScribeNotice(
+            icon: Icons.warning_amber_rounded,
+            color: _p.warning,
+            background: _p.warningSoft,
+            title: 'Check',
+            message: unsure,
+          ),
+        ],
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _p.field,
+            borderRadius: BorderRadius.circular(_p.fieldRadius),
+            border: Border.all(color: _p.border),
+          ),
+          child: SelectableText(
+            note.notes,
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.5,
+              color: _p.textPrimary,
             ),
           ),
         ),
-        ListenableBuilder(
-          listenable: form,
-          builder: (context, _) => _Card(
-            padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
-            child: Row(
-              children: [
-                Checkbox(
-                  value: form.reviewed,
-                  onChanged: _busy ? null : (v) => form.setReviewed(v ?? false),
-                  activeColor: _p.primary,
-                  side: BorderSide(color: _p.hint, width: 1.6),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    openSessionNote(context, note: note, patient: _patient),
+                icon: const Icon(Icons.edit_note_rounded, size: 20),
+                label: const Text('Open / edit'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _p.textPrimary,
+                  minimumSize: const Size.fromHeight(48),
+                  side: BorderSide(color: _p.border),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _busy
-                        ? null
-                        : () => form.setReviewed(!form.reviewed),
-                    child: Text(
-                      form.reviewed && form.isEmpty
-                          ? 'Add at least one detail to save the note'
-                          : "I've checked this note against the consultation",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: form.reviewed && form.isEmpty
-                            ? _p.warning
-                            : _p.textPrimary,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                TextButton(
-                  onPressed: _busy ? null : _saveForLater,
-                  style: TextButton.styleFrom(
-                    foregroundColor: _p.textSecondary,
-                  ),
-                  child: const Text('Finish later'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _discardNote,
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  label: const Text('Discard'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _p.danger,
-                    side: BorderSide(color: _p.danger.withValues(alpha: 0.4)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                FilledButton.icon(
-                  onPressed: (_busy || !form.canConfirm) ? null : _confirmNote,
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.check_circle_outline_rounded,
-                          size: 18,
-                        ),
-                  label: const Text('Confirm & save'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _p.success,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: const Color(0xFFE2E8F0),
-                    disabledForegroundColor: const Color(0xFF94A3B8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 14,
-                    ),
-                    textStyle: const TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: ScribePrimaryButton(
+                label: 'Done',
+                icon: Icons.check_rounded,
+                color: _p.primary,
+                onPressed: _resetToIdle,
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -891,18 +697,15 @@ class _PageHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.pill,
-    this.pillColor,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final String? pill;
-  final Color? pillColor;
 
   @override
   Widget build(BuildContext context) {
-    final tint = pillColor;
     return Row(
       children: [
         Container(
@@ -941,18 +744,16 @@ class _PageHeader extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: tint?.withValues(alpha: 0.12) ?? _p.field,
+                        color: _p.field,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: tint?.withValues(alpha: 0.4) ?? _p.border,
-                        ),
+                        border: Border.all(color: _p.border),
                       ),
                       child: Text(
                         pill!,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: tint ?? _p.textSecondary,
+                          color: _p.textSecondary,
                         ),
                       ),
                     ),

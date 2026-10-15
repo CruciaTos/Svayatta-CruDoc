@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,13 +8,10 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
-import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_draft_form.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Opens one session from a patient's history.
+/// Opens one session note from a patient's record.
 Future<void> openSessionNote(
   BuildContext context, {
   required ConsultationNote note,
@@ -29,9 +24,9 @@ Future<void> openSessionNote(
   );
 }
 
-/// A confirmed session note: read as a SOAP note, and editable by anyone
-/// who writes clinical records. Saving keeps the note in the patient's
-/// session history and marks it edited.
+/// A session note: what the scribe wrote from the consultation, editable by
+/// anyone who writes clinical records. Saving keeps the note in the
+/// patient's session history and marks it edited.
 class SessionNoteScreen extends ConsumerStatefulWidget {
   const SessionNoteScreen({super.key, required this.note, this.patient});
 
@@ -48,32 +43,28 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
   late ConsultationNote _note = widget.note;
 
   /// Non-null while editing.
-  ScribeDraftFormController? _form;
+  _NoteEdit? _edit;
   bool _saving = false;
 
   @override
   void dispose() {
-    _form?.dispose();
+    _edit?.dispose();
     super.dispose();
   }
 
-  void _startEditing() => setState(() => _form = ScribeDraftFormController(_note));
+  void _startEditing() => setState(() => _edit = _NoteEdit(_note));
 
   void _stopEditing() {
-    final form = _form;
-    setState(() => _form = null);
-    form?.dispose();
-  }
-
-  bool get _hasChanges {
-    final form = _form;
-    return form != null && contentKeyOf(form.toNote()) != contentKeyOf(_note);
+    final edit = _edit;
+    setState(() => _edit = null);
+    // Dispose after the fields have been unmounted.
+    WidgetsBinding.instance.addPostFrameCallback((_) => edit?.dispose());
   }
 
   Future<void> _save() async {
-    final form = _form;
-    if (form == null || _saving || form.isEmpty) return;
-    if (!_hasChanges) {
+    final edit = _edit;
+    if (edit == null || _saving || edit.isEmpty) return;
+    if (!edit.hasChanges) {
       _stopEditing();
       return;
     }
@@ -81,7 +72,7 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
     try {
       final saved = await ref
           .read(consultationNoteRepositoryProvider)
-          .updateSessionNote(form.toNote());
+          .updateSessionNote(edit.toNote());
       if (!mounted) return;
       _note = saved;
       _saving = false;
@@ -96,7 +87,7 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
 
   /// Cancel or back while editing: ask before throwing edits away.
   Future<bool> _leaveEditing() async {
-    if (!_hasChanges) {
+    if (!(_edit?.hasChanges ?? false)) {
       _stopEditing();
       return true;
     }
@@ -139,9 +130,9 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
   Widget _buildPage(BuildContext context) {
     final c = context.cru;
     final canEdit = ref.watch(clinicCanProvider(ClinicPermission.clinicalEdit));
-    final form = _form;
+    final edit = _edit;
     return PopScope(
-      canPop: form == null && !_saving,
+      canPop: edit == null && !_saving,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop || _saving) return;
         if (await _leaveEditing() && context.mounted) {
@@ -158,7 +149,7 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _TopBar(
-                    title: form == null ? 'Session note' : 'Edit session note',
+                    title: edit == null ? 'Session note' : 'Edit session note',
                     onBack: () => Navigator.of(context).maybePop(),
                   ),
                   Expanded(
@@ -174,21 +165,20 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
                       children: [
                         SessionNoteHeader(note: _note, patient: widget.patient),
                         const SizedBox(height: CruSpace.s16),
-                        if (form == null)
-                          SessionNoteBody(note: _note)
-                        else
-                          ScribeDraftForm(
-                            controller: form,
-                            palette: ScribePalette.of(context),
-                            existingDiagnoses:
-                                widget.patient?.diagnosis ?? const [],
-                          ),
+                        if (edit == null) ...[
+                          SessionNoteBody(note: _note),
+                          if (_showsTranscript(_note)) ...[
+                            const SizedBox(height: CruSpace.s16),
+                            SessionTranscriptCard(transcript: _note.transcript),
+                          ],
+                        ] else
+                          _NoteEditor(edit: edit, enabled: !_saving),
                       ],
                     ),
                   ),
-                  if (form != null)
+                  if (edit != null)
                     _EditBar(
-                      form: form,
+                      edit: edit,
                       saving: _saving,
                       onCancel: _leaveEditing,
                       onSave: _save,
@@ -219,17 +209,89 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
   }
 }
 
-/// What a note says, ignoring when and by whom it was saved — used to tell
-/// whether an edit changed anything.
+/// A transcript saved in place of notes is already the body.
+bool _showsTranscript(ConsultationNote note) {
+  final transcript = note.transcript.trim();
+  return transcript.isNotEmpty && transcript != note.notes.trim();
+}
+
+/// The text the doctor edits: the notes as written, or an older structured
+/// note laid out as SOAP sections.
 @visibleForTesting
-String contentKeyOf(ConsultationNote note) {
-  final map = note.toLocalMap()
-    ..remove('updatedAt')
-    ..remove('editedAt')
-    ..remove('editedByUid')
-    ..remove('confirmedAt')
-    ..remove('status');
-  return jsonEncode(map);
+String editableNotesOf(ConsultationNote note) {
+  final notes = note.notes.trim();
+  if (notes.isNotEmpty) return notes;
+  return [
+    for (final group in ConsultationNoteRepository.soapSections(note))
+      [group.section.title, ...group.lines].join('\n'),
+  ].join('\n\n');
+}
+
+/// The title and notes being edited, and what they started as.
+class _NoteEdit {
+  _NoteEdit(this.original)
+    : _startTitle = original.chiefComplaint.trim(),
+      _startNotes = editableNotesOf(original) {
+    title = TextEditingController(text: _startTitle);
+    notes = TextEditingController(text: _startNotes);
+  }
+
+  final ConsultationNote original;
+  final String _startTitle;
+  final String _startNotes;
+  late final TextEditingController title;
+  late final TextEditingController notes;
+
+  bool get isEmpty => notes.text.trim().isEmpty;
+
+  bool get hasChanges =>
+      title.text.trim() != _startTitle || notes.text.trim() != _startNotes;
+
+  ConsultationNote toNote() => original.copyWith(
+    chiefComplaint: title.text.trim(),
+    notes: notes.text.trim(),
+  );
+
+  void dispose() {
+    title.dispose();
+    notes.dispose();
+  }
+}
+
+class _NoteEditor extends StatelessWidget {
+  const _NoteEditor({required this.edit, required this.enabled});
+
+  final _NoteEdit edit;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return CruCard(
+      semanticLabel: 'Edit session note',
+      padding: const EdgeInsets.all(CruSpace.s20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CruTextField(
+            label: 'Title',
+            controller: edit.title,
+            hint: 'What the session was about',
+            textCapitalization: TextCapitalization.sentences,
+            enabled: enabled,
+          ),
+          const SizedBox(height: CruSpace.s16),
+          CruTextField(
+            label: 'Notes',
+            controller: edit.notes,
+            maxLines: 18,
+            keyboardType: TextInputType.multiline,
+            textCapitalization: TextCapitalization.sentences,
+            enabled: enabled,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TopBar extends StatelessWidget {
@@ -268,7 +330,7 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-/// Date, time, token and specialty of a session, with its AI and edited
+/// Title, date, time and specialty of a session, with its AI and edited
 /// markers.
 class SessionNoteHeader extends StatelessWidget {
   const SessionNoteHeader({super.key, required this.note, this.patient});
@@ -287,10 +349,9 @@ class SessionNoteHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          meta,
-          style: CruType.subhead.tabular.tint(c.label2),
-        ),
+        Text(sessionTitle(note), style: CruType.title.tint(c.label)),
+        const SizedBox(height: CruSpace.s4),
+        Text(meta, style: CruType.subhead.tabular.tint(c.label2)),
         const SizedBox(height: CruSpace.s8),
         Wrap(
           spacing: CruSpace.s8,
@@ -317,8 +378,8 @@ class SessionNoteHeader extends StatelessWidget {
   }
 }
 
-/// The note laid out as a SOAP note — the same sections that were added to
-/// the visit when it was confirmed.
+/// The session notes as the scribe wrote them, with anything it was unsure
+/// of called out first. Older structured notes show as SOAP sections.
 class SessionNoteBody extends StatelessWidget {
   const SessionNoteBody({super.key, required this.note});
 
@@ -327,45 +388,149 @@ class SessionNoteBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final groups = ConsultationNoteRepository.soapSections(note);
+    final unsure = note.confidenceNote.trim();
+    final notes = note.notes.trim();
     return CruCard(
       semanticLabel: 'Session note',
       padding: const EdgeInsets.all(CruSpace.s20),
-      child: groups.isEmpty
-          ? Text(
-              'Nothing was recorded in this note.',
-              style: CruType.text.tint(c.label2),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < groups.length; i++) ...[
-                  if (i > 0) ...[
-                    const SizedBox(height: CruSpace.s16),
-                    const CruSeparator(),
-                    const SizedBox(height: CruSpace.s16),
-                  ],
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      groups[i].section.title.toUpperCase(),
-                      style: CruType.groupLabel.tint(c.label2),
-                    ),
-                  ),
-                  const SizedBox(height: CruSpace.s8),
-                  for (final line in groups[i].lines)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: CruSpace.s4),
-                      child: SelectableText(
-                        line,
-                        style: CruType.body.tabular.tint(
-                          line.startsWith('⚠') ? c.redText : c.label,
-                        ),
-                      ),
-                    ),
-                ],
-              ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (unsure.isNotEmpty) ...[
+            Text('⚠ Check: $unsure', style: CruType.subhead.tint(c.amberText)),
+            const SizedBox(height: CruSpace.s16),
+          ],
+          if (notes.isNotEmpty)
+            ..._notesBlocks(context, notes)
+          else
+            ..._soapBlocks(context),
+        ],
+      ),
+    );
+  }
+
+  /// Blank-line separated blocks; a block's short first line followed by
+  /// more lines is its heading.
+  List<Widget> _notesBlocks(BuildContext context, String notes) {
+    final c = context.cru;
+    final blocks = notes
+        .split(RegExp(r'\n\s*\n'))
+        .map((b) => b.trim())
+        .where((b) => b.isNotEmpty)
+        .toList();
+    return [
+      for (var i = 0; i < blocks.length; i++) ...[
+        if (i > 0) const SizedBox(height: CruSpace.s16),
+        ...() {
+          final lines = blocks[i].split('\n');
+          final first = lines.first.trim();
+          final isHeading =
+              lines.length > 1 && first.length <= 40 && !first.startsWith('-');
+          final body = (isHeading ? lines.skip(1) : lines).join('\n').trim();
+          return [
+            if (isHeading) ...[
+              Semantics(
+                header: true,
+                child: Text(
+                  first.replaceFirst(RegExp(r':$'), '').toUpperCase(),
+                  style: CruType.groupLabel.tint(c.label2),
+                ),
+              ),
+              const SizedBox(height: CruSpace.s8),
+            ],
+            SelectableText(body, style: CruType.body.tabular.tint(c.label)),
+          ];
+        }(),
+      ],
+    ];
+  }
+
+  List<Widget> _soapBlocks(BuildContext context) {
+    final c = context.cru;
+    final groups = ConsultationNoteRepository.soapSections(note);
+    if (groups.isEmpty) {
+      return [
+        Text(
+          'Nothing was recorded in this note.',
+          style: CruType.text.tint(c.label2),
+        ),
+      ];
+    }
+    return [
+      for (var i = 0; i < groups.length; i++) ...[
+        if (i > 0) ...[
+          const SizedBox(height: CruSpace.s16),
+          const CruSeparator(),
+          const SizedBox(height: CruSpace.s16),
+        ],
+        Semantics(
+          header: true,
+          child: Text(
+            groups[i].section.title.toUpperCase(),
+            style: CruType.groupLabel.tint(c.label2),
+          ),
+        ),
+        const SizedBox(height: CruSpace.s8),
+        for (final line in groups[i].lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: CruSpace.s4),
+            child: SelectableText(
+              line,
+              style: CruType.body.tabular.tint(
+                line.startsWith('⚠') ? c.redText : c.label,
+              ),
             ),
+          ),
+      ],
+    ];
+  }
+}
+
+/// The conversation the notes were written from, folded away by default.
+class SessionTranscriptCard extends StatefulWidget {
+  const SessionTranscriptCard({super.key, required this.transcript});
+
+  final String transcript;
+
+  @override
+  State<SessionTranscriptCard> createState() => _SessionTranscriptCardState();
+}
+
+class _SessionTranscriptCardState extends State<SessionTranscriptCard> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruCard(
+      semanticLabel: 'Conversation transcript',
+      padding: const EdgeInsets.all(CruSpace.s20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'CONVERSATION TRANSCRIPT',
+                  style: CruType.groupLabel.tint(c.label2),
+                ),
+              ),
+              CruLink(
+                label: _open ? 'Hide' : 'Show',
+                onPressed: () => setState(() => _open = !_open),
+              ),
+            ],
+          ),
+          if (_open) ...[
+            const SizedBox(height: CruSpace.s12),
+            SelectableText(
+              widget.transcript.trim(),
+              style: CruType.body.tint(c.label2),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -377,27 +542,27 @@ String? sessionSpecialtyLabel(String specialty) => switch (specialty) {
   _ => null,
 };
 
-/// What a session was about: the chief complaint, else the first
-/// diagnosis, else the kind of session.
+/// The session note's name: the title the scribe gave it, else the first
+/// diagnosis of an older note, else the kind of session.
 String sessionTitle(ConsultationNote note) {
-  final complaint = note.chiefComplaint.trim();
-  if (complaint.isNotEmpty) return complaint;
+  final title = note.chiefComplaint.trim();
+  if (title.isNotEmpty) return title;
   for (final d in note.diagnosisSuggestions) {
     if (d.trim().isNotEmpty) return d.trim();
   }
   final kind = sessionSpecialtyLabel(note.specialty);
-  return kind == null ? 'Session' : '$kind session';
+  return kind == null ? 'Session note' : '$kind session note';
 }
 
 class _EditBar extends StatelessWidget {
   const _EditBar({
-    required this.form,
+    required this.edit,
     required this.saving,
     required this.onCancel,
     required this.onSave,
   });
 
-  final ScribeDraftFormController form;
+  final _NoteEdit edit;
   final bool saving;
   final VoidCallback onCancel;
   final VoidCallback onSave;
@@ -406,7 +571,7 @@ class _EditBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     return ListenableBuilder(
-      listenable: form,
+      listenable: Listenable.merge([edit.title, edit.notes]),
       builder: (context, _) => Container(
         padding: const EdgeInsets.fromLTRB(
           CruSpace.s16,
@@ -422,11 +587,11 @@ class _EditBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (form.isEmpty)
+            if (edit.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: CruSpace.s8),
                 child: Text(
-                  'Add at least one detail to save the note.',
+                  'Write something in the notes to save them.',
                   style: CruType.subhead.tint(c.amberText),
                 ),
               ),
@@ -448,7 +613,7 @@ class _EditBar extends StatelessWidget {
                     icon: CruIcons.check,
                     large: true,
                     expand: true,
-                    onPressed: saving || form.isEmpty ? null : onSave,
+                    onPressed: saving || edit.isEmpty ? null : onSave,
                   ),
                 ),
               ],

@@ -11,6 +11,8 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 ConsultationNote _session({
   String id = 'n1',
   String chiefComplaint = '',
+  String notes = '',
+  String confidenceNote = '',
   List<String> diagnoses = const [],
   String advice = '',
   String specialty = SessionSpecialty.homeopathy,
@@ -24,6 +26,8 @@ ConsultationNote _session({
     visitId: 'v1',
     specialty: specialty,
     chiefComplaint: chiefComplaint,
+    notes: notes,
+    confidenceNote: confidenceNote,
     diagnosisSuggestions: diagnoses,
     advice: advice,
     status: ConsultationNoteStatus.confirmed,
@@ -64,7 +68,7 @@ void main() {
   });
 
   group('sessionTitle', () {
-    test('prefers the chief complaint, then the first diagnosis', () {
+    test('prefers the title, then the first diagnosis', () {
       expect(
         sessionTitle(_session(chiefComplaint: 'Migraine', diagnoses: ['X'])),
         'Migraine',
@@ -73,31 +77,32 @@ void main() {
     });
 
     test('falls back to the kind of session', () {
-      expect(sessionTitle(_session()), 'Homeopathy session');
+      expect(sessionTitle(_session()), 'Homeopathy session note');
       expect(
         sessionTitle(_session(specialty: SessionSpecialty.physiotherapy)),
-        'Physiotherapy session',
+        'Physiotherapy session note',
       );
-      expect(sessionTitle(_session(specialty: SessionSpecialty.none)), 'Session');
+      expect(
+        sessionTitle(_session(specialty: SessionSpecialty.none)),
+        'Session note',
+      );
     });
   });
 
-  group('contentKeyOf', () {
-    test('ignores when and by whom the note was saved', () {
-      final note = _session(chiefComplaint: 'Migraine');
-      final resaved = note.copyWith(
-        editedAt: DateTime(2026, 10, 5),
-        editedByUid: 'doc-2',
-        updatedAt: DateTime(2026, 10, 5),
+  group('editableNotesOf', () {
+    test('is the notes as written', () {
+      expect(
+        editableNotesOf(_session(notes: 'Advice\nRest.', advice: 'ignored')),
+        'Advice\nRest.',
       );
-      expect(contentKeyOf(resaved), contentKeyOf(note));
     });
 
-    test('notices a changed field', () {
-      final note = _session(chiefComplaint: 'Migraine');
+    test('lays an older structured note out as SOAP text', () {
       expect(
-        contentKeyOf(note.copyWith(advice: 'Rest')),
-        isNot(contentKeyOf(note)),
+        editableNotesOf(
+          _session(chiefComplaint: 'Migraine', advice: 'Avoid coffee'),
+        ),
+        'Subjective\nChief complaint: Migraine\n\nPlan\nAdvice: Avoid coffee',
       );
     });
   });
@@ -119,7 +124,7 @@ void main() {
           ],
         ),
       );
-      expect(find.text('Session history'), findsOneWidget);
+      expect(find.text('Session notes'), findsOneWidget);
       expect(find.text('Migraine'), findsOneWidget);
       expect(find.text('Knee pain'), findsOneWidget);
       expect(find.text('9:00 AM · Edited'), findsOneWidget);
@@ -146,7 +151,29 @@ void main() {
   });
 
   group('Session note view', () {
-    testWidgets('lays the note out as SOAP sections', (t) async {
+    testWidgets('shows the notes under their headings', (t) async {
+      await _pump(
+        t,
+        SessionNoteBody(
+          note: _session(
+            notes:
+                'Presenting complaint\nRight knee pain for 3 weeks.\n\n'
+                'Advice\n- Avoid squatting\n- Ice twice a day\n\n'
+                'Patient was anxious about surgery.',
+            confidenceNote: 'Dose of the gel was unclear.',
+          ),
+        ),
+      );
+      expect(find.text('PRESENTING COMPLAINT'), findsOneWidget);
+      expect(find.text('Right knee pain for 3 weeks.'), findsOneWidget);
+      expect(find.text('ADVICE'), findsOneWidget);
+      expect(find.text('- Avoid squatting\n- Ice twice a day'), findsOneWidget);
+      // A one-line block is a paragraph, not a heading.
+      expect(find.text('Patient was anxious about surgery.'), findsOneWidget);
+      expect(find.text('⚠ Check: Dose of the gel was unclear.'), findsOneWidget);
+    });
+
+    testWidgets('lays an older note out as SOAP sections', (t) async {
       await _pump(
         t,
         SessionNoteBody(

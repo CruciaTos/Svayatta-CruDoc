@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_session_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_draft_form.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
 
@@ -209,8 +208,9 @@ class ScribeConsentCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'The audio is only used to draft your note and is '
-                        'deleted from this device once the draft is ready.',
+                        'The conversation is transcribed and an AI writes '
+                        'the session note from it. The recording is deleted '
+                        'from this device as soon as it stops.',
                         style: TextStyle(
                           fontSize: 12,
                           height: 1.4,
@@ -229,7 +229,8 @@ class ScribeConsentCard extends StatelessWidget {
   }
 }
 
-/// Record → AI drafts → you review, as a compact three-step strip.
+/// Talk → AI writes the notes → saved to the record, as a compact
+/// three-step strip.
 class ScribeStepsStrip extends StatelessWidget {
   const ScribeStepsStrip({super.key, required this.palette});
 
@@ -238,9 +239,9 @@ class ScribeStepsStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const steps = [
-      (Icons.mic_none_rounded, 'Record the\nconsultation'),
-      (Icons.auto_awesome_outlined, 'AI drafts\nthe note'),
-      (Icons.fact_check_outlined, 'You review\n& confirm'),
+      (Icons.mic_none_rounded, 'Talk with\nthe patient'),
+      (Icons.auto_awesome_outlined, 'AI writes the\nsession notes'),
+      (Icons.folder_shared_outlined, 'Saved to the\npatient record'),
     ];
     return Row(
       children: [
@@ -357,8 +358,8 @@ class ScribeRecorderPanel extends StatelessWidget {
                         '${formatScribeDuration(remaining)}'
                   : paused
                   ? 'Recording paused — resume when the consultation continues.'
-                  : 'Speak naturally. Keep the device between you and the '
-                        'patient.',
+                  : 'Talk with the patient as you normally would. Keep the '
+                        'device between you.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.5,
@@ -370,49 +371,16 @@ class ScribeRecorderPanel extends StatelessWidget {
           },
         ),
         const SizedBox(height: 12),
-        // The AI only hears the session — findings measured silently
-        // (goniometer, MMT) never reach the note unless said aloud.
         Container(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           decoration: BoxDecoration(
             color: palette.accentSoft,
             borderRadius: BorderRadius.circular(palette.fieldRadius + 2),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.record_voice_over_rounded,
-                size: 18,
-                color: palette.accent,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'Say your findings aloud. ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: palette.accent,
-                        ),
-                      ),
-                      const TextSpan(
-                        text:
-                            '"Right knee flexion 95 degrees, McMurray '
-                            'positive, quads 4 by 5, pain 6 out of 10."',
-                      ),
-                    ],
-                  ),
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.4,
-                    color: palette.textSecondary,
-                  ),
-                ),
-              ),
-            ],
+          child: ScribeLiveTranscript(
+            transcript: controller.transcript,
+            palette: palette,
+            maxHeight: 96,
           ),
         ),
         const SizedBox(height: 24),
@@ -437,7 +405,7 @@ class ScribeRecorderPanel extends StatelessWidget {
               iconSize: 34,
               palette: palette,
               onTap: controller.finish,
-              tooltip: 'Stop recording and create the draft',
+              tooltip: 'Stop recording and write the session notes',
             ),
             const SizedBox(width: 28),
             _RoundAction(
@@ -454,7 +422,111 @@ class ScribeRecorderPanel extends StatelessWidget {
   }
 }
 
-/// Spinner with progress copy while the AI works.
+/// What the scribe has heard so far, kept scrolled to the newest words.
+class ScribeLiveTranscript extends StatefulWidget {
+  const ScribeLiveTranscript({
+    super.key,
+    required this.transcript,
+    required this.palette,
+    this.maxHeight,
+    this.fontSize = 12.5,
+  });
+
+  final ValueListenable<String> transcript;
+  final ScribePalette palette;
+
+  /// Grows up to this height, then scrolls. Null fills the space given.
+  final double? maxHeight;
+  final double fontSize;
+
+  @override
+  State<ScribeLiveTranscript> createState() => _ScribeLiveTranscriptState();
+}
+
+class _ScribeLiveTranscriptState extends State<ScribeLiveTranscript> {
+  final _scroll = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.transcript.addListener(_followNewest);
+  }
+
+  @override
+  void didUpdateWidget(ScribeLiveTranscript old) {
+    super.didUpdateWidget(old);
+    if (old.transcript != widget.transcript) {
+      old.transcript.removeListener(_followNewest);
+      widget.transcript.addListener(_followNewest);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.transcript.removeListener(_followNewest);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _followNewest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = widget.palette;
+    return ValueListenableBuilder<String>(
+      valueListenable: widget.transcript,
+      builder: (context, text, _) {
+        if (text.trim().isEmpty) {
+          return Row(
+            children: [
+              Icon(Icons.hearing_rounded, size: 18, color: p.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Listening… the conversation appears here as it is heard.',
+                  style: TextStyle(
+                    fontSize: widget.fontSize,
+                    height: 1.4,
+                    color: p.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+        final body = SingleChildScrollView(
+          controller: _scroll,
+          child: SizedBox(
+            width: double.infinity,
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: widget.fontSize,
+                height: 1.5,
+                color: p.textPrimary,
+              ),
+            ),
+          ),
+        );
+        final maxHeight = widget.maxHeight;
+        return maxHeight == null
+            ? body
+            : ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: body,
+              );
+      },
+    );
+  }
+}
+
+/// Spinner with progress copy while the AI writes the notes.
 class ScribeProcessingPanel extends StatelessWidget {
   const ScribeProcessingPanel({
     super.key,
@@ -466,9 +538,8 @@ class ScribeProcessingPanel extends StatelessWidget {
   final ScribePalette palette;
 
   static String _stage(int seconds) {
-    if (seconds < 4) return 'Preparing the recording…';
-    if (seconds < 20) return 'Transcribing the conversation…';
-    if (seconds < 50) return 'Extracting clinical details…';
+    if (seconds < 4) return 'Reading through the conversation…';
+    if (seconds < 30) return 'Writing the session notes…';
     return 'Still working — long consultations take a little longer…';
   }
 
@@ -492,7 +563,7 @@ class ScribeProcessingPanel extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         Text(
-          'Creating your draft note',
+          'Writing session notes',
           style: TextStyle(
             fontFamily: AppColors.headingFontFamily,
             fontSize: 18,
@@ -519,7 +590,7 @@ class ScribeProcessingPanel extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'This usually takes under a minute. Keep this screen open.',
+          "They're saved to the patient's record as soon as they're ready.",
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12.5,
@@ -532,7 +603,8 @@ class ScribeProcessingPanel extends StatelessWidget {
   }
 }
 
-/// Shown when processing failed: explains why and offers recovery.
+/// Shown when the notes couldn't be written: explains why and offers
+/// recovery.
 class ScribeFailurePanel extends StatelessWidget {
   const ScribeFailurePanel({
     super.key,
@@ -544,7 +616,7 @@ class ScribeFailurePanel extends StatelessWidget {
   final ScribeSessionController controller;
   final ScribePalette palette;
 
-  /// Called when the doctor taps Discard recording; the host confirms first.
+  /// Called when the doctor taps Discard; the host confirms first.
   final VoidCallback onDiscard;
 
   @override
@@ -570,7 +642,7 @@ class ScribeFailurePanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         Text(
-          "Couldn't create the draft",
+          "Couldn't write the session notes",
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: AppColors.headingFontFamily,
@@ -599,75 +671,100 @@ class ScribeFailurePanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
         ],
-        OutlinedButton.icon(
-          onPressed: controller.startManualNote,
-          icon: const Icon(Icons.edit_note_rounded, size: 20),
-          label: const Text('Write the note manually'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: palette.textPrimary,
-            minimumSize: const Size.fromHeight(48),
-            side: BorderSide(color: palette.border),
-            textStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        if (controller.canSaveTranscript)
+          OutlinedButton.icon(
+            onPressed: controller.saveTranscript,
+            icon: const Icon(Icons.subject_rounded, size: 20),
+            label: const Text('Save the transcript instead'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: palette.textPrimary,
+              minimumSize: const Size.fromHeight(48),
+              side: BorderSide(color: palette.border),
+              textStyle: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 4),
         TextButton(
           onPressed: onDiscard,
           style: TextButton.styleFrom(foregroundColor: palette.danger),
-          child: const Text('Discard recording'),
+          child: const Text('Discard the conversation'),
         ),
       ],
     );
   }
 }
 
-/// Offer to reopen an unreviewed draft saved earlier for this visit.
-class ScribePendingDraftNotice extends StatelessWidget {
-  const ScribePendingDraftNotice({
+/// Tinted inline notice used across the scribe screens.
+class ScribeNotice extends StatelessWidget {
+  const ScribeNotice({
     super.key,
-    required this.createdAt,
-    required this.palette,
-    required this.onReview,
+    required this.icon,
+    required this.color,
+    required this.background,
+    required this.message,
+    this.title,
+    this.action,
   });
 
-  final DateTime createdAt;
-  final ScribePalette palette;
-  final VoidCallback onReview;
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final String message;
+  final String? title;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    final time = TimeOfDay.fromDateTime(createdAt).format(context);
-    final today = DateUtils.isSameDay(createdAt, DateTime.now());
-    return ScribeNotice(
-      icon: Icons.pending_actions_rounded,
-      color: palette.warning,
-      background: palette.warningSoft,
-      title: 'Unreviewed draft',
-      message:
-          'A draft note from ${today ? 'today' : 'an earlier session'} '
-          'at $time is waiting for your review.',
-      action: TextButton.icon(
-        onPressed: onReview,
-        icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-        iconAlignment: IconAlignment.end,
-        label: const Text('Review draft'),
-        style: TextButton.styleFrom(
-          foregroundColor: palette.warning,
-          padding: EdgeInsets.zero,
-          visualDensity: VisualDensity.compact,
-          textStyle: const TextStyle(
-            fontFamily: AppColors.bodyFontFamily,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon, size: 18, color: color),
           ),
-        ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title != null) ...[
+                  Text(
+                    title!,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                ],
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.45,
+                    color: Color.lerp(color, Colors.black, 0.35),
+                  ),
+                ),
+                if (action != null) ...[const SizedBox(height: 8), action!],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

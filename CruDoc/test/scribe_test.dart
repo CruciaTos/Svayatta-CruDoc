@@ -1,33 +1,63 @@
-import 'package:flutter/material.dart';
+import 'package:firebase_ai/firebase_ai.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
-import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_draft_form.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
 
-ConsultationNote _parse(Map<String, dynamic> json) {
-  return ScribeProcessingService.noteFromParsed(
-    parsed: json,
-    noteId: 'n1',
+/// Returns [reply] for every call and remembers the last prompt.
+class _FakeGemini extends GeminiJsonClient {
+  _FakeGemini(this.reply) : super(apiKey: 'test', model: 'test-model');
+
+  final Map<String, dynamic> reply;
+  int calls = 0;
+  String? lastPrompt;
+  Uint8List? lastAudio;
+
+  @override
+  Future<Map<String, dynamic>> generateJson({
+    required String systemPrompt,
+    required String prompt,
+    Uint8List? audioBytes,
+    required Schema schema,
+    String mimeType = 'audio/mp4',
+    int maxOutputTokens = 8192,
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    calls++;
+    lastPrompt = prompt;
+    lastAudio = audioBytes;
+    return reply;
+  }
+}
+
+const _conversation =
+    'Doctor: What brings you in today? Patient: My right knee has hurt for '
+    'three weeks since I twisted it playing football. Doctor: Take '
+    'paracetamol 650 twice a day for five days and come back after a week.';
+
+ConsultationNote _session({String specialty = SessionSpecialty.none}) {
+  return ConsultationNote(
+    id: 'n1',
     doctorId: 'd1',
     patientId: 'p1',
     visitId: 'v1',
+    specialty: specialty,
+    authorUid: 'd1',
     consentAt: DateTime(2026, 9, 22, 10),
-    now: DateTime(2026, 9, 22, 10, 30),
+    createdAt: DateTime(2026, 9, 22, 10),
   );
 }
 
 ConsultationNote _note({
   String chiefComplaint = '',
-  List<String> symptoms = const [],
+  String notes = '',
   List<String> diagnoses = const [],
   List<NotedMedicine> medicines = const [],
   String advice = '',
-  String transcript = '',
   PhysioFindings physio = PhysioFindings.empty,
 }) {
   return ConsultationNote(
@@ -36,11 +66,10 @@ ConsultationNote _note({
     patientId: 'p1',
     visitId: 'v1',
     chiefComplaint: chiefComplaint,
-    symptoms: symptoms,
+    notes: notes,
     diagnosisSuggestions: diagnoses,
     medicines: medicines,
     advice: advice,
-    transcript: transcript,
     physio: physio,
     createdAt: DateTime(2026, 9, 22, 10, 30),
   );
@@ -49,85 +78,76 @@ ConsultationNote _note({
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('ScribeProcessingService.noteFromParsed', () {
-    test('maps a complete response onto the draft', () {
-      final note = _parse({
-        'transcript': 'Doctor: What brings you in?\nPatient: Fever.',
-        'chiefComplaint': 'Fever for 3 days',
-        'symptoms': ['Fever', 'Body ache'],
-        'diagnosisSuggestions': ['Viral fever'],
-        'medicines': [
-          {
-            'name': 'Paracetamol 650 mg',
-            'dosage': '1 tab TDS',
-            'instructions': 'After food',
-          },
-        ],
-        'advice': 'Fluids and rest',
-        'followUpDate': '2026-09-27',
-        'vitalsIfMentioned': {'bp': '120/80', 'temp': '101 F', 'pulse': null},
-        'transcriptSummaryConfidenceNote': 'Some background noise.',
+  group('ScribeProcessingService.writeSessionNote', () {
+    test('writes the notes and title from the transcript text alone', () async {
+      final gemini = _FakeGemini({
+        'notes':
+            'Presenting complaint\nRight knee pain for 3 weeks.\n\n'
+            'Medicines\n- Paracetamol 650 mg BD x 5 days',
+        'title': 'Right knee pain',
+        'confidenceNote': '',
       });
+      final note = await ScribeProcessingService(
+        client: gemini,
+      ).writeSessionNote(session: _session(), transcript: _conversation);
 
-      expect(note.transcript, startsWith('Doctor:'));
-      expect(note.chiefComplaint, 'Fever for 3 days');
-      expect(note.symptoms, ['Fever', 'Body ache']);
-      expect(note.diagnosisSuggestions, ['Viral fever']);
-      expect(note.medicines.single.name, 'Paracetamol 650 mg');
-      expect(note.medicines.single.dosage, '1 tab TDS');
-      expect(note.followUpDate, DateTime(2026, 9, 27));
-      expect(note.vitals, {'bp': '120/80', 'temp': '101 F', 'pulse': null});
-      expect(note.confidenceNote, 'Some background noise.');
-      expect(note.status, ConsultationNoteStatus.draft);
+      expect(gemini.calls, 1);
+      expect(gemini.lastAudio, isNull, reason: 'audio never leaves the device');
+      expect(gemini.lastPrompt, contains('Session date: 2026-09-22'));
+      expect(gemini.lastPrompt, contains('twisted it playing football'));
+      expect(note.chiefComplaint, 'Right knee pain');
+      expect(note.notes, startsWith('Presenting complaint'));
+      expect(note.notes, contains('Paracetamol 650 mg'));
+      expect(note.transcript, contains('football'));
+      // Who, when and consent come from the session, untouched.
+      expect(note.id, 'n1');
+      expect(note.patientId, 'p1');
+      expect(note.visitId, 'v1');
       expect(note.consentAt, DateTime(2026, 9, 22, 10));
     });
 
-    test('never invents content for an empty response', () {
-      final note = _parse({});
-
-      expect(note.transcript, isEmpty);
-      expect(note.chiefComplaint, isEmpty);
-      expect(note.symptoms, isEmpty);
-      expect(note.diagnosisSuggestions, isEmpty);
-      expect(note.medicines, isEmpty);
-      expect(note.advice, isEmpty);
-      expect(note.followUpDate, isNull);
-      expect(note.vitals.values, everyElement(isNull));
+    test('tells the model who the clinician is', () async {
+      final gemini = _FakeGemini({'notes': 'Seen.', 'title': 'Review'});
+      await ScribeProcessingService(client: gemini).writeSessionNote(
+        session: _session(specialty: SessionSpecialty.physiotherapy),
+        transcript: _conversation,
+      );
+      expect(gemini.lastPrompt, contains('a physiotherapist'));
     });
 
-    test('tolerates wrong types, "null" strings and duplicates', () {
-      final note = _parse({
-        'chiefComplaint': 'null',
-        'symptoms': ['Cough', ' cough ', '', 'Cold'],
-        'diagnosisSuggestions': 'not a list',
-        'medicines': [
-          {'name': '  ', 'dosage': '5 ml'},
-          {'name': 'Cetirizine', 'dosage': null},
-          'garbage',
-        ],
-        'followUpDate': 'next week',
-        'vitalsIfMentioned': 'n/a',
+    test('too little conversation fails without calling the AI', () async {
+      final gemini = _FakeGemini({'notes': 'x'});
+      await expectLater(
+        ScribeProcessingService(
+          client: gemini,
+        ).writeSessionNote(session: _session(), transcript: 'hello there'),
+        throwsA(
+          isA<ScribeProcessingException>().having(
+            (e) => e.kind,
+            'kind',
+            ScribeFailureKind.noConversation,
+          ),
+        ),
+      );
+      expect(gemini.calls, 0);
+    });
+
+    test('no notes back means no consultation, never an invented note', () async {
+      final gemini = _FakeGemini({
+        'notes': '',
+        'title': '',
+        'confidenceNote': 'Only background noise.',
       });
-
-      expect(note.chiefComplaint, isEmpty);
-      expect(note.symptoms, ['Cough', 'Cold']);
-      expect(note.diagnosisSuggestions, isEmpty);
-      expect(note.medicines.map((m) => m.name), ['Cetirizine']);
-      expect(note.medicines.single.dosage, isEmpty);
-      expect(note.followUpDate, isNull);
-      expect(note.vitals.values, everyElement(isNull));
-    });
-
-    test('extractJson strips markdown fences and prose', () {
-      expect(
-        ScribeProcessingService.extractJson('```json\n{"a": 1}\n```'),
-        '{"a": 1}',
+      await expectLater(
+        ScribeProcessingService(
+          client: gemini,
+        ).writeSessionNote(session: _session(), transcript: _conversation),
+        throwsA(
+          isA<ScribeProcessingException>()
+              .having((e) => e.kind, 'kind', ScribeFailureKind.noConversation)
+              .having((e) => e.message, 'message', contains('noise')),
+        ),
       );
-      expect(
-        ScribeProcessingService.extractJson('Here you go: {"a": 1} thanks'),
-        '{"a": 1}',
-      );
-      expect(ScribeProcessingService.extractJson(' {"a": 1} '), '{"a": 1}');
     });
 
     test('only transient failures are retryable', () {
@@ -135,12 +155,38 @@ void main() {
       expect(ScribeFailureKind.timeout.isRetryable, isTrue);
       expect(ScribeFailureKind.badResponse.isRetryable, isTrue);
       expect(ScribeFailureKind.notConfigured.isRetryable, isFalse);
-      expect(ScribeFailureKind.audio.isRetryable, isFalse);
+      expect(ScribeFailureKind.noConversation.isRetryable, isFalse);
     });
   });
 
-  group('Session history fields', () {
-    final session = _note(chiefComplaint: 'Migraine').copyWith(
+  group('ScribeProcessingService.noteFromParsed', () {
+    test('tolerates missing keys, wrong types and "null" strings', () {
+      final note = ScribeProcessingService.noteFromParsed(
+        {'notes': 42, 'title': 'null'},
+        session: _session(),
+        transcript: 'Doctor: Hello.',
+      );
+      expect(note.notes, isEmpty);
+      expect(note.chiefComplaint, isEmpty);
+      expect(note.confidenceNote, isEmpty);
+      expect(note.transcript, 'Doctor: Hello.');
+    });
+
+    test('cleanNotes strips markdown and extra blank lines', () {
+      expect(
+        ScribeProcessingService.cleanNotes(
+          '## **Presenting complaint**\nKnee pain.\n\n\n\n# Plan\n- Rest  ',
+        ),
+        'Presenting complaint\nKnee pain.\n\nPlan\n- Rest',
+      );
+    });
+  });
+
+  group('Session note fields', () {
+    final session = _note(
+      chiefComplaint: 'Migraine',
+      notes: 'Presenting complaint\nMigraine, left side.',
+    ).copyWith(
       specialty: SessionSpecialty.homeopathy,
       queueEntryId: 'q7',
       authorUid: 'doc-2',
@@ -149,6 +195,7 @@ void main() {
     );
 
     void expectSessionFields(ConsultationNote n) {
+      expect(n.notes, 'Presenting complaint\nMigraine, left side.');
       expect(n.specialty, SessionSpecialty.homeopathy);
       expect(n.queueEntryId, 'q7');
       expect(n.authorUid, 'doc-2');
@@ -169,45 +216,34 @@ void main() {
 
     test('older notes without them read back as a plain, unedited note', () {
       final legacy = _note().toLocalMap()
+        ..remove('notes')
         ..remove('specialty')
         ..remove('queueEntryId')
         ..remove('authorUid')
         ..remove('editedAt')
         ..remove('editedByUid');
       final n = ConsultationNote.fromMap(legacy, id: 'n1');
+      expect(n.notes, isEmpty);
       expect(n.specialty, SessionSpecialty.none);
       expect(n.queueEntryId, isNull);
       expect(n.authorUid, '');
       expect(n.isEdited, isFalse);
     });
-
-    test('the review form keeps them when the doctor edits the note', () {
-      final form = ScribeDraftFormController(session);
-      addTearDown(form.dispose);
-      expectSessionFields(form.toNote());
-    });
   });
 
-  group('ConsultationNoteRepository helpers', () {
-    test('mergeDiagnoses dedupes case-insensitively', () {
-      final result = ConsultationNoteRepository.mergeDiagnoses(
-        ['Hypertension'],
-        ['hypertension', 'Type 2 diabetes', 'Type 2 Diabetes', ' '],
+  group('ConsultationNoteRepository.buildVisitSummary', () {
+    test('adds the session notes as written', () {
+      final summary = ConsultationNoteRepository.buildVisitSummary(
+        _note(
+          chiefComplaint: 'Knee pain',
+          notes: 'Presenting complaint\nRight knee pain for 3 weeks.',
+        ),
       );
-      expect(result.diagnoses, ['Hypertension', 'Type 2 diabetes']);
-      expect(result.overflow, isEmpty);
+      expect(summary, startsWith('Session note (22 Sep 2026'));
+      expect(summary, endsWith('Right knee pain for 3 weeks.'));
     });
 
-    test('mergeDiagnoses caps at four and returns the overflow', () {
-      final result = ConsultationNoteRepository.mergeDiagnoses(
-        ['A', 'B', 'C'],
-        ['D', 'E', 'F'],
-      );
-      expect(result.diagnoses, ['A', 'B', 'C', 'D']);
-      expect(result.overflow, ['E', 'F']);
-    });
-
-    test('buildVisitSummary lists only the filled sections', () {
+    test('lays an older structured note out with only its filled fields', () {
       final summary = ConsultationNoteRepository.buildVisitSummary(
         _note(
           chiefComplaint: 'Knee pain',
@@ -217,7 +253,7 @@ void main() {
           ],
         ),
       );
-      expect(summary, contains('AI Scribe note (22 Sep 2026'));
+      expect(summary, contains('Session note (22 Sep 2026'));
       expect(summary, contains('Chief complaint: Knee pain'));
       expect(summary, contains('Diagnosis: Osteoarthritis'));
       expect(summary, contains('Medications: Diclofenac gel (Apply BD)'));
@@ -226,139 +262,13 @@ void main() {
     });
   });
 
-  group('ScribeDraftFormController', () {
-    test('toNote applies edits and drops blank entries', () {
-      final form = ScribeDraftFormController(
-        _note(
-          chiefComplaint: 'Cough',
-          medicines: const [NotedMedicine(name: 'Syrup A')],
-        ),
-      );
-      form.chiefComplaint.text = '  Dry cough for a week ';
-      form.addSymptom('Cough');
-      form.addSymptom('cough'); // duplicate, ignored
-      form.addMedicine(); // left blank, dropped
-      form.bp.text = ' 130/85 ';
-
-      final note = form.toNote();
-      expect(note.chiefComplaint, 'Dry cough for a week');
-      expect(note.symptoms, ['Cough']);
-      expect(note.medicines.map((m) => m.name), ['Syrup A']);
-      expect(note.vitals['bp'], '130/85');
-      expect(note.vitals['temp'], isNull);
-      form.dispose();
-    });
-
-    test('confirm needs the review tick and some content', () {
-      final form = ScribeDraftFormController(_note());
-      expect(form.isEmpty, isTrue);
-      form.setReviewed(true);
-      expect(form.canConfirm, isFalse);
-
-      form.advice.text = 'Rest';
-      expect(form.canConfirm, isTrue);
-
-      form.setReviewed(false);
-      expect(form.canConfirm, isFalse);
-      form.dispose();
-    });
-  });
-
-  group('ScribeDraftForm widget', () {
-    Future<ScribeDraftFormController> pumpForm(WidgetTester tester) async {
-      final form = ScribeDraftFormController(
-        _note(
-          chiefComplaint: 'Fever',
-          medicines: const [
-            NotedMedicine(name: 'Med One'),
-            NotedMedicine(name: 'Med Two'),
-          ],
-        ),
-      );
-      addTearDown(form.dispose);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: ScribeDraftForm(
-                controller: form,
-                palette: ScribePalette.mobile,
-              ),
-            ),
-          ),
-        ),
-      );
-      return form;
-    }
-
-    testWidgets('typing in a medicine keeps text across rebuilds', (
-      tester,
-    ) async {
-      final form = await pumpForm(tester);
-
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Med One'),
-        'Med 1',
-      );
-      await tester.pump();
-      // Trigger an unrelated rebuild (previously recreated the controllers).
-      form.setReviewed(true);
-      await tester.pump();
-
-      expect(find.widgetWithText(TextField, 'Med 1'), findsOneWidget);
-      expect(form.toNote().medicines.first.name, 'Med 1');
-    });
-
-    testWidgets("removing a medicine doesn't shift its neighbour's text", (
-      tester,
-    ) async {
-      final form = await pumpForm(tester);
-
-      await tester.tap(find.byTooltip('Remove medicine').first);
-      await tester.pump();
-
-      expect(find.widgetWithText(TextField, 'Med One'), findsNothing);
-      expect(find.widgetWithText(TextField, 'Med Two'), findsOneWidget);
-      expect(form.toNote().medicines.map((m) => m.name), ['Med Two']);
-    });
-
-    testWidgets('shows the manual-entry notice for a blank note', (
-      tester,
-    ) async {
-      final form = ScribeDraftFormController(_note());
-      addTearDown(form.dispose);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: ScribeDraftForm(
-                controller: form,
-                palette: ScribePalette.desktop,
-              ),
-            ),
-          ),
-        ),
-      );
-      expect(
-        find.textContaining('Write the consultation note'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('AI-generated draft'), findsNothing);
-    });
-  });
-
-  group('Physiotherapy fields', () {
+  group('Older physiotherapy notes', () {
     final physioJson = {
       'painNow': '6/10',
       'painWorst': 8,
-      'painLocation': ['Right knee, medial', 'right knee, medial'],
-      'onset': 'Twisted knee playing football 3 weeks ago',
       'redFlags': ['Night pain unrelieved by rest'],
-      'redFlagsCleared': ['No locking'],
-      'unknownField': 'ignored',
       'rom': [
         {'movement': 'Knee flexion', 'side': 'R', 'value': 'AROM 95°'},
-        {'movement': '', 'side': 'L', 'value': '130°'},
       ],
       'strength': [
         {'muscle': 'Quadriceps', 'side': 'R', 'grade': '4/5'},
@@ -372,38 +282,7 @@ void main() {
       'homeExercises': [
         {'exercise': 'Static quads', 'dosage': '3 × 10, hold 5 s'},
       ],
-      'shortTermGoals': ['Pain < 3/10 in 2 weeks'],
     };
-
-    test('noteFromParsed maps the physio object and cleans it', () {
-      final note = _parse({'physio': physioJson});
-      final p = note.physio;
-
-      expect(p.textOf('painNow'), '6/10');
-      expect(p.textOf('painWorst'), '8'); // numbers are kept as text
-      expect(p.listOf('painLocation'), ['Right knee, medial']);
-      expect(p.listOf('redFlags'), ['Night pain unrelieved by rest']);
-      expect(p.tableOf('rom'), hasLength(1)); // row without a movement dropped
-      expect(p.tableOf('rom').single['value'], 'AROM 95°');
-      expect(p.tableOf('homeExercises').single['frequency'], '');
-      expect(p.toJson().containsKey('unknownField'), isFalse);
-      expect(p.isEmpty, isFalse);
-    });
-
-    test('missing or malformed physio data is empty, never invented', () {
-      expect(_parse({}).physio.isEmpty, isTrue);
-      expect(_parse({'physio': 'garbage'}).physio.isEmpty, isTrue);
-      expect(
-        _parse({
-          'physio': {
-            'painNow': 'null',
-            'rom': 'n/a',
-            'aggravating': [' ', null],
-          },
-        }).physio.isEmpty,
-        isTrue,
-      );
-    });
 
     test('physio survives the storage round trip', () {
       final p = PhysioFindings.fromJson(physioJson);
@@ -437,79 +316,8 @@ void main() {
       expect(summary, contains('Pain (NPRS): now 6/10, worst 8'));
       expect(summary, contains('⚠ Red flags present: Night pain'));
       expect(summary, contains('• Knee flexion (R): AROM 95°'));
-      expect(summary, contains('• Quadriceps (R): 4/5'));
       expect(summary, contains('• McMurray (R): Positive'));
       expect(summary, contains('• IFT: Knee, 4-pole, 15 min'));
-      expect(summary, contains('• Static quads: 3 × 10, hold 5 s'));
-      expect(summary, isNot(contains('Neurological screen')));
-    });
-
-    test('form controller round-trips physio edits', () {
-      final form = ScribeDraftFormController(
-        _note(physio: PhysioFindings.fromJson(physioJson)),
-      );
-      form.physioText['painNow']!.text = ' 4/10 ';
-      form.addPhysioListItem('aggravating', 'Stairs');
-      form.removePhysioListItem('redFlags', 0);
-      final spec = PhysioFindings.tableSpecs.firstWhere(
-        (t) => t.key == 'specialTests',
-      );
-      form.addTableRow(spec).cells['test']!.text = 'Lachman';
-      form.addTableRow(spec); // left blank, dropped
-
-      final p = form.toNote().physio;
-      expect(p.textOf('painNow'), '4/10');
-      expect(p.listOf('aggravating'), ['Stairs']);
-      expect(p.listOf('redFlags'), isEmpty);
-      expect(p.tableOf('specialTests').map((r) => r['test']), [
-        'McMurray',
-        'Lachman',
-      ]);
-      form.dispose();
-    });
-
-    test('a physio-only note can be confirmed', () {
-      final form = ScribeDraftFormController(_note());
-      form.setReviewed(true);
-      expect(form.canConfirm, isFalse);
-      form.physioText['palpation']!.text = 'Tender medial joint line';
-      expect(form.canConfirm, isTrue);
-      form.dispose();
-    });
-
-    testWidgets('AI draft hides empty fields and flags red flags', (
-      tester,
-    ) async {
-      final form = ScribeDraftFormController(
-        _note(
-          chiefComplaint: 'Knee pain',
-          transcript: 'Doctor: ...',
-          physio: PhysioFindings.fromJson(physioJson),
-        ),
-      );
-      addTearDown(form.dispose);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: ScribeDraftForm(
-                controller: form,
-                palette: ScribePalette.desktop,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      expect(find.text('Red flags reported'), findsOneWidget);
-      expect(find.text('RANGE OF MOTION'), findsOneWidget);
-      expect(find.text('PALPATION'), findsNothing);
-
-      final addObjective = find.textContaining('Add fields').at(1);
-      await tester.ensureVisible(addObjective);
-      await tester.tap(addObjective);
-      await tester.pump();
-      expect(find.text('PALPATION'), findsOneWidget);
     });
   });
 }

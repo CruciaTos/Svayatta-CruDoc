@@ -155,18 +155,4 @@ class ConsultationNoteLocalService {
     emit();
     return controller.stream;
   }
-
-  /// Returns the most recent draft note for a visit, or null.
-  Future<ConsultationNote?> getDraftForVisit(String visitId) async {
-    final db = await LocalDatabaseService.instance.localDatabase;
-    final rows = await db.query(
-      'consultation_notes',
-      where: "visitId = ? AND status = 'draft'",
-      whereArgs: [visitId],
-      orderBy: 'createdAt DESC',
-      limit: 1,
-    );
-    if (rows.isEmpty) return null;
-    return ConsultationNote.fromMap(rows.first, id: rows.first['id'] as String);
-  }
 }

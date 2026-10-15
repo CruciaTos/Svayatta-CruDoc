@@ -36,6 +36,8 @@ import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart
 import 'domain/name_matcher.dart';
 import 'domain/voice_command.dart';
 import 'domain/voice_navigation.dart';
+import 'forms/voice_form_filler.dart';
+import 'forms/voice_form_scan.dart';
 import 'presentation/voice_dialog_hook.dart';
 import 'services/speech_engine.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -155,6 +157,9 @@ class VoiceController {
   String? _notesNow;
   Timer? _saveCheck;
 
+  /// Fills any other form on screen (see [VoiceFormFiller]).
+  final _forms = VoiceFormFiller();
+
   /// Call on talk-key down.
   Future<void> beginUtterance() async {
     _acted = false;
@@ -244,6 +249,10 @@ class VoiceController {
       }
       return;
     }
+
+    // Any other dialog or sheet with inputs: what's said goes into it once
+    // the accurate pass is final, so nothing opens behind it meanwhile.
+    if (_otherForm()?.inPopup ?? false) return;
 
     if (_acted) return;
 
@@ -420,6 +429,18 @@ class VoiceController {
           }
           _askSpelling();
         }
+      }
+      return;
+    }
+
+    final form = _otherForm();
+    if (form != null &&
+        (form.inPopup ||
+            (_isUndo(t.text) && _forms.canUndo) ||
+            form.fields.any((f) => VoiceFormFiller.mentions(t.text, f.label)))) {
+      if (t.isFinal && !_acted) {
+        _acted = true;
+        await _fillOtherForm(form, t.text, cmd);
       }
       return;
     }
@@ -2216,6 +2237,52 @@ class VoiceController {
       }
     }
     return null;
+  }
+
+  /// The form on screen that isn't one of voice's own (patient,
+  /// appointment) forms, if it has inputs voice can fill — or one voice
+  /// won't fill, so it can say why.
+  VoiceFormScan? _otherForm() {
+    if (_open != null || VoiceBus.openKind.value != null) return null;
+    try {
+      final scan = VoiceFormScan.of(_context());
+      return scan.isEmpty ? null : scan;
+    } catch (e) {
+      debugPrint('[Voice] Form scan failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> _fillOtherForm(
+    VoiceFormScan form,
+    String text,
+    VoiceCommand cmd,
+  ) async {
+    if (_isUndo(text)) {
+      final n = _forms.undo();
+      understood.value = n == 0
+          ? 'Nothing to undo'
+          : 'Put back ${n == 1 ? '1 field' : '$n fields'}';
+      return;
+    }
+    final words = text.trim().split(RegExp(r'\s+')).length;
+    if (form.inPopup && cmd.intent == VoiceIntent.cancel && words <= 4) {
+      // The form's own close: it still asks before discarding edits.
+      await form.route?.navigator?.maybePop();
+      understood.value = 'Closed';
+      return;
+    }
+    if (cmd.intent == VoiceIntent.confirm && words <= 4) {
+      understood.value = "Voice doesn't save this form · check it, then tap Save";
+      return;
+    }
+    if (form.blockedReason != null) {
+      understood.value = form.blockedReason;
+      return;
+    }
+    understood.value = 'Filling the form…';
+    final result = await _forms.fill(text, form);
+    understood.value = result.summary;
   }
 
   static bool _isUndo(String text) {

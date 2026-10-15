@@ -1,46 +1,90 @@
 """Local voice-intelligence server for the CruDoc voice demo.
 
-Two-speed architecture — navigation is instantaneous, form-filling is smart:
+Speech-to-text runs on Sarvam's saaras:v4 by default (STT_ENGINE=sarvam):
+the audio goes to api.sarvam.ai, and the API key stays on this machine,
+out of the app. STT_ENGINE=whisper runs large-v3-turbo on the local GPU
+instead, and nothing leaves the machine.
 
-  FAST PATH  (navigation: openPatient, markDone, cancel, …)
-    POST /transcribe  X-Model: fast   → base.en Whisper, ~60 ms, no LLM
-    POST /transcribe  X-Model: short  → small.en Whisper, ~140 ms, no LLM
-    POST /intent      → all-MiniLM-L6-v2 embedding match, ~5 ms, no LLM
+  ws://127.0.0.1:8766 → Sarvam's realtime WebSocket (sarvam only): the app
+                        streams each utterance as it's spoken and gets live
+                        partials, and the final ~100–300 ms after it ends
+  POST /transcribe  → Sarvam saaras:v4 REST (or local Whisper); the app's
+                      fallback when the stream fails
+  POST /intent      → all-MiniLM-L6-v2 embedding match, ~5 ms, local
 
-  HEAVY PATH  (form-filling: addAppointment, reschedule, addPatient)
-    POST /transcribe  X-Model: accurate → large-v3-turbo, ~260 ms
-    POST /extract     → llama-cpp-python LLM, ~300 ms
-                        runs ONLY on the final transcript, never on partials
-                        handles name disambiguation + richer field extraction
-
-The LLM loads in a background thread at startup so Whisper is never blocked.
-If the GGUF file is missing, /extract returns 503 and the app falls back to
-the phonetic matcher + regex (safe degradation, no crash).
+Settings come from the environment or tool/voice_server/.env:
+    STT_ENGINE        sarvam (default) | whisper
+    SARVAM_API_KEY    required for sarvam
+    SARVAM_STT_MODEL  default saaras:v4
+    SARVAM_LANGUAGE   default en-IN; "unknown" to auto-detect
 
 To run by hand:
     .venv\\Scripts\\python server.py
 
 POST /transcribe   body: 16 kHz mono PCM16 little-endian
                    header X-Hints: URL-encoded patient names, comma separated
-                   header X-Model: fast | short | accurate (default)
+                   header X-Model: fast | short | accurate (default; Whisper only)
+                   header X-Mode: dictation for a consultation
+                   header X-Context: the end of the dictation so far (Whisper only)
                    -> {"text": "...", "ms": 123}
-POST /extract      body: JSON — see extraction.py for the full contract
-                   -> {"patientId": ..., "patientConfidence": ..., ...}
 POST /intent       body: {"text": "...", "options": [{"id": "...", "phrases": [...]}]}
                    -> {"id": "...", "score": 0.72}
-GET  /health       -> {"ok": true, "device": "cuda", "llm": "ready"|"loading"|"unavailable"}
+GET  /health       -> {"ok": true, "engine": "sarvam"|"whisper", "device": ...,
+                       "stream_port": 8766 (sarvam only)}
+
+Stream, one connection per utterance:
+    app → {"hints": "...", "mode": "dictation"|"", "context": "..."}  (first)
+    app → binary 16 kHz mono PCM16 chunks
+    app → {"event": "end"} when the utterance ends (closing instead cancels)
+    ← {"type": "partial", "text": "..."}
+    ← {"type": "final", "text": "...", "ms": 123}  (ms: after "end"), then close
+    ← {"type": "error", "message": "..."}, then close
 """
 
+import asyncio
+import base64
+import io
 import json
 import os
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
+import uuid
+import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlencode
 
 PORT = 8765
+STREAM_PORT = 8766
+HERE = Path(__file__).resolve().parent
+
+
+def _load_env_file():
+    """KEY=value lines from tool/voice_server/.env; the real environment wins."""
+    env = HERE / ".env"
+    if not env.is_file():
+        return
+    for line in env.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_env_file()
+ENGINE = os.environ.get("STT_ENGINE", "sarvam").strip().lower()
+SARVAM_URL = "https://api.sarvam.ai/speech-to-text"
+SARVAM_WS = "wss://api.sarvam.ai/speech-to-text-realtime/ws"
+SARVAM_KEY = os.environ.get("SARVAM_API_KEY", "").strip()
+SARVAM_MODEL = os.environ.get("SARVAM_STT_MODEL", "saaras:v4").strip()
+SARVAM_LANGUAGE = os.environ.get("SARVAM_LANGUAGE", "en-IN").strip()
+if ENGINE == "sarvam" and not SARVAM_KEY:
+    sys.exit("SARVAM_API_KEY is not set: add it to tool/voice_server/.env")
+
 # Every mode uses large-v3-turbo: one model on disk and in GPU memory, and
 # the accurate model's words even for live partials. "fast" still decodes
 # with beam size 1, so live words stay quick.
@@ -61,13 +105,14 @@ def _add_cuda_dlls():
             os.environ["PATH"] = str(bin_dir) + os.pathsep + os.environ["PATH"]
 
 
-_add_cuda_dlls()
-
 import numpy as np  # noqa: E402
-from faster_whisper import WhisperModel  # noqa: E402
+
+if ENGINE == "whisper":
+    _add_cuda_dlls()
+    from faster_whisper import WhisperModel  # noqa: E402
 
 
-MODELS_DIR = Path(__file__).resolve().parent / "models"
+MODELS_DIR = HERE / "models"
 
 
 def _path(name):
@@ -142,12 +187,12 @@ def best_option(text, options):
     return best[0], float(_phrase_cache[best[1]] @ q)
 
 
-models, device = _load()
+models, device = _load() if ENGINE == "whisper" else ({}, "cloud")
 embedder, tokenizer = _load_embedder()
 embed(["warm up"])
 # One lock per model: a live pass and a final pass can run side by side.
 locks = {key: threading.Lock() for key in models}
-print(f"Voice server ready on :{PORT} ({device})", flush=True)
+print(f"Voice server ready on :{PORT} ({ENGINE}, {device})", flush=True)
 
 
 # VOICE_DEBUG=1: print every transcription (length, loudness, result).
@@ -166,35 +211,107 @@ def _echoes_prompt(text: str, prompt: str) -> bool:
     return len(t) > 8 and t in p
 
 
-def transcribe(
-    pcm: bytes, hints: str, which: str, mode: str = "", context: str = ""
-) -> str:
-    audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
-    if audio.size == 0 or float(np.sqrt(np.mean(audio * audio))) < SILENCE_RMS:
-        return ""
-    which = which if which in models else "accurate"
+# Words saaras:v4 should spell our way. It takes up to 50 keyterms of 64
+# characters, in place of Whisper's prompt. Patient names go first.
+COMMAND_TERMS = [
+    "add patient", "appointment", "reschedule", "start consultation",
+    "call next patient", "mark done", "date of birth", "allergic to",
+]
+DICTATION_TERMS = [
+    "pain score", "range of motion", "physiotherapy", "diagnosis",
+    "follow-up", "remedy", "potency", "exercises",
+]
+
+
+def _keyterms(hints: str, mode: str) -> list:
+    names = [n.strip()[:64] for n in hints.split(",") if n.strip()]
+    terms = DICTATION_TERMS if mode == "dictation" else COMMAND_TERMS
+    return list(dict.fromkeys(names + terms))[:50]
+
+
+def _wav(pcm: bytes) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(16000)
+        w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def _multipart(fields: dict, wav: bytes) -> tuple:
+    boundary = uuid.uuid4().hex
+    out = b""
+    for k, v in fields.items():
+        out += (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"'
+            f"\r\n\r\n{v}\r\n"
+        ).encode()
+    out += (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="file"; '
+        f'filename="audio.wav"\r\nContent-Type: audio/wav\r\n\r\n'
+    ).encode()
+    out += wav + f"\r\n--{boundary}--\r\n".encode()
+    return out, f"multipart/form-data; boundary={boundary}"
+
+
+def _sarvam(pcm: bytes, hints: str, mode: str) -> str:
+    fields = {"model": SARVAM_MODEL, "language_code": SARVAM_LANGUAGE}
+    terms = _keyterms(hints, mode)
+    if terms and SARVAM_MODEL.startswith("saaras:v4"):
+        fields["keyterms"] = json.dumps(terms)
+    body, content_type = _multipart(fields, _wav(pcm))
+    req = urllib.request.Request(
+        SARVAM_URL,
+        data=body,
+        headers={"api-subscription-key": SARVAM_KEY, "Content-Type": content_type},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return (json.loads(r.read()).get("transcript") or "").strip()
+    except urllib.error.HTTPError as e:
+        # The error body says what's wrong (key, model, rate limit); it
+        # never holds the transcript.
+        print(f"Sarvam STT {e.code}: {e.read()[:300]!r}", flush=True)
+    except Exception as e:  # offline, timeout
+        print(f"Sarvam STT failed: {type(e).__name__}: {e}", flush=True)
+    return ""
+
+
+def _prompt(hints: str, mode: str, context: str) -> str:
     names = f" Patients: {hints}." if hints else ""
     if mode == "dictation":
         # A consultation being written down: clinical words, and the end of
         # what was said before, so names and terms stay spelled the same.
-        prompt = (
+        return (
             "A doctor's consultation with a patient: complaints, pain score, "
             "duration, history, examination, range of motion, diagnosis, "
             "advice, exercises, remedy, potency, follow-up."
             + names
             + (f" {context[-300:]}" if context else "")
         )
-    else:
-        # The command words steer spelling ("Add appointment", not "At
-        # appointment"); naming the patients gets Indian names right.
-        # Names go last: Whisper keeps the end of a long prompt.
-        prompt = (
-            "Doctor's voice commands in a clinic app: add patient, book an "
-            "appointment, reschedule, move, open, go to schedule, confirm, "
-            "cancel, start session, start consultation, call next patient, "
-            "mark done, paid. Date of birth, mobile, email, allergic to."
-            + names
-        )
+    # The command words steer spelling ("Add appointment", not "At
+    # appointment"); naming the patients gets Indian names right.
+    # Names go last: Whisper keeps the end of a long prompt.
+    return (
+        "Doctor's voice commands in a clinic app: add patient, book an "
+        "appointment, reschedule, move, open, go to schedule, confirm, "
+        "cancel, start session, start consultation, call next patient, "
+        "mark done, paid. Date of birth, mobile, email, allergic to."
+        + names
+    )
+
+
+def transcribe(
+    pcm: bytes, hints: str, which: str, mode: str = "", context: str = ""
+) -> str:
+    audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    if audio.size == 0 or float(np.sqrt(np.mean(audio * audio))) < SILENCE_RMS:
+        return ""
+    if ENGINE == "sarvam":
+        return _sarvam(pcm, hints, mode)
+    which = which if which in models else "accurate"
+    prompt = _prompt(hints, mode, context)
     with locks[which]:
         segments, _ = models[which].transcribe(
             audio,
@@ -215,6 +332,105 @@ def transcribe(
     return "" if _echoes_prompt(text, prompt) else text
 
 
+# ── Streaming: relay one utterance to Sarvam's realtime WebSocket ──────────
+async def _relay(client):
+    import websockets
+
+    try:
+        cfg = json.loads(await client.recv())
+    except Exception:
+        return
+    hints, mode = cfg.get("hints", ""), cfg.get("mode", "")
+    query = {
+        "model": SARVAM_MODEL,
+        "language_code": "auto" if SARVAM_LANGUAGE == "unknown" else SARVAM_LANGUAGE,
+        # The app decides when an utterance starts and ends (talk key,
+        # pauses), so Sarvam's own VAD stays off.
+        "endpointing": "manual",
+        # Commands want quick live words; dictation, steadier ones.
+        "stream_type": "balanced" if mode == "dictation" else "fast",
+        "prompt": _prompt(hints, mode, cfg.get("context", "")),
+        "keyterms": json.dumps(_keyterms(hints, mode)),
+    }
+    ended = None
+    try:
+        async with websockets.connect(
+            f"{SARVAM_WS}?{urlencode(query)}",
+            additional_headers={"api-subscription-key": SARVAM_KEY},
+            open_timeout=8,
+        ) as up:
+            begin = json.loads(await up.recv())
+            if begin.get("event") != "session.begin":
+                raise RuntimeError(f"unexpected first event: {begin}")
+            await up.send(json.dumps({"event": "speech_start"}))
+
+            async def upstream():
+                nonlocal ended
+                # Audio that arrived while connecting is waiting in `client`.
+                async for msg in client:
+                    if isinstance(msg, bytes):
+                        audio = base64.b64encode(msg).decode()
+                        await up.send(json.dumps({"event": "audio_input", "audio": audio}))
+                    elif json.loads(msg).get("event") == "end":
+                        ended = time.perf_counter()
+                        await up.send(json.dumps({"event": "speech_end"}))
+                        return
+                # The app hung up without "end": the utterance was dropped.
+                raise ConnectionAbortedError
+
+            async def downstream():
+                async for msg in up:
+                    e = json.loads(msg)
+                    kind = e.get("event")
+                    if kind == "transcript.partial":
+                        await client.send(json.dumps({"type": "partial", "text": e.get("text", "")}))
+                    elif kind == "transcript.final":
+                        ms = int((time.perf_counter() - ended) * 1000) if ended else 0
+                        await client.send(
+                            json.dumps({"type": "final", "text": e.get("text", ""), "ms": ms})
+                        )
+                        return
+                    elif kind == "error":
+                        # Never holds the transcript; safe to log.
+                        print(f"Sarvam stream error: {e}", flush=True)
+                        if e.get("is_fatal"):
+                            raise RuntimeError(e.get("message", "stream error"))
+                raise RuntimeError("Sarvam closed the stream before the final")
+
+            up_task = asyncio.create_task(upstream())
+            down_task = asyncio.create_task(downstream())
+            try:
+                await asyncio.gather(up_task, down_task)
+            finally:
+                up_task.cancel()
+                down_task.cancel()
+            await up.send(json.dumps({"event": "end"}))
+    except ConnectionAbortedError:
+        pass
+    except Exception as e:
+        print(f"Sarvam stream failed: {type(e).__name__}: {e}", flush=True)
+        try:
+            await client.send(json.dumps({"type": "error", "message": str(e)[:200]}))
+        except Exception:
+            pass
+
+
+def _serve_stream():
+    import websockets
+
+    async def main():
+        async with websockets.serve(_relay, "127.0.0.1", STREAM_PORT, max_size=2**20):
+            await asyncio.Future()
+
+    asyncio.run(main())
+
+
+if ENGINE == "sarvam":
+    import websockets  # noqa: E402,F401  (fail at startup, not on first use)
+
+    threading.Thread(target=_serve_stream, daemon=True).start()
+
+
 class Handler(BaseHTTPRequestHandler):
     def _json(self, obj):
         body = json.dumps(obj).encode()
@@ -233,7 +449,10 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        self._json({"ok": True, "device": device})
+        health = {"ok": True, "engine": ENGINE, "device": device}
+        if ENGINE == "sarvam":
+            health["stream_port"] = STREAM_PORT
+        self._json(health)
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
@@ -254,7 +473,7 @@ class Handler(BaseHTTPRequestHandler):
             self._error(404, f"no such endpoint: {self.path}")
             return
 
-        # ── Fast path: Whisper transcription ─────────────────────────────────
+        # ── Transcription: Sarvam or local Whisper ───────────────────────────
         pcm = body
         hints = unquote(self.headers.get("X-Hints", ""))
         which = self.headers.get("X-Model", "accurate")

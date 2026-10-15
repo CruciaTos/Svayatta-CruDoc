@@ -36,20 +36,24 @@ class VoiceTranscript {
   final bool dictation;
 }
 
-/// Offline speech-to-text for the Windows demo build, using Parakeet or
-/// Whisper through sherpa-onnx.
+/// Speech-to-text for the Windows demo build: through
+/// tool/voice_server/server.py (Sarvam saaras:v4 by default, or local
+/// Whisper), or on-device with Parakeet or Whisper through sherpa-onnx.
 ///
-/// Neither streams, so while the talk key is held the audio so far
-/// is re-transcribed every [_partialEvery]; that gives the live, filling-in
-/// feel. A last pass runs when the key is released. Decoding happens in a
-/// background isolate so the UI never stalls. Nothing leaves the machine.
+/// With Sarvam, each utterance is streamed as it's spoken (the server
+/// relays it to Sarvam's realtime API): live partials come back while the
+/// doctor talks, and the final shortly after they stop. The others don't
+/// stream, so while the talk key is held the audio so far is re-transcribed
+/// every so often for that live, filling-in feel, and a last pass runs when
+/// the key is released. On-device decoding happens in a background isolate
+/// so the UI never stalls.
 class SpeechEngine {
   SpeechEngine._();
   static final instance = SpeechEngine._();
 
-  /// 'server': Whisper on the laptop GPU, run by
-  /// tool/voice_server/server.py (most accurate and fastest here): base.en
-  /// for the live words, small.en / large-v3-turbo for the final pass.
+  /// 'server': tool/voice_server/server.py, which sends the audio to
+  /// Sarvam's saaras:v4 (STT_ENGINE=sarvam, the default) or runs Whisper
+  /// large-v3-turbo on the laptop GPU (STT_ENGINE=whisper).
   /// On-device fallbacks via sherpa-onnx: 'parakeet' (CPU, slow on long
   /// clips) or a Whisper size, 'base.en' / 'small.en'; their files live in
   /// assets/voice/parakeet/ or assets/voice/whisper/.
@@ -146,6 +150,7 @@ class SpeechEngine {
       _utterance++;
       _listening = false;
       level.value = 0;
+      _dropStream();
     }
     _dictationContext = '';
     _dictating = true;
@@ -166,12 +171,28 @@ class SpeechEngine {
       _utterance++;
       _listening = false;
       level.value = 0;
+      _dropStream();
     }
   }
 
   bool get isListening => _listening;
   bool get isReady => _worker != null || _serverUp;
   bool _serverUp = false;
+
+  /// The server sends audio to Sarvam: each pass is a paid API call, so
+  /// there is no separate fast stream and live passes are spaced out.
+  bool _cloud = false;
+
+  /// Port of the server's relay to Sarvam's realtime stream; 0 when it has
+  /// none. With it, each utterance is streamed as it's spoken instead of
+  /// being re-sent every second.
+  int _streamPort = 0;
+
+  /// This utterance's stream, once connected and caught up: mic chunks
+  /// then go straight out.
+  WebSocket? _stream;
+  Future<WebSocket?>? _streamReady;
+  Completer<(String, int)>? _streamFinal;
 
   /// Loads the model (or starts the GPU server). Safe to call repeatedly.
   Future<void> init() => _initFuture ??= () async {
@@ -217,6 +238,7 @@ class SpeechEngine {
       level.value = math.min(1, peak * 3);
       _audio.add(f);
       _samples += f.length;
+      _stream?.add(bytes);
       return;
     }
     _preroll.add(f);
@@ -261,7 +283,11 @@ class SpeechEngine {
       final r = await http
           .get(Uri.parse('$_server/health'))
           .timeout(const Duration(seconds: 2));
-      return r.statusCode == 200;
+      if (r.statusCode != 200) return false;
+      final j = jsonDecode(r.body) as Map<String, dynamic>;
+      _cloud = j['engine'] == 'sarvam';
+      _streamPort = (j['stream_port'] as num?)?.toInt() ?? 0;
+      return true;
     } catch (_) {
       return false;
     }
@@ -392,9 +418,14 @@ class SpeechEngine {
     _fastDecodedSamples = 0;
     _accurateDecodedSamples = 0;
     _listening = true;
+    _stream = null;
+    if (_streamPort != 0) {
+      _streamReady = _openStream(_utterance, _dictating);
+      return;
+    }
     // Dictation only needs the accurate partials; a second live stream
     // would just compete with them for the GPU.
-    if (!_dictating) unawaited(_pumpFast(_utterance));
+    if (!_dictating && !_cloud) unawaited(_pumpFast(_utterance));
     if (model == 'server') {
       unawaited(_pumpAccurate(_utterance));
     }
@@ -417,7 +448,15 @@ class SpeechEngine {
     _listening = false;
     level.value = 0;
 
+    // This utterance's stream; the next one may start while it finishes.
+    final ready = _streamReady;
+    final done = _streamFinal;
+    _stream = null;
+    _streamReady = null;
+    _streamFinal = null;
+
     if (_samples < _sampleRate ~/ 4) {
+      unawaited(ready?.then((ws) => ws?.close()));
       _transcripts.add(
         VoiceTranscript(
           '',
@@ -429,11 +468,12 @@ class SpeechEngine {
       return;
     }
     final short = _samples < _sampleRate * _shortSeconds;
-    final (text, ms) = await _transcribe(
-      _snapshot(maxSamples: _maxWindow),
-      pass: short && !dictation ? 'short' : 'accurate',
-      dictation: dictation,
-    );
+    // Taken now: a new utterance may reset the buffer while this one waits.
+    final clip = _snapshot(maxSamples: _maxWindow);
+    final pass = short && !dictation ? 'short' : 'accurate';
+    final (text, ms) =
+        await _streamedFinal(ready, done) ??
+        await _transcribe(clip, pass: pass, dictation: dictation);
     if (utterance != _utterance) return;
     if (dictation && text.isNotEmpty) {
       final all = '$_dictationContext $text'.trim();
@@ -454,7 +494,105 @@ class SpeechEngine {
 
   /// Whisper always decodes a padded 30 s window, so sending less audio
   /// saves nothing; cutting it only loses the start of the sentence.
+  /// Sarvam's REST endpoint also takes up to 30 s.
   static const _maxWindow = _sampleRate * 30;
+
+  /// Streams this utterance to Sarvam through the server's relay: live
+  /// partials as it's spoken, and the final soon after [_streamedFinal]
+  /// says it ended. Null when the relay can't be reached.
+  Future<WebSocket?> _openStream(int utterance, bool dictation) async {
+    final done = Completer<(String, int)>();
+    // A stream that fails while nobody waits is not an error to report.
+    done.future.ignore();
+    _streamFinal = done;
+    final WebSocket ws;
+    try {
+      ws = await WebSocket.connect(
+        'ws://127.0.0.1:$_streamPort',
+      ).timeout(const Duration(seconds: 2));
+    } catch (e) {
+      debugPrint('[SpeechEngine] stream unavailable: $e');
+      return null;
+    }
+    if (utterance != _utterance) {
+      unawaited(ws.close());
+      return null;
+    }
+    ws.listen(
+      (msg) {
+        final j = jsonDecode(msg as String) as Map<String, dynamic>;
+        final text = _clean(j['text'] as String? ?? '', keepCase: dictation);
+        switch (j['type']) {
+          case 'partial':
+            if (_listening && utterance == _utterance && text.isNotEmpty) {
+              _transcripts.add(
+                VoiceTranscript(
+                  text,
+                  isFinal: false,
+                  source: 'accurate',
+                  dictation: dictation,
+                ),
+              );
+            }
+          case 'final':
+            if (!done.isCompleted) {
+              done.complete((text, (j['ms'] as num?)?.toInt() ?? 0));
+            }
+          case 'error':
+            debugPrint('[SpeechEngine] stream error: ${j['message']}');
+            if (!done.isCompleted) done.completeError(StateError('stream'));
+        }
+      },
+      onDone: () {
+        if (!done.isCompleted) done.completeError(StateError('closed'));
+      },
+      onError: (Object e) {
+        if (!done.isCompleted) done.completeError(e);
+      },
+    );
+    ws.add(
+      jsonEncode({
+        'hints': hints.join(', '),
+        'mode': dictation ? 'dictation' : '',
+        'context': dictation ? _dictationContext : '',
+      }),
+    );
+    // Everything heard so far (pre-roll included); from here on, the mic
+    // sends each chunk as it arrives.
+    final caughtUp = _pcm16(_snapshot(maxSamples: _maxWindow));
+    if (caughtUp.isNotEmpty) ws.add(caughtUp);
+    if (_listening) _stream = ws;
+    return ws;
+  }
+
+  /// The streamed utterance's final text, or null to fall back to a
+  /// one-off transcription (no stream, or it failed).
+  Future<(String, int)?> _streamedFinal(
+    Future<WebSocket?>? ready,
+    Completer<(String, int)>? done,
+  ) async {
+    if (ready == null || done == null) return null;
+    final ws = await ready;
+    if (ws == null) return null;
+    try {
+      ws.add(jsonEncode({'event': 'end'}));
+      return await done.future.timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('[SpeechEngine] stream final failed, transcribing whole: $e');
+      return null;
+    } finally {
+      unawaited(ws.close());
+    }
+  }
+
+  /// Hangs up the stream of an utterance being dropped (its counter has
+  /// already moved on, so one still connecting closes itself).
+  void _dropStream() {
+    unawaited(_stream?.close());
+    _stream = null;
+    _streamReady = null;
+    _streamFinal = null;
+  }
 
   /// Live passes for the words as they're spoken.
   Future<void> _pumpFast(int utterance) async {
@@ -480,11 +618,13 @@ class SpeechEngine {
   }
 
   /// Live accurate passes in parallel: clean field values. Fires whenever
-  /// the last one is done and at least ~0.5 s of new audio is ready.
+  /// the last one is done and at least ~0.5 s of new audio is ready
+  /// (1 s with Sarvam).
   Future<void> _pumpAccurate(int utterance) async {
     final dictation = _dictating;
+    final every = _cloud ? _sampleRate : 8000;
     while (_listening && utterance == _utterance && _dictating == dictation) {
-      if (_samples - _accurateDecodedSamples < 8000 ||
+      if (_samples - _accurateDecodedSamples < every ||
           _samples < _sampleRate * 0.6) {
         await Future<void>.delayed(const Duration(milliseconds: 40));
         continue;
@@ -535,8 +675,8 @@ class SpeechEngine {
   /// [pass]: 'fast' (live), 'short' or 'accurate' (final). Only the GPU
   /// server has more than one model; on-device modes ignore it.
   ///
-  /// [dictation]: a consultation, not a command; the server steers
-  /// Whisper with clinical words and what was said just before.
+  /// [dictation]: a consultation, not a command; the server steers the
+  /// model with clinical words (and, for Whisper, what was said before).
   Future<(String, int)> _transcribe(
     Float32List samples, {
     required String pass,
@@ -557,10 +697,6 @@ class SpeechEngine {
     String pass,
     bool dictation,
   ) async {
-    final pcm = Int16List(samples.length);
-    for (var i = 0; i < samples.length; i++) {
-      pcm[i] = (samples[i] * 32767).round().clamp(-32768, 32767);
-    }
     try {
       final r = await _http.post(
         Uri.parse('$_server/transcribe'),
@@ -571,7 +707,7 @@ class SpeechEngine {
           if (dictation && _dictationContext.isNotEmpty)
             'X-Context': Uri.encodeComponent(_dictationContext),
         },
-        body: pcm.buffer.asUint8List(),
+        body: _pcm16(samples),
       );
       final j = jsonDecode(r.body) as Map<String, dynamic>;
       return (
@@ -629,6 +765,15 @@ class SpeechEngine {
       '',
     };
     return invented.contains(bare) ? '' : t;
+  }
+
+  /// Floats in [-1, 1] → PCM16 little-endian.
+  static Uint8List _pcm16(Float32List samples) {
+    final pcm = Int16List(samples.length);
+    for (var i = 0; i < samples.length; i++) {
+      pcm[i] = (samples[i] * 32767).round().clamp(-32768, 32767);
+    }
+    return pcm.buffer.asUint8List();
   }
 
   /// PCM16 little-endian → floats in [-1, 1].

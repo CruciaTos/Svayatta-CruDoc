@@ -82,10 +82,16 @@ Future<void> main() async {
     persistenceEnabled: false,
   );
 
-  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.windows) {
-    _wireDoctorScopedStartup();
-  } else {
+  if (kIsWeb) {
     _wireWebEncryptionKeyLoading();
+  } else {
+    // Windows, like mobile, is local-first: it has a full SQLite backend
+    // (see WindowsDatabase / LocalDatabaseService) and its repositories read
+    // from that local DB. It must therefore run the doctor-scoped startup so
+    // the local DB is initialised, migrated and kept in sync — otherwise the
+    // DB is never populated and every screen is empty. Only Web reads
+    // Firestore directly.
+    _wireDoctorScopedStartup();
   }
   MapsKey.loadOnSignIn();
   // Each feature that keeps a cloud path on its own record says how, before
@@ -143,10 +149,10 @@ void _showForcedLogoutSnackBar(String reason) {
   });
 }
 
-/// On Web (and Windows) there's no background sync to start — repositories
-/// read/write Firestore directly or sync on write — but they still call
-/// FieldCipher.encrypt/decrypt, so the clinic's key still needs to be loaded
-/// as soon as someone signs in, and cleared on sign-out.
+/// On Web there's no background sync to start — repositories read/write
+/// Firestore directly — but they still call FieldCipher.encrypt/decrypt, so
+/// the clinic's key still needs to be loaded as soon as someone signs in, and
+/// cleared on sign-out. (Windows is local-first; see [_wireDoctorScopedStartup].)
 void _wireWebEncryptionKeyLoading() {
   _followClinic(
     platform: 'Web',
@@ -176,7 +182,7 @@ void _wireWebEncryptionKeyLoading() {
 ///    can never mix locally.
 void _wireDoctorScopedStartup() {
   _followClinic(
-    platform: 'Mobile',
+    platform: 'Local-first',
     // Order matters: the key must be loaded before migration/sync try to
     // decrypt anything, and the local cache must be confirmed to belong to
     // this clinic and person before anything is written into it.

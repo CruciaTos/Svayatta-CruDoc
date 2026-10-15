@@ -19,6 +19,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum ConsentType {
   treatment('Treatment plan'),
+  implant('Dental implant'),
   parental('Parent / guardian'),
   surgical('Surgery or extraction'),
   general('General');
@@ -30,33 +31,156 @@ enum ConsentType {
       values.firstWhere((t) => t.name == n, orElse: () => general);
 }
 
-String _template(
-  ConsentType t,
-  String patient,
-  String details,
-  String clinic,
-) => switch (t) {
-  ConsentType.treatment =>
-    'I, $patient, have had the proposed treatment explained to me: $details.\n\n'
-        'I understand what it involves, its benefits and risks, the alternatives '
-        '(including no treatment) and the estimated cost. I have been able to ask '
-        'questions and they were answered. I agree to go ahead with this treatment at $clinic.',
-  ConsentType.parental =>
-    'I am the parent or legal guardian of $patient. I consent to the dental '
-        'examination and the treatment explained to me${details.isEmpty ? '' : ': $details'}, '
-        'including local anaesthesia and child-friendly behaviour guidance where needed. '
-        'I understand the benefits, risks and alternatives and may withdraw consent at any time.',
-  ConsentType.surgical =>
-    'I, $patient, consent to: $details.\n\n'
-        'The possible risks have been explained, including pain, swelling, bleeding, '
-        'infection, dry socket, temporary or rarely permanent numbness of the lip, chin or '
-        'tongue, sinus involvement for upper teeth, and damage to neighbouring teeth or '
-        'restorations. I have followed the pre-operative instructions and told the dentist '
-        'about my medicines and allergies.',
-  ConsentType.general =>
-    'I, $patient, consent to the dental examination, X-rays and treatment explained to me'
-        '${details.isEmpty ? '' : ': $details'}. I have been able to ask questions.',
-};
+/// The informational content and the statements a signer ticks, for one kind
+/// of consent. Treatment info and risks are shown only when present — empty
+/// sections are hidden, per the UI rules.
+class _ConsentContent {
+  const _ConsentContent({
+    required this.purpose,
+    required this.statements,
+    this.treatmentInfo,
+    this.risks = const [],
+  });
+
+  final String purpose;
+  final String? treatmentInfo;
+  final List<String> risks;
+  final List<String> statements;
+}
+
+/// Acknowledgements common to every consent kind. Each kind appends its own
+/// closing "I am giving consent to …" statement.
+const List<String> _commonStatements = [
+  'I have been given enough information about the treatment I am to receive and '
+      'informed about the procedure. I understand the aims and objectives of the '
+      'treatment completely.',
+  'I have had the opportunity to ask any remaining questions and they were '
+      'answered to the best of their ability.',
+  'Having considered all aspects, I have decided to have the treatment of my own '
+      'accord, and I understand the possible complications explained to me.',
+  'If signing for someone other than myself, I confirm that I am the parent, '
+      'legal guardian or substitute decision maker.',
+];
+
+_ConsentContent _content(ConsentType t, String patient, String details) {
+  final d = details.trim();
+  switch (t) {
+    case ConsentType.implant:
+      return _ConsentContent(
+        purpose:
+            'This consent sets out the risks, benefits and alternatives of the '
+            'treatment. It is important that the patient fully understands the '
+            'treatment beforehand. Before signing, the patient should ask the '
+            'dentist any questions about the treatment, the dental implant and '
+            'the procedure.',
+        treatmentInfo:
+            'A surgical fixture — the dental implant — is placed into the jawbone '
+            'and allowed to fuse with the bone over a few months. The implant acts '
+            'as an artificial replacement for the missing tooth root, holding a '
+            'replacement tooth or bridge.',
+        risks: const [
+          'Infection',
+          'Gum recession',
+          'Loose implant',
+          'Nerve or tissue damage',
+          'Sinus issues (pain or swelling around the cheeks, eyes or forehead, '
+              'nasal discharge, a blocked nose, a reduced sense of smell, sinus '
+              'headaches, toothache, bad breath or a high temperature)',
+          'Damage from excessive force',
+        ],
+        statements: [
+          ..._commonStatements,
+          'I am giving consent to receive the dental implant treatment'
+              '${d.isEmpty ? '' : ' ($d)'}.',
+        ],
+      );
+    case ConsentType.surgical:
+      return _ConsentContent(
+        purpose:
+            'This consent records your agreement to the surgical procedure or '
+            'extraction after its benefits, risks and alternatives have been '
+            'explained${d.isEmpty ? '' : ': $d'}.',
+        risks: const [
+          'Pain, swelling and bleeding',
+          'Infection or dry socket',
+          'Temporary or, rarely, permanent numbness of the lip, chin or tongue',
+          'Sinus involvement for upper teeth',
+          'Damage to neighbouring teeth or restorations',
+        ],
+        statements: [
+          ..._commonStatements,
+          'I have followed the pre-operative instructions and told the dentist '
+              'about my medicines and allergies.',
+          'I am giving consent to receive the surgical / extraction treatment.',
+        ],
+      );
+    case ConsentType.treatment:
+      return _ConsentContent(
+        purpose:
+            'This consent records your agreement to the proposed treatment plan '
+            'after its benefits, risks, alternatives (including no treatment) and '
+            'the estimated cost have been explained'
+            '${d.isEmpty ? '' : ': $d'}.',
+        statements: [
+          ..._commonStatements,
+          'I am giving consent to proceed with the proposed treatment plan.',
+        ],
+      );
+    case ConsentType.parental:
+      return _ConsentContent(
+        purpose:
+            'As the parent or legal guardian of $patient, this consent records '
+            'your agreement to the dental examination and the treatment explained '
+            'to you${d.isEmpty ? '' : ': $d'}, including local anaesthesia and '
+            'child-friendly behaviour guidance where needed.',
+        statements: [
+          ..._commonStatements,
+          'I am giving consent, as parent or legal guardian, for the dental '
+              'examination and treatment described.',
+        ],
+      );
+    case ConsentType.general:
+      return _ConsentContent(
+        purpose:
+            'This consent records your agreement to the dental examination, '
+            'X-rays and treatment explained to you'
+            '${d.isEmpty ? '' : ': $d'}.',
+        statements: [
+          ..._commonStatements,
+          'I am giving consent to the dental examination, X-rays and treatment '
+              'described.',
+        ],
+      );
+  }
+}
+
+/// Flattens the content into the plain text saved on the record and printed on
+/// the PDF, exactly as the signer agreed to it.
+String _composeConsentText(_ConsentContent content) {
+  final b = StringBuffer()..writeln(content.purpose);
+  final info = content.treatmentInfo;
+  if (info != null) {
+    b
+      ..writeln()
+      ..writeln('Treatment information')
+      ..writeln(info);
+  }
+  if (content.risks.isNotEmpty) {
+    b
+      ..writeln()
+      ..writeln('Risks and side effects:');
+    for (final r in content.risks) {
+      b.writeln('• $r');
+    }
+  }
+  b
+    ..writeln()
+    ..writeln('Agreed by the signer:');
+  for (final s in content.statements) {
+    b.writeln('• $s');
+  }
+  return b.toString().trim();
+}
 
 /// A patient's signed consents, and a way to take a new one.
 Future<void> showConsentListDialog(BuildContext context, Patient patient) =>
@@ -170,12 +294,11 @@ class _ConsentDialog extends ConsumerStatefulWidget {
 class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
   late ConsentType _type;
   final _details = TextEditingController();
-  final _text = TextEditingController();
   late final _signer = TextEditingController(text: widget.patient.fullName);
   final _witness = TextEditingController();
   String _relationship = 'Patient';
   final _pad = SignatureController();
-  bool _textEdited = false;
+  List<bool> _checked = const [];
   bool _saving = false;
 
   @override
@@ -190,16 +313,24 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
       _relationship = 'Parent';
       _signer.clear();
     }
+    _resetChecks();
     WidgetsBinding.instance.addPostFrameCallback((_) => _prefillPlan());
     _pad.addListener(() => setState(() {}));
   }
 
+  /// One unticked box per statement for the current kind.
+  void _resetChecks() {
+    final n = _content(
+      _type,
+      widget.patient.fullName,
+      _details.text,
+    ).statements.length;
+    _checked = List<bool>.filled(n, false);
+  }
+
   /// The patient's open treatment plan fills the details.
   Future<void> _prefillPlan() async {
-    if (_type != ConsentType.treatment) {
-      _refreshText();
-      return;
-    }
+    if (_type != ConsentType.treatment) return;
     final items = await ref.read(
       patientTreatmentPlanProvider(widget.patient.id).future,
     );
@@ -215,40 +346,39 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
       final total = open.fold<double>(0, (t, i) => t + i.estimatedPrice);
       _details.text =
           '${open.map((i) => i.procedureName).join(', ')} (estimated ₹${total.toStringAsFixed(0)})';
+      if (mounted) setState(() {});
     }
-    _refreshText();
   }
 
-  void _refreshText() {
-    if (_textEdited) return;
-    final clinic = ref.read(doctorIdentityProvider).clinicName ?? 'this clinic';
-    setState(
-      () => _text.text = _template(
-        _type,
-        widget.patient.fullName,
-        _details.text.trim(),
-        clinic,
-      ),
-    );
+  void _selectType(ConsentType t) {
+    setState(() {
+      _type = t;
+      if (t == ConsentType.parental && _relationship == 'Patient') {
+        _relationship = 'Parent';
+        _signer.clear();
+      }
+      _resetChecks();
+    });
+    _prefillPlan();
   }
 
   @override
   void dispose() {
-    for (final c in [_details, _text, _signer, _witness]) {
+    for (final c in [_details, _signer, _witness]) {
       c.dispose();
     }
     _pad.dispose();
     super.dispose();
   }
 
+  bool get _allAgreed => _checked.isNotEmpty && _checked.every((v) => v);
   bool get _ready =>
-      !_pad.isEmpty &&
-      _signer.text.trim().isNotEmpty &&
-      _text.text.trim().isNotEmpty;
+      _allAgreed && !_pad.isEmpty && _signer.text.trim().isNotEmpty;
 
   Future<void> _save() async {
     if (!_ready) return;
     setState(() => _saving = true);
+    final content = _content(_type, widget.patient.fullName, _details.text);
     final png = await _pad.toPng();
     await saveDentalRecord(
       ref,
@@ -256,7 +386,8 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
         'type': _type.name,
         'title': '${_type.label} consent',
         'details': _details.text.trim(),
-        'text': _text.text.trim(),
+        'text': _composeConsentText(content),
+        'statements': content.statements.join('\n'),
         'signer': _signer.text.trim(),
         'relationship': _relationship,
         'witness': _witness.text.trim(),
@@ -272,9 +403,12 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final patient = widget.patient;
+    final content = _content(_type, patient.fullName, _details.text);
+    final gender = patient.gender.trim();
     return CruFormDialog(
       title: 'New consent',
-      subtitle: widget.patient.fullName,
+      subtitle: patient.fullName,
       leading: const CruIconTile(
         icon: RecIcons.consent,
         tone: CruTileTone.accent,
@@ -282,9 +416,12 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
       submitLabel: 'Sign and save',
       onSubmit: _ready
           ? _save
-          : () => recToast(context, 'Add the signer\'s name and a signature.'),
+          : () => recToast(
+              context,
+              'Tick each statement, add the signer\'s name and sign.',
+            ),
       busy: _saving,
-      dirty: !_pad.isEmpty,
+      dirty: _allAgreed || !_pad.isEmpty,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -296,41 +433,73 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
                 options: ConsentType.values,
                 label: (t) => t.label,
                 isSelected: (t) => t == _type,
-                onTap: (t) {
-                  setState(() {
-                    _type = t;
-                    if (t == ConsentType.parental &&
-                        _relationship == 'Patient') {
-                      _relationship = 'Parent';
-                      _signer.clear();
-                    }
-                  });
-                  _prefillPlan();
-                },
+                onTap: _selectType,
               ),
               CruTextField(
                 label: switch (_type) {
                   ConsentType.surgical => 'Procedure',
                   ConsentType.treatment => 'Treatment',
+                  ConsentType.implant => 'Site / tooth',
                   _ => 'Details',
                 },
                 optional:
-                    _type == ConsentType.parental ||
-                    _type == ConsentType.general,
+                    _type != ConsentType.treatment &&
+                    _type != ConsentType.surgical,
                 controller: _details,
                 maxLines: 2,
-                hint: _type == ConsentType.surgical
-                    ? 'Surgical removal of impacted 38'
-                    : null,
-                onChanged: (_) => _refreshText(),
+                hint: switch (_type) {
+                  ConsentType.implant => 'Implant at 46',
+                  ConsentType.surgical => 'Surgical removal of impacted 38',
+                  _ => null,
+                },
+                onChanged: (_) => setState(() {}),
               ),
-              CruTextField(
-                label: 'Wording',
-                controller: _text,
-                maxLines: 8,
-                help: 'Change anything; it\'s saved exactly as signed.',
-                onChanged: (_) => _textEdited = true,
+            ],
+          ),
+          CruFormSection(
+            title: 'About this treatment',
+            children: [
+              _ConsentPara(
+                title: 'Purpose of this consent',
+                body: content.purpose,
               ),
+              if (content.treatmentInfo != null)
+                _ConsentPara(
+                  title: 'Treatment information',
+                  body: content.treatmentInfo!,
+                ),
+              if (content.risks.isNotEmpty)
+                _ConsentRisks(items: content.risks),
+            ],
+          ),
+          CruFormSection(
+            title: 'Patient',
+            children: [
+              CruFieldRow(
+                children: [
+                  _ConsentValue(label: 'Name', value: patient.fullName),
+                  _ConsentValue(
+                    label: 'Date of birth',
+                    value: DentalFormat.date(patient.dateOfBirth),
+                  ),
+                ],
+              ),
+              if (gender.isNotEmpty)
+                _ConsentValue(label: 'Gender', value: gender),
+            ],
+          ),
+          CruFormSection(
+            title: 'Agreement',
+            description: 'Tick each to confirm',
+            children: [
+              for (var i = 0; i < content.statements.length; i++)
+                _ConsentCheck(
+                  label: content.statements[i],
+                  checked: i < _checked.length && _checked[i],
+                  onChanged: (v) => setState(() {
+                    if (i < _checked.length) _checked[i] = v;
+                  }),
+                ),
             ],
           ),
           CruFormSection(
@@ -361,6 +530,10 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
                 controller: _witness,
                 textCapitalization: TextCapitalization.words,
               ),
+              _ConsentValue(
+                label: 'Date',
+                value: DentalFormat.date(DateTime.now()),
+              ),
               Row(
                 children: [
                   Text('Sign here', style: CruType.subhead.w600.tint(c.label)),
@@ -373,6 +546,143 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
               ),
               SignaturePad(controller: _pad),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A sub-headed paragraph in the "About this treatment" section.
+class _ConsentPara extends StatelessWidget {
+  const _ConsentPara({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: CruType.callout.tint(c.label)),
+        const SizedBox(height: CruSpace.s6),
+        Text(body, style: CruType.subhead.tint(c.label2)),
+      ],
+    );
+  }
+}
+
+/// The bulleted "Risks and side effects" list.
+class _ConsentRisks extends StatelessWidget {
+  const _ConsentRisks({required this.items});
+
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Risks and side effects', style: CruType.callout.tint(c.label)),
+        const SizedBox(height: CruSpace.s8),
+        for (final r in items)
+          Padding(
+            padding: const EdgeInsets.only(bottom: CruSpace.s6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('•  ', style: CruType.subhead.tint(c.label2)),
+                Expanded(
+                  child: Text(r, style: CruType.subhead.tint(c.label2)),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// A read-only labelled value (patient identity, date) in a filled field.
+class _ConsentValue extends StatelessWidget {
+  const _ConsentValue({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruFieldFrame(
+      label: label,
+      child: Container(
+        height: CruSize.control,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+        decoration: ShapeDecoration(
+          color: c.inset,
+          shape: cruShape(CruRadius.control),
+        ),
+        child: Text(value, style: CruType.body.tabular.tint(c.label)),
+      ),
+    );
+  }
+}
+
+/// One tappable agreement statement with a check box. Uses the near-black
+/// selected fill (never Ink Blue, which the rules reserve for the primary
+/// action).
+class _ConsentCheck extends StatelessWidget {
+  const _ConsentCheck({
+    required this.label,
+    required this.checked,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool checked;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruPressable(
+      onTap: () => onChanged(!checked),
+      semanticLabel: label,
+      builder: (context, hovered) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: ShapeDecoration(
+              color: checked ? c.label : c.surface,
+              shape: cruShape(
+                CruRadius.keycap,
+                side: checked
+                    ? BorderSide.none
+                    : BorderSide(color: hovered ? c.label3 : c.hairline),
+              ),
+            ),
+            child: checked
+                ? CruIcon(
+                    CruIcons.check,
+                    size: 14,
+                    strokeWidth: 2.2,
+                    color: c.surface,
+                  )
+                : null,
+          ),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: CruSpace.s2),
+              child: Text(label, style: CruType.subhead.tint(c.label2)),
+            ),
           ),
         ],
       ),

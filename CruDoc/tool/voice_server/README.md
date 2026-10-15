@@ -1,8 +1,39 @@
 # CruDoc Voice Server — Setup Guide
 
-Local Whisper speech-to-text for the CruDoc voice scribe. Runs on `127.0.0.1:8765`; nothing leaves the machine.
+Speech-to-text for the CruDoc voice scribe and voice commands. Runs on `127.0.0.1:8765`.
 
-Every mode runs on one model, `large-v3-turbo` (INT8_FP16 on GPU, INT8 on CPU), loaded once:
+**Default engine: Sarvam `saaras:v4`** (`STT_ENGINE=sarvam`). Each clip is sent to
+`api.sarvam.ai`, so patient speech leaves the machine. The API key is kept in this folder's
+`.env`, not in the app. Patient names and a few clinical words go along as `keyterms` so
+they're spelled right.
+
+**Streaming:** the server also listens on `ws://127.0.0.1:8766` and relays each utterance to
+Sarvam's realtime WebSocket (`/speech-to-text-realtime/ws`, manual endpointing: the app says
+when an utterance starts and ends). Live words arrive while the doctor speaks, and the final
+~100–350 ms after they stop; only the audio of each utterance is sent and billed. If the stream
+fails, the app falls back to one `POST /transcribe` (Sarvam REST, up to 30 s of audio).
+
+## 0. Sarvam setup
+
+```powershell
+copy .env.example .env   # then set SARVAM_API_KEY
+```
+
+| Setting | Default | |
+|---|---|---|
+| `STT_ENGINE` | `sarvam` | `whisper` switches back to local Whisper (below) |
+| `SARVAM_API_KEY` | — | Required for `sarvam` |
+| `SARVAM_STT_MODEL` | `saaras:v4` | |
+| `SARVAM_LANGUAGE` | `en-IN` | `hi-IN`, `mr-IN`, … or `unknown` to auto-detect |
+
+With Sarvam, the GPU and the Whisper model download (steps 1 and 3) aren't needed, but the venv is
+(it still runs `/intent`). Failed Sarvam calls are printed in the server log (status and error
+message, never the transcript).
+
+## Local Whisper (`STT_ENGINE=whisper`)
+
+Nothing leaves the machine. Every mode runs on one model, `large-v3-turbo` (INT8_FP16 on GPU,
+INT8 on CPU), loaded once:
 
 | Mode | Decoding | Used for |
 |---|---|---|
@@ -48,7 +79,7 @@ itself uses for `large-v3-turbo`). `base.en` and `small.en` can still be fetched
 .venv\Scripts\python server.py
 ```
 
-Wait for `Voice server ready on :8765 (cuda)` — or `(cpu)` if no GPU was found. Check it:
+Wait for `Voice server ready on :8765 (sarvam, cloud)` — or `(whisper, cuda)` / `(whisper, cpu)` with local Whisper. Check it:
 
 ```powershell
 curl http://127.0.0.1:8765/health
@@ -79,6 +110,8 @@ Then:
 
 ## Troubleshooting
 
+- **`SARVAM_API_KEY is not set`** — add it to `tool/voice_server/.env` (step 0).
+- **`Sarvam STT 403` / `429`** — invalid key / rate limit or out of credits on the Sarvam account.
 - **`GPU unavailable (...); using CPU`** — update the NVIDIA driver; re-run `pip install -r requirements.txt` so `nvidia-cublas-cu12` / `nvidia-cudnn-cu12` are in the venv.
-- **Port 8765 in use** — another server instance is running; close it.
+- **Port 8765 / 8766 in use** — another server instance is running; close it.
 - **App says model folder missing** — on-device mode only: the files in step 5 aren't in `assets/voice/whisper/`, or the pubspec line is still commented.

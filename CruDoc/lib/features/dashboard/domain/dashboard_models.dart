@@ -116,11 +116,15 @@ class UpNextData {
     this.servingName,
     this.isHomeVisit = false,
     this.homeAddress,
+    this.bookedFor,
   });
 
   final String entryId;
   final String name;
   final int waitMinutes;
+
+  /// The linked visit's booked time; null for a walk-in.
+  final DateTime? bookedFor;
 
   /// The linked visit is a home visit (physiotherapy visitation).
   final bool isHomeVisit;

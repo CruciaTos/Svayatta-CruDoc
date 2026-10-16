@@ -60,6 +60,7 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
   final _search = TextEditingController();
   String _query = '';
   bool _seeding = false;
+  final Set<String> _selected = {};
 
   @override
   void dispose() {
@@ -77,6 +78,28 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
     if (mounted) setState(() => _seeding = false);
   }
 
+  Future<void> _deleteSelected() async {
+    if (_selected.isEmpty) return;
+    final count = _selected.length;
+    final ok = await confirmDental(
+      context,
+      title: 'Delete ${DashFormat.plural(count, 'procedure')}?',
+      body:
+          'These procedures will be archived and won\'t appear when logging procedures or planning treatment.',
+      action: 'Delete',
+    );
+    if (!ok) return;
+
+    final repo = ref.read(dentalRepositoryProvider);
+    for (final id in _selected.toList()) {
+      await repo.archiveCatalogItem(id);
+    }
+    ref.invalidate(dentalProcedureListProvider);
+    if (mounted) {
+      setState(_selected.clear);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
@@ -92,6 +115,212 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
           (counts[p.category.toLowerCase()] ?? 0) + 1;
     }
     final q = _query.trim().toLowerCase();
+
+    if (cruIsPhone(context)) {
+      final phoneItems = active
+          .where(
+            (p) =>
+                q.isEmpty ||
+                p.name.toLowerCase().contains(q) ||
+                p.code.toLowerCase().contains(q),
+          )
+          .toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+      return PopScope(
+        canPop: _selected.isEmpty,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) setState(_selected.clear);
+        },
+        child: Padding(
+          padding: CruSpace.mainPaddingPhone,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_selected.isNotEmpty)
+                DentalPageHeader(
+                  title: '${_selected.length} selected',
+                  subtitle: '',
+                  actions: [
+                    CruButton(
+                      label: 'Cancel',
+                      kind: CruButtonKind.secondary,
+                      onPressed: () => setState(_selected.clear),
+                    ),
+                    CruButton(
+                      label: 'Delete',
+                      kind: CruButtonKind.secondary,
+                      onPressed: _deleteSelected,
+                    ),
+                  ],
+                )
+              else
+                DentalPageHeader(
+                  title: 'Procedures',
+                  subtitle: list == null
+                      ? ''
+                      : DashFormat.plural(active.length, 'procedure'),
+                  actions: [
+                    CruButton(
+                      label: 'Add procedure',
+                      icon: CruIcons.plus,
+                      onPressed: () => showProcedureCatalogDialog(context),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: CruSpace.cardGap),
+              DentalSearchField(
+                controller: _search,
+                hint: 'Search name or code',
+                onChanged: (v) => setState(() => _query = v),
+              ),
+              const SizedBox(height: CruSpace.cardGap),
+              Expanded(
+                child: CruCard(
+                  semanticLabel: 'Procedures',
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CruSpace.s12,
+                    vertical: CruSpace.s8,
+                  ),
+                  child: list == null
+                      ? const SizedBox.shrink()
+                      : phoneItems.isEmpty
+                      ? Center(
+                          child: SingleChildScrollView(
+                            child: DentalEmptyState(
+                              icon: DentalIcons.procedures,
+                              title: active.isEmpty
+                                  ? 'No procedures yet'
+                                  : 'Nothing here',
+                              body: active.isEmpty
+                                  ? 'List what you do and what you charge.'
+                                  : 'Try another search.',
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: phoneItems.length,
+                          separatorBuilder: (_, _) =>
+                              const CruSeparator(indent: 12),
+                          itemBuilder: (context, index) {
+                            final item = phoneItems[index];
+                            final isSelected = _selected.contains(item.id);
+                            final inSelection = _selected.isNotEmpty;
+                            return InkWell(
+                              onTap: () {
+                                if (_selected.isNotEmpty) {
+                                  setState(() {
+                                    if (isSelected) {
+                                      _selected.remove(item.id);
+                                    } else {
+                                      _selected.add(item.id);
+                                    }
+                                  });
+                                } else {
+                                  showProcedureCatalogDialog(
+                                    context,
+                                    existing: item,
+                                  );
+                                }
+                              },
+                              onLongPress: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selected.remove(item.id);
+                                  } else {
+                                    _selected.add(item.id);
+                                  }
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.control,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CruSpace.s8,
+                                  vertical: CruSpace.s10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    if (inSelection) ...[
+                                      Container(
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isSelected
+                                              ? c.accent
+                                              : Colors.transparent,
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? c.accent
+                                                : c.label3,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: isSelected
+                                            ? CruIcon(
+                                                CruIcons.check,
+                                                size: 14,
+                                                color: c.surface,
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: CruSpace.s12),
+                                    ],
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            item.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: CruType.callout.tint(
+                                              c.label,
+                                            ),
+                                          ),
+                                          if (item.code.isNotEmpty) ...[
+                                            const SizedBox(
+                                              height: CruSpace.s2,
+                                            ),
+                                            Text(
+                                              item.code,
+                                              maxLines: 1,
+                                              style: CruType.caption.tabular
+                                                  .tint(c.label3),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: CruSpace.s12),
+                                    Text(
+                                      item.defaultPrice == null
+                                          ? '—'
+                                          : DashFormat.rupees(
+                                              item.defaultPrice!,
+                                            ),
+                                      textAlign: TextAlign.right,
+                                      style: CruType.row.tabular.tint(c.label),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final shown = pool
         .where(
           (p) =>
@@ -118,9 +347,7 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
       });
 
     return Padding(
-      padding: cruIsPhone(context)
-          ? CruSpace.mainPaddingPhone
-          : CruSpace.mainPadding,
+      padding: CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -141,131 +368,68 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
             ],
           ),
           const SizedBox(height: CruSpace.cardGap),
-          if (cruIsPhone(context))
-            // Phone: search first, the categories slide sideways under it.
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                DentalSearchField(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: CruSpace.s8,
+                  runSpacing: CruSpace.s8,
+                  children: [
+                    DentalChoiceChip(
+                      label: 'All · ${active.length}',
+                      tabular: true,
+                      selected: _category == null && !_archived,
+                      onTap: () => setState(() {
+                        _category = null;
+                        _archived = false;
+                      }),
+                    ),
+                    for (final k in kProcedureCategories.where(
+                      counts.containsKey,
+                    ))
+                      DentalChoiceChip(
+                        label: '${categoryLabel(k)} · ${counts[k]}',
+                        tabular: true,
+                        selected: _category == k && !_archived,
+                        onTap: () => setState(() {
+                          _category = k;
+                          _archived = false;
+                        }),
+                      ),
+                    for (final k in counts.keys.where(
+                      (k) => !kProcedureCategories.contains(k),
+                    ))
+                      DentalChoiceChip(
+                        label: '${categoryLabel(k)} · ${counts[k]}',
+                        tabular: true,
+                        selected: _category == k && !_archived,
+                        onTap: () => setState(() {
+                          _category = k;
+                          _archived = false;
+                        }),
+                      ),
+                    if (archived.isNotEmpty)
+                      DentalChoiceChip(
+                        label: 'Archived · ${archived.length}',
+                        tabular: true,
+                        selected: _archived,
+                        onTap: () => setState(() => _archived = !_archived),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: CruSpace.s16),
+              SizedBox(
+                width: 260,
+                child: DentalSearchField(
                   controller: _search,
                   hint: 'Search name or code',
                   onChanged: (v) => setState(() => _query = v),
                 ),
-                const SizedBox(height: CruSpace.s10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final chip in <Widget>[
-                        DentalChoiceChip(
-                          label: 'All · ${active.length}',
-                          tabular: true,
-                          selected: _category == null && !_archived,
-                          onTap: () => setState(() {
-                            _category = null;
-                            _archived = false;
-                          }),
-                        ),
-                        for (final k in kProcedureCategories.where(
-                          counts.containsKey,
-                        ))
-                          DentalChoiceChip(
-                            label: '${categoryLabel(k)} · ${counts[k]}',
-                            tabular: true,
-                            selected: _category == k && !_archived,
-                            onTap: () => setState(() {
-                              _category = k;
-                              _archived = false;
-                            }),
-                          ),
-                        for (final k in counts.keys.where(
-                          (k) => !kProcedureCategories.contains(k),
-                        ))
-                          DentalChoiceChip(
-                            label: '${categoryLabel(k)} · ${counts[k]}',
-                            tabular: true,
-                            selected: _category == k && !_archived,
-                            onTap: () => setState(() {
-                              _category = k;
-                              _archived = false;
-                            }),
-                          ),
-                        if (archived.isNotEmpty)
-                          DentalChoiceChip(
-                            label: 'Archived · ${archived.length}',
-                            tabular: true,
-                            selected: _archived,
-                            onTap: () => setState(() => _archived = !_archived),
-                          ),
-                      ]) ...[chip, const SizedBox(width: CruSpace.s8)],
-                    ],
-                  ),
-                ),
-              ],
-            )
-          else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: CruSpace.s8,
-                    runSpacing: CruSpace.s8,
-                    children: [
-                      DentalChoiceChip(
-                        label: 'All · ${active.length}',
-                        tabular: true,
-                        selected: _category == null && !_archived,
-                        onTap: () => setState(() {
-                          _category = null;
-                          _archived = false;
-                        }),
-                      ),
-                      for (final k in kProcedureCategories.where(
-                        counts.containsKey,
-                      ))
-                        DentalChoiceChip(
-                          label: '${categoryLabel(k)} · ${counts[k]}',
-                          tabular: true,
-                          selected: _category == k && !_archived,
-                          onTap: () => setState(() {
-                            _category = k;
-                            _archived = false;
-                          }),
-                        ),
-                      for (final k in counts.keys.where(
-                        (k) => !kProcedureCategories.contains(k),
-                      ))
-                        DentalChoiceChip(
-                          label: '${categoryLabel(k)} · ${counts[k]}',
-                          tabular: true,
-                          selected: _category == k && !_archived,
-                          onTap: () => setState(() {
-                            _category = k;
-                            _archived = false;
-                          }),
-                        ),
-                      if (archived.isNotEmpty)
-                        DentalChoiceChip(
-                          label: 'Archived · ${archived.length}',
-                          tabular: true,
-                          selected: _archived,
-                          onTap: () => setState(() => _archived = !_archived),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: CruSpace.s16),
-                SizedBox(
-                  width: 260,
-                  child: DentalSearchField(
-                    controller: _search,
-                    hint: 'Search name or code',
-                    onChanged: (v) => setState(() => _query = v),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(
             child: CruCard(

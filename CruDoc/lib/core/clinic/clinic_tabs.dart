@@ -39,7 +39,7 @@ bool clinicAllowsMobileTab(ClinicAccess? access, int tab) {
     MobileTab.schedule =>
       access.allowsModule('appointments') || access.allowsModule('queue'),
     MobileTab.patients => access.allowsModule('patients'),
-    MobileTab.revenue => access.allowsModule('revenue'),
+    // Home, More and Tasks (each source inside is gated by the role).
     _ => true,
   };
 }

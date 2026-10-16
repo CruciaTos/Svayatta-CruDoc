@@ -23,13 +23,17 @@ import 'package:doctor_management_app/core/services/device_session_service.dart'
 import 'package:doctor_management_app/core/update/models/update_check_result.dart';
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/profile/data/doctor_name_change_policy.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
+import 'package:doctor_management_app/features/onboarding/presentation/doctor_loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
+import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
+import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
@@ -41,6 +45,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// real: nothing here is a placeholder switch.
 enum SettingsSection {
   profile('Profile', CruIcons.user),
+  plan('Plan & billing', CruIcons.wallet),
   clinic('Clinic & letterhead', CruIcons.pen),
 
   /// People who can manage the clinic's team.
@@ -72,6 +77,7 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
   final access = ref.watch(clinicAccessProvider).value;
   final isOwner = access == null || access.isOwner;
   return switch (s) {
+    SettingsSection.plan => access == null || access.isOwner,
     SettingsSection.radiology => ref.watch(hasDentalRadiologyProvider),
     SettingsSection.dental =>
       ref.watch(isDentalProvider) &&
@@ -128,6 +134,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
     final email = user?.email;
     Widget body(SettingsSection section) => switch (section) {
       SettingsSection.profile => _ProfileSection(user: user, profile: profile),
+      SettingsSection.plan => const _PlanSection(),
       SettingsSection.clinic => _ClinicSection(user: user, profile: profile),
       SettingsSection.team => const TeamSection(),
       SettingsSection.myFeatures => const MyFeaturesSection(),
@@ -556,14 +563,20 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
     }
     setState(() => _saving = true);
     try {
-      await DoctorProfileHelper.updateProfile(
-        doctorName: name,
-        specialty: DoctorProfileHelper.formatSpecialty(
-          widget.profile,
-          widget.user,
-        ),
+      await DoctorNameChangePolicy.save(
+        name: name,
+        profile: widget.profile,
+        user: widget.user,
       );
       if (mounted) _toast(context, 'Name saved.');
+    } on NameChangeLimitException catch (e) {
+      if (mounted) {
+        _toast(
+          context,
+          'You can change your name twice in 6 months. '
+          'Next change on ${DateFormat('d MMM y').format(e.nextAt)}.',
+        );
+      }
     } catch (e) {
       if (mounted) _toast(context, 'Could not save your name: $e');
     } finally {
@@ -616,83 +629,89 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
     final canResetPassword =
         providers.contains('password') && email != null && email.isNotEmpty;
 
+    final isPhone = cruIsPhone(context);
+
     return _Stack([
-      CruCard(
-        semanticLabel: 'Your profile',
-        child: Row(
-          children: [
-            CruMonogram(name: name, size: _kProfileMonogram),
-            const SizedBox(width: CruSpace.s20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: CruType.title.tint(c.label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: CruSpace.s4),
-                  Text(
-                    [
-                      if (specialty != null) specialty.label,
-                      ?clinic,
-                    ].join(' · '),
-                    style: CruType.text.tint(c.label2),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: CruSpace.s12),
-                  Wrap(
-                    spacing: CruSpace.s8,
-                    runSpacing: CruSpace.s8,
-                    children: [
-                      if (email != null && email.isNotEmpty)
-                        CruInfoPill(
-                          text: email,
-                          tone: CruInfoPillTone.outlined,
-                        ),
-                      if (phone != null && phone.isNotEmpty)
-                        CruInfoPill(
-                          text: phone,
-                          icon: CruIcons.phone,
-                          tone: CruInfoPillTone.outlined,
-                          tabular: true,
-                        ),
-                    ],
-                  ),
-                ],
+      if (isPhone)
+        const DoctorLoyaltyCard()
+      else ...[
+        CruCard(
+          semanticLabel: 'Your profile',
+          child: Row(
+            children: [
+              CruMonogram(name: name, size: _kProfileMonogram),
+              const SizedBox(width: CruSpace.s20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: CruType.title.tint(c.label),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: CruSpace.s4),
+                    Text(
+                      [
+                        if (specialty != null) specialty.label,
+                        ?clinic,
+                      ].join(' · '),
+                      style: CruType.text.tint(c.label2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: CruSpace.s12),
+                    Wrap(
+                      spacing: CruSpace.s8,
+                      runSpacing: CruSpace.s8,
+                      children: [
+                        if (email != null && email.isNotEmpty)
+                          CruInfoPill(
+                            text: email,
+                            tone: CruInfoPillTone.outlined,
+                          ),
+                        if (phone != null && phone.isNotEmpty)
+                          CruInfoPill(
+                            text: phone,
+                            icon: CruIcons.phone,
+                            tone: CruInfoPillTone.outlined,
+                            tabular: true,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      const _ProfileLoyaltySection(),
-      _SettingsCard(
-        title: 'Your name',
-        description: 'Shown on the dashboard, prescriptions and bills.',
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: CruTextField(
-                label: 'Full name',
-                controller: _name,
-                hint: 'Dr. Ananya Deshpande',
-                textCapitalization: TextCapitalization.words,
-                onSubmitted: (_) => _saveName(),
+        const _ProfileLoyaltySection(),
+        _SettingsCard(
+          title: 'Your name',
+          description: 'Shown on the dashboard, prescriptions and bills.',
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: CruTextField(
+                  label: 'Full name',
+                  controller: _name,
+                  hint: 'Dr. Ananya Deshpande',
+                  textCapitalization: TextCapitalization.words,
+                  onSubmitted: (_) => _saveName(),
+                ),
               ),
-            ),
-            const SizedBox(width: CruSpace.s12),
-            CruButton(
-              label: _saving ? 'Saving…' : 'Save',
-              large: true,
-              onPressed: _saving ? null : _saveName,
-            ),
-          ],
+              const SizedBox(width: CruSpace.s12),
+              CruButton(
+                label: _saving ? 'Saving…' : 'Save',
+                large: true,
+                onPressed: _saving ? null : _saveName,
+              ),
+            ],
+          ),
         ),
-      ),
+      ],
       _SettingsCard(
         title: 'Specialty',
         description: specialty == null
@@ -807,6 +826,143 @@ class _ProfileLoyaltySectionState
       holderId: user?.uid,
       photoUrl: user?.photoURL,
       onClaim: _claiming ? null : _claim,
+    );
+  }
+}
+
+// =============================================================================
+// PLAN & BILLING
+// =============================================================================
+
+class _PlanSection extends StatefulWidget {
+  const _PlanSection();
+
+  @override
+  State<_PlanSection> createState() => _PlanSectionState();
+}
+
+class _PlanSectionState extends State<_PlanSection> {
+  final _service = DoctorSubscriptionService();
+  bool _busy = false;
+
+  Future<void> _cancelSubscription(DateTime? expiresDate) async {
+    final expiry = expiresDate != null
+        ? DateFormat('d MMM y').format(expiresDate)
+        : 'the end of your billing cycle';
+    final ok = await _confirm(
+      context,
+      title: 'Cancel subscription?',
+      message:
+          'Your plan stays on until $expiry. After that, paid features turn off and we won\'t remind you to renew.',
+      confirmLabel: 'Cancel subscription',
+    );
+    if (!ok) return;
+
+    setState(() => _busy = true);
+    try {
+      await _service.setCancelled(true);
+      if (mounted) _toast(context, 'Subscription cancelled.');
+    } catch (e) {
+      if (mounted) _toast(context, 'Could not cancel subscription: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resumeSubscription() async {
+    setState(() => _busy = true);
+    try {
+      await _service.setCancelled(false);
+      if (mounted) _toast(context, 'Subscription resumed.');
+    } catch (e) {
+      if (mounted) _toast(context, 'Could not resume subscription: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DoctorSubscriptionInfo>(
+      stream: _service.watchSubscriptionInfo(),
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        if (info == null) {
+          return const SizedBox.shrink();
+        }
+
+        final expiry = info.expiresDate != null
+            ? DateFormat('d MMM y').format(info.expiresDate!)
+            : null;
+        final isCancelled = info.isCancelled;
+        final isActive = info.doctorStatus.toLowerCase() == 'active';
+
+        return _Stack([
+          _SettingsCard(
+            title: 'Plan & billing',
+            description: 'Your subscription status and billing settings.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ActionRow(
+                  title: 'Plan',
+                  detail: info.planName,
+                  action: const SizedBox.shrink(),
+                ),
+                if (info.doctorStatus.isNotEmpty) ...[
+                  const SizedBox(height: CruSpace.s12),
+                  _ActionRow(
+                    title: 'Status',
+                    detail: isCancelled
+                        ? (expiry != null
+                              ? 'Cancelled · ends $expiry'
+                              : 'Cancelled')
+                        : info.doctorStatus,
+                    action: const SizedBox.shrink(),
+                  ),
+                ],
+                if (expiry != null && !isCancelled) ...[
+                  const SizedBox(height: CruSpace.s12),
+                  _ActionRow(
+                    title: 'Expires',
+                    detail: expiry,
+                    action: const SizedBox.shrink(),
+                  ),
+                ],
+                const SizedBox(height: CruSpace.s20),
+                Wrap(
+                  spacing: CruSpace.s12,
+                  runSpacing: CruSpace.s12,
+                  children: [
+                    CruButton(
+                      label: 'Choose features',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SubscriptionBillingPage(),
+                        ),
+                      ),
+                    ),
+                    if (isCancelled)
+                      CruButton(
+                        label: 'Resume subscription',
+                        onPressed: _busy ? null : _resumeSubscription,
+                      )
+                    else if (isActive)
+                      CruButton(
+                        label: 'Cancel subscription',
+                        kind: CruButtonKind.secondary,
+                        onPressed: _busy
+                            ? null
+                            : () => _cancelSubscription(info.expiresDate),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ]);
+      },
     );
   }
 }

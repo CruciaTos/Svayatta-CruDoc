@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/services/feature_usage_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/mobile/mobile_home.dart';
@@ -12,8 +13,8 @@ import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/mobile/mobile_nav_bar.dart';
 import 'package:doctor_management_app/features/mobile/mobile_patients.dart';
-import 'package:doctor_management_app/features/mobile/mobile_revenue.dart';
 import 'package:doctor_management_app/features/mobile/mobile_schedule.dart';
+import 'package:doctor_management_app/features/mobile/mobile_tasks.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/search_lift.dart';
@@ -44,7 +45,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     MobileNavItem('Home', CruIcons.dashboard),
     MobileNavItem('Schedule', CruIcons.calendar),
     MobileNavItem('Patients', CruIcons.patients),
-    MobileNavItem('Revenue', CruIcons.rupee),
+    MobileNavItem('Tasks', RecIcons.checklist),
     MobileNavItem('More', CruIcons.more),
   ];
 
@@ -86,11 +87,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         'Patient Records',
         Icons.groups_rounded,
       ),
-      MobileTab.revenue => (
-        const ['revenue'],
-        'Revenue & Financials',
-        Icons.payments_outlined,
-      ),
+      // Tasks gathers what this person has; each source is gated inside.
       _ => (const <String>[], '', Icons.grid_view_rounded),
     };
     final access = ref.watch(clinicAccessProvider).value;
@@ -118,7 +115,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
         onBackToDashboard: () => _goTo(MobileTab.home),
       );
     }
-    // Home and More show only what this person's role allows.
+    // Home, Tasks and More show only what this person's role allows.
     if (access != null) {
       modules = [
         for (final m in modules)
@@ -129,7 +126,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       MobileTab.home => MobileHomeScreen(enabledModules: modules),
       MobileTab.schedule => const MobileScheduleScreen(),
       MobileTab.patients => const MobilePatientsScreen(),
-      MobileTab.revenue => const MobileRevenueScreen(),
+      MobileTab.tasks => MobileTasksScreen(enabledModules: modules),
       _ => MobileMoreScreen(enabledModules: modules),
     };
   }
@@ -138,6 +135,9 @@ class _MobileShellState extends ConsumerState<MobileShell> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final waiting = ref.watch(waitingNowCountProvider);
+    // More showing Revenue in place: Back closes Revenue first.
+    final revenueOpen =
+        _index == MobileTab.more && ref.watch(mobileRevenueOpenProvider);
     // Light status bar icons on a dark top (Evening, and the dark Day
     // looks), dark ones on a light Day top.
     final darkTop = c.isEvening || kMobileDayLook.darkHeader;
@@ -150,9 +150,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
           ),
       // Back on another tab returns Home before it leaves the app.
       child: PopScope(
-        canPop: _index == MobileTab.home,
+        canPop: _index == MobileTab.home && !revenueOpen,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _goTo(MobileTab.home);
+          if (didPop) return;
+          final revenue = ref.read(mobileRevenueOpenProvider.notifier);
+          if (_index == MobileTab.more && revenue.state) {
+            revenue.state = false;
+            return;
+          }
+          _goTo(MobileTab.home);
         },
         child: InventoryAlertListener(
           child: Scaffold(
@@ -198,6 +204,11 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                         child: MobileTabSurface(
                           child: PageView.builder(
                             controller: _pages,
+                            // Revenue (inside More) holds the screen: no
+                            // swiping to other tabs until it closes.
+                            physics: revenueOpen
+                                ? const NeverScrollableScrollPhysics()
+                                : null,
                             itemCount: MobileTab.count,
                             onPageChanged: (i) {
                               setState(() => _index = i);
@@ -206,7 +217,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                                   'Home',
                                   'Schedule',
                                   'Patients',
-                                  'Revenue',
+                                  'Tasks',
                                   'More',
                                 ][i],
                               );
@@ -236,10 +247,21 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                         left: MobileMetrics.gutter,
                         right: MobileMetrics.gutter,
                         bottom: MobileMetrics.navBottom(context),
-                        child: MobileNavBar(
-                          controller: _pages,
-                          items: _items,
-                          badges: {MobileTab.schedule: waiting},
+                        // The nav slides away while Revenue is open.
+                        child: IgnorePointer(
+                          ignoring: revenueOpen,
+                          child: AnimatedSlide(
+                            offset: revenueOpen
+                                ? const Offset(0, 1.6)
+                                : Offset.zero,
+                            duration: CruMotion.of(context, CruMotion.standard),
+                            curve: CruMotion.curve,
+                            child: MobileNavBar(
+                              controller: _pages,
+                              items: _items,
+                              badges: {MobileTab.schedule: waiting},
+                            ),
+                          ),
                         ),
                       ),
                     ],

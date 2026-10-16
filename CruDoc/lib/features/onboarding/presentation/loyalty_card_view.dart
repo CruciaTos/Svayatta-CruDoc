@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -39,6 +42,8 @@ class LoyaltyCardView extends StatefulWidget {
     this.photoUrl,
     this.animateLast = false,
     this.onClaim,
+    this.onEditName,
+    this.shine = false,
   });
 
   final LoyaltyCard card;
@@ -55,6 +60,12 @@ class LoyaltyCardView extends StatefulWidget {
 
   /// Shown as "Claim free month" once the card is full.
   final VoidCallback? onClaim;
+
+  /// Tapping the NAME row (which shows a pen) changes the name.
+  final VoidCallback? onEditName;
+
+  /// A soft reflection that moves as the phone tilts.
+  final bool shine;
 
   @override
   State<LoyaltyCardView> createState() => _LoyaltyCardViewState();
@@ -89,12 +100,16 @@ class _LoyaltyCardViewState extends State<LoyaltyCardView> {
           constraints: const BoxConstraints(maxWidth: _kMaxWidth),
           child: Semantics(
             label: 'Loyalty card, ${card.stamps} of $kLoyaltySlots badges',
-            child: _TrainerCard(
-              card: card,
-              holderName: widget.holderName,
-              holderId: widget.holderId,
-              photoUrl: widget.photoUrl,
-              fresh: _fresh,
+            child: _TiltShine(
+              enabled: widget.shine,
+              child: _TrainerCard(
+                card: card,
+                holderName: widget.holderName,
+                holderId: widget.holderId,
+                photoUrl: widget.photoUrl,
+                fresh: _fresh,
+                onEditName: widget.onEditName,
+              ),
             ),
           ),
         ),
@@ -131,6 +146,7 @@ class _TrainerCard extends StatelessWidget {
     required this.holderId,
     required this.photoUrl,
     required this.fresh,
+    this.onEditName,
   });
 
   final LoyaltyCard card;
@@ -138,6 +154,7 @@ class _TrainerCard extends StatelessWidget {
   final String? holderId;
   final String? photoUrl;
   final int? fresh;
+  final VoidCallback? onEditName;
 
   /// Stable 5-digit ID from the uid (String.hashCode is not stable).
   static String _idNo(String uid) {
@@ -164,7 +181,10 @@ class _TrainerCard extends StatelessWidget {
     final name = holderName?.trim();
 
     final fields = <(String, String)>[
-      if (name != null && name.isNotEmpty) ('NAME', name),
+      if (name != null && name.isNotEmpty)
+        ('NAME', name)
+      else if (onEditName != null)
+        ('NAME', 'Add your name'),
       if (started != null)
         ('STARTED', '${_months[started.month - 1]} ${started.year}'),
       ('BADGES', '${card.stamps}/$kLoyaltySlots'),
@@ -255,6 +275,9 @@ class _TrainerCard extends StatelessWidget {
                                   label: fields[i].$1,
                                   value: fields[i].$2,
                                   last: i == fields.length - 1,
+                                  onTap: fields[i].$1 == 'NAME'
+                                      ? onEditName
+                                      : null,
                                 ),
                             ],
                           ),
@@ -281,16 +304,22 @@ class _TrainerCard extends StatelessWidget {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.value, required this.last});
+  const _Field({
+    required this.label,
+    required this.value,
+    required this.last,
+    this.onTap,
+  });
 
   final String label;
   final String value;
   final bool last;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
+    final row = Container(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
       decoration: BoxDecoration(
         border: last ? null : Border(bottom: BorderSide(color: c.separator)),
@@ -313,7 +342,21 @@ class _Field extends StatelessWidget {
               style: CruType.callout.w600.tabular.tint(c.label),
             ),
           ),
+          if (onTap != null) ...[
+            const SizedBox(width: CruSpace.s6),
+            CruIcon(CruIcons.pen, size: 14, color: c.accentText),
+          ],
         ],
+      ),
+    );
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      label: 'Change your name',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: row,
       ),
     );
   }
@@ -868,4 +911,148 @@ class _StripePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StripePainter old) => old.color != color;
+}
+
+/// A faint reflection that slides across the card as the phone tilts,
+/// with a tilt of the card itself of about 2°. Reads the accelerometer
+/// (gravity) on phones only, smoothed; still elsewhere, in tests and with
+/// reduced motion.
+class _TiltShine extends StatefulWidget {
+  const _TiltShine({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_TiltShine> createState() => _TiltShineState();
+}
+
+class _TiltShineState extends State<_TiltShine> {
+  final _tilt = ValueNotifier<Offset>(Offset.zero);
+  StreamSubscription<AccelerometerEvent>? _sub;
+  Offset? _rest;
+  Offset _smooth = Offset.zero;
+
+  bool get _phone =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final on =
+        widget.enabled && _phone && !MediaQuery.disableAnimationsOf(context);
+    if (on && _sub == null) {
+      try {
+        _sub = accelerometerEventStream(
+          samplingPeriod: SensorInterval.uiInterval,
+        ).listen(_onReading, onError: (_) => _stop(), cancelOnError: true);
+      } catch (_) {
+        _stop();
+      }
+    } else if (!on) {
+      _stop();
+    }
+  }
+
+  void _onReading(AccelerometerEvent e) {
+    final raw = Offset(e.x / 9.8, e.y / 9.8);
+    // However the phone is held is "flat"; that resting angle drifts
+    // slowly, so only the change shows.
+    final rest = _rest == null ? raw : Offset.lerp(_rest, raw, 0.01)!;
+    _rest = rest;
+    _smooth = Offset.lerp(_smooth, raw - rest, 0.15)!;
+    _tilt.value = Offset(
+      _smooth.dx.clamp(-1.0, 1.0),
+      _smooth.dy.clamp(-1.0, 1.0),
+    );
+  }
+
+  void _stop() {
+    _sub?.cancel();
+    _sub = null;
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    _tilt.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.enabled) return widget.child;
+    return ValueListenableBuilder<Offset>(
+      valueListenable: _tilt,
+      builder: (context, t, child) => Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.0012)
+          ..rotateX(t.dy * 0.04)
+          ..rotateY(-t.dx * 0.04),
+        child: Stack(
+          children: [
+            child!,
+            Positioned.fill(
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(painter: _ShinePainter(t)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
+/// A soft diagonal band of light and a faint sheen, placed by the tilt.
+class _ShinePainter extends CustomPainter {
+  _ShinePainter(this.tilt);
+
+  final Offset tilt;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    canvas.save();
+    canvas.clipRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(CruRadius.card)),
+    );
+    final p = (0.5 - tilt.dx * 0.45 - tilt.dy * 0.25).clamp(0.12, 0.88);
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0),
+            Colors.white.withValues(alpha: 0.13),
+            Colors.white.withValues(alpha: 0),
+          ],
+          stops: [p - 0.12, p, p + 0.12],
+        ).createShader(rect),
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          center: Alignment(-tilt.dx, -tilt.dy),
+          radius: 0.9,
+          colors: [
+            Colors.white.withValues(alpha: 0.06),
+            Colors.white.withValues(alpha: 0),
+          ],
+        ).createShader(rect),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ShinePainter old) => old.tilt != tilt;
 }

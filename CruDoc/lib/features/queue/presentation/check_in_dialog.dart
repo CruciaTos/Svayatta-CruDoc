@@ -15,13 +15,16 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Modal dialog for checking a patient into today's walk-in queue.
 /// Fully themed to Calm Clinical tokens (Day & Evening modes).
 class CheckInDialog extends ConsumerStatefulWidget {
-  const CheckInDialog({super.key});
+  const CheckInDialog({super.key, this.walkIn = false});
 
-  static Future<QueueEntry?> show(BuildContext context) {
+  /// Opens on the walk-in form (someone without a record yet).
+  final bool walkIn;
+
+  static Future<QueueEntry?> show(BuildContext context, {bool walkIn = false}) {
     return showDialog<QueueEntry>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => const CheckInDialog(),
+      builder: (context) => CheckInDialog(walkIn: walkIn),
     );
   }
 
@@ -30,7 +33,7 @@ class CheckInDialog extends ConsumerStatefulWidget {
 }
 
 class _CheckInDialogState extends ConsumerState<CheckInDialog> {
-  bool _isRegistered = true;
+  late bool _isRegistered = !widget.walkIn;
   Patient? _selectedPatient;
   String? _attendingDoctorUid;
   final TextEditingController _walkInNameController = TextEditingController();
@@ -116,16 +119,14 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
     if (doctors.length > 1 && _attendingDoctorUid == null) {
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
-      _attendingDoctorUid = (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
+      _attendingDoctorUid =
+          (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
           ? currentAuthUid
           : doctors.first.uid;
     }
 
     return Dialog(
-      shape: cruShape(
-        CruRadius.card,
-        side: BorderSide(color: c.cardBorder),
-      ),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       backgroundColor: c.surface,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(
@@ -239,8 +240,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         displayStringForOption: (p) =>
                             '${p.fullName} (${p.phone})',
                         optionsBuilder: (textEditingValue) {
-                          final query =
-                              textEditingValue.text.trim().toLowerCase();
+                          final query = textEditingValue.text
+                              .trim()
+                              .toLowerCase();
                           if (query.isEmpty) {
                             return const Iterable<Patient>.empty();
                           }
@@ -295,9 +297,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                                               name: patient.fullName,
                                               size: 32,
                                             ),
-                                            const SizedBox(
-                                              width: CruSpace.s10,
-                                            ),
+                                            const SizedBox(width: CruSpace.s10),
                                             Expanded(
                                               child: Column(
                                                 crossAxisAlignment:
@@ -310,8 +310,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                                                   ),
                                                   Text(
                                                     '${patient.gender} · ${patient.phone}',
-                                                    style: CruType.caption
-                                                        .tint(c.label2),
+                                                    style: CruType.caption.tint(
+                                                      c.label2,
+                                                    ),
                                                   ),
                                                 ],
                                               ),
@@ -328,52 +329,57 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         },
                         fieldViewBuilder:
                             (context, controller, focusNode, onFieldSubmitted) {
-                          return AnimatedContainer(
-                            duration: CruMotion.of(context, CruMotion.fast),
-                            curve: CruMotion.curve,
-                            constraints: const BoxConstraints(
-                              minHeight: CruSize.actionButton,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: CruSpace.s14,
-                            ),
-                            decoration: ShapeDecoration(
-                              color: focusNode.hasFocus ? c.surface : c.inset,
-                              shape: cruShape(
-                                CruRadius.control,
-                                side: BorderSide(
+                              return AnimatedContainer(
+                                duration: CruMotion.of(context, CruMotion.fast),
+                                curve: CruMotion.curve,
+                                constraints: const BoxConstraints(
+                                  minHeight: CruSize.actionButton,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CruSpace.s14,
+                                ),
+                                decoration: ShapeDecoration(
                                   color: focusNode.hasFocus
-                                      ? c.accent
-                                      : c.inset.withValues(alpha: 0),
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                CruIcon(
-                                  CruIcons.search,
-                                  size: 18,
-                                  color: c.label3,
-                                ),
-                                const SizedBox(width: CruSpace.s10),
-                                Expanded(
-                                  child: TextField(
-                                    controller: controller,
-                                    focusNode: focusNode,
-                                    style: CruType.input.tint(c.label),
-                                    cursorColor: c.accent,
-                                    decoration: InputDecoration.collapsed(
-                                      hintText: 'Search by name or phone...',
-                                      hintStyle: CruType.input.tint(c.label3),
+                                      ? c.surface
+                                      : c.inset,
+                                  shape: cruShape(
+                                    CruRadius.control,
+                                    side: BorderSide(
+                                      color: focusNode.hasFocus
+                                          ? c.accent
+                                          : c.inset.withValues(alpha: 0),
+                                      width: 1.5,
                                     ),
-                                    onSubmitted: (_) => onFieldSubmitted(),
                                   ),
                                 ),
-                              ],
-                            ),
-                          );
-                        },
+                                child: Row(
+                                  children: [
+                                    CruIcon(
+                                      CruIcons.search,
+                                      size: 18,
+                                      color: c.label3,
+                                    ),
+                                    const SizedBox(width: CruSpace.s10),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: controller,
+                                        focusNode: focusNode,
+                                        style: CruType.input.tint(c.label),
+                                        cursorColor: c.accent,
+                                        decoration: InputDecoration.collapsed(
+                                          hintText:
+                                              'Search by name or phone...',
+                                          hintStyle: CruType.input.tint(
+                                            c.label3,
+                                          ),
+                                        ),
+                                        onSubmitted: (_) => onFieldSubmitted(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                       ),
                       if (_selectedPatient != null) ...[
                         const SizedBox(height: CruSpace.s10),
@@ -395,8 +401,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                               const SizedBox(width: CruSpace.s12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       _selectedPatient!.fullName,
@@ -415,9 +420,8 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                                 size: 28,
                                 iconSize: 14,
                                 semanticLabel: 'Remove selection',
-                                onPressed: () => setState(
-                                  () => _selectedPatient = null,
-                                ),
+                                onPressed: () =>
+                                    setState(() => _selectedPatient = null),
                                 tooltip: 'Remove selection',
                               ),
                             ],
@@ -462,9 +466,13 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         value: _attendingDoctorUid,
                         items: [for (final d in doctors) d.uid],
                         itemLabel: (uid) => doctors
-                            .firstWhere((d) => d.uid == uid, orElse: () => doctors.first)
+                            .firstWhere(
+                              (d) => d.uid == uid,
+                              orElse: () => doctors.first,
+                            )
                             .name,
-                        onChanged: (v) => setState(() => _attendingDoctorUid = v),
+                        onChanged: (v) =>
+                            setState(() => _attendingDoctorUid = v),
                       ),
                     ],
 
@@ -527,8 +535,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                             Expanded(
                               child: Text(
                                 _errorMessage!,
-                                style:
-                                    CruType.caption.w500.tint(c.amberText),
+                                style: CruType.caption.w500.tint(c.amberText),
                               ),
                             ),
                           ],
@@ -553,8 +560,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                     CruButton(
                       label: 'Cancel',
                       kind: CruButtonKind.secondary,
-                      onPressed:
-                          _isLoading ? null : () => Navigator.of(context).pop(),
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: CruSpace.s10),
                     CruButton(
@@ -607,11 +615,7 @@ class _TypeToggleItem extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CruIcon(
-              icon,
-              size: 16,
-              color: isSelected ? c.label : c.label2,
-            ),
+            CruIcon(icon, size: 16, color: isSelected ? c.label : c.label2),
             const SizedBox(width: CruSpace.s6),
             Flexible(
               child: Text(
@@ -680,11 +684,7 @@ class _PriorityOptionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CruIcon(
-              icon,
-              size: 18,
-              color: isSelected ? primaryText : c.label3,
-            ),
+            CruIcon(icon, size: 18, color: isSelected ? primaryText : c.label3),
             const SizedBox(width: CruSpace.s10),
             Expanded(
               child: Column(

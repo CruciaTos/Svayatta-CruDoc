@@ -202,9 +202,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       // `startDoctorTrial` Cloud Function (admin privileges) so the client
       // can't grant itself a longer trial or extra modules by writing
       // Firestore directly. The server computes the 30-day expiry.
-      await FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('startDoctorTrial')
-          .call({'modules': modules});
+      await FirebaseFunctions.instanceFor(
+        region: 'asia-south1',
+      ).httpsCallable('startDoctorTrial').call({'modules': modules});
 
       // Non-entitlement profile fields stay a client write.
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
@@ -229,7 +229,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         _step = _questionSteps;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = 'Could not save. Check the connection and try again.');
+      if (mounted)
+        setState(
+          () => _error = 'Could not save. Check the connection and try again.',
+        );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -390,7 +393,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading('About you', 'Shown on your prescriptions and to your patients.'),
+        _heading(
+          'About you',
+          'Shown on your prescriptions and to your patients.',
+        ),
         CruTextField(
           label: 'Your name',
           controller: _name,
@@ -404,8 +410,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         LayoutBuilder(
           builder: (context, box) {
             final columns = box.maxWidth > 440 ? 4 : 3;
-            final w =
-                (box.maxWidth - CruSpace.s8 * (columns - 1)) / columns;
+            final w = (box.maxWidth - CruSpace.s8 * (columns - 1)) / columns;
             return Wrap(
               spacing: CruSpace.s8,
               runSpacing: CruSpace.s8,
@@ -426,10 +431,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         ),
         if (spec?.type == DoctorSpecialtyType.dentist) ...[
           const SizedBox(height: CruSpace.s20),
-          Text(
-            'What do you do?',
-            style: CruType.caption.tint(c.label2),
-          ),
+          Text('What do you do?', style: CruType.caption.tint(c.label2)),
           const SizedBox(height: CruSpace.s8),
           DentalFeaturesPicker(
             selected: _dental,
@@ -456,7 +458,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           icon: CruIcons.sparkle,
           title: 'Use what we suggest',
           detail: [
-            _practice == PracticeType.clinic ? 'Picked for a clinic' : 'Picked for a solo practice',
+            _practice == PracticeType.clinic
+                ? 'Picked for a clinic'
+                : 'Picked for a solo practice',
             ?_spec?.label,
           ].join(' · '),
           selected: _suggest == true,
@@ -723,6 +727,8 @@ class _FeatureRow extends StatelessWidget {
         ],
       ),
     );
-    return onTap == null ? row : CruPressable(onTap: onTap, builder: (_, _) => row);
+    return onTap == null
+        ? row
+        : CruPressable(onTap: onTap, builder: (_, _) => row);
   }
 }

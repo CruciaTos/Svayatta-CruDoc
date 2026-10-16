@@ -290,6 +290,7 @@ _ScheduleResult _buildSchedule({
       homeAddress: visit?.visitType == VisitType.home
           ? _clean(visit!.address)
           : null,
+      bookedFor: visit?.scheduledStart,
     );
   }
 

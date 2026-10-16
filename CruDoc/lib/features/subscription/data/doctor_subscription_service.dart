@@ -16,6 +16,7 @@ class DoctorSubscriptionInfo {
   final bool isExpired;
   final int? daysRemaining;
   final List<String> enabledModules;
+  final bool isCancelled;
 
   const DoctorSubscriptionInfo({
     required this.planName,
@@ -24,6 +25,7 @@ class DoctorSubscriptionInfo {
     required this.isExpired,
     this.daysRemaining,
     required this.enabledModules,
+    this.isCancelled = false,
   });
 
   bool isModuleUnlocked(String moduleKey) {
@@ -78,6 +80,7 @@ class DoctorSubscriptionService {
       final data = doc.data()!;
       final planName = (data['subscriptionPlan'] as String?) ?? 'Starter';
       final status = (data['status'] as String?) ?? 'active';
+      final isCancelled = (data['subscriptionCancelled'] as bool?) ?? false;
       final modulesRaw =
           (data['enabledModules'] as List<dynamic>?)
               ?.map((e) => e.toString().toLowerCase())
@@ -112,6 +115,7 @@ class DoctorSubscriptionService {
         isExpired: isExpired,
         daysRemaining: daysRemaining,
         enabledModules: modulesRaw,
+        isCancelled: isCancelled,
       );
     });
   }
@@ -220,5 +224,17 @@ class DoctorSubscriptionService {
 
     await docRef.set(request.toMap());
     return docRef.id;
+  }
+
+  /// Cancels or resumes the doctor's subscription.
+  Future<void> setCancelled(bool cancelled) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) {
+      throw StateError('No doctor logged in');
+    }
+    await FirebaseFirestore.instance.collection('users').doc(uid).set({
+      'subscriptionCancelled': cancelled,
+      'subscriptionCancelledAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

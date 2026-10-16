@@ -4,20 +4,34 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/search_lift.dart';
 
-/// The phone's five tabs, in bottom-nav order.
+/// The phone's five tabs, in bottom-nav order. Revenue lives inside
+/// More (see [mobileRevenueOpenProvider]); its tab slot is Tasks.
 abstract final class MobileTab {
   static const home = 0;
   static const schedule = 1;
   static const patients = 2;
-  static const revenue = 3;
+  static const tasks = 3;
   static const more = 4;
   static const count = 5;
+}
+
+/// True while More shows Revenue in place of its own list (the revenue
+/// card opened). The More screen animates between the two when this
+/// changes; Back (the page's button or the system gesture) sets it false.
+final mobileRevenueOpenProvider = StateProvider<bool>((ref) => false);
+
+/// Opens Revenue inside More from anywhere on the phone (Home's
+/// Collected tile, shared actions that used to jump to the Revenue tab).
+void openMobileRevenue(WidgetRef ref) {
+  ref.read(mobileRevenueOpenProvider.notifier).state = true;
+  ref.read(mobileTabSwitcherProvider)?.call(MobileTab.more);
 }
 
 /// Switches the phone's tab while the mobile shell is on screen; null

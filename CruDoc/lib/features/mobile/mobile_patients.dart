@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
@@ -10,6 +13,7 @@ import 'package:doctor_management_app/features/patients/data/providers/patients_
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Patients: search, the same filters as the desktop, and one row per
@@ -356,6 +360,11 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     final async = ref.watch(patientsListViewProvider);
     final now = ref.watch(dashboardNowProvider);
     final view = async.value;
+    // Recalls left More for an icon here, for those whose sidebar has it.
+    final recalls = sidebarTabs(
+      dental: ref.watch(dentalFeaturesProvider),
+      access: ref.watch(clinicAccessProvider).value,
+    ).any((t) => t.tab == DesktopTab.recalls);
 
     return NotificationListener<ScrollNotification>(
       onNotification: (n) => view == null ? false : _onScroll(n, view),
@@ -368,10 +377,28 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
               subtitle: view == null
                   ? null
                   : PatientFormat.headerLine(view.total, view.newThisMonth),
-              trailing: MobileCircleButton(
-                icon: CruIcons.userPlus,
-                semanticLabel: 'Add patient',
-                onPressed: () => DashboardActions.addPatient(context),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (recalls) ...[
+                    MobileCircleButton(
+                      icon: RecIcons.recall,
+                      filled: false,
+                      semanticLabel: 'Recalls',
+                      onPressed: () => openMobileDestination(
+                        context,
+                        DesktopTab.recalls,
+                        backLabel: 'Patients',
+                      ),
+                    ),
+                    const SizedBox(width: CruSpace.s8),
+                  ],
+                  MobileCircleButton(
+                    icon: CruIcons.userPlus,
+                    semanticLabel: 'Add patient',
+                    onPressed: () => DashboardActions.addPatient(context),
+                  ),
+                ],
               ),
             ),
           ),

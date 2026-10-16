@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
@@ -18,13 +17,13 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
-import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart'
-    show HomeVisitInk;
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
+import 'package:doctor_management_app/features/mobile/mobile_notifications.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
-import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
+import 'package:doctor_management_app/features/queue/presentation/check_in_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -49,6 +48,7 @@ class MobileHomeScreen extends ConsumerWidget {
         _HomeHeader(
           greeting: greeting,
           name: name ?? identity.fullName ?? 'Doctor',
+          clinic: identity.clinicName,
         ),
         const SizedBox(height: CruSpace.s20),
         _QuickActions(modules: enabledModules),
@@ -59,8 +59,6 @@ class MobileHomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
           child: _NowCard(data: data),
         ),
-        const SizedBox(height: CruSpace.s16),
-        _TodayPreview(data: data),
         if (data.attention?.isNotEmpty ?? false) ...[
           const SizedBox(height: CruSpace.s16),
           _Attention(items: data.attention!),
@@ -75,12 +73,13 @@ void _toTab(WidgetRef ref, int tab) =>
 
 /// Maps the desktop's tab jumps (used by shared actions) onto the phone.
 void _navigateDesktopTab(WidgetRef ref, int desktopTab) =>
-    _toTab(ref, switch (desktopTab) {
-      DesktopTab.queue || DesktopTab.appointments => MobileTab.schedule,
-      DesktopTab.patients => MobileTab.patients,
-      DesktopTab.revenue => MobileTab.revenue,
-      _ => MobileTab.home,
-    });
+    desktopTab == DesktopTab.revenue
+    ? openMobileRevenue(ref)
+    : _toTab(ref, switch (desktopTab) {
+        DesktopTab.queue || DesktopTab.appointments => MobileTab.schedule,
+        DesktopTab.patients => MobileTab.patients,
+        _ => MobileTab.home,
+      });
 
 /// The consultation in progress, if any (its queue token and visit).
 ScheduleItem? _serving(DashboardData data) {
@@ -88,6 +87,24 @@ ScheduleItem? _serving(DashboardData data) {
     if (s.status == ScheduleStatus.inConsultation) return s;
   }
   return null;
+}
+
+/// The next booked arrival when no one is waiting: the earliest clinic
+/// appointment or home visit today not yet checked in (a checked-in
+/// visit is in the queue instead, so no one shows twice).
+ScheduleItem? _nextBooked(DashboardData data) {
+  final booked = [
+    for (final s in data.schedule ?? const <ScheduleItem>[])
+      if (s.status == ScheduleStatus.booked && s.visitId != null) s,
+  ]..sort((a, b) => a.time.compareTo(b.time));
+  return booked.firstOrNull;
+}
+
+/// A home visit's card: green ink, the counterpart of the blue one.
+abstract final class _VisitInk {
+  static const gradient = [Color(0xFF0D3B2B), Color(0xFF178060)];
+  static const border = Color(0xFF6FD9AC);
+  static const accent = Color(0xFFBDF2D8);
 }
 
 /// The hero: the next patient on the ink card with one big Start, or a
@@ -208,11 +225,15 @@ class _NowCard extends ConsumerWidget {
     final up = data.upNext;
     final serving = _serving(data);
 
+    final booked = up == null ? _nextBooked(data) : null;
+    if (up == null && booked != null && serving == null) {
+      return _BookedCard(item: booked, now: data.now);
+    }
     if (up == null) {
       final line = serving != null
-          ? 'With ${serving.name} now'
-          : data.nextBooking != null
-          ? 'Next booking at ${DashFormat.time(data.nextBooking!)}'
+          ? booked != null
+                ? 'Next: ${booked.name} at ${DashFormat.time(booked.time)}'
+                : 'With ${serving.name} now'
           : 'Nothing else booked today';
       return MobileCard(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -234,7 +255,7 @@ class _NowCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'No one waiting',
+                          serving != null ? 'No one waiting' : 'All done',
                           style: MobileType.row.tint(c.label),
                         ),
                         Text(
@@ -249,19 +270,14 @@ class _NowCard extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: CruSpace.s14),
-            serving != null
-                ? MobilePrimaryButton(
-                    label: 'Finish ${serving.firstName}',
-                    icon: CruIcons.check,
-                    onPressed: () =>
-                        _finishAndStart(context, ref, serving, null),
-                  )
-                : MobilePrimaryButton(
-                    label: 'Check in a patient',
-                    icon: CruIcons.userCheck,
-                    onPressed: () => DashboardActions.newVisit(context),
-                  ),
+            if (serving != null) ...[
+              const SizedBox(height: CruSpace.s14),
+              MobilePrimaryButton(
+                label: 'Finish ${serving.firstName}',
+                icon: CruIcons.check,
+                onPressed: () => _finishAndStart(context, ref, serving, null),
+              ),
+            ],
           ],
         ),
       );
@@ -269,13 +285,13 @@ class _NowCard extends ConsumerWidget {
 
     // The ink card with white text.
     final onInk = c.onInk();
-    // A physiotherapist's home visit: olive card with the address.
-    final home = up.isHomeVisit && ref.watch(isPhysiotherapyProvider);
-    final soft = home ? HomeVisitInk.accent : onInk.label2;
+    // A home visit: the green card with the address.
+    final home = up.isHomeVisit;
+    final soft = home ? _VisitInk.accent : onInk.label2;
     return _Glow(
       child: CruInkCard(
-        colors: home ? HomeVisitInk.gradient : null,
-        borderColor: home ? HomeVisitInk.border : null,
+        colors: home ? _VisitInk.gradient : null,
+        borderColor: home ? _VisitInk.border : null,
         padding: const EdgeInsets.fromLTRB(20, 14, 10, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,7 +307,9 @@ class _NowCard extends ConsumerWidget {
                       ? 'Home visit'
                       : serving != null
                       ? 'Next, after ${serving.firstName}'
-                      : 'Up next',
+                      : up.bookedFor != null
+                      ? 'Up next · Appointment'
+                      : 'Up next · Walk-in',
                   style: MobileType.subhead.tint(soft),
                 ),
                 const Spacer(),
@@ -383,6 +401,143 @@ class _NowCard extends ConsumerWidget {
   }
 
   static String _first(String name) => name.trim().split(RegExp(r'\s+')).first;
+}
+
+/// The next booked arrival on the ink card (green for a home visit), with
+/// Check in, once no one is waiting.
+class _BookedCard extends ConsumerWidget {
+  const _BookedCard({required this.item, required this.now});
+
+  final ScheduleItem item;
+  final DateTime now;
+
+  Future<void> _checkIn(BuildContext context, WidgetRef ref) async {
+    final day = DateTime(now.year, now.month, now.day);
+    final appts =
+        ref.read(apptDayItemsProvider(day)).value ?? const <ApptItem>[];
+    ApptItem? appt;
+    for (final a in appts) {
+      final members = a.members.isEmpty ? [a] : a.members;
+      if (members.any((m) => m.visit.id == item.visitId)) appt = a;
+    }
+    if (appt == null) {
+      mobileSay(context, 'Open Schedule to check ${item.firstName} in.');
+      return;
+    }
+    try {
+      final repo = ref.read(queueRepositoryProvider);
+      for (final m in appt.members.isEmpty ? [appt] : appt.members) {
+        await repo.checkInVisit(m.visit);
+      }
+      if (context.mounted) mobileSay(context, '${item.firstName} checked in.');
+    } catch (e) {
+      if (context.mounted) mobileSay(context, 'Could not check in: $e');
+    }
+  }
+
+  void _more(BuildContext context, Patient p) => showMobileActionSheet(
+    context,
+    title: item.name,
+    subtitle: [?item.ageSex, ?item.reason].join(' · '),
+    leading: MobileAvatar(name: item.name, size: 34),
+    actions: [
+      MobileSheetAction(
+        label: 'Open patient',
+        icon: CruIcons.user,
+        tone: MobileTone.blue,
+        onTap: () => openMobilePatient(context, p),
+      ),
+      if (p.phone.trim().isNotEmpty)
+        MobileSheetAction(
+          label: 'Call',
+          icon: CruIcons.phone,
+          tone: MobileTone.green,
+          onTap: () => PatientActions.call(context, p),
+        ),
+    ],
+  );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final onInk = context.cru.onInk();
+    final home = item.kindLabel == 'Home visit';
+    final soft = home ? _VisitInk.accent : onInk.label2;
+    final late = item.time.isBefore(now);
+    final p = item.patient;
+    final details = [?item.ageSex, ?item.reason].join(' · ');
+    return _Glow(
+      child: CruInkCard(
+        colors: home ? _VisitInk.gradient : null,
+        borderColor: home ? _VisitInk.border : null,
+        padding: const EdgeInsets.fromLTRB(20, 14, 10, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (home) ...[
+                  CruIcon(CruIcons.home, size: 15, color: soft),
+                  const SizedBox(width: CruSpace.s6),
+                ],
+                Expanded(
+                  child: Text(
+                    home ? 'Up next · Home visit' : 'Up next · Appointment',
+                    style: MobileType.subhead.tint(soft),
+                  ),
+                ),
+                if (p != null)
+                  CruIconButton(
+                    icon: CruIcons.more,
+                    size: 38,
+                    iconSize: 18,
+                    semanticLabel: 'More for ${item.name}',
+                    onPressed: () => _more(context, p),
+                  ),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s6),
+            Padding(
+              padding: const EdgeInsets.only(right: CruSpace.s10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: MobileType.title.tint(onInk.label),
+                  ),
+                  if (details.isNotEmpty) ...[
+                    const SizedBox(height: CruSpace.s4),
+                    Text(
+                      details,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: MobileType.subhead.tint(soft),
+                    ),
+                  ],
+                  const SizedBox(height: CruSpace.s12),
+                  _InkPill(
+                    late
+                        ? 'Running late · was due ${DashFormat.time(item.time)}'
+                        : 'At ${DashFormat.time(item.time)}',
+                    color: late ? onInk.amberText : onInk.label,
+                    icon: CruIcons.clock,
+                  ),
+                  const SizedBox(height: CruSpace.s16),
+                  _InkButton(
+                    label: home ? 'Start visit' : 'Check in ${item.firstName}',
+                    icon: home ? CruIcons.play : CruIcons.userCheck,
+                    onPressed: () => _checkIn(context, ref),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// A faint light halo around the Up next card.
@@ -514,16 +669,23 @@ class _InkButton extends StatelessWidget {
   }
 }
 
-/// Home's top: "Good afternoon," over the doctor's name, and their
-/// avatar, which opens their profile.
-class _HomeHeader extends ConsumerWidget {
-  const _HomeHeader({required this.greeting, required this.name});
+/// Home's top: "Good afternoon, Dr. Rao" with the clinic underneath, and
+/// the bell, which opens Notifications.
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({
+    required this.greeting,
+    required this.name,
+    required this.clinic,
+  });
 
   final String greeting;
   final String name;
+  final String? clinic;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final ink = mobileInk(context);
+    final place = clinic?.trim();
     return Padding(
       padding: EdgeInsets.fromLTRB(
         MobileMetrics.gutter + CruSpace.s2,
@@ -537,31 +699,39 @@ class _HomeHeader extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$greeting,',
-                  style: MobileType.text.tint(
-                    mobileInk(context).withValues(alpha: 0.65),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$greeting, ',
+                        style: MobileType.title2.copyWith(
+                          fontWeight: FontWeight.w400,
+                          color: ink.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      TextSpan(text: name, style: MobileType.title2.tint(ink)),
+                    ],
                   ),
-                ),
-                Text(
-                  '$name!',
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: MobileType.title2.tint(mobileInk(context)),
                 ),
+                if (place != null && place.isNotEmpty) ...[
+                  const SizedBox(height: CruSpace.s2),
+                  Text(
+                    place,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: MobileType.subhead.tint(ink.withValues(alpha: 0.65)),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: CruSpace.s12),
-          CruPressable(
-            onTap: () => openMobileSettings(
-              context,
-              ref,
-              SettingsSection.profile,
-              backLabel: 'Dashboard',
-            ),
-            semanticLabel: 'Your profile',
-            builder: (context, _) => MobileAvatar(name: name, size: 38),
+          MobileCircleButton(
+            icon: mobileBellIcon,
+            semanticLabel: 'Notifications',
+            onPressed: () => openMobileNotifications(context),
           ),
         ],
       ),
@@ -635,7 +805,7 @@ class _GlanceRow extends ConsumerWidget {
                 valueColor: (collected?.today ?? 0) > 0
                     ? mobileTone(c, MobileTone.green).$2
                     : null,
-                onTap: () => _toTab(ref, MobileTab.revenue),
+                onTap: () => openMobileRevenue(ref),
               ),
             ),
           ],
@@ -785,6 +955,12 @@ class _QuickActions extends ConsumerWidget {
         MobileTone.amber,
         (ctx, _) => DashboardActions.newVisit(ctx),
       ),
+      _Action(
+        'Walk-in',
+        CruIcons.userPlus,
+        MobileTone.amber,
+        (ctx, _) => CheckInDialog.show(mobileRoot(ctx), walkIn: true),
+      ),
       _Action('Book visit', CruIcons.calendar, MobileTone.blue, _bookVisit),
       _Action(
         'New patient',
@@ -811,16 +987,6 @@ class _QuickActions extends ConsumerWidget {
       ],
       if (on('ai_assistant'))
         _Action('Dictate', CruIcons.mic, MobileTone.violet, _dictate),
-      if (on('revenue'))
-        _Action(
-          'Expense',
-          CruIcons.wallet,
-          MobileTone.blue,
-          (ctx, _) => showDesktopAddTransactionDialog(
-            mobileRoot(ctx),
-            initialKind: TransactionKind.expense,
-          ),
-        ),
       if (on('inventory'))
         _Action(
           'Medicine',
@@ -919,122 +1085,6 @@ class _ActionTile extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
-}
-
-/// The next few people today; the whole list is on Schedule.
-class _TodayPreview extends ConsumerWidget {
-  const _TodayPreview({required this.data});
-
-  final DashboardData data;
-
-  static const _shown = 4;
-
-  void _sheet(BuildContext context, ScheduleItem s) {
-    final p = s.patient;
-    if (p == null) return;
-    showMobileActionSheet(
-      context,
-      title: s.name,
-      subtitle: [?s.ageSex, ?s.reason].join(' · '),
-      leading: MobileAvatar(name: s.name, size: 34),
-      actions: [
-        MobileSheetAction(
-          label: 'Open patient',
-          icon: CruIcons.user,
-          tone: MobileTone.blue,
-          onTap: () => openMobilePatient(context, p),
-        ),
-        if (p.phone.trim().isNotEmpty) ...[
-          MobileSheetAction(
-            label: 'Call',
-            icon: CruIcons.phone,
-            tone: MobileTone.green,
-            onTap: () => PatientActions.call(context, p),
-          ),
-          MobileSheetAction(
-            label: 'WhatsApp',
-            icon: CruIcons.whatsapp,
-            tone: MobileTone.teal,
-            onTap: () => PatientActions.whatsApp(context, p),
-          ),
-        ],
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final all = data.schedule;
-    final open = [
-      for (final s in all ?? const <ScheduleItem>[])
-        if (s.status.isOpen && s.status != ScheduleStatus.inConsultation) s,
-    ];
-    final left = open.length - _shown;
-    return MobileRowGroup(
-      title: 'Still to see',
-      action: 'Schedule',
-      onAction: () => _toTab(ref, MobileTab.schedule),
-      indent: 88,
-      children: all == null
-          ? const [MobileLoading('Loading today…')]
-          : open.isEmpty
-          ? [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                child: Text(
-                  all.isEmpty ? 'Nothing booked today' : 'Everyone is seen',
-                  style: MobileType.subhead.tint(c.label2),
-                ),
-              ),
-            ]
-          : [
-              for (final s in open.take(_shown))
-                MobileRow(
-                  leading: SizedBox(
-                    width: 60,
-                    child: Text(
-                      DashFormat.time(s.time),
-                      style: MobileType.subhead.w600.tabular.tint(c.label2),
-                    ),
-                  ),
-                  title: s.name,
-                  subtitle: [?s.reason, ?s.kindLabel].firstOrNull ?? s.ageSex,
-                  trailing: switch (s.status) {
-                    ScheduleStatus.waiting => MobilePill(
-                      s.waitMinutes == null
-                          ? 'Waiting'
-                          : DashFormat.minutes(s.waitMinutes!),
-                      tone: MobileTone.amber,
-                      icon: CruIcons.clock,
-                    ),
-                    ScheduleStatus.called => const MobilePill(
-                      'Called',
-                      tone: MobileTone.blue,
-                    ),
-                    ScheduleStatus.skipped => const MobilePill(
-                      'Not here',
-                      tone: MobileTone.slate,
-                    ),
-                    _ => null,
-                  },
-                  onTap: s.patient == null
-                      ? null
-                      : () => openMobilePatient(context, s.patient!),
-                  onLongPress: s.patient == null
-                      ? null
-                      : () => _sheet(context, s),
-                ),
-              if (left > 0)
-                MobileRow(
-                  title: '$left more today',
-                  titleStyle: MobileType.subhead.w600.tint(c.accentText),
-                  chevron: true,
-                  onTap: () => _toTab(ref, MobileTab.schedule),
-                ),
-            ],
     );
   }
 }

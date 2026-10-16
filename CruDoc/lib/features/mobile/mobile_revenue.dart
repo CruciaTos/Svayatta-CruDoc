@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
@@ -7,6 +6,7 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
+import 'package:doctor_management_app/features/mobile/mobile_wave.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_providers.dart';
@@ -23,7 +23,19 @@ import 'package:doctor_management_app/features/revenue/presentation/invoices_scr
 /// Revenue: what came in for the period, who still owes, and every
 /// transaction. Recording money is one tap from the header.
 class MobileRevenueScreen extends ConsumerWidget {
-  const MobileRevenueScreen({super.key});
+  const MobileRevenueScreen({
+    super.key,
+    this.onBack,
+    this.scrollController,
+    this.cardKey,
+  });
+
+  /// Inside More: a back link to More above the header.
+  final VoidCallback? onBack;
+  final ScrollController? scrollController;
+
+  /// On the period cards, so More can glide its card to them.
+  final GlobalKey? cardKey;
 
   void _add(BuildContext context) => showMobileActionSheet(
     context,
@@ -67,124 +79,165 @@ class MobileRevenueScreen extends ConsumerWidget {
     final o = ref.watch(revenueOverviewProvider);
     final pending = ref.watch(revenuePendingProvider);
 
-    return ListView(
-      padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
-      children: [
-        MobileHeader(
-          title: 'Revenue',
-          subtitle: o?.subtitle,
-          trailing: MobileCircleButton(
-            icon: CruIcons.plus,
-            semanticLabel: 'Record a payment, expense or invoice',
-            onPressed: () => _add(context),
-          ),
-        ),
-        const SizedBox(height: CruSpace.s16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-          child: MobileSegmented<RevenuePeriod>(
-            values: RevenuePeriod.values,
-            label: (p) => switch (p) {
-              RevenuePeriod.today => 'Today',
-              RevenuePeriod.week => 'Week',
-              RevenuePeriod.month => 'Month',
-              RevenuePeriod.year => 'Year',
-            },
-            selected: view.period,
-            onBand: true,
-            onChanged: (p) =>
-                ref.read(revenueViewControllerProvider.notifier).setPeriod(p),
-          ),
-        ),
-        const SizedBox(height: CruSpace.s12),
-        if (o == null)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-            child: MobileCard(
-              child: MobileLoading('Loading revenue…', height: 220),
+    final cards = MobileWaveCard(
+      key: cardKey,
+      child: o == null
+          ? const Padding(
+              padding: EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
+              child: MobileCard(
+                child: MobileLoading('Loading revenue…', height: 220),
+              ),
+            )
+          : _PeriodCards(
+              period: view.period,
+              onChanged: (p) =>
+                  ref.read(revenueViewControllerProvider.notifier).setPeriod(p),
             ),
-          )
-        else
-          _PeriodCards(
-            period: view.period,
-            onChanged: (p) =>
-                ref.read(revenueViewControllerProvider.notifier).setPeriod(p),
+    );
+    final kids = <Widget>[
+      if (onBack != null)
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            MobileMetrics.gutter - CruSpace.s4,
+            MobileMetrics.top(context),
+            MobileMetrics.gutter,
+            0,
           ),
-        if (pending != null && pending.isNotEmpty) ...[
-          const SizedBox(height: CruSpace.s16),
-          MobileRowGroup(
-            title:
-                'To collect · ${DashFormat.rupeesCompact(pending.fold(0.0, (s, g) => s + g.total))}',
-
-            children: [
-              for (final g in pending.take(5))
-                _PendingRow(
-                  group: g,
-                  clinic: ref.watch(doctorIdentityProvider).clinicName,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: CruPressable(
+              onTap: onBack!,
+              semanticLabel: 'Back to More',
+              builder: (context, _) => SizedBox(
+                height: 36,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CruIcon(
+                      CruIcons.chevronLeft,
+                      size: 18,
+                      strokeWidth: 2.2,
+                      color: mobileInk(context),
+                    ),
+                    const SizedBox(width: CruSpace.s4),
+                    Text(
+                      'More',
+                      style: MobileType.callout.tint(mobileInk(context)),
+                    ),
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
-        ],
+        ),
+      MobileHeader(
+        pushed: onBack != null,
+        title: 'Revenue',
+        subtitle: o?.subtitle,
+        trailing: MobileCircleButton(
+          icon: CruIcons.plus,
+          semanticLabel: 'Record a payment, expense or invoice',
+          onPressed: () => _add(context),
+        ),
+      ),
+      const SizedBox(height: CruSpace.s16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
+        child: MobileSegmented<RevenuePeriod>(
+          values: RevenuePeriod.values,
+          label: (p) => switch (p) {
+            RevenuePeriod.today => 'Today',
+            RevenuePeriod.week => 'Week',
+            RevenuePeriod.month => 'Month',
+            RevenuePeriod.year => 'Year',
+          },
+          selected: view.period,
+          onBand: true,
+          onChanged: (p) =>
+              ref.read(revenueViewControllerProvider.notifier).setPeriod(p),
+        ),
+      ),
+      const SizedBox(height: CruSpace.s12),
+      cards,
+      if (pending != null && pending.isNotEmpty) ...[
         const SizedBox(height: CruSpace.s16),
         MobileRowGroup(
-          title: 'Transactions',
-          action: 'Invoices',
-          onAction: () => openMobileInvoices(context),
-          children: o == null
-              ? const [MobileLoading('Loading transactions…')]
-              : o.transactions.isEmpty
-              ? [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                    child: Text(
-                      'Nothing recorded in this period',
-                      style: MobileType.subhead.tint(c.label2),
-                    ),
-                  ),
-                ]
-              : [
-                  for (final t in o.transactions.take(40))
-                    MobileRow(
-                      leading: t.moneyOut
-                          ? Container(
-                              width: 38,
-                              height: 38,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: c.redTint,
-                                shape: BoxShape.circle,
-                              ),
-                              child: CruIcon(
-                                CruIcons.arrowUp,
-                                size: 18,
-                                strokeWidth: 1.8,
-                                color: c.redText,
-                              ),
-                            )
-                          : const MobileIconTile(
-                              icon: CruIcons.arrowDown,
-                              tone: MobileTone.green,
-                            ),
-                      title: t.title,
-                      subtitle:
-                          '${t.dayLabel} · ${t.time} ${t.meridiem}'
-                          '${t.subtitle.isEmpty ? '' : ' · ${t.subtitle}'}',
-                      trailing: Text(
-                        t.amount,
-                        style: MobileType.callout.tabular.tint(
-                          t.moneyOut
-                              ? c.redText
-                              : mobileTone(c, MobileTone.green).$2,
-                        ),
-                      ),
-                      onTap: () => pushMobile(
-                        context,
-                        TransactionDetailsPage(entry: t.entry),
-                      ),
-                    ),
-                ],
+          title:
+              'To collect · ${DashFormat.rupeesCompact(pending.fold(0.0, (s, g) => s + g.total))}',
+
+          children: [
+            for (final g in pending.take(5))
+              _PendingRow(
+                group: g,
+                clinic: ref.watch(doctorIdentityProvider).clinicName,
+              ),
+          ],
         ),
       ],
+      const SizedBox(height: CruSpace.s16),
+      MobileRowGroup(
+        title: 'Transactions',
+        action: 'Invoices',
+        onAction: () => openMobileInvoices(context),
+        children: o == null
+            ? const [MobileLoading('Loading transactions…')]
+            : o.transactions.isEmpty
+            ? [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+                  child: Text(
+                    'Nothing recorded in this period',
+                    style: MobileType.subhead.tint(c.label2),
+                  ),
+                ),
+              ]
+            : [
+                for (final t in o.transactions.take(40))
+                  MobileRow(
+                    leading: t.moneyOut
+                        ? Container(
+                            width: 38,
+                            height: 38,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: c.redTint,
+                              shape: BoxShape.circle,
+                            ),
+                            child: CruIcon(
+                              CruIcons.arrowUp,
+                              size: 18,
+                              strokeWidth: 1.8,
+                              color: c.redText,
+                            ),
+                          )
+                        : const MobileIconTile(
+                            icon: CruIcons.arrowDown,
+                            tone: MobileTone.green,
+                          ),
+                    title: t.title,
+                    subtitle:
+                        '${t.dayLabel} · ${t.time} ${t.meridiem}'
+                        '${t.subtitle.isEmpty ? '' : ' · ${t.subtitle}'}',
+                    trailing: Text(
+                      t.amount,
+                      style: MobileType.callout.tabular.tint(
+                        t.moneyOut
+                            ? c.redText
+                            : mobileTone(c, MobileTone.green).$2,
+                      ),
+                    ),
+                    onTap: () => pushMobile(
+                      context,
+                      TransactionDetailsPage(entry: t.entry),
+                    ),
+                  ),
+              ],
+      ),
+    ];
+    return ListView(
+      controller: scrollController,
+      padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
+      children: mobileWaveChildren(kids, origin: kids.indexOf(cards)),
     );
   }
 }
@@ -226,10 +279,6 @@ class _PeriodCardsState extends ConsumerState<_PeriodCards> {
     viewportFraction: 0.9,
   );
 
-  /// Each card's own height; the strip takes the height of the card in
-  /// view (blended while sliding).
-  final Map<int, double> _heights = {};
-
   /// True while the buttons drive the slide, so the cards passed on the
   /// way don't each become the period.
   bool _driving = false;
@@ -255,23 +304,10 @@ class _PeriodCardsState extends ConsumerState<_PeriodCards> {
     super.dispose();
   }
 
-  double get _height {
-    const fallback = 262.0;
-    final page = _pages.hasClients && _pages.position.haveDimensions
-        ? (_pages.page ?? 0)
-        : _values.indexOf(widget.period).toDouble();
-    final a = page.floor().clamp(0, _values.length - 1);
-    final b = page.ceil().clamp(0, _values.length - 1);
-    final ha = _heights[a] ?? _heights[b] ?? fallback;
-    final hb = _heights[b] ?? ha;
-    return ha + (hb - ha) * (page - a);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pages,
-      builder: (context, child) => SizedBox(height: _height, child: child),
+    return SizedBox(
+      height: kMobileRevenueCardHeight,
       child: PageView.builder(
         controller: _pages,
         itemCount: _values.length,
@@ -283,26 +319,15 @@ class _PeriodCardsState extends ConsumerState<_PeriodCards> {
         },
         itemBuilder: (context, i) {
           final o = ref.watch(_periodOverviewProvider(_values[i]));
-          return OverflowBox(
-            alignment: Alignment.topCenter,
-            minHeight: 0,
-            maxHeight: double.infinity,
-            child: _MeasureHeight(
-              onHeight: (h) {
-                if (!mounted || _heights[i] == h) return;
-                setState(() => _heights[i] = h);
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: o == null
-                    ? const MobileCard(
-                        child: MobileLoading('Loading revenue…', height: 220),
-                      )
-                    : RepaintBoundary(
-                        child: _Hero(o: o, period: _values[i]),
-                      ),
-              ),
-            ),
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: o == null
+                ? const MobileCard(
+                    child: MobileLoading('Loading revenue…', height: 200),
+                  )
+                : RepaintBoundary(
+                    child: _Hero(o: o, period: _values[i]),
+                  ),
           );
         },
       ),
@@ -310,36 +335,35 @@ class _PeriodCardsState extends ConsumerState<_PeriodCards> {
   }
 }
 
-/// Reports its child's laid-out height after each layout that changes it.
-class _MeasureHeight extends SingleChildRenderObjectWidget {
-  const _MeasureHeight({required this.onHeight, required super.child});
+/// Every period card's height, whatever its figures: the cards never
+/// change size as they slide or as data arrives.
+const double kMobileRevenueCardHeight = 236;
 
-  final ValueChanged<double> onHeight;
+/// The selected period's card on its own: More shows it, and tapping it
+/// opens Revenue in place.
+class MobileRevenueCard extends ConsumerWidget {
+  const MobileRevenueCard({super.key, required this.onTap});
 
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderMeasureHeight(onHeight);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderMeasureHeight renderObject,
-  ) => renderObject.onHeight = onHeight;
-}
-
-class _RenderMeasureHeight extends RenderProxyBox {
-  _RenderMeasureHeight(this.onHeight);
-
-  ValueChanged<double> onHeight;
-  double? _last;
+  final VoidCallback onTap;
 
   @override
-  void performLayout() {
-    super.performLayout();
-    final h = size.height;
-    if (h == _last) return;
-    _last = h;
-    WidgetsBinding.instance.addPostFrameCallback((_) => onHeight(h));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final period = ref.watch(
+      revenueViewControllerProvider.select((v) => v.period),
+    );
+    final o = ref.watch(_periodOverviewProvider(period));
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: 'Open revenue',
+      builder: (context, _) => o == null
+          ? const SizedBox(
+              height: kMobileRevenueCardHeight,
+              child: MobileCard(
+                child: MobileLoading('Loading revenue…', height: 200),
+              ),
+            )
+          : _Hero(o: o, period: period),
+    );
   }
 }
 
@@ -392,162 +416,165 @@ class _Hero extends StatelessWidget {
     final soft = Colors.white.withValues(alpha: 0.72);
     final quiet = Colors.white.withValues(alpha: 0.6);
     final amount = DashFormat.rupees(o.collected).replaceFirst('₹', '');
-    return DecoratedBox(
-      decoration: ShapeDecoration(
-        shape: cruShape(_radius),
-        shadows: [
-          BoxShadow(
-            color: inks[2].withValues(alpha: 0.28),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRSuperellipse(
-        borderRadius: BorderRadius.circular(_radius),
-        // The card's pattern is a picture made once (it never changes),
-        // so nothing is drawn for it while the cards slide.
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(
-                'assets/images/revenue_cards/${period.name}.webp',
-              ),
-              fit: BoxFit.cover,
+    return SizedBox(
+      height: kMobileRevenueCardHeight,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          shape: cruShape(_radius),
+          shadows: [
+            BoxShadow(
+              color: inks[2].withValues(alpha: 0.28),
+              blurRadius: 16,
+              offset: const Offset(0, 10),
             ),
-          ),
+          ],
+        ),
+        child: ClipRSuperellipse(
+          borderRadius: BorderRadius.circular(_radius),
+          // The card's pattern is a picture made once (it never changes),
+          // so nothing is drawn for it while the cards slide.
           child: DecoratedBox(
-            // A soft light from the top right, and a hairline rim.
-            decoration: ShapeDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.9, -1.1),
-                radius: 0.9,
-                colors: [
-                  Colors.white.withValues(alpha: 0.16),
-                  Colors.white.withValues(alpha: 0),
-                ],
-              ),
-              shape: cruShape(
-                _radius,
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(
+                  'assets/images/revenue_cards/${period.name}.webp',
+                ),
+                fit: BoxFit.cover,
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(switch (period) {
-                          RevenuePeriod.today => 'Collected today',
-                          RevenuePeriod.week => 'Collected this week',
-                          RevenuePeriod.month => 'Collected this month',
-                          RevenuePeriod.year => 'Collected this year',
-                        }, style: MobileType.caption.w500.tint(soft)),
-                      ),
-                      if (pct != null)
-                        Container(
-                          height: 24,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: ShapeDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            shape: const StadiumBorder(),
+            child: DecoratedBox(
+              // A soft light from the top right, and a hairline rim.
+              decoration: ShapeDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0.9, -1.1),
+                  radius: 0.9,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.16),
+                    Colors.white.withValues(alpha: 0),
+                  ],
+                ),
+                shape: cruShape(
+                  _radius,
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(switch (period) {
+                            RevenuePeriod.today => 'Collected today',
+                            RevenuePeriod.week => 'Collected this week',
+                            RevenuePeriod.month => 'Collected this month',
+                            RevenuePeriod.year => 'Collected this year',
+                          }, style: MobileType.caption.w500.tint(soft)),
+                        ),
+                        if (pct != null)
+                          Container(
+                            height: 24,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: ShapeDecoration(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              shape: const StadiumBorder(),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CruIcon(
+                                  up ? CruIcons.arrowUp : CruIcons.arrowDown,
+                                  size: 12,
+                                  strokeWidth: 2.6,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${pct.abs()}% vs ${o.comparisonLabel}',
+                                  style: MobileType.micro.w600.tabular.tint(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CruIcon(
-                                up ? CruIcons.arrowUp : CruIcons.arrowDown,
-                                size: 12,
-                                strokeWidth: 2.6,
+                      ],
+                    ),
+                    const SizedBox(height: CruSpace.s8),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: '₹',
+                              style: MobileType.metric.copyWith(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w400,
+                                color: soft,
+                              ),
+                            ),
+                            TextSpan(
+                              text: amount,
+                              style: MobileType.metric.copyWith(
+                                fontSize: 38,
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: -0.6,
                                 color: Colors.white,
                               ),
-                              const SizedBox(width: 3),
-                              Text(
-                                '${pct.abs()}% vs ${o.comparisonLabel}',
-                                style: MobileType.micro.w600.tabular.tint(
-                                  Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: CruSpace.s8),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: '₹',
-                            style: MobileType.metric.copyWith(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w400,
-                              color: soft,
-                            ),
-                          ),
-                          TextSpan(
-                            text: amount,
-                            style: MobileType.metric.copyWith(
-                              fontSize: 38,
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: -0.6,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: CruSpace.s14),
-                  _Bars(chart: o.chart, onCard: true),
-                  const SizedBox(height: CruSpace.s16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Expenses  ${DashFormat.rupeesCompact(o.expenses)}',
-                              style: MobileType.micro.tabular
-                                  .copyWith(letterSpacing: 0.6)
-                                  .tint(quiet),
-                            ),
-                            const SizedBox(height: CruSpace.s2),
-                            Text(
-                              'Net  ${DashFormat.rupeesCompact(o.collected - o.expenses)}',
-                              style: MobileType.caption.w500.tabular
-                                  .copyWith(letterSpacing: 0.6)
-                                  .tint(Colors.white),
                             ),
                           ],
                         ),
                       ),
-                      Text(
-                        switch (period) {
-                          RevenuePeriod.today => 'TODAY',
-                          RevenuePeriod.week => 'WEEK',
-                          RevenuePeriod.month => 'MONTH',
-                          RevenuePeriod.year => 'YEAR',
-                        },
-                        style: MobileType.headline.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          fontStyle: FontStyle.italic,
-                          letterSpacing: 0.4,
-                          color: Colors.white,
+                    ),
+                    const SizedBox(height: CruSpace.s14),
+                    _Bars(chart: o.chart, onCard: true),
+                    const SizedBox(height: CruSpace.s16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Expenses  ${DashFormat.rupeesCompact(o.expenses)}',
+                                style: MobileType.micro.tabular
+                                    .copyWith(letterSpacing: 0.6)
+                                    .tint(quiet),
+                              ),
+                              const SizedBox(height: CruSpace.s2),
+                              Text(
+                                'Net  ${DashFormat.rupeesCompact(o.collected - o.expenses)}',
+                                style: MobileType.caption.w500.tabular
+                                    .copyWith(letterSpacing: 0.6)
+                                    .tint(Colors.white),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        Text(
+                          switch (period) {
+                            RevenuePeriod.today => 'TODAY',
+                            RevenuePeriod.week => 'WEEK',
+                            RevenuePeriod.month => 'MONTH',
+                            RevenuePeriod.year => 'YEAR',
+                          },
+                          style: MobileType.headline.copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            fontStyle: FontStyle.italic,
+                            letterSpacing: 0.4,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

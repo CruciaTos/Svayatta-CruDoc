@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
-import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
@@ -24,6 +23,9 @@ import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/mobile/mobile_campaigns.dart';
 import 'package:doctor_management_app/features/mobile/mobile_invoices.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/mobile/mobile_revenue.dart';
+import 'package:doctor_management_app/features/mobile/mobile_wave.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
@@ -159,6 +161,15 @@ class MobileMoreScreen extends ConsumerWidget {
     DesktopTab.scribe,
   };
 
+  /// Pages that moved: Recalls to the Patients header, the radiology
+  /// worklist and reports and treatment plans into Tasks.
+  static const _elsewhere = {
+    DesktopTab.recalls,
+    DesktopTab.worklist,
+    DesktopTab.reports,
+    DesktopTab.treatmentPlans,
+  };
+
   void _open(BuildContext context, int tab) =>
       openMobileDestination(context, tab, backLabel: 'More');
 
@@ -169,8 +180,9 @@ class MobileMoreScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final identity = ref.watch(doctorIdentityProvider);
+    final revenueOpen = ref.watch(mobileRevenueOpenProvider);
+    void showRevenue(bool open) =>
+        ref.read(mobileRevenueOpenProvider.notifier).state = open;
     final modules = enabledModules ?? DoctorFeatureGuard.defaultModules;
     bool on(String m) => DoctorFeatureGuard.isEnabled(modules, m);
     final specialty = [
@@ -178,7 +190,7 @@ class MobileMoreScreen extends ConsumerWidget {
         dental: ref.watch(dentalFeaturesProvider),
         access: ref.watch(clinicAccessProvider).value,
       ))
-        if (!_onTabs.contains(t.tab)) t,
+        if (!_onTabs.contains(t.tab) && !_elsewhere.contains(t.tab)) t,
     ];
 
     Widget row(
@@ -196,64 +208,48 @@ class MobileMoreScreen extends ConsumerWidget {
       onTap: onTap,
     );
 
-    return ListView(
-      padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
-      children: [
-        const MobileHeader(title: 'More'),
-        const SizedBox(height: CruSpace.s16),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-          child: MobileCard(
-            onTap: () => openMobileSettings(
+    final bothReferrals =
+        specialty.any((t) => t.tab == DesktopTab.dentalReferrals) &&
+        specialty.any((t) => t.tab == DesktopTab.referrers);
+    final revenueCard =
+        on('revenue') && ref.watch(clinicCanProvider(ClinicPermission.revenue));
+
+    // Revenue opens in place of More's list (Back returns).
+    return _RevenueInPlace(
+      open: revenueOpen,
+      onClose: () => showRevenue(false),
+      more: (cardKey) => [
+        MobileHeader(
+          title: 'More',
+          trailing: MobileCircleButton(
+            icon: CruIcons.settings,
+            semanticLabel: 'Settings',
+            onPressed: () => pushMobile(
               context,
-              ref,
-              SettingsSection.profile,
-              backLabel: 'More',
-            ),
-            padding: const EdgeInsets.all(CruSpace.s16),
-            child: Row(
-              children: [
-                MobileAvatar(name: identity.fullName ?? 'Doctor', size: 48),
-                const SizedBox(width: CruSpace.s14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        identity.fullName ?? 'Your profile',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: MobileType.headline.tint(c.label),
-                      ),
-                      const SizedBox(height: CruSpace.s2),
-                      Text(
-                        [
-                              ?identity.clinicName,
-                              ?identity.specialty,
-                            ].join(' · ').isEmpty
-                            ? 'Clinic profile'
-                            : [
-                                ?identity.clinicName,
-                                ?identity.specialty,
-                              ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: MobileType.subhead.tint(c.label2),
-                      ),
-                    ],
-                  ),
-                ),
-                CruIcon(
-                  CruIcons.chevronRight,
-                  size: 16,
-                  strokeWidth: 2,
-                  color: c.label3,
-                ),
-              ],
+              const MobileHostPage(
+                backLabel: 'More',
+                child: _MobileSettingsList(),
+              ),
             ),
           ),
         ),
         const SizedBox(height: CruSpace.s16),
+        if (revenueCard) ...[
+          // As wide as a card on Revenue's strip, so it glides
+          // straight into place.
+          _RevenueSlot(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.sizeOf(context).width * 0.05 + 5,
+              ),
+              child: MobileWaveCard(
+                key: cardKey,
+                child: MobileRevenueCard(onTap: () => showRevenue(true)),
+              ),
+            ),
+          ),
+          const SizedBox(height: CruSpace.s16),
+        ],
         MobileRowGroup(
           title: 'Plan',
 
@@ -312,56 +308,138 @@ class MobileMoreScreen extends ConsumerWidget {
 
             children: [
               for (final t in specialty)
-                row(
-                  t.label,
-                  _iconFor(t.tab),
-                  MobileTone.blue,
-                  () => _open(context, t.tab),
-                ),
+                // Referrals (sent) and referrers (who send) are one page.
+                if (!(t.tab == DesktopTab.referrers && bothReferrals))
+                  row(
+                    bothReferrals && t.tab == DesktopTab.dentalReferrals
+                        ? 'Referrals'
+                        : t.label,
+                    _iconFor(t.tab),
+                    MobileTone.blue,
+                    () => bothReferrals && t.tab == DesktopTab.dentalReferrals
+                        ? pushMobile(
+                            context,
+                            const MobileHostPage(
+                              backLabel: 'More',
+                              child: _ReferralsHub(),
+                            ),
+                          )
+                        : _open(context, t.tab),
+                  ),
             ],
           ),
         ],
-        const SizedBox(height: CruSpace.s16),
-        MobileRowGroup(
-          title: 'App',
+      ],
+    );
+  }
+}
 
-          children: [
-            const _AppearanceRow(),
-            row(
-              'Settings',
-              CruIcons.settings,
-              MobileTone.slate,
-              () => pushMobile(
-                context,
-                const MobileHostPage(
-                  backLabel: 'More',
-                  child: _MobileSettingsList(),
-                ),
-              ),
-            ),
-            row(
-              'How the phone app works',
-              CruIcons.help,
-              MobileTone.slate,
-              () => showMobileGestureGuide(context),
-            ),
-            MobileRow(
-              leading: const MobileIconTile(
-                icon: CruIcons.logout,
-                tone: MobileTone.slate,
-              ),
-              title: 'Sign out',
-              titleStyle: MobileType.row
-                  .copyWith(fontWeight: FontWeight.w500)
-                  .tint(c.label),
-              onTap: () async {
-                try {
-                  await AuthService().signOut();
-                } catch (_) {}
-                if (context.mounted) context.go('/auth');
-              },
-            ),
-          ],
+/// More's list and Revenue, one in place of the other. The revenue card
+/// stays on screen and glides between its two places while the page it is
+/// joining ripples in around it (see MobileWave); the page it leaves goes
+/// at once.
+class _RevenueInPlace extends StatefulWidget {
+  const _RevenueInPlace({
+    required this.open,
+    required this.onClose,
+    required this.more,
+  });
+
+  final bool open;
+  final VoidCallback onClose;
+
+  /// More's list, with [cardKey] on the revenue card (if shown).
+  final List<Widget> Function(GlobalKey cardKey) more;
+
+  @override
+  State<_RevenueInPlace> createState() => _RevenueInPlaceState();
+}
+
+class _RevenueInPlaceState extends State<_RevenueInPlace>
+    with SingleTickerProviderStateMixin {
+  final _moreCard = GlobalKey();
+  final _revenueCard = GlobalKey();
+  final _revenueScroll = ScrollController();
+  late final AnimationController _t =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 1000),
+        value: 1,
+      )..addStatusListener((status) {
+        // The page that left goes offstage once the waves end.
+        if (status == AnimationStatus.completed && mounted) setState(() {});
+      });
+  late bool _showing = widget.open;
+  Rect? _from;
+
+  @override
+  void didUpdateWidget(_RevenueInPlace old) {
+    super.didUpdateWidget(old);
+    if (widget.open == _showing) return;
+    final open = widget.open;
+    _from = mobileGlobalRect(_showing ? _revenueCard : _moreCard);
+    _showing = open;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _t.value = 1;
+    } else {
+      _t.forward(from: 0);
+    }
+    // Revenue opens at its top next time.
+    if (!open) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_revenueScroll.hasClients) _revenueScroll.jumpTo(0);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    _revenueScroll.dispose();
+    super.dispose();
+  }
+
+  Widget _layer({required bool revenue, required Widget child}) {
+    final on = _showing == revenue;
+    final leaving = !on && _t.isAnimating;
+    return Offstage(
+      offstage: !on && !leaving,
+      child: IgnorePointer(
+        ignoring: leaving,
+        child: TickerMode(
+          enabled: on || leaving,
+          child: MobileWave(
+            t: on || leaving ? _t : kAlwaysCompleteAnimation,
+            leaving: leaving,
+            from: on ? _from : null,
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final more = widget.more(_moreCard);
+    final card = more.indexWhere((w) => w is _RevenueSlot);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        _layer(
+          revenue: false,
+          child: ListView(
+            padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
+            children: mobileWaveChildren(more, origin: card < 0 ? 0 : card),
+          ),
+        ),
+        _layer(
+          revenue: true,
+          child: MobileRevenueScreen(
+            onBack: widget.onClose,
+            scrollController: _revenueScroll,
+            cardKey: _revenueCard,
+          ),
         ),
       ],
     );
@@ -427,7 +505,7 @@ Future<void> showMobileGestureGuide(BuildContext context) =>
       actions: [
         MobileSheetAction(
           label: 'Swipe left or right',
-          detail: 'Move between Home, Schedule, Patients, Revenue, More',
+          detail: 'Move between Home, Schedule, Patients, Tasks, More',
           icon: CruIcons.importExport,
           tone: MobileTone.blue,
           onTap: () {},
@@ -469,9 +547,10 @@ class _MobileSettingsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
     final sections = [
       for (final s in SettingsSection.values)
-        if (showSettingsSection(ref, s)) s,
+        if (showSettingsSection(ref, s) && s != SettingsSection.appearance) s,
     ];
     return ListView(
       padding: EdgeInsets.only(
@@ -493,6 +572,89 @@ class _MobileSettingsList extends ConsumerWidget {
                 onTap: () => openMobileSettings(context, ref, s),
               ),
           ],
+        ),
+        const SizedBox(height: CruSpace.s16),
+        MobileRowGroup(
+          children: [
+            const _AppearanceRow(),
+            MobileRow(
+              leading: const MobileIconTile(
+                icon: CruIcons.help,
+                tone: MobileTone.slate,
+              ),
+              title: 'How the phone app works',
+              titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
+              chevron: true,
+              onTap: () => showMobileGestureGuide(context),
+            ),
+            MobileRow(
+              leading: const MobileIconTile(
+                icon: CruIcons.logout,
+                tone: MobileTone.slate,
+              ),
+              title: 'Sign out',
+              titleStyle: MobileType.row
+                  .copyWith(fontWeight: FontWeight.w500)
+                  .tint(c.label),
+              onTap: () async {
+                try {
+                  await AuthService().signOut();
+                } catch (_) {}
+                if (context.mounted) context.go('/auth');
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Marks the revenue card's place in More's list.
+class _RevenueSlot extends StatelessWidget {
+  const _RevenueSlot({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => child;
+}
+
+/// Referrals sent out and the people who refer patients in, on one page.
+class _ReferralsHub extends StatefulWidget {
+  const _ReferralsHub();
+
+  @override
+  State<_ReferralsHub> createState() => _ReferralsHubState();
+}
+
+class _ReferralsHubState extends State<_ReferralsHub> {
+  int _tab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MobileMetrics.gutter,
+            CruSpace.s8,
+            MobileMetrics.gutter,
+            0,
+          ),
+          child: MobileSegmented<int>(
+            values: const [0, 1],
+            label: (i) => i == 0 ? 'Referrals' : 'Referrers',
+            selected: _tab,
+            onChanged: (i) => setState(() => _tab = i),
+          ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _tab,
+            children: const [ReferralsScreen(), RadReferrersScreen()],
+          ),
         ),
       ],
     );

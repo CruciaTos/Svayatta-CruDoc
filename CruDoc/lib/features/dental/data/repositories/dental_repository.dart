@@ -80,6 +80,21 @@ class DentalRepository {
     );
   }
 
+  /// Soft-deletes catalog items (isDeleted, like procedure logs), so sync
+  /// carries the deletion. Logged procedures keep their names.
+  Future<void> deleteCatalogItems(Iterable<String> ids) async {
+    final db = await _localDbService.localDatabase;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final id in ids) {
+      await db.update(
+        'dental_procedure_catalog',
+        {'isDeleted': 1, 'updatedAt': now, 'syncStatus': 'pending'},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // TOOTH CHART ENTRIES
   // ---------------------------------------------------------------------------

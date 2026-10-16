@@ -63,17 +63,60 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
     curve: CruMotion.curve,
   );
 
+  /// Month pages, made each time the month finishes opening (on the month
+  /// then on screen); null until the month first opens.
+  PageController? _months;
+
+  /// Where the chevrons are taking the months while they slide, so quick
+  /// taps add up.
+  int _monthTarget = 0;
+  int _monthSlides = 0;
+
   @override
   void initState() {
     super.initState();
     _monthDate = DateTime.now();
+    _expand.addStatusListener(_onExpandStatus);
   }
 
   @override
   void dispose() {
     _expand.dispose();
     _weeks.dispose();
+    _months?.dispose();
     super.dispose();
+  }
+
+  /// Once the month is fully open, the animated grid hands over to pages
+  /// that follow the finger, starting on the same month.
+  void _onExpandStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !_isMonthExpanded) return;
+    _months?.dispose();
+    _months = PageController(initialPage: _monthPage(_monthDate));
+  }
+
+  void _goToMonthPage(int page) {
+    final months = _months;
+    if (months == null || !months.hasClients) return;
+    final duration = CruMotion.of(context);
+    if (duration == Duration.zero) {
+      months.jumpToPage(page);
+      return;
+    }
+    _monthTarget = page;
+    _monthSlides++;
+    months
+        .animateToPage(page, duration: duration, curve: CruMotion.curve)
+        .whenComplete(() => _monthSlides--);
+  }
+
+  void _stepMonth(int delta) => _goToMonthPage(
+    (_monthSlides > 0 ? _monthTarget : _monthPage(_monthDate)) + delta,
+  );
+
+  void _pickFromMonth(DateTime day) {
+    _select(day);
+    _collapse();
   }
 
   DateTime _monday(DateTime d) =>
@@ -230,16 +273,30 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
                       ),
                     );
                   }
+                  final months = _months;
+                  if (_expand.isCompleted &&
+                      _isMonthExpanded &&
+                      months != null) {
+                    return _MonthPager(
+                      controller: months,
+                      month: _monthDate,
+                      selected: day,
+                      today: now,
+                      onSelect: _pickFromMonth,
+                      onPageChanged: (p) =>
+                          setState(() => _monthDate = _pageMonth(p)),
+                      onStep: _stepMonth,
+                      onToday: () => _goToMonthPage(_monthPage(now)),
+                    );
+                  }
+                  // Opening or closing: one month, its week row sliding.
                   return _MonthGrid(
                     month: _monthDate,
                     anchorRow: _anchorRow,
                     t: _t.value,
                     selected: day,
                     today: now,
-                    onSelect: (picked) {
-                      _select(picked);
-                      _collapse();
-                    },
+                    onSelect: _pickFromMonth,
                     onMonthChange: (newMonth) {
                       setState(() => _monthDate = newMonth);
                     },
@@ -982,9 +1039,81 @@ class _ViewDropdown extends StatelessWidget {
   }
 }
 
+/// Month pages count from January 1900, so a page is always the same
+/// month whatever today is.
+const _monthEpoch = 1900;
+
+int _monthPage(DateTime month) =>
+    (month.year - _monthEpoch) * 12 + month.month - 1;
+
+DateTime _pageMonth(int page) =>
+    DateTime(_monthEpoch + page ~/ 12, page % 12 + 1);
+
+/// Today, the previous and next month: under the open month.
+class _MonthStepper extends StatelessWidget {
+  const _MonthStepper({
+    required this.month,
+    required this.today,
+    required this.onStep,
+    required this.onToday,
+  });
+
+  final DateTime month;
+  final DateTime today;
+  final ValueChanged<int> onStep;
+  final VoidCallback onToday;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrentMonth =
+        month.year == today.year && month.month == today.month;
+    return Padding(
+      padding: const EdgeInsets.only(top: CruSpace.s4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (!isCurrentMonth) ...[
+            CruCapsuleButton(
+              label: 'Today',
+              height: 28,
+              onPressed: () {
+                MobileHaptics.select();
+                onToday();
+              },
+            ),
+            const SizedBox(width: CruSpace.s6),
+          ],
+          CruIconButton(
+            icon: CruIcons.chevronLeft,
+            semanticLabel: 'Previous month',
+            size: 32,
+            iconSize: 16,
+            onPressed: () {
+              MobileHaptics.select();
+              onStep(-1);
+            },
+          ),
+          const SizedBox(width: CruSpace.s4),
+          CruIconButton(
+            icon: CruIcons.chevronRight,
+            semanticLabel: 'Next month',
+            size: 32,
+            iconSize: 16,
+            onPressed: () {
+              MobileHaptics.select();
+              onStep(1);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The month grid. [t] runs 0 → 1 as it opens: row [anchorRow] (the week
 /// strip) slides from the top down into its slot while the other weeks
-/// fade in around it and the grid grows to full height.
+/// fade in around it and the grid grows to full height. At 1 it looks
+/// exactly like a [_MonthPager] page, which takes over once open.
 class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
     required this.month,
@@ -1008,120 +1137,191 @@ class _MonthGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const rowH = _DayCell.rowHeight;
     final days = ApptsBuilder.monthGrid(month);
-    final isCurrentMonth =
-        month.year == today.year && month.month == today.month;
     final weeks = <List<DateTime>>[
       for (var i = 0; i < days.length; i += 7) days.sublist(i, i + 7),
     ];
     final height = rowH + (weeks.length - 1) * rowH * t;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragEnd: (details) {
-        final v = details.primaryVelocity ?? 0;
-        if (v.abs() < 250) return;
-        MobileHaptics.select();
-        if (v < 0) {
-          onMonthChange(DateTime(month.year, month.month + 1));
-        } else {
-          onMonthChange(DateTime(month.year, month.month - 1));
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClipRect(
-              child: SizedBox(
-                height: height,
-                child: Stack(
-                  children: [
-                    for (var i = 0; i < weeks.length; i++)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        top: (i - anchorRow * (1 - t)) * rowH,
-                        height: rowH,
-                        child: Opacity(
-                          opacity: i == anchorRow ? 1 : t,
-                          child: Row(
-                            children: [
-                              for (final d in weeks[i])
-                                Expanded(
-                                  child: _DayCell(
-                                    day: d,
-                                    selected: selected,
-                                    today: today,
-                                    onSelect: onSelect,
-                                    fade: d.month == month.month ? 0 : t,
-                                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRect(
+            child: SizedBox(
+              height: height,
+              child: Stack(
+                children: [
+                  for (var i = 0; i < weeks.length; i++)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: (i - anchorRow * (1 - t)) * rowH,
+                      height: rowH,
+                      child: Opacity(
+                        opacity: i == anchorRow ? 1 : t,
+                        child: Row(
+                          children: [
+                            for (final d in weeks[i])
+                              Expanded(
+                                child: _DayCell(
+                                  day: d,
+                                  selected: selected,
+                                  today: today,
+                                  onSelect: onSelect,
+                                  fade: d.month == month.month ? 0 : t,
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
                       ),
-                  ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          // Month stepper; the month's name is in the header above.
+          ClipRect(
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: t,
+              child: Opacity(
+                opacity: t,
+                child: _MonthStepper(
+                  month: month,
+                  today: today,
+                  onStep: (delta) =>
+                      onMonthChange(DateTime(month.year, month.month + delta)),
+                  onToday: () =>
+                      onMonthChange(DateTime(today.year, today.month)),
                 ),
               ),
             ),
-            // Month stepper; the month's name is in the header above.
-            ClipRect(
-              child: Align(
-                alignment: Alignment.topCenter,
-                heightFactor: t,
-                child: Opacity(
-                  opacity: t,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: CruSpace.s4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (!isCurrentMonth) ...[
-                          CruCapsuleButton(
-                            label: 'Today',
-                            height: 28,
-                            onPressed: () {
-                              MobileHaptics.select();
-                              onMonthChange(DateTime(today.year, today.month));
-                            },
-                          ),
-                          const SizedBox(width: CruSpace.s6),
-                        ],
-                        CruIconButton(
-                          icon: CruIcons.chevronLeft,
-                          semanticLabel: 'Previous month',
-                          size: 32,
-                          iconSize: 16,
-                          onPressed: () {
-                            MobileHaptics.select();
-                            onMonthChange(
-                              DateTime(month.year, month.month - 1),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: CruSpace.s4),
-                        CruIconButton(
-                          icon: CruIcons.chevronRight,
-                          semanticLabel: 'Next month',
-                          size: 32,
-                          iconSize: 16,
-                          onPressed: () {
-                            MobileHaptics.select();
-                            onMonthChange(
-                              DateTime(month.year, month.month + 1),
-                            );
-                          },
-                        ),
-                      ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The open month, sliding with the finger like the week strip. Its
+/// height follows the slide between months of four, five and six weeks.
+class _MonthPager extends StatelessWidget {
+  const _MonthPager({
+    required this.controller,
+    required this.month,
+    required this.selected,
+    required this.today,
+    required this.onSelect,
+    required this.onPageChanged,
+    required this.onStep,
+    required this.onToday,
+  });
+
+  final PageController controller;
+
+  /// The month the pages settled on.
+  final DateTime month;
+  final DateTime selected;
+  final DateTime today;
+  final ValueChanged<DateTime> onSelect;
+  final ValueChanged<int> onPageChanged;
+  final ValueChanged<int> onStep;
+  final VoidCallback onToday;
+
+  static double _heightOf(int page) =>
+      ApptsBuilder.monthGrid(_pageMonth(page)).length /
+      7 *
+      _DayCell.rowHeight;
+
+  double get _height {
+    final settled = _monthPage(month).toDouble();
+    final page = controller.hasClients && controller.position.haveDimensions
+        ? (controller.page ?? settled)
+        : settled;
+    final a = page.floor();
+    final ha = _heightOf(a);
+    return ha + (_heightOf(a + 1) - ha) * (page - a);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) => SizedBox(height: _height, child: child),
+          child: PageView.builder(
+            controller: controller,
+            onPageChanged: onPageChanged,
+            itemBuilder: (context, page) => OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: _MonthWeeks(
+                month: _pageMonth(page),
+                selected: selected,
+                today: today,
+                onSelect: onSelect,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+          child: _MonthStepper(
+            month: month,
+            today: today,
+            onStep: onStep,
+            onToday: onToday,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One whole month on a page: every week, days outside the month dimmed.
+class _MonthWeeks extends StatelessWidget {
+  const _MonthWeeks({
+    required this.month,
+    required this.selected,
+    required this.today,
+    required this.onSelect,
+  });
+
+  final DateTime month;
+  final DateTime selected;
+  final DateTime today;
+  final ValueChanged<DateTime> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = ApptsBuilder.monthGrid(month);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < days.length; i += 7)
+            Row(
+              children: [
+                for (final d in days.sublist(i, i + 7))
+                  Expanded(
+                    child: _DayCell(
+                      day: d,
+                      selected: selected,
+                      today: today,
+                      onSelect: onSelect,
+                      fade: d.month == month.month ? 0 : 1,
                     ),
                   ),
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

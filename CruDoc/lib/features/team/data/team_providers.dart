@@ -36,8 +36,9 @@ final clinicRolesProvider = StreamProvider<List<ClinicRole>>((ref) {
       for (final d in snap.docs) ClinicRole.fromMap(d.id, d.data()),
     ];
     roles.sort((a, b) {
-      if ((a.id == 'admin') != (b.id == 'admin'))
+      if ((a.id == 'admin') != (b.id == 'admin')) {
         return a.id == 'admin' ? -1 : 1;
+      }
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
     return roles;
@@ -51,6 +52,28 @@ final clinicInvitesProvider = StreamProvider<List<ClinicInvite>>((ref) {
   return _clinic(clinicId)
       .collection('invites')
       .where('status', isEqualTo: 'pending')
+      .snapshots()
+      .map((snap) {
+        final now = DateTime.now();
+        return [
+          for (final d in snap.docs)
+            if (ClinicInvite.fromMap(d.id, d.data()) case final invite
+                when invite.expiresAt == null || invite.expiresAt!.isAfter(now))
+              invite,
+        ];
+      });
+});
+
+/// Invites turned down while they were still open, so the admin knows
+/// (they drop off once they would have expired).
+final clinicDeclinedInvitesProvider = StreamProvider<List<ClinicInvite>>((
+  ref,
+) {
+  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
+  if (clinicId == null) return Stream.value(const []);
+  return _clinic(clinicId)
+      .collection('invites')
+      .where('status', isEqualTo: 'declined')
       .snapshots()
       .map((snap) {
         final now = DateTime.now();

@@ -33,6 +33,7 @@ import 'package:doctor_management_app/features/onboarding/presentation/loyalty_c
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
+import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
 import 'package:doctor_management_app/features/team/presentation/team_section.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -48,6 +49,9 @@ enum SettingsSection {
 
   /// Someone working in another person's clinic.
   myFeatures('My features', CruIcons.check),
+
+  /// Everyone: the number clinics invite, being findable, open invites.
+  invites('Clinic invites', CruIcons.userPlus),
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
   appearance('Appearance', CruIcons.sun),
@@ -131,6 +135,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.clinic => _ClinicSection(user: user, profile: profile),
       SettingsSection.team => const TeamSection(),
       SettingsSection.myFeatures => const MyFeaturesSection(),
+      SettingsSection.invites => const ClinicInvitesSection(),
       SettingsSection.accounts => const _AccountsSection(),
       SettingsSection.devices => _DevicesSection(user: user),
       SettingsSection.appearance => const _AppearanceSection(),

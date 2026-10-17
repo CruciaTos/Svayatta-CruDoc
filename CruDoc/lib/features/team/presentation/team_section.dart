@@ -180,6 +180,8 @@ class _MembersView extends ConsumerWidget {
         .where((m) => m.active)
         .toList();
     final invites = ref.watch(clinicInvitesProvider).value ?? const [];
+    final declined =
+        ref.watch(clinicDeclinedInvitesProvider).value ?? const [];
 
     Widget memberRow(ClinicMember m) {
       final self = m.uid == me.uid;
@@ -220,11 +222,23 @@ class _MembersView extends ConsumerWidget {
       ),
     );
 
+    Widget declinedRow(ClinicInvite i) => TeamRow(
+      monogram: i.name.isEmpty ? '?' : i.name,
+      title: i.name.isEmpty ? (i.phone.isEmpty ? i.email : i.phone) : i.name,
+      detail: [
+        if (i.phone.isNotEmpty) i.phone else if (i.email.isNotEmpty) i.email,
+        if (i.roleName.isNotEmpty) i.roleName,
+      ].join(' · '),
+      trailing: Text('Declined', style: CruType.caption.tint(c.label3)),
+    );
+
     List<Widget> group(MemberKind kind) => [
       for (final m in members)
         if (m.kind == kind) memberRow(m),
       for (final i in invites)
         if (i.kind == kind) inviteRow(i),
+      for (final i in declined)
+        if (i.kind == kind) declinedRow(i),
     ];
 
     final doctorRows = group(MemberKind.doctor);

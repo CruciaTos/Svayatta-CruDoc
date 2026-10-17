@@ -13,6 +13,40 @@ enum CreateMemberResult {
   alreadyHasAccount,
 }
 
+/// What [ClinicTeamApi.invite] did.
+class InviteResult {
+  const InviteResult({required this.inviteId, required this.onCruDoc});
+
+  final String inviteId;
+
+  /// That number belongs to a CruDoc account that can be found: the person
+  /// sees the invite in the app. Otherwise the admin sends the invite
+  /// message themselves.
+  final bool onCruDoc;
+}
+
+/// What CruDoc knows about one of the admin's phone contacts.
+enum ContactMatchStatus {
+  /// Already in this clinic.
+  member,
+
+  /// Has a pending invite to this clinic.
+  invited,
+
+  /// On CruDoc and can be invited in the app.
+  available;
+
+  static ContactMatchStatus? fromString(String? value) {
+    for (final s in values) {
+      if (s.name == value) return s;
+    }
+    return null;
+  }
+}
+
+/// How many numbers one `matchContacts` call may carry (the server's limit).
+const int kMatchContactsPerCall = 1000;
+
 /// A clinic team action the server refused, with a message to show.
 class ClinicTeamException implements Exception {
   const ClinicTeamException(this.message);
@@ -75,13 +109,13 @@ class ClinicTeamApi {
     final data = await _call('createMember', {
       'clinicId': clinicId,
       'name': name,
-      if (phone != null) 'phone': phone,
-      if (email != null) 'email': email,
+      'phone': ?phone,
+      'email': ?email,
       'kind': kind.value,
       'roleId': roleId,
       if (specialty != null && specialty.isNotEmpty) 'specialty': specialty,
-      if (modules != null) 'modules': modules,
-      if (dentalFeatures != null) 'dentalFeatures': dentalFeatures,
+      'modules': ?modules,
+      'dentalFeatures': ?dentalFeatures,
     });
     return data['mode'] == 'exists'
         ? CreateMemberResult.alreadyHasAccount
@@ -115,9 +149,15 @@ class ClinicTeamApi {
     return data['clinicId'] as String? ?? clinicId;
   }
 
+  /// Turns down an invite; the clinic sees it as declined.
+  Future<void> declineInvite({
+    required String clinicId,
+    required String inviteId,
+  }) => _call('declineInvite', {'clinicId': clinicId, 'inviteId': inviteId});
+
   /// Invites someone by [phone] or [email] (exactly one). [modules] null
   /// means no personal limit.
-  Future<String> invite({
+  Future<InviteResult> invite({
     required String clinicId,
     required String name,
     String? phone,
@@ -131,15 +171,47 @@ class ClinicTeamApi {
     final data = await _call('invite', {
       'clinicId': clinicId,
       'name': name,
-      if (phone != null) 'phone': phone,
-      if (email != null) 'email': email,
+      'phone': ?phone,
+      'email': ?email,
       'kind': kind.value,
       'roleId': roleId,
       if (specialty != null && specialty.isNotEmpty) 'specialty': specialty,
-      if (modules != null) 'modules': modules,
-      if (dentalFeatures != null) 'dentalFeatures': dentalFeatures,
+      'modules': ?modules,
+      'dentalFeatures': ?dentalFeatures,
     });
-    return data['inviteId'] as String;
+    return InviteResult(
+      inviteId: data['inviteId'] as String,
+      onCruDoc: data['onCruDoc'] == true,
+    );
+  }
+
+  /// Which of [phones] (as read from the admin's contacts) are on CruDoc,
+  /// keyed by the number exactly as sent. Numbers not on CruDoc, or whose
+  /// owners turned off being found, are left out. Sent in chunks of
+  /// [kMatchContactsPerCall]; the server stores none of them.
+  Future<Map<String, ContactMatchStatus>> matchContacts({
+    required String clinicId,
+    required List<String> phones,
+  }) async {
+    final out = <String, ContactMatchStatus>{};
+    for (var i = 0; i < phones.length; i += kMatchContactsPerCall) {
+      final end = i + kMatchContactsPerCall < phones.length
+          ? i + kMatchContactsPerCall
+          : phones.length;
+      final data = await _call('matchContacts', {
+        'clinicId': clinicId,
+        'phones': phones.sublist(i, end),
+      });
+      final raw = data['matches'];
+      if (raw is! List) continue;
+      for (final m in raw) {
+        if (m is! Map) continue;
+        final phone = m['phone'];
+        final status = ContactMatchStatus.fromString(m['status'] as String?);
+        if (phone is String && status != null) out[phone] = status;
+      }
+    }
+    return out;
   }
 
   Future<void> cancelInvite({
@@ -160,13 +232,13 @@ class ClinicTeamApi {
   }) => _call('updateMember', {
     'clinicId': clinicId,
     'uid': uid,
-    if (roleId != null) 'roleId': roleId,
+    'roleId': ?roleId,
     if (kind != null) 'kind': kind.value,
-    if (specialty != null) 'specialty': specialty,
+    'specialty': ?specialty,
     if (clearModules)
       'modules': null
-    else if (modules != null)
-      'modules': modules,
+    else
+      'modules': ?modules,
   });
 
   /// Removes [uid] from the clinic and signs them out everywhere.
@@ -183,7 +255,7 @@ class ClinicTeamApi {
   }) async {
     final data = await _call('saveRole', {
       'clinicId': clinicId,
-      if (roleId != null) 'roleId': roleId,
+      'roleId': ?roleId,
       'name': name,
       'kind': kind.value,
       'perms': [for (final p in perms) p.key],

@@ -358,7 +358,7 @@ class MoodyDashboardApp extends ConsumerWidget {
     return MaterialApp.router(
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
-      title: 'Moody Blues Dashboard',
+      title: 'CruDoc',
       // Starts in Calm Clinical Night (Evening) theme by default, fully toggleable across the app
       theme: CruTheme.day(),
       darkTheme: CruTheme.evening(),

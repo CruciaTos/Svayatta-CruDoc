@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
@@ -100,7 +101,12 @@ List<Override> overrides({FilesState initial = const FilesState()}) => [
   ),
   patientsStreamProvider.overrideWith((ref) => Stream.value(patients)),
   clinicMembersProvider.overrideWith((ref) => Stream.value(const [])),
-  clinicAccessProvider.overrideWith((ref) => Stream.value(null)),
+  // The signed-in doctor owns their practice. (null used to stand in for
+  // this, but an unresolved session now hides actions rather than
+  // assuming the person may take them.)
+  clinicAccessProvider.overrideWith(
+    (ref) => Stream.value(ClinicAccess.owner('me')),
+  ),
   authStateProvider.overrideWith((ref) => Stream.value(null)),
   dashboardNowProvider.overrideWithValue(now),
   filesUidProvider.overrideWithValue('me'),

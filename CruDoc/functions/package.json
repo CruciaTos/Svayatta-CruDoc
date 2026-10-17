@@ -4,6 +4,8 @@
     "lint": "eslint --ext .js,.ts .",
     "build": "tsc",
     "build:watch": "tsc --watch",
+    "test": "npm run build && node test/clinic.test.js && node test/clinic-actions.test.js && node test/appointments.test.js && node test/patient-cipher.test.js && node test/voice.test.js && node test/whatsapp-campaigns.test.js && node test/whatsapp-templates.test.js",
+    "test:clinic": "npm run build && node test/clinic.test.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",

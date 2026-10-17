@@ -84,6 +84,7 @@ dependencies:
   # 3D muscle chart (three.js in WebView2 on Windows, WKWebView on iPad).
   flutter_inappwebview: ^6.1.5
   sensors_plus: ^7.1.1
+  flutter_contacts: ^2.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

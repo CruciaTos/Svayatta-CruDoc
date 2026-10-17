@@ -95,9 +95,82 @@ class FirestoreSyncService {
   StreamSubscription<ClinicAccess?>? _accessSubscription;
   String? _accessKey;
 
+  /// Every Firestore collection this service caches locally.
+  static Iterable<String> get _allSyncedCollections =>
+      [..._collections, ..._visitFirestoreToType.keys];
+
+  /// The SQLite table a collection lands in. Both visit collections share
+  /// one table, and they are gated by the same permission.
+  static String _tableFor(String collection) =>
+      _visitFirestoreToType.containsKey(collection) ? 'visits' : collection;
+
+  /// Which local tables and sync watermarks a person with [access] may no
+  /// longer hold data for.
+  ///
+  /// Pure so the decision can be tested on its own: the deletion around it
+  /// is glue. A null [access] purges nothing — the session is still
+  /// resolving, and wiping the cache on every sign-in would be worse than
+  /// waiting for the real answer.
+  @visibleForTesting
+  static ({Set<String> tables, Set<String> watermarks}) purgeTargetsFor(
+    ClinicAccess? access,
+  ) {
+    if (access == null) {
+      return (tables: <String>{}, watermarks: <String>{});
+    }
+    final tables = <String>{};
+    final watermarks = <String>{};
+    for (final collection in _allSyncedCollections) {
+      final perm = _readPermission[collection];
+      if (perm != null && !access.can(perm)) {
+        tables.add(_tableFor(collection));
+        // The watermark is keyed by collection for the visit collections and
+        // by table name elsewhere, so clear both spellings.
+        watermarks.add(collection);
+        watermarks.add(_tableFor(collection));
+      }
+    }
+    return (tables: tables, watermarks: watermarks);
+  }
+
+  /// Deletes locally cached rows for collections the signed-in person may no
+  /// longer read, so losing a permission does not leave patient data sitting
+  /// on the device where it stays readable offline.
+  ///
+  /// Pending local edits in those tables go too. Having lost read access,
+  /// this device can no longer push them — the rules refuse the write — so
+  /// keeping them would only leave records behind on disk. Watermarks are
+  /// reset as well, so if the permission comes back the collection is
+  /// downloaded again from scratch rather than resuming from a watermark
+  /// that no longer matches an emptied table.
+  Future<void> _purgeUnreadableCollections() async {
+    final targets = purgeTargetsFor(ClinicSession.instance.access);
+    if (targets.tables.isEmpty) return;
+
+    try {
+      final db = await _databaseService.localDatabase;
+      for (final table in targets.tables) {
+        await db.delete(table);
+      }
+      for (final name in targets.watermarks) {
+        await db.delete(
+          'sync_state',
+          where: 'collectionName = ?',
+          whereArgs: [name],
+        );
+      }
+    } catch (e) {
+      debugPrint('Purge after a permission change failed: $e');
+    }
+  }
+
   static String _keyFor(ClinicAccess? a) => a == null
       ? ''
-      : '${a.clinicId}|${a.roleId}|${(a.perms.map((p) => p.key).toList()..sort()).join(',')}';
+      // kind and clinicalAccessScope decide whether queries narrow to the
+      // doctor's assigned patients, so a change to either has to restart
+      // the listeners just like a change of role or permissions.
+      : '${a.clinicId}|${a.roleId}|${a.kind.value}|${a.clinicalAccessScope}|'
+            '${(a.perms.map((p) => p.key).toList()..sort()).join(',')}';
 
   Future<void> start() async {
     if (_isStarted) return;
@@ -139,8 +212,14 @@ class FirestoreSyncService {
       final id = _currentDoctorId;
       if (id == null) return;
       _stopLiveSubscriptions();
-      _startLiveSubscriptions(id);
-      unawaited(synchronize());
+      // Drop what this person may no longer read before listening again, so
+      // a demotion takes effect on this device and not just on the server.
+      unawaited(
+        _purgeUnreadableCollections().then((_) {
+          _startLiveSubscriptions(id);
+          return synchronize();
+        }),
+      );
     });
 
     unawaited(synchronize());
@@ -159,6 +238,108 @@ class FirestoreSyncService {
     _isSyncing = false;
   }
 
+  /// The tenant query for [collection], narrowed to the signed-in person's
+  /// own patients when the clinic scopes its doctors that way.
+  ///
+  /// Patients carry the assignment, and clinical records carry a copy of
+  /// their patient's (kept current by Cloud Functions). The narrowing is
+  /// required rather than cosmetic: a rule for a query is satisfied from the
+  /// query's own filters, so an unnarrowed read is refused outright. See
+  /// `patientScopeAllowsList` / `clinicalScopeAllowsList` in firestore.rules.
+  Query<Map<String, dynamic>> _scopedQuery(
+    String collection,
+    String doctorId,
+  ) {
+    final query = _firestore
+        .collection(collection)
+        .where('doctorId', isEqualTo: doctorId);
+    final access = ClinicSession.instance.access;
+    if (_narrowsToAssignment(collection, access)) {
+      return query.where('assignedDoctorUids', arrayContains: access!.uid);
+    }
+    return query;
+  }
+
+  /// Synced collections that a scoped doctor reads only for their own
+  /// patients: the patients themselves and the clinical records synced here.
+  static const Set<String> _assignmentScopedCollections = {
+    'patients',
+    'dental_records',
+    'radiology_docs',
+  };
+
+  static bool _narrowsToAssignment(String collection, ClinicAccess? access) =>
+      access != null &&
+      access.scopedToAssignedPatients &&
+      _assignmentScopedCollections.contains(collection);
+
+  /// Which locally cached rows to drop after a fresh server answer to a
+  /// collection that is narrowed to the signed-in doctor's own patients.
+  ///
+  /// [serverIds] is the complete result the server just returned, so a local
+  /// row missing from it is one this doctor can no longer reach — a patient
+  /// reassigned to someone else, perhaps while this device was off — and its
+  /// details should not stay on the device. Rows with unsent local changes
+  /// are kept: they are this device's own work and have not reached the
+  /// server yet. Only call this for an answer that came from the server, not
+  /// from the offline cache, which may be partial.
+  @visibleForTesting
+  static Set<String> rowsToDropAfterScopedAnswer({
+    required Iterable<Map<String, Object?>> localRows,
+    required Set<String> serverIds,
+  }) {
+    return {
+      for (final row in localRows)
+        if (!serverIds.contains(row['id']) && row['syncStatus'] != 'pending')
+          row['id']! as String,
+    };
+  }
+
+  /// The assignment to send with a patient row, if any.
+  ///
+  /// Only a row this device created and has never uploaded (no lastSyncedAt)
+  /// carries one, and only when it is exactly the signed-in person — the one
+  /// non-empty value the rules let a client set. Anything else is left out:
+  /// sending a stale or foreign assignment on an edit would be refused and
+  /// leave the edit stuck unsent.
+  @visibleForTesting
+  static Map<String, dynamic> firstUploadAssignment(
+    Map<String, Object?> row,
+    String? currentUid,
+  ) {
+    if (row['lastSyncedAt'] != null || currentUid == null) return const {};
+    final uids = Patient.assignedFromStored(row['assignedDoctorUids']);
+    if (uids.length == 1 && uids.first == currentUid) {
+      return {'assignedDoctorUids': uids};
+    }
+    return const {};
+  }
+
+  /// Applies [rowsToDropAfterScopedAnswer] to [collection]'s table.
+  Future<void> _reconcileScopedCollection(
+    String collection,
+    String doctorId,
+    Set<String> serverIds,
+  ) async {
+    final table = _tableFor(collection);
+    final db = await _databaseService.localDatabase;
+    final local = await db.query(
+      table,
+      columns: ['id', 'syncStatus'],
+      where: 'doctorId = ?',
+      whereArgs: [doctorId],
+    );
+    final drop = rowsToDropAfterScopedAnswer(
+      localRows: local,
+      serverIds: serverIds,
+    );
+    if (drop.isEmpty) return;
+    for (final id in drop) {
+      await db.delete(table, where: 'id = ?', whereArgs: [id]);
+    }
+    _notifyTableChanged(table);
+  }
+
   void _startLiveSubscriptions(String doctorId) {
     if (_subscribedDoctorId == doctorId && _liveSubscriptions.isNotEmpty) {
       return;
@@ -168,15 +349,25 @@ class FirestoreSyncService {
 
     for (final collection in _collections) {
       if (!canReadCollection(collection)) continue;
-      final sub = _firestore
-          .collection(collection)
-          .where('doctorId', isEqualTo: doctorId)
+      // Decided when the listener starts; a role or scope change restarts
+      // every listener (see the access subscription in start()).
+      final narrowed = _narrowsToAssignment(
+        collection,
+        ClinicSession.instance.access,
+      );
+      final sub = _scopedQuery(collection, doctorId)
           .snapshots()
           .listen((snapshot) async {
             for (final change in snapshot.docChanges) {
               try {
                 final doc = change.doc;
                 if (change.type == DocumentChangeType.removed) {
+                  if (narrowed) {
+                    // Leaving a narrowed query usually means "no longer
+                    // yours", not "deleted": the reconcile below takes it off
+                    // the device rather than archiving a copy on it.
+                    continue;
+                  }
                   await _applyRemoteDeletion(collection, doc.id, doctorId);
                 } else {
                   final data = doc.data();
@@ -193,6 +384,22 @@ class FirestoreSyncService {
                 debugPrint(
                   'Live sync doc update failed in $collection: $e\n$st',
                 );
+              }
+            }
+            // A server answer to a narrowed query is the complete list of
+            // what this doctor may hold. Anything else cached locally — a
+            // patient reassigned while this device was off, which no change
+            // event would ever report — comes off the device now. A cache
+            // answer can be partial, so it is never used for this.
+            if (narrowed && !snapshot.metadata.isFromCache) {
+              try {
+                await _reconcileScopedCollection(
+                  collection,
+                  doctorId,
+                  {for (final d in snapshot.docs) d.id},
+                );
+              } catch (e) {
+                debugPrint('Scoped reconcile of $collection failed: $e');
               }
             }
           });
@@ -413,9 +620,7 @@ class FirestoreSyncService {
     for (final collection in _collections) {
       if (!canReadCollection(collection)) continue;
       final lastSyncTime = await _lastSyncTime(collection);
-      Query<Map<String, dynamic>> query = _firestore
-          .collection(collection)
-          .where('doctorId', isEqualTo: doctorId);
+      Query<Map<String, dynamic>> query = _scopedQuery(collection, doctorId);
       if (lastSyncTime > 0) {
         query = query.where(
           'updatedAt',
@@ -498,6 +703,11 @@ class FirestoreSyncService {
           'isActive': row['isActive'] == 1,
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
+          // The assignment belongs to the server once a patient exists there
+          // (only assignPatient changes it, and the rules refuse a client
+          // that tries), so it goes up only with a patient's very first
+          // upload — a doctor's own new patient, assigned to themselves.
+          ...firstUploadAssignment(row, ClinicSession.instance.access?.uid),
         };
       // appointments (VisitType.clinic) and visitations (VisitType.home) share
       // the same document shape. visitType is stored in the document so the
@@ -865,6 +1075,11 @@ class FirestoreSyncService {
           'syncStatus': 'synced',
           'pendingDelete': 0,
           'lastSyncedAt': now,
+          // Without this the device always believed every patient was
+          // unassigned, whatever the server said.
+          'assignedDoctorUids': Patient.assignedToStored(
+            Patient.assignedFromStored(data['assignedDoctorUids']),
+          ),
         };
       // appointments → visits table with visitType = 'clinic'
       // visitations  → visits table with visitType = 'home'
@@ -1207,12 +1422,20 @@ class FirestoreSyncService {
       'pendingDelete': 0,
       'lastSyncedAt': now,
     };
-    final updatedIsDeleted = await db.update(
-      table,
-      isDeletedPayload,
-      where: 'id = ? AND doctorId = ?',
-      whereArgs: [id, doctorId],
-    );
+    var updatedIsDeleted = 0;
+    try {
+      updatedIsDeleted = await db.update(
+        table,
+        isDeletedPayload,
+        where: 'id = ? AND doctorId = ?',
+        whereArgs: [id, doctorId],
+      );
+    } catch (_) {
+      // This table has no isDeleted column — patients, for one. Fall through
+      // to isArchived below. Before this, the error escaped to the listener,
+      // which swallowed it, and a patient removed on the server stayed on
+      // the device as though nothing had happened.
+    }
     if (updatedIsDeleted > 0) {
       _notifyTableChanged(table);
       return;

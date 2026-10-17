@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Doctor Management App</string>
+	<string>CruDoc</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>doctor_management_app</string>
+	<string>CruDoc</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -66,6 +66,8 @@
 	<string>Allow access to your photo library to attach medicine receipts.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>CruDoc uses your location to list home-visit addresses nearest to you first.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>CruDoc checks your contacts' phone numbers to show colleagues already on CruDoc, so you can invite them to your clinic. Your contacts aren't stored.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Allow camera access to photograph medicine receipts.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
@@ -74,6 +76,17 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.474729174031-gtf53g9053lilt2cebjgkvinvj0kopkh</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

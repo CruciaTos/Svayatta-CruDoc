@@ -63,6 +63,10 @@ Future<void> main() async {
   if (_useFirebaseEmulators) {
     await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
 
+    // Without this, every read and write goes to the real database while the
+    // emulators are running — the same trap the storage line below avoids.
+    FirebaseFirestore.instance.useFirestoreEmulator(_emulatorHost, 8080);
+
     FirebaseFunctions.instanceFor(
       region: 'asia-south1',
     ).useFunctionsEmulator(_emulatorHost, 5001);
@@ -355,7 +359,7 @@ class MoodyDashboardApp extends ConsumerWidget {
     return MaterialApp.router(
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
-      title: 'Moody Blues Dashboard',
+      title: 'CruDoc',
       // Starts in Calm Clinical Night (Evening) theme by default, fully toggleable across the app
       theme: CruTheme.day(),
       darkTheme: CruTheme.evening(),

@@ -64,6 +64,28 @@ final clinicInvitesProvider = StreamProvider<List<ClinicInvite>>((ref) {
       });
 });
 
+/// Invites turned down while they were still open, so the admin knows
+/// (they drop off once they would have expired).
+final clinicDeclinedInvitesProvider = StreamProvider<List<ClinicInvite>>((
+  ref,
+) {
+  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
+  if (clinicId == null) return Stream.value(const []);
+  return _clinic(clinicId)
+      .collection('invites')
+      .where('status', isEqualTo: 'declined')
+      .snapshots()
+      .map((snap) {
+        final now = DateTime.now();
+        return [
+          for (final d in snap.docs)
+            if (ClinicInvite.fromMap(d.id, d.data()) case final invite
+                when invite.expiresAt == null || invite.expiresAt!.isAfter(now))
+              invite,
+        ];
+      });
+});
+
 /// Features a person can be given, in the order the checklist shows them,
 /// with their labels. Dashboard and devices are always on, so not listed.
 const Map<String, String> kTeamModuleLabels = {

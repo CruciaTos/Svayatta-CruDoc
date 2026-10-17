@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
@@ -16,7 +14,7 @@ import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
-import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -25,26 +23,24 @@ class AuthScreen extends ConsumerStatefulWidget {
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends ConsumerState<AuthScreen>
-    with TickerProviderStateMixin {
-  // Mobile Controllers
-  late final AnimationController _backgroundController;
-
-  // Web Scroll Controller (initialized eagerly to prevent LateInitializationError)
-  final ScrollController _webScrollController = ScrollController();
-
-  final AuthService _authService = AuthService();
+class _AuthScreenState extends ConsumerState<AuthScreen> {
+  late final AuthService _authService = AuthService();
 
   /// One sign-in screen on phone and desktop; "Sign up" switches the form
   /// in place.
   _AuthMode _mobileMode = _AuthMode.login;
 
-  /// Phone, first launch: Get started (onboarding questions) comes before
-  /// sign-in. Null while the flag loads.
+  /// First launch: the form opens on Sign up (onboarding comes after the
+  /// account exists). Null while the flag loads.
   bool? _getStarted;
   static const _kSeenGetStarted = 'seen_get_started';
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  /// A sign-in problem, or a confirmation ("reset link sent"), shown in
+  /// the card above the button.
+  String? _notice;
+  bool _noticeIsError = true;
   bool _rememberMe = true;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -56,17 +52,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   void initState() {
     super.initState();
-    _backgroundController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat(reverse: true);
-
     _loadRememberedCredentials();
     _secureStorage
         .read(key: _kSeenGetStarted)
         .then((v) => v == 'true', onError: (_) => false)
         .then((seen) {
-          if (mounted) setState(() => _getStarted = !seen);
+          if (!seen) {
+            _secureStorage
+                .write(key: _kSeenGetStarted, value: 'true')
+                .catchError((_) {});
+          }
+          if (mounted) {
+            setState(() {
+              _getStarted = !seen;
+              if (!seen) _mobileMode = _AuthMode.signup;
+            });
+          }
         });
 
     // Clean empty text controllers by default
@@ -97,8 +98,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   @override
   void dispose() {
-    _backgroundController.dispose();
-    _webScrollController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
@@ -111,7 +110,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   static const _demoEmailDomain = '@crudoc.com';
 
   Future<void> _enterDemo(String email) async {
-    final spec = ref.read(authSpecialtyProvider);
+    // The address picks the demo (dental@crudoc.com opens the dental one);
+    // any other address on the domain keeps the last specialty used.
+    final typed = email.trim().toLowerCase();
+    final spec = DoctorSpecialty.all.firstWhere(
+      (s) => s.demoEmail == typed,
+      orElse: () => ref.read(authSpecialtyProvider),
+    );
+    ref.read(authSpecialtyProvider.notifier).select(spec);
     setState(() => _isLoading = true);
     User? user;
     try {
@@ -231,75 +237,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         .trim();
   }
 
-  OverlayEntry? _toastOverlayEntry;
-
   void _showAuthToast(String message, {bool isError = true}) {
     if (!mounted) return;
-
-    // Dismiss previous active toast if any
-    _toastOverlayEntry?.remove();
-    _toastOverlayEntry = null;
-
-    final overlayState = Overlay.of(context);
-    _toastOverlayEntry = OverlayEntry(
-      builder: (context) {
-        return Positioned(
-          top: 28,
-          left: 20,
-          right: 20,
-          child: Material(
-            color: Colors.transparent,
-            child: Center(
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 520),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: isError
-                      ? const Color(0xFFDC2626)
-                      : const Color(0xFF16A34A),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [],
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isError
-                          ? Icons.error_outline_rounded
-                          : Icons.check_circle_outline_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        message,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    overlayState.insert(_toastOverlayEntry!);
-
-    // Auto dismiss after 4 seconds
-    Future.delayed(const Duration(seconds: 4), () {
-      if (_toastOverlayEntry != null && _toastOverlayEntry!.mounted) {
-        _toastOverlayEntry?.remove();
-        _toastOverlayEntry = null;
-      }
+    setState(() {
+      _notice = message;
+      _noticeIsError = isError;
     });
   }
 
@@ -598,1475 +540,194 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final bool isDesktopLayout =
-        screenWidth > 800 &&
-        (kIsWeb ||
-            defaultTargetPlatform == TargetPlatform.windows ||
-            defaultTargetPlatform == TargetPlatform.macOS ||
-            defaultTargetPlatform == TargetPlatform.linux);
+  // ---------- Forgot password ----------
 
-    if (isDesktopLayout) {
-      return _buildWebAuthView(context);
+  Future<void> _handleForgotPassword() async {
+    final email = _sanitizeAuthInput(_emailController.text).toLowerCase();
+    if (!email.contains('@')) {
+      _showError('Enter your email above, then tap Forgot password.');
+      return;
     }
-
-    return _buildMobileAuthView(context);
-  }
-
-  // ==================== MOBILE AUTH VIEW (UNCHANGED) ====================
-
-  void _leaveGetStarted({OnboardingAnswers? answers}) {
-    _secureStorage
-        .write(key: _kSeenGetStarted, value: 'true')
-        .catchError((_) {});
-    OnboardingAnswers.pending = answers;
-    setState(() {
-      _getStarted = false;
-      if (answers != null) {
-        _mobileMode = _AuthMode.signup;
-        _nameController.text = answers.name;
-      }
-    });
-  }
-
-  /// First launch, before sign-in (phone and desktop): the onboarding
-  /// questions, or a blank screen while the flag loads. Null once seen.
-  Widget? _getStartedGate() {
-    if (_getStarted == null) {
-      return const Scaffold(backgroundColor: Color(0xFF087DFF));
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+    } catch (_) {
+      // Same answer either way: never say whether an account exists.
     }
-    if (_getStarted!) {
-      return OnboardingFlow(
-        onDone: () {},
-        onAnswered: (a) => _leaveGetStarted(answers: a),
-        onHaveAccount: _leaveGetStarted,
-      );
-    }
-    return null;
-  }
-
-  Widget _buildMobileAuthView(BuildContext context) {
-    final gate = _getStartedGate();
-    if (gate != null) return gate;
-    return Scaffold(
-      backgroundColor: const Color(0xFF087DFF),
-      body: AnimatedBuilder(
-        animation: _backgroundController,
-        builder: (context, _) {
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _AuthBackgroundPainter(
-                    progress: _backgroundController.value,
-                  ),
-                ),
-              ),
-              SafeArea(
-                child: _AuthFormPanel(
-                  progress: _backgroundController.value,
-                  mode: _mobileMode,
-                  obscurePassword: _obscurePassword,
-                  isLoading: _isLoading,
-                  emailController: _emailController,
-                  passwordController: _passwordController,
-                  nameController: _nameController,
-                  onObscureToggle: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  onPrimary: _mobileMode == _AuthMode.login
-                      ? _handleEmailLogin
-                      : _handleEmailSignup,
-                  selectedSpecialty: _mobileMode == _AuthMode.login
-                      ? ref.watch(authSpecialtyProvider)
-                      : null,
-                  onSpecialtySelected: (spec) {
-                    ref.read(authSpecialtyProvider.notifier).select(spec);
-                  },
-                  onSecondary: () => setState(
-                    () => _mobileMode = _mobileMode == _AuthMode.login
-                        ? _AuthMode.signup
-                        : _AuthMode.login,
-                  ),
-                  onGoogleSignIn: _handleGoogleSignIn,
-                  onPhoneSignIn: _handlePhoneSignIn,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+    _showAuthToast(
+      'If $email has a CruDoc account, a link to reset the password is on '
+      'its way.',
+      isError: false,
     );
   }
 
-  // ==================== WEB AUTH VIEW — CLEAN MEDICAL SPLIT DESIGN ====================
+  /// Phone sign-in needs a phone: web and desktop have none.
+  bool get _phoneSignInAvailable =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
-  Widget _buildWebAuthView(BuildContext context) {
-    final gate = _getStartedGate();
-    if (gate != null) return gate;
-    final screenSize = MediaQuery.of(context).size;
-    final selectedSpecialty = ref.watch(authSpecialtyProvider);
+  bool get _isLogin => _mobileMode == _AuthMode.login;
 
+  void _switchMode() => setState(() {
+    _mobileMode = _isLogin ? _AuthMode.signup : _AuthMode.login;
+    _notice = null;
+  });
+
+  void _submit() => _isLogin ? _handleEmailLogin() : _handleEmailSignup();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    // Blank while the first-launch flag loads, so the form doesn't open on
+    // Sign in and then switch to Create account.
+    if (_getStarted == null) return Scaffold(backgroundColor: c.canvas);
+    final login = _isLogin;
+    final busy = _isLoading;
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: AnimatedBuilder(
-        animation: _backgroundController,
-        builder: (context, _) {
-          return Column(
-            children: [
-              // Full Height Split Body
-              Expanded(
-                child: Row(
+      backgroundColor: c.canvas,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s16,
+              vertical: CruSpace.s32,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _kAuthMaxWidth),
+              child: AutofillGroup(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Left — Sober Medical Illustration Panel
-                    Expanded(
-                      flex: 55,
-                      child: _WebIllustrationPanel(
-                        progress: _backgroundController.value,
-                        selectedSpecialty: selectedSpecialty,
-                        onSpecialtySelected: (spec) {
-                          ref.read(authSpecialtyProvider.notifier).select(spec);
-                        },
+                    const _AppMark(),
+                    const SizedBox(height: CruSpace.s32),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        login ? 'Sign in' : 'Create your account',
+                        style: CruType.largeTitle.tint(c.label),
                       ),
                     ),
-
-                    // Right — Sleek & Clean Login Form Panel
-                    Container(
-                      width: math.min(screenSize.width * 0.42, 500),
-                      color: Colors.white,
-                      child: Center(
-                        child: SingleChildScrollView(
-                          controller: _webScrollController,
-                          physics: const BouncingScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 56,
-                            vertical: 48,
-                          ),
-                          child: _WebAuthPortalCard(
-                            obscurePassword: _obscurePassword,
-                            isLoading: _isLoading,
-                            rememberMe: _rememberMe,
-                            isLogin: _mobileMode == _AuthMode.login,
-                            emailController: _emailController,
-                            passwordController: _passwordController,
-                            nameController: _nameController,
-                            selectedSpecialty: selectedSpecialty,
-                            onObscureToggle: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            onRememberMeToggle: () =>
-                                setState(() => _rememberMe = !_rememberMe),
-                            onPrimarySubmit: _mobileMode == _AuthMode.login
-                                ? _handleEmailLogin
-                                : _handleEmailSignup,
-                            onSecondary: () => setState(
-                              () => _mobileMode = _mobileMode == _AuthMode.login
-                                  ? _AuthMode.signup
-                                  : _AuthMode.login,
-                            ),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: CruSpace.s6),
+                    Text(
+                      login
+                          ? 'Welcome back to CruDoc.'
+                          : 'Next, set up your practice or join your clinic.',
+                      style: CruType.lead.tint(c.label2),
                     ),
-                  ],
-                ),
-              ),
-
-              // Minimal Footer
-              Container(
-                height: 44,
-                padding: const EdgeInsets.symmetric(horizontal: 48),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
-                ),
-                child: Row(
-                  children: [
-                    const Text(
-                      ' CruDoc Clinical Management System. All Rights Reserved.',
-                      style: TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    InkWell(
-                      onTap: () {},
-                      child: const Text(
-                        'Terms & Conditions',
-                        style: TextStyle(
-                          color: Color(0xFF00ACC1),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 24),
-                    InkWell(
-                      onTap: () {},
-                      child: const Text(
-                        'Privacy Policy',
-                        style: TextStyle(
-                          color: Color(0xFF00ACC1),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ==================== WEB NAVBAR HEADER ====================
-
-// ==================== WEB ILLUSTRATION PANEL ====================
-
-class _WebIllustrationPanel extends StatelessWidget {
-  const _WebIllustrationPanel({
-    required this.progress,
-    required this.selectedSpecialty,
-    required this.onSpecialtySelected,
-  });
-
-  final double progress;
-  final DoctorSpecialty selectedSpecialty;
-  final ValueChanged<DoctorSpecialty> onSpecialtySelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: selectedSpecialty.gradientColors,
-        ),
-      ),
-      child: Stack(
-        children: [
-          // Background decorative circles
-          Positioned(
-            left: -60,
-            top: -60,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                color: selectedSpecialty.accentColor.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            right: -40,
-            bottom: -40,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                color: selectedSpecialty.accentColor.withValues(alpha: 0.06),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-
-          // Animated ECG Line Painter
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _WebIllustrationPainter(
-                progress: progress,
-                accentColor: selectedSpecialty.accentColor,
-              ),
-            ),
-          ),
-
-          // Main Centerpiece Content
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Soft glass backdrop container for specialty icon
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeInOut,
-                  width: 440,
-                  height: 330,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(220),
-                    boxShadow: const [],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _DoctorFigure(isFemale: false),
-                      _SpecialtyHeroIcon(
-                        progress: progress,
-                        specialty: selectedSpecialty,
-                      ),
-                      _DoctorFigure(isFemale: true),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 36),
-
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  child: Text(
-                    'CruDoc ${selectedSpecialty.shortLabel} Suite',
-                    key: ValueKey(selectedSpecialty.type),
-                    style: TextStyle(
-                      color: HSLColor.fromColor(
-                        selectedSpecialty.accentColor,
-                      ).withLightness(0.22).toColor(),
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
-                      fontFamily: AppColors.headingFontFamily,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 350),
-                  child: Text(
-                    selectedSpecialty.tagline,
-                    key: ValueKey(selectedSpecialty.tagline),
-                    style: TextStyle(
-                      color: HSLColor.fromColor(
-                        selectedSpecialty.accentColor,
-                      ).withLightness(0.30).toColor(),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Specialty Selector Pills (bottom of panel) ──
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24,
-            child: _SpecialtyPillBar(
-              selectedSpecialty: selectedSpecialty,
-              onSelected: onSpecialtySelected,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Animated specialty icon that replaces the static heart.
-class _SpecialtyHeroIcon extends StatelessWidget {
-  const _SpecialtyHeroIcon({required this.progress, required this.specialty});
-
-  final double progress;
-  final DoctorSpecialty specialty;
-
-  @override
-  Widget build(BuildContext context) {
-    final double scale = 1.0 + math.sin(progress * math.pi * 2) * 0.04;
-    return Transform.scale(
-      scale: scale,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-        width: 110,
-        height: 110,
-        decoration: BoxDecoration(
-          color: specialty.accentColor,
-          shape: BoxShape.circle,
-          boxShadow: const [],
-        ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Icon(
-            specialty.icon,
-            key: ValueKey(specialty.type),
-            color: Colors.white,
-            size: 52,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Horizontal scrollable pill bar for selecting a medical specialty.
-class _SpecialtyPillBar extends StatelessWidget {
-  const _SpecialtyPillBar({
-    required this.selectedSpecialty,
-    required this.onSelected,
-  });
-
-  final DoctorSpecialty selectedSpecialty;
-  final ValueChanged<DoctorSpecialty> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return _pills();
-  }
-
-  Widget _pills() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: DoctorSpecialty.all.map((spec) {
-          final isSelected = selectedSpecialty.type == spec.type;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () => onSelected(spec),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeOut,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? spec.accentColor
-                        : Colors.white.withValues(alpha: 0.75),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected
-                          ? spec.accentColor
-                          : Colors.black.withValues(alpha: 0.06),
-                      width: 1.5,
-                    ),
-                    boxShadow: const [],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        spec.icon,
-                        size: 15,
-                        color: isSelected ? Colors.white : spec.accentColor,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        spec.shortLabel,
-                        style: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF334155),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: AppColors.bodyFontFamily,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _DoctorFigure extends StatelessWidget {
-  const _DoctorFigure({required this.isFemale});
-
-  final bool isFemale;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: const BoxDecoration(
-            color: Color(0xFFD7A97A),
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 60,
-          height: 90,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE0E0E0), width: 1.2),
-            boxShadow: const [],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 24,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00ACC1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: 16,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00ACC1).withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 2),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 18,
-              height: 28,
-              decoration: BoxDecoration(
-                color: isFemale
-                    ? const Color(0xFF1A237E)
-                    : const Color(0xFF424242),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(5),
-                ),
-              ),
-            ),
-            const SizedBox(width: 5),
-            Container(
-              width: 18,
-              height: 28,
-              decoration: BoxDecoration(
-                color: isFemale
-                    ? const Color(0xFF1A237E)
-                    : const Color(0xFF424242),
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(5),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-// _HeartIcon replaced by _SpecialtyHeroIcon above.
-
-// ==================== WEB ILLUSTRATION PAINTER ====================
-
-class _WebIllustrationPainter extends CustomPainter {
-  _WebIllustrationPainter({
-    required this.progress,
-    this.accentColor = const Color(0xFF00ACC1),
-  });
-
-  final double progress;
-  final Color accentColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double wave = math.sin(progress * math.pi * 2);
-    final Paint ecgPaint = Paint()
-      ..color = accentColor.withValues(alpha: 0.30)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final double y0 = size.height * 0.80 + wave * 4;
-    final double segW = size.width / 10;
-    final Path ecgPath = Path()..moveTo(0, y0);
-    ecgPath
-      ..lineTo(segW * 2, y0)
-      ..lineTo(segW * 2.5, y0 - 18)
-      ..lineTo(segW * 3, y0 + 30)
-      ..lineTo(segW * 3.5, y0 - 40)
-      ..lineTo(segW * 4, y0 + 20)
-      ..lineTo(segW * 4.5, y0)
-      ..lineTo(segW * 6.5, y0)
-      ..lineTo(segW * 7, y0 - 14)
-      ..lineTo(segW * 7.5, y0 + 10)
-      ..lineTo(size.width, y0);
-    canvas.drawPath(ecgPath, ecgPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WebIllustrationPainter oldDelegate) =>
-      oldDelegate.progress != progress ||
-      oldDelegate.accentColor != accentColor;
-}
-
-// ==================== WEB AUTH PORTAL CARD (LOGIN ONLY) ====================
-
-class _WebAuthPortalCard extends StatelessWidget {
-  const _WebAuthPortalCard({
-    required this.obscurePassword,
-    required this.isLoading,
-    required this.rememberMe,
-    required this.isLogin,
-    required this.emailController,
-    required this.passwordController,
-    required this.nameController,
-    required this.selectedSpecialty,
-    required this.onObscureToggle,
-    required this.onRememberMeToggle,
-    required this.onPrimarySubmit,
-    required this.onSecondary,
-  });
-
-  final bool obscurePassword;
-  final bool isLoading;
-  final bool rememberMe;
-  final bool isLogin;
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
-  final TextEditingController nameController;
-  final DoctorSpecialty selectedSpecialty;
-  final VoidCallback onObscureToggle;
-  final VoidCallback onRememberMeToggle;
-  final VoidCallback onPrimarySubmit;
-  final VoidCallback onSecondary;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Specialty-Themed Logo Header
-        Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 400),
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: selectedSpecialty.accentColor,
-                borderRadius: BorderRadius.circular(8),
-                boxShadow: const [],
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                child: Icon(
-                  selectedSpecialty.icon,
-                  key: ValueKey(selectedSpecialty.type),
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'cru.doc',
-                  style: TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                    letterSpacing: -0.5,
-                    fontFamily: AppColors.headingFontFamily,
-                  ),
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: Text(
-                    '${selectedSpecialty.shortLabel} Clinical Suite',
-                    key: ValueKey(selectedSpecialty.shortLabel),
-                    style: TextStyle(
-                      color: selectedSpecialty.accentColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 36),
-
-        // Welcome Doctor Title (specialty-adaptive)
-        Text(
-          isLogin ? 'Welcome Back Doctor !' : 'Create your account',
-          style: const TextStyle(
-            color: Color(0xFF0F172A),
-            fontSize: 28,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.5,
-            fontFamily: AppColors.headingFontFamily,
-          ),
-        ),
-        const SizedBox(height: 6),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          child: Text(
-            selectedSpecialty.tagline,
-            key: ValueKey(selectedSpecialty.tagline),
-            style: TextStyle(
-              color: selectedSpecialty.accentColor.withValues(alpha: 0.8),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        const SizedBox(height: 32),
-
-        if (!isLogin) ...[
-          _WebTextField(
-            controller: nameController,
-            hintText: 'Your name',
-            icon: Icons.badge_outlined,
-          ),
-          const SizedBox(height: 16),
-        ],
-
-        // Email Field
-        _WebTextField(
-          controller: emailController,
-          hintText: 'Enter your email address',
-          icon: Icons.person_outline_rounded,
-        ),
-        const SizedBox(height: 16),
-
-        // Password Field
-        _WebTextField(
-          controller: passwordController,
-          hintText: 'Enter your password',
-          icon: Icons.lock_outline_rounded,
-          obscureText: obscurePassword,
-          trailing: IconButton(
-            onPressed: onObscureToggle,
-            icon: Icon(
-              obscurePassword
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-              color: const Color(0xFF94A3B8),
-              size: 18,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Remember Me (sign-in only)
-        if (isLogin)
-          Row(
-            children: [
-              GestureDetector(
-                onTap: onRememberMeToggle,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        rememberMe
-                            ? Icons.check_box_rounded
-                            : Icons.check_box_outline_blank_rounded,
-                        color: rememberMe
-                            ? const Color(0xFF2563EB)
-                            : const Color(0xFF94A3B8),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Remember Me',
-                        style: TextStyle(
-                          color: rememberMe
-                              ? const Color(0xFF0F172A)
-                              : const Color(0xFF64748B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        const SizedBox(height: 28),
-
-        // Login Button — accent color matches selected specialty
-        SizedBox(
-          height: 52,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            child: ElevatedButton(
-              onPressed: isLoading ? null : onPrimarySubmit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: selectedSpecialty.accentColor,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: selectedSpecialty.accentColor
-                    .withValues(alpha: 0.6),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      isLogin
-                          ? 'Login as ${selectedSpecialty.label}'
-                          : 'Create account',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                        fontFamily: AppColors.bodyFontFamily,
-                      ),
-                    ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Center(
-          child: TextButton(
-            onPressed: isLoading ? null : onSecondary,
-            child: Text(
-              isLogin ? 'New here? Sign up' : 'Have an account? Log in',
-              style: TextStyle(
-                color: selectedSpecialty.accentColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ==================== WEB TEXT FIELD ====================
-
-class _WebTextField extends StatelessWidget {
-  const _WebTextField({
-    required this.controller,
-    required this.hintText,
-    required this.icon,
-    this.obscureText = false,
-    this.trailing,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final IconData icon;
-  final bool obscureText;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      autocorrect: false,
-      enableSuggestions: false,
-      style: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-      cursorColor: const Color(0xFF00ACC1),
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        hintText: hintText,
-        hintStyle: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13),
-        prefixIcon: Icon(icon, color: const Color(0xFF00ACC1), size: 18),
-        suffixIcon: trailing,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 15,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF00ACC1), width: 1.8),
-        ),
-      ),
-    );
-  }
-}
-
-// ==================== ORIGINAL MOBILE INTRO PANEL ====================
-
-// ==================== AUTH MODE ENUM ====================
-
-enum _AuthMode { login, signup }
-
-// ==================== ORIGINAL MOBILE FORM PANEL ====================
-
-class _AuthFormPanel extends StatelessWidget {
-  const _AuthFormPanel({
-    required this.progress,
-    required this.mode,
-    required this.obscurePassword,
-    required this.isLoading,
-    required this.emailController,
-    required this.passwordController,
-    required this.nameController,
-    required this.onObscureToggle,
-    required this.onPrimary,
-    this.selectedSpecialty,
-    this.onSpecialtySelected,
-    required this.onSecondary,
-    required this.onGoogleSignIn,
-    required this.onPhoneSignIn,
-  });
-
-  final double progress;
-  final _AuthMode mode;
-  final bool obscurePassword;
-  final bool isLoading;
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
-  final TextEditingController nameController;
-  final VoidCallback onObscureToggle;
-  final VoidCallback onPrimary;
-  final DoctorSpecialty? selectedSpecialty;
-  final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
-  final VoidCallback onSecondary;
-  final VoidCallback onGoogleSignIn;
-  final VoidCallback onPhoneSignIn;
-
-  bool get _isLogin => mode == _AuthMode.login;
-
-  @override
-  Widget build(BuildContext context) {
-    return _AnimatedPanel(
-      progress: progress,
-      whiteWaveHeight: 0.32,
-      child: Stack(
-        children: [
-          const Positioned(
-            top: 24,
-            left: 20,
-            child: Text(
-              'cru.doc',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 18,
-            right: 20,
-            child: TweenAnimationBuilder<double>(
-              key: ValueKey(mode),
-              tween: Tween(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 620),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value,
-                  child: Transform.translate(
-                    offset: Offset(-18 * (1 - value), 0),
-                    child: child,
-                  ),
-                );
-              },
-              child: Text(
-                _isLogin ? 'Welcome\nBack' : 'Create\nAccount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontFamily: AppColors.headingFontFamily,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                  height: 1.05,
-                ),
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 420),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.08, 0.08),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: _AuthForm(
-                  key: ValueKey(mode),
-                  mode: mode,
-                  obscurePassword: obscurePassword,
-                  isLoading: isLoading,
-                  emailController: emailController,
-                  passwordController: passwordController,
-                  nameController: nameController,
-                  onObscureToggle: onObscureToggle,
-                  onPrimary: onPrimary,
-                  selectedSpecialty: selectedSpecialty,
-                  onSpecialtySelected: onSpecialtySelected,
-                  onSecondary: onSecondary,
-                  onGoogleSignIn: onGoogleSignIn,
-                  onPhoneSignIn: onPhoneSignIn,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ==================== ORIGINAL MOBILE AUTH FORM ====================
-
-class _AuthForm extends StatelessWidget {
-  const _AuthForm({
-    super.key,
-    required this.mode,
-    required this.obscurePassword,
-    required this.isLoading,
-    required this.emailController,
-    required this.passwordController,
-    required this.nameController,
-    required this.onObscureToggle,
-    required this.onPrimary,
-    this.selectedSpecialty,
-    this.onSpecialtySelected,
-    required this.onSecondary,
-    required this.onGoogleSignIn,
-    required this.onPhoneSignIn,
-  });
-
-  final _AuthMode mode;
-  final bool obscurePassword;
-  final bool isLoading;
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
-  final TextEditingController nameController;
-  final VoidCallback onObscureToggle;
-  final VoidCallback onPrimary;
-  final DoctorSpecialty? selectedSpecialty;
-  final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
-  final VoidCallback onSecondary;
-  final VoidCallback onGoogleSignIn;
-  final VoidCallback onPhoneSignIn;
-
-  bool get _isLogin => mode == _AuthMode.login;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (!_isLogin) ...[
-          _AuthTextField(
-            icon: Icons.person_rounded,
-            hintText: 'Name',
-            controller: nameController,
-          ),
-          const SizedBox(height: 8),
-        ],
-        _AuthTextField(
-          icon: Icons.email_rounded,
-          hintText: 'Email',
-          controller: emailController,
-          trailing: _isLogin
-              ? const Icon(
-                  Icons.check_rounded,
-                  color: Color(0xFF66A8FF),
-                  size: 18,
-                )
-              : null,
-        ),
-        const SizedBox(height: 8),
-        _AuthTextField(
-          icon: Icons.lock_rounded,
-          hintText: 'Password',
-          controller: passwordController,
-          obscureText: obscurePassword,
-          trailing: IconButton(
-            onPressed: onObscureToggle,
-            icon: Icon(
-              obscurePassword
-                  ? Icons.visibility_rounded
-                  : Icons.visibility_off_rounded,
-              color: const Color(0xFFB6B6B6),
-              size: 17,
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-          ),
-        ),
-        if (_isLogin) ...[
-          const SizedBox(height: 6),
-          // ── Mobile Specialty Selector (replicates desktop pill bar) ──
-          if (selectedSpecialty != null && onSpecialtySelected != null)
-            SizedBox(
-              height: 34,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: DoctorSpecialty.all.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 6),
-                itemBuilder: (context, index) {
-                  final spec = DoctorSpecialty.all[index];
-                  final isSelected = selectedSpecialty!.type == spec.type;
-                  return GestureDetector(
-                    onTap: () => onSpecialtySelected!(spec),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 240),
-                      curve: Curves.easeOut,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? spec.accentColor
-                            : Colors.white.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? spec.accentColor
-                              : const Color(0xFFE2E8F0),
-                          width: 1.2,
-                        ),
-                        boxShadow: const [],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    const SizedBox(height: CruSpace.s24),
+                    CruCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Icon(
-                            spec.icon,
-                            size: 13,
-                            color: isSelected ? Colors.white : spec.accentColor,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            spec.shortLabel,
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFF475569),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              fontFamily: AppColors.bodyFontFamily,
+                          if (!login) ...[
+                            CruTextField(
+                              label: 'Your name',
+                              controller: _nameController,
+                              textCapitalization: TextCapitalization.words,
+                              autofillHints: const [AutofillHints.name],
                             ),
+                            const SizedBox(height: CruSpace.s16),
+                          ],
+                          CruTextField(
+                            label: 'Email',
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            autofillHints: const [AutofillHints.email],
+                          ),
+                          const SizedBox(height: CruSpace.s16),
+                          CruTextField(
+                            label: 'Password',
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            autofillHints: [
+                              login
+                                  ? AutofillHints.password
+                                  : AutofillHints.newPassword,
+                            ],
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _submit(),
+                            trailing: CruLink(
+                              label: _obscurePassword ? 'Show' : 'Hide',
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                            ),
+                          ),
+                          if (login)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Padding(
+                                padding: const EdgeInsets.only(
+                                  top: CruSpace.s8,
+                                ),
+                                child: CruLink(
+                                  label: 'Forgot password?',
+                                  onPressed: _handleForgotPassword,
+                                ),
+                              ),
+                            ),
+                          if (_notice != null) ...[
+                            const SizedBox(height: CruSpace.s12),
+                            Text(
+                              _notice!,
+                              style: CruType.text.tint(
+                                _noticeIsError ? c.label : c.greenText,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: CruSpace.s20),
+                          CruButton(
+                            label: busy
+                                ? 'Please wait…'
+                                : (login ? 'Sign in' : 'Create account'),
+                            large: true,
+                            expand: true,
+                            onPressed: busy ? null : _submit,
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-        ] else
-          const SizedBox(height: 10),
-        const SizedBox(height: 4),
-        _PrimaryButton(
-          label: _isLogin
-              ? (selectedSpecialty != null
-                    ? 'Log in as ${selectedSpecialty!.shortLabel}'
-                    : 'Log in')
-              : 'Sign up',
-          isLoading: isLoading,
-          onPressed: onPrimary,
-        ),
-        const SizedBox(height: 10),
-        const _DividerLabel(),
-        const SizedBox(height: 10),
-        _SocialButton(
-          icon: Icons.g_mobiledata_rounded,
-          label: 'Continue with Google',
-          onPressed: onGoogleSignIn,
-        ),
-        const SizedBox(height: 6),
-        _SocialButton(
-          icon: Icons.phone_rounded,
-          label: 'Sign in with Phone',
-          outlined: true,
-          onPressed: onPhoneSignIn,
-        ),
-        const SizedBox(height: 10),
-        _AuthButton(
-          label: _isLogin ? 'Sign up' : 'Log in',
-          filled: false,
-          darkText: true,
-          onPressed: onSecondary,
-        ),
-      ],
-    );
-  }
-}
-
-// ==================== ORIGINAL REUSABLE WIDGETS ====================
-
-class _AuthTextField extends StatelessWidget {
-  const _AuthTextField({
-    required this.icon,
-    required this.hintText,
-    this.controller,
-    this.obscureText = false,
-    this.trailing,
-  });
-
-  final IconData icon;
-  final String hintText;
-  final TextEditingController? controller;
-  final bool obscureText;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      cursorColor: const Color(0xFF0A7BFF),
-      style: const TextStyle(
-        color: Color(0xFF4A4A4A),
-        fontFamily: AppColors.bodyFontFamily,
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-      ),
-      decoration: InputDecoration(
-        isDense: true,
-        // Underline style of its own: keep the theme's inset fill off.
-        filled: false,
-        hintText: hintText,
-        hintStyle: const TextStyle(
-          color: Color(0xFFB7B7B7),
-          fontFamily: AppColors.bodyFontFamily,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-        prefixIcon: Icon(icon, color: const Color(0xFFC0C0C0), size: 15),
-        prefixIconConstraints: const BoxConstraints(minWidth: 28),
-        suffixIcon: trailing,
-        suffixIconConstraints: const BoxConstraints(minWidth: 30),
-        contentPadding: const EdgeInsets.symmetric(vertical: 11),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFE1E1E1), width: 1.3),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFF8FC4FF), width: 1.6),
-        ),
-      ),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.label,
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 40,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          shadowColor: const Color(0xFF0A7BFF).withValues(alpha: 0.22),
-          backgroundColor: const Color(0xFF0A7BFF),
-          disabledBackgroundColor: const Color(
-            0xFF0A7BFF,
-          ).withValues(alpha: 0.6),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.2,
-                  color: Colors.white,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                    const SizedBox(height: CruSpace.s20),
+                    const _OrDivider(),
+                    const SizedBox(height: CruSpace.s20),
+                    CruButton(
+                      label: 'Continue with Google',
+                      kind: CruButtonKind.secondary,
+                      large: true,
+                      expand: true,
+                      onPressed: busy ? null : _handleGoogleSignIn,
+                    ),
+                    if (_phoneSignInAvailable) ...[
+                      const SizedBox(height: CruSpace.s12),
+                      CruButton(
+                        label: 'Continue with phone number',
+                        icon: CruIcons.phone,
+                        kind: CruButtonKind.secondary,
+                        large: true,
+                        expand: true,
+                        onPressed: busy ? null : _handlePhoneSignIn,
+                      ),
+                    ],
+                    const SizedBox(height: CruSpace.s24),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: CruSpace.s4,
+                      children: [
+                        Text(
+                          login ? 'New to CruDoc?' : 'Already have an account?',
+                          style: CruType.text.tint(c.label2),
+                        ),
+                        CruLink(
+                          label: login ? 'Create an account' : 'Sign in',
+                          onPressed: _switchMode,
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  const _SocialButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.outlined = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool outlined;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 38,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          backgroundColor: outlined ? Colors.transparent : Colors.white,
-          foregroundColor: outlined
-              ? const Color(0xFF9A9A9A)
-              : const Color(0xFF4A4A4A),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: BorderSide(
-              color: outlined
-                  ? const Color(0xFFDADADA).withValues(alpha: 0.9)
-                  : const Color(0xFFE8E8E8),
-              width: 1.2,
             ),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: outlined
-                    ? const Color(0xFF9A9A9A)
-                    : const Color(0xFF4A4A4A),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthButton extends StatelessWidget {
-  const _AuthButton({
-    required this.label,
-    required this.filled,
-    required this.onPressed,
-    this.darkText = false,
-  });
-
-  final String label;
-  final bool filled;
-  final bool darkText;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color foreground = filled
-        ? Colors.white
-        : darkText
-        ? const Color(0xFF9A9A9A)
-        : const Color(0xFF0A7BFF);
-
-    return SizedBox(
-      width: double.infinity,
-      height: 36,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          shadowColor: const Color(0xFF0A7BFF).withValues(alpha: 0.22),
-          backgroundColor: filled ? const Color(0xFF0A7BFF) : Colors.white,
-          foregroundColor: foreground,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(5),
-            side: BorderSide(
-              color: filled
-                  ? Colors.transparent
-                  : const Color(0xFFDADADA).withValues(alpha: 0.9),
-              width: 1.4,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: foreground,
-            fontFamily: AppColors.bodyFontFamily,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -2074,231 +735,62 @@ class _AuthButton extends StatelessWidget {
   }
 }
 
-class _DividerLabel extends StatelessWidget {
-  const _DividerLabel();
+/// Content column width on wide screens.
+const double _kAuthMaxWidth = 400;
+
+enum _AuthMode { login, signup }
+
+/// The app mark and wordmark, as in the sidebar.
+class _AppMark extends StatelessWidget {
+  const _AppMark();
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(child: Divider(color: Color(0xFFE7E7E7), height: 1)),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            'or',
-            style: TextStyle(
-              color: Color(0xFFB7B7B7),
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: Color(0xFFE7E7E7), height: 1)),
-      ],
-    );
-  }
-}
-
-// ==================== ORIGINAL ANIMATED PANEL ====================
-
-class _AnimatedPanel extends StatelessWidget {
-  const _AnimatedPanel({
-    required this.progress,
-    required this.whiteWaveHeight,
-    required this.child,
-  });
-
-  final double progress;
-  final double whiteWaveHeight;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF087DFF), Color(0xFF075BCE)],
-        ),
-      ),
-      child: Stack(
+    final c = context.cru;
+    return Semantics(
+      label: 'CruDoc',
+      excludeSemantics: true,
+      child: Row(
         children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _WaterPanelPainter(
-                progress: progress,
-                whiteWaveHeight: whiteWaveHeight,
-              ),
+          Container(
+            width: CruSize.appMark,
+            height: CruSize.appMark,
+            alignment: Alignment.center,
+            decoration: ShapeDecoration(
+              color: c.accent,
+              shape: cruShape(CruRadius.appMark),
+            ),
+            child: CruIcon(
+              CruIcons.plus,
+              size: 16,
+              strokeWidth: 3.4,
+              color: c.onAccent,
             ),
           ),
-          child,
+          const SizedBox(width: CruSpace.s10),
+          Text('CruDoc', style: CruType.wordmark.tint(c.label)),
         ],
       ),
     );
   }
 }
 
-// ==================== ORIGINAL PAGE DOTS ====================
-
-class _WaterPanelPainter extends CustomPainter {
-  _WaterPanelPainter({required this.progress, required this.whiteWaveHeight});
-
-  final double progress;
-  final double whiteWaveHeight;
+/// A hairline either side of "or".
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final Paint darkBlue = Paint()..color = const Color(0xFF065BCD);
-    final Paint lightBlue = Paint()..color = const Color(0xFF1086FF);
-    final Paint bubblePaint = Paint()..color = const Color(0xFF2292FF);
-
-    final double wave = math.sin(progress * math.pi * 2);
-
-    final Path topBlob = Path()
-      ..moveTo(size.width * -0.05, size.height * 0.29)
-      ..cubicTo(
-        size.width * 0.18,
-        size.height * (0.22 + wave * 0.03),
-        size.width * 0.30,
-        size.height * 0.46,
-        size.width * 0.55,
-        size.height * 0.34,
-      )
-      ..cubicTo(
-        size.width * 0.83,
-        size.height * (0.19 - wave * 0.025),
-        size.width * 1.04,
-        size.height * 0.28,
-        size.width * 1.08,
-        size.height * 0.10,
-      )
-      ..lineTo(size.width * 1.08, 0)
-      ..lineTo(0, 0)
-      ..close();
-    canvas.drawPath(topBlob, lightBlue);
-
-    final Path middleBlob = Path()
-      ..moveTo(size.width * -0.08, size.height * 0.51)
-      ..cubicTo(
-        size.width * 0.18,
-        size.height * (0.43 - wave * 0.025),
-        size.width * 0.35,
-        size.height * 0.62,
-        size.width * 0.57,
-        size.height * 0.55,
-      )
-      ..cubicTo(
-        size.width * 0.77,
-        size.height * (0.49 + wave * 0.02),
-        size.width * 0.70,
-        size.height * 0.35,
-        size.width * 1.05,
-        size.height * 0.46,
-      )
-      ..lineTo(size.width * 1.05, size.height)
-      ..lineTo(size.width * -0.08, size.height)
-      ..close();
-    canvas.drawPath(middleBlob, darkBlue);
-
-    if (whiteWaveHeight > 0) {
-      final double top = size.height * whiteWaveHeight;
-      final Path whiteWave = Path()
-        ..moveTo(0, top)
-        ..cubicTo(
-          size.width * 0.22,
-          top - 24 - wave * 8,
-          size.width * 0.40,
-          top + 20,
-          size.width * 0.58,
-          top + 2 + wave * 8,
-        )
-        ..cubicTo(
-          size.width * 0.77,
-          top - 17,
-          size.width * 0.91,
-          top + 10 + wave * 8,
-          size.width,
-          top - 8,
-        )
-        ..lineTo(size.width, size.height)
-        ..lineTo(0, size.height)
-        ..close();
-      canvas.drawPath(whiteWave, Paint()..color = Colors.white);
-    }
-
-    final bubbles = <_Bubble>[
-      _Bubble(0.84, 0.07, 0.09, 0.00),
-      _Bubble(0.77, 0.21, 0.035, 0.34),
-      _Bubble(0.15, 0.45, 0.028, 0.56),
-      _Bubble(0.61, 0.39, 0.085, 0.13),
-      _Bubble(0.89, 0.38, 0.03, 0.72),
-      _Bubble(0.32, 0.05, 0.03, 0.44),
-      _Bubble(0.72, 0.13, 0.027, 0.88),
-    ];
-
-    for (final bubble in bubbles) {
-      final double float = math.sin((progress + bubble.phase) * math.pi * 2);
-      final Offset center = Offset(
-        size.width * bubble.x + float * 5,
-        size.height * bubble.y - float * 6,
-      );
-      canvas.drawCircle(center, size.width * bubble.radius, bubblePaint);
-    }
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Row(
+      children: [
+        const Expanded(child: CruSeparator()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+          child: Text('or', style: CruType.caption.tint(c.label3)),
+        ),
+        const Expanded(child: CruSeparator()),
+      ],
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _WaterPanelPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.whiteWaveHeight != whiteWaveHeight;
-  }
-}
-
-class _AuthBackgroundPainter extends CustomPainter {
-  _AuthBackgroundPainter({required this.progress});
-
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint glowPaint = Paint()
-      ..shader =
-          RadialGradient(
-            colors: [
-              Colors.white.withValues(alpha: 0.16),
-              Colors.white.withValues(alpha: 0.00),
-            ],
-          ).createShader(
-            Rect.fromCircle(
-              center: Offset(size.width * 0.18, size.height * 0.16),
-              radius: size.width * 0.5,
-            ),
-          );
-    canvas.drawRect(Offset.zero & size, glowPaint);
-
-    final Paint bubblePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.10);
-    for (int i = 0; i < 18; i++) {
-      final double phase = i / 18;
-      final double x = (math.sin(i * 1.7) * 0.5 + 0.5) * size.width;
-      final double y = ((phase + progress * 0.12) % 1) * size.height;
-      final double radius = 4 + (i % 5) * 2.6;
-      canvas.drawCircle(Offset(x, y), radius, bubblePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _AuthBackgroundPainter oldDelegate) {
-    return oldDelegate.progress != progress;
-  }
-}
-
-class _Bubble {
-  const _Bubble(this.x, this.y, this.radius, this.phase);
-
-  final double x;
-  final double y;
-  final double radius;
-  final double phase;
 }

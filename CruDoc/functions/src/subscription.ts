@@ -1,5 +1,10 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+// Imported directly rather than read off admin.firestore: the Functions
+// emulator wraps admin.firestore in a bound copy that drops these
+// statics, so admin.firestore.Timestamp / .FieldValue are undefined there
+// (production is unaffected; the classes are the same either way).
+import {Timestamp} from "firebase-admin/firestore";
 
 // Features a doctor always keeps, even once a plan expires. Mirrors
 // DoctorFeatureGuard.baseModules in the Flutter app.
@@ -65,8 +70,8 @@ export const activateDoctorFeatures = onCall(
       String(data.transactionReference ?? "").slice(0, 128) || null;
 
     const db = admin.firestore();
-    const now = admin.firestore.Timestamp.now();
-    const validUntil = admin.firestore.Timestamp.fromDate(
+    const now = Timestamp.now();
+    const validUntil = Timestamp.fromDate(
       new Date(Date.now() + PLAN_DAYS * 24 * 60 * 60 * 1000),
     );
     const transactionId =
@@ -158,7 +163,7 @@ export const startDoctorTrial = onCall(
     const status = String(existing.status ?? "").toLowerCase();
     const rawExpires = existing.expiresDate;
     const expiresMs =
-      rawExpires instanceof admin.firestore.Timestamp ?
+      rawExpires instanceof Timestamp ?
         rawExpires.toMillis() :
         0;
     if (
@@ -175,8 +180,8 @@ export const startDoctorTrial = onCall(
       };
     }
 
-    const now = admin.firestore.Timestamp.now();
-    const validUntil = admin.firestore.Timestamp.fromDate(
+    const now = Timestamp.now();
+    const validUntil = Timestamp.fromDate(
       new Date(Date.now() + PLAN_DAYS * 24 * 60 * 60 * 1000),
     );
 

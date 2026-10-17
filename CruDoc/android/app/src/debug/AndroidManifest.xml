@@ -4,4 +4,10 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Lets a debug build reach the Firebase emulators, which speak plain
+         HTTP. Scoped to loopback addresses by the config file, and applied
+         only to debug builds because this manifest is src/debug. -->
+    <application
+        android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>

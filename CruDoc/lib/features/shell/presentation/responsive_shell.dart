@@ -1,16 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
-import 'package:doctor_management_app/core/clinic/clinic_team_api.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/mobile/mobile_shell.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell.dart';
-import 'package:doctor_management_app/features/team/presentation/join_clinic_screen.dart';
+import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Width (logical pixels) above which [DesktopShell] is shown instead of
@@ -20,7 +18,8 @@ const double kDesktopBreakpoint = 900;
 
 /// Picks between the phone [MobileShell] and [DesktopShell] based on the
 /// available width. A new doctor (no specialty, never onboarded) sees
-/// [OnboardingFlow] first.
+/// [OnboardingFlow] first. Clinic invites pop up over all of it
+/// ([ClinicInviteWatcher]).
 class ResponsiveShell extends ConsumerStatefulWidget {
   const ResponsiveShell({super.key});
 
@@ -35,13 +34,6 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
   /// updates the profile (until the doctor taps Open CruDoc).
   bool _onboarding = false;
   bool _stampChecked = false;
-
-  /// Clinic invites waiting for a new account, asked once per sign-in.
-  Future<List<ClinicInvite>>? _invites;
-  String? _invitesFor;
-
-  /// The person chose their own practice over the invites.
-  bool _ownPractice = false;
 
   /// Joined a clinic, or someone a clinic added (they skip onboarding).
   static bool _isClinicMember(Map<String, dynamic>? profile) =>
@@ -58,13 +50,23 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ClinicInviteWatcher(
+    // Joining from the pop-up (or the Join step) leaves onboarding.
+    onJoined: () => setState(() {
+      OnboardingAnswers.pending = null;
+      _onboarded = true;
+      _stampChecked = true;
+    }),
+    child: _content(context),
+  );
+
+  Widget _content(BuildContext context) {
     final profileAsync = ref.watch(doctorProfileProvider);
     // Loading or offline: open the app rather than block on the profile.
     if (profileAsync.hasValue) {
       final profile = profileAsync.value;
       if (_needsOnboarding(profile)) {
-        return _onboardingOrInvites(profile);
+        return _onboardingFlow(profile);
       }
       // An existing account never takes answers given before sign-in.
       if (profile != null) OnboardingAnswers.pending = null;
@@ -97,39 +99,6 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
           return const MobileShell();
         },
       ),
-    );
-  }
-
-  /// A new account: clinic invites waiting for its phone or email come
-  /// first; otherwise (or if they choose their own practice) onboarding.
-  Widget _onboardingOrInvites(Map<String, dynamic>? profile) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (_onboarding || _ownPractice || uid == null) {
-      return _onboardingFlow(profile);
-    }
-    if (_invitesFor != uid) {
-      _invitesFor = uid;
-      _invites = ClinicTeamApi.instance.myInvites().catchError(
-        (_) => const <ClinicInvite>[],
-      );
-    }
-    return FutureBuilder<List<ClinicInvite>>(
-      future: _invites,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return _loading(context);
-        }
-        final invites = snapshot.data ?? const <ClinicInvite>[];
-        if (invites.isEmpty) return _onboardingFlow(profile);
-        return JoinClinicScreen(
-          invites: invites,
-          onJoined: () => setState(() {
-            _onboarded = true;
-            _stampChecked = true;
-          }),
-          onSetUpOwn: () => setState(() => _ownPractice = true),
-        );
-      },
     );
   }
 

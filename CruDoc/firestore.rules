@@ -45,17 +45,211 @@ service cloud.firestore {
       return /databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid);
     }
 
+    // Reading or writing a patient's clinical record, as opposed to running
+    // the clinic. Keep in sync with CLINICAL_PERMS in functions/src/clinic.ts
+    // and clinicalPerm() in storage.rules.
+    function clinicalPerm(perm) {
+      return perm == 'clinical.view' || perm == 'clinical.edit';
+    }
+
+    // Whether this clinic's admins may reach clinical records. An absent
+    // field means a clinic created before the setting existed and is read as
+    // `true`, so a clinic whose backfill has not run is never locked out of
+    // its own records; once migrate_admin_clinical_access.js has been
+    // applied everywhere this default should become `false`. Only consulted
+    // for an admin asking for a clinical permission, so the extra get()
+    // stays off every other path.
+    function adminClinicalAllowed(clinicId) {
+      return get(/databases/$(database)/documents/clinics/$(clinicId))
+        .data.get('adminClinicalAccess', true) == true;
+    }
+
+    // The admin role carries every administrative permission but no clinical
+    // one unless the owner has granted it: being able to run the clinic is
+    // not the same as being able to read its charts. 'admin' as a pseudo-perm
+    // is administrative, so the admin role still passes it.
     function memberAllows(clinicId, perm) {
       let m = get(memberPath(clinicId)).data;
       return m.active == true
-        && (perm == 'member' || m.roleId == 'admin' || perm in m.perms);
+        && (perm == 'member'
+          || (m.roleId == 'admin'
+            ? (!clinicalPerm(perm) || adminClinicalAllowed(clinicId))
+            : perm in m.perms));
+    }
+
+    // A manager who owns the clinic (set up as "I manage the clinic", not as
+    // a doctor) carries the nonClinicalOwner claim, set by ensureClinic. They
+    // run the clinic but never open medical records — not even through the
+    // admins' clinical-access setting, which is theirs to grant to others.
+    // Read from the token, so a solo doctor, who never carries it, pays no
+    // extra document read and sees no change at all.
+    function ownerAllows(perm) {
+      return !clinicalPerm(perm)
+        || request.auth.token.get('nonClinicalOwner', false) != true;
     }
 
     // perm: a permission key, 'member' (any active member) or 'admin'
     // (not a real permission, so only the owner and the admin role pass).
+    // The owner is decided by ownerAllows alone and never falls through to
+    // the member check (no ternary, for the reason given at scopeAllowsGet).
     function clinicAllows(clinicId, perm) {
       return isAuthenticated()
-        && (request.auth.uid == clinicId || memberAllows(clinicId, perm));
+        && ((request.auth.uid == clinicId && ownerAllows(perm))
+          || (request.auth.uid != clinicId && memberAllows(clinicId, perm)));
+    }
+
+    // ------------------------------------------------------------
+    // PATIENT ASSIGNMENT
+    // ------------------------------------------------------------
+    // A clinic may scope its doctors to the patients they treat, by setting
+    // clinicalAccessScope to 'assigned'. Default 'clinic': every doctor sees
+    // every patient, which is how a small practice covers walk-ins and
+    // absences, and is what every clinic did before this field existed.
+    //
+    // Scoping applies only to doctor-kind members. The front desk needs the
+    // whole list to run the appointment book, and the owner is never scoped.
+    // A patient with no assignment stays visible to all doctors, so a newly
+    // registered walk-in is never invisible to the person about to see them.
+    //
+    // Both get() calls below resolve the same path for every document in a
+    // list query (the clinic and the caller's own member doc), so they cost
+    // one lookup each rather than one per result.
+
+    function clinicScopesDoctors(clinicId) {
+      return get(/databases/$(database)/documents/clinics/$(clinicId))
+        .data.get('clinicalAccessScope', 'clinic') == 'assigned';
+    }
+
+    function callerIsScopedDoctor(clinicId) {
+      return request.auth.uid != clinicId
+        && get(memberPath(clinicId)).data.get('kind', 'staff') == 'doctor';
+    }
+
+    // Whether scoping applies at all to this request. The caller's own member
+    // doc is checked first — clinicAllows has already read it, so it costs
+    // nothing more — and only a doctor goes on to read the clinic. Both are
+    // other documents, which a query rule can read, unlike the fields of the
+    // documents being listed.
+    function notScoped(clinicId) {
+      return !callerIsScopedDoctor(clinicId) || !clinicScopesDoctors(clinicId);
+    }
+
+    // A patient this caller may reach: nobody in particular is assigned (so
+    // a walk-in just registered at the desk is never invisible to the person
+    // about to see them), or the caller is one of the assigned doctors.
+    function assignedOrOpen(p) {
+      return !('assignedDoctorUids' in p)
+        || p.assignedDoctorUids.size() == 0
+        || request.auth.uid in p.assignedDoctorUids;
+    }
+
+    // Single-document reads and writes of a patient, where the whole stored
+    // document is available.
+    function patientScopeAllowsGet(d) {
+      return notScoped(d.doctorId) || assignedOrOpen(d);
+    }
+
+    // Queries. A rule for a query is satisfied from the query's own filters
+    // rather than by reading each result, so a field the query does not
+    // constrain is simply absent here — which means any permissive fallback
+    // on it would let an unfiltered query through. This is therefore written
+    // to deny unless the query itself narrows to the caller:
+    //   where('assignedDoctorUids', 'array-contains', uid)
+    // A scoped doctor's patient list is thus the patients assigned to them;
+    // unassigned patients remain reachable by id (see above).
+    function patientScopeAllowsList(d) {
+      return notScoped(d.doctorId)
+        || request.auth.uid in d.assignedDoctorUids;
+    }
+
+    // ---- clinical records ----------------------------------------
+    // A scoped doctor reaches a clinical record only through its patient:
+    // the same doctors who may open the patient may open their records.
+
+    function isClinicalRecord(collection) {
+      return collection in [
+        'dental_records',
+        'radiology_docs',
+        'homeopathy_case_sheets',
+        'homeopathy_session_notes',
+        'tooth_chart_entries',
+        'procedure_log_entries',
+        'treatment_plan_line_items'
+      ];
+    }
+
+    // The record's patient, which must be a patient of the same clinic — a
+    // record pointing at another clinic's patient must not borrow that
+    // patient's assignment. A missing patient fails the read, which denies:
+    // a scoped doctor never reaches a record whose patient cannot be checked.
+    function recordPatientAllows(d) {
+      let p = get(/databases/$(database)/documents/patients/$(d.patientId)).data;
+      return p.doctorId == d.doctorId && assignedOrOpen(p);
+    }
+
+    function clinicalScopeAllowsGet(d) {
+      return notScoped(d.doctorId) || recordPatientAllows(d);
+    }
+
+    // Two kinds of query pass for a scoped doctor:
+    //  - one narrowed to a single patient (where patientId == P), which is how
+    //    a patient's own screen reads their records; the patient is then known
+    //    from the query and can be checked;
+    //  - one narrowed to the caller (where assignedDoctorUids array-contains
+    //    uid), which is how the clinic-wide sync reads them. Records carry a
+    //    copy of their patient's assignment for this, kept current by the
+    //    stampClinicalAssignment / fanOutPatientAssignment functions.
+    // Any other query cannot be judged per record, and is refused.
+    function clinicalScopeAllowsList(d) {
+      return notScoped(d.doctorId)
+        || request.auth.uid in d.assignedDoctorUids
+        || recordPatientAllows(d);
+    }
+
+    // ---- who may set an assignment ---------------------------------
+    // assignedDoctorUids is server-owned: the assignPatient function checks
+    // that only active doctors are assigned and that a scoped doctor is not
+    // assigning themselves. A client may set it only when creating a
+    // patient, and then only to nobody or to itself (a doctor registering
+    // their own patient). On clinical records it is never a client's to set.
+
+    // Absent is always fine; present is allowed only on a patient, and then
+    // only as nobody or the caller alone. No ternary, for the reason given at
+    // scopeAllowsGet below.
+    function createSetsOnlySelfAssignment(collection, d) {
+      return !('assignedDoctorUids' in d)
+        || (collection == 'patients'
+          && (d.assignedDoctorUids.size() == 0
+            || (d.assignedDoctorUids.size() == 1
+              && d.assignedDoctorUids[0] == request.auth.uid)));
+    }
+
+    function updateKeepsAssignment() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['assignedDoctorUids']);
+    }
+
+    // ---- applied per collection ----------------------------------
+
+    // Written with && / || rather than `collection == 'patients' ? … : …`.
+    // The equivalent ternary made the Firestore emulator's rules engine hang
+    // on every write to `patients` (found by bisecting the rules), which
+    // would have left these rules untestable.
+    function scopeAllowsGet(collection, d) {
+      return (collection != 'patients' || patientScopeAllowsGet(d))
+        && (!isClinicalRecord(collection) || clinicalScopeAllowsGet(d));
+    }
+
+    function scopeAllowsList(collection, d) {
+      return (collection != 'patients' || patientScopeAllowsList(d))
+        && (!isClinicalRecord(collection) || clinicalScopeAllowsList(d));
+    }
+
+    // Creating a patient is never scoped (anyone with patients.edit may
+    // register one). Creating a clinical record is: it must be for a
+    // patient the caller may reach.
+    function scopeAllowsCreate(collection, d) {
+      return !isClinicalRecord(collection) || clinicalScopeAllowsGet(d);
     }
 
     function readPerm(collection) {
@@ -151,19 +345,29 @@ service cloud.firestore {
       allow get: if isDoctorOwnedCollection(collection)
         && isAuthenticated()
         && (resource == null
-          || clinicAllows(resource.data.doctorId, readPerm(collection)));
+          || (clinicAllows(resource.data.doctorId, readPerm(collection))
+            && scopeAllowsGet(collection, resource.data)));
       allow list: if isDoctorOwnedCollection(collection)
-        && clinicAllows(resource.data.doctorId, readPerm(collection));
+        && clinicAllows(resource.data.doctorId, readPerm(collection))
+        && scopeAllowsList(collection, resource.data);
       allow create: if isDoctorOwnedCollection(collection)
-        && clinicAllows(request.resource.data.doctorId, writePerm(collection));
+        && clinicAllows(request.resource.data.doctorId, writePerm(collection))
+        && createSetsOnlySelfAssignment(collection, request.resource.data)
+        && scopeAllowsCreate(collection, request.resource.data);
       // doctorId can't be changed, so a record can't move between clinics.
+      // A clinical record is checked against its patient both before and
+      // after, so it cannot be moved onto a patient the caller cannot reach.
       allow update: if isDoctorOwnedCollection(collection)
         && request.resource.data.doctorId == resource.data.doctorId
-        && clinicAllows(resource.data.doctorId, writePerm(collection));
+        && clinicAllows(resource.data.doctorId, writePerm(collection))
+        && updateKeepsAssignment()
+        && scopeAllowsGet(collection, resource.data)
+        && scopeAllowsCreate(collection, request.resource.data);
       allow delete: if isDoctorOwnedCollection(collection)
         && isAuthenticated()
         && (resource == null
-          || clinicAllows(resource.data.doctorId, writePerm(collection)));
+          || (clinicAllows(resource.data.doctorId, writePerm(collection))
+            && scopeAllowsGet(collection, resource.data)));
     }
 
     // ============================================================
@@ -526,8 +730,17 @@ service cloud.firestore {
       // Everything a doctor keeps under their own profile: device sessions,
       // scribe notes (medical_records), campaigns and their recipients, and
       // the legacy per-doctor subcollections.
+      // clinic_invites is the exception: only the clinicTeam function writes
+      // a person's invite inbox (see below), so it can't be faked to them.
       match /{subcollection}/{rest=**} {
-        allow read, write: if isSelf(userId);
+        allow read, write: if isSelf(userId) && subcollection != 'clinic_invites';
+      }
+
+      // Clinic invites waiting for this person. Their app listens here so an
+      // invite pops up the moment it is sent; accepting still goes through
+      // the clinicTeam function, which checks the real invite.
+      match /clinic_invites/{inviteId} {
+        allow read: if isSelf(userId);
       }
 
       // Super Admin can see and revoke a doctor's device sessions.

@@ -95,6 +95,21 @@ class PatientRepository {
     return out;
   }
 
+  /// Who a new patient is assigned to.
+  ///
+  /// A doctor confined to their own patients gets the patient they register:
+  /// otherwise it would be unassigned, so absent from their own patient list
+  /// the moment it synced. Anyone else starts it unassigned (the front desk
+  /// assigns afterwards, through assignPatient). The rules allow a client
+  /// exactly these two values on create — nobody, or itself.
+  static List<String> _initialAssignment(Patient patient) {
+    final access = ClinicSession.instance.access;
+    if (access != null && access.scopedToAssignedPatients) {
+      return [access.uid];
+    }
+    return const [];
+  }
+
   /// Creates a new patient and returns the newly assigned patient id.
   Future<String> createPatient(Patient patient) async {
     _validate(patient);
@@ -116,6 +131,7 @@ class PatientRepository {
       isArchived: patient.isArchived,
       createdAt: now,
       updatedAt: now,
+      assignedDoctorUids: _initialAssignment(patient),
     );
 
     if (kIsWeb) {
@@ -225,7 +241,13 @@ class PatientRepository {
             _decryptedFromFirestore(doc.data()!),
             id: doc.id,
           );
-          await _localService.upsertPatient(p, syncStatus: 'synced');
+          // Mark it as having come from the server: without a lastSyncedAt a
+          // later edit would be taken for this device's own first upload.
+          await _localService.upsertPatient(
+            p,
+            syncStatus: 'synced',
+            lastSyncedAt: DateTime.now().millisecondsSinceEpoch,
+          );
           return p;
         }
       }
@@ -257,12 +279,7 @@ class PatientRepository {
 
       // Now yield from the Firestore snapshot stream and do synchronous
       // mapping/decryption using FieldCipher which relies on the loaded key.
-      yield* FirebaseFirestore.instance
-          .collection('patients')
-          .where(
-            'doctorId',
-            isEqualTo: ClinicSession.instance.access?.clinicId ?? user.uid,
-          )
+      yield* _scopedPatientQuery(user.uid)
           .snapshots()
           .map((snapshot) {
             final list = snapshot.docs
@@ -281,6 +298,27 @@ class PatientRepository {
       // Mobile: stream from local database.
       yield* _localService.watchPatients();
     }
+  }
+
+  /// The clinic's patients, narrowed to the signed-in person's own when the
+  /// clinic scopes its doctors to the patients they treat.
+  ///
+  /// The narrowing is not cosmetic: a rule for a query is satisfied from the
+  /// query's own filters, so without `array-contains` here the rules refuse
+  /// the read outright rather than returning a subset. See
+  /// `patientScopeAllowsList` in firestore.rules.
+  Query<Map<String, dynamic>> _scopedPatientQuery(String fallbackUid) {
+    final access = ClinicSession.instance.access;
+    final query = FirebaseFirestore.instance
+        .collection('patients')
+        .where('doctorId', isEqualTo: access?.clinicId ?? fallbackUid);
+    if (access != null && access.scopedToAssignedPatients) {
+      return query.where(
+        'assignedDoctorUids',
+        arrayContains: access.uid,
+      );
+    }
+    return query;
   }
 
   /// Fetches all active patients once.
@@ -304,13 +342,7 @@ class PatientRepository {
           ClinicSession.instance.access?.clinicId ?? user.uid,
         );
       }
-      final snap = await FirebaseFirestore.instance
-          .collection('patients')
-          .where(
-            'doctorId',
-            isEqualTo: ClinicSession.instance.access?.clinicId ?? user.uid,
-          )
-          .get();
+      final snap = await _scopedPatientQuery(user.uid).get();
 
       final list = snap.docs
           .map(

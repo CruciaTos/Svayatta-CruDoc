@@ -13,6 +13,7 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/features/team/presentation/activity_log_view.dart';
+import 'package:doctor_management_app/features/team/presentation/admin_clinical_access_card.dart';
 import 'package:doctor_management_app/features/team/presentation/features_checklist.dart';
 import 'package:doctor_management_app/features/team/presentation/invite_sheet.dart';
 import 'package:doctor_management_app/features/team/presentation/member_sheet.dart';
@@ -45,13 +46,23 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
     });
     final user = FirebaseAuth.instance.currentUser;
     final profile = ref.read(doctorProfileProvider).value;
+    // What the person said during onboarding, when the clinic could not be
+    // set up there and then. Absent (an older account) means a doctor-owner,
+    // which is how every clinic was set up before the question existed.
+    final onboarding = profile?['onboarding'];
+    final answers = onboarding is Map ? onboarding : const {};
+    final ownerIsDoctor = answers['ownerIsDoctor'] != false;
+    final givenName = (answers['clinicName'] as String?)?.trim() ?? '';
     try {
       await ClinicTeamApi.instance.ensureClinic(
-        clinicName:
-            DoctorProfileHelper.tryFormatClinicName(user, profile) ?? '',
+        clinicName: givenName.isNotEmpty
+            ? givenName
+            : DoctorProfileHelper.tryFormatClinicName(user, profile) ?? '',
         ownerName: DoctorProfileHelper.formatDoctorName(user, profile),
         specialty: ref.read(activeDoctorSpecialtyProvider).value?.label ?? '',
+        ownerIsDoctor: ownerIsDoctor,
       );
+      if (!ownerIsDoctor) await user?.getIdToken(true);
       await ClinicSession.instance.reload();
     } on ClinicTeamException catch (e) {
       if (mounted) setState(() => _setupError = e.message);
@@ -122,7 +133,7 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
                   ),
                   const SizedBox(width: CruSpace.s16),
                   CruButton(
-                    label: 'Invite',
+                    label: 'Add person',
                     onPressed: () => showInviteDialog(context),
                   ),
                 ],
@@ -146,6 +157,12 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
           _TeamTab.roles => const RolesView(),
           _TeamTab.activity => const ActivityLogView(),
         },
+        // Owner-only, and only once the clinic has an admin other than the
+        // owner; the card hides itself otherwise.
+        if (_tab == _TeamTab.members) ...[
+          const SizedBox(height: CruSpace.cardGap),
+          AdminClinicalAccessCard(me: me, clinic: clinic, members: members),
+        ],
       ],
     );
   }
@@ -163,6 +180,8 @@ class _MembersView extends ConsumerWidget {
         .where((m) => m.active)
         .toList();
     final invites = ref.watch(clinicInvitesProvider).value ?? const [];
+    final declined =
+        ref.watch(clinicDeclinedInvitesProvider).value ?? const [];
 
     Widget memberRow(ClinicMember m) {
       final self = m.uid == me.uid;
@@ -203,11 +222,23 @@ class _MembersView extends ConsumerWidget {
       ),
     );
 
+    Widget declinedRow(ClinicInvite i) => TeamRow(
+      monogram: i.name.isEmpty ? '?' : i.name,
+      title: i.name.isEmpty ? (i.phone.isEmpty ? i.email : i.phone) : i.name,
+      detail: [
+        if (i.phone.isNotEmpty) i.phone else if (i.email.isNotEmpty) i.email,
+        if (i.roleName.isNotEmpty) i.roleName,
+      ].join(' · '),
+      trailing: Text('Declined', style: CruType.caption.tint(c.label3)),
+    );
+
     List<Widget> group(MemberKind kind) => [
       for (final m in members)
         if (m.kind == kind) memberRow(m),
       for (final i in invites)
         if (i.kind == kind) inviteRow(i),
+      for (final i in declined)
+        if (i.kind == kind) declinedRow(i),
     ];
 
     final doctorRows = group(MemberKind.doctor);

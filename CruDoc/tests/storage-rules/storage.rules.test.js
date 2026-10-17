@@ -1,5 +1,13 @@
-// Run with the storage emulator up, from CruDoc/:
-//   firebase emulators:exec --only storage "npm test --prefix tests/storage-rules"
+// Run from CruDoc/:
+//   firebase emulators:exec --only storage,firestore --project demo-crudoc \
+//     "npm test --prefix tests/storage-rules"
+//
+// Both emulators are needed: storage.rules resolves clinic membership by
+// reading clinics/{id}/members/{uid} through firestore.get(). The project id
+// must be the one initializeTestEnvironment() uses below — the Storage
+// emulator resolves that cross-service read against the *emulator's* project,
+// so running under a different --project makes every membership lookup come
+// back null and six tests fail as if the clinic rules were broken.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
@@ -302,6 +310,115 @@ it('loads the rules file', () => {
   assert.match(readFileSync(RULES, 'utf8'), /service firebase\.storage/);
 });
 
+describe('a manager who owns the clinic, in storage', () => {
+  const manager = () =>
+    env.authenticatedContext(A, { nonClinicalOwner: true }).storage();
+  const patientFile = `doctors/${A}/patients/p1/x.pdf`;
+  const avatar = `doctors/${A}/patients/p1/avatar/a.jpg`;
+  const invoice = `doctors/${A}/patients/p1/invoices/i.pdf`;
+  const branding = `doctors/${A}/clinic/branding/logo.png`;
+  const receipt = `doctors/${A}/inventory-receipts/r1.pdf`;
+  const backup = `doctors/${A}/backups/b1.enc`;
+
+  beforeEach(async () => {
+    await seedFirestore(`clinics/${A}`, { name: 'Clinic A', ownerUid: A, ownerIsDoctor: false });
+  });
+
+  it('cannot read, write or delete patient files, by either rule', async () => {
+    await seed(patientFile);
+    await assertFails(getBytes(ref(manager(), patientFile)));
+    await assertFails(uploadBytes(ref(manager(), patientFile), bytes(), pdf));
+    await assertFails(deleteObject(ref(manager(), patientFile)));
+  });
+
+  it('still handles photos, invoices, branding, stock receipts and backups', async () => {
+    await seed(avatar, 'image/jpeg');
+    await seed(invoice);
+    await seed(branding, 'image/png');
+    await seed(receipt);
+    await seed(backup, 'application/octet-stream');
+    await assertSucceeds(getBytes(ref(manager(), avatar)));
+    await assertSucceeds(getBytes(ref(manager(), invoice)));
+    await assertSucceeds(getBytes(ref(manager(), branding)));
+    await assertSucceeds(getBytes(ref(manager(), receipt)));
+    await assertSucceeds(getBytes(ref(manager(), backup)));
+  });
+
+  it('leaves a doctor-owner with full access', async () => {
+    await seed(patientFile);
+    await assertSucceeds(getBytes(ref(as(A), patientFile)));
+  });
+});
+
+describe('admin clinical access in storage', () => {
+  const MGR = 'manager-1';
+  const patientFile = `doctors/${A}/patients/p1/x.pdf`;
+  const branding = `doctors/${A}/clinic/branding/logo.png`;
+  const receipt = `doctors/${A}/inventory-receipts/r1.pdf`;
+  const backup = `doctors/${A}/backups/b1.enc`;
+  const stray = `doctors/${A}/exports/export-1.csv`;
+
+  async function seedClinic(flag) {
+    const clinicDoc = { name: 'Clinic A', ownerUid: A };
+    if (flag !== undefined) clinicDoc.adminClinicalAccess = flag;
+    await seedFirestore(`clinics/${A}`, clinicDoc);
+    await seedFirestore(`clinics/${A}/members/${MGR}`, {
+      active: true,
+      roleId: 'admin',
+      perms: [],
+      name: 'Practice Manager',
+    });
+  }
+
+  it('keeps a restricted admin out of patient files, including via the catch-all', async () => {
+    // Storage rules are OR'd, so the doctors/{id}/** catch-all previously
+    // handed an admin every patient file regardless of the clinical rule.
+    await seedClinic(false);
+    await seed(patientFile);
+    await assertFails(getBytes(ref(as(MGR), patientFile)));
+    await assertFails(uploadBytes(ref(as(MGR), patientFile), bytes(), pdf));
+    await assertFails(deleteObject(ref(as(MGR), patientFile)));
+    // A path matched only by the catch-all is closed to them as well, since
+    // the catch-all spans patient folders and cannot be granted piecemeal.
+    await seed(stray, 'text/csv');
+    await assertFails(getBytes(ref(as(MGR), stray)));
+  });
+
+  it('still lets a restricted admin handle branding, inventory and backups', async () => {
+    await seedClinic(false);
+    await seed(branding, 'image/png');
+    await seed(receipt);
+    await seed(backup, 'application/octet-stream');
+
+    await assertSucceeds(getBytes(ref(as(MGR), branding)));
+    await assertSucceeds(
+      uploadBytes(ref(as(MGR), branding), bytes(), { contentType: 'image/png' }),
+    );
+    await assertSucceeds(getBytes(ref(as(MGR), receipt)));
+    await assertSucceeds(getBytes(ref(as(MGR), backup)));
+  });
+
+  it('lets an admin reach patient files once the clinic grants it', async () => {
+    await seedClinic(true);
+    await seed(patientFile);
+    await assertSucceeds(getBytes(ref(as(MGR), patientFile)));
+  });
+
+  it('reads an absent flag permissively for an un-backfilled clinic', async () => {
+    await seedClinic(undefined);
+    await seed(patientFile);
+    await assertSucceeds(getBytes(ref(as(MGR), patientFile)));
+  });
+
+  it('never restricts the owner', async () => {
+    await seedClinic(false);
+    await seed(patientFile);
+    await seed(stray, 'text/csv');
+    await assertSucceeds(getBytes(ref(as(A), patientFile)));
+    await assertSucceeds(getBytes(ref(as(A), stray)));
+  });
+});
+
 describe('clinic members in storage', () => {
   const RECEP = 'recep-1';
   const CLINICAL = 'clinical-1';
@@ -442,10 +559,20 @@ describe('patient-files (Files screen)', () => {
     );
   });
 
-  it('is write-once and named "original"', async () => {
+  it('is named "original"', async () => {
+    await assertSucceeds(uploadBytes(ref(as(A), path()), bytes(), jpeg));
+    await assertFails(uploadBytes(ref(as(A), `patient-files/${A}/p1/x2/opg.jpg`), bytes(), jpeg));
+  });
+
+  // The rule grants `create` and never `update`, so overwriting an uploaded
+  // file must be refused. The Storage *emulator* does not distinguish create
+  // from update on an overwrite: a create-only rule still lets a second
+  // upload to the same path through, so this cannot be asserted locally.
+  // Verified by probe, not assumption. Re-check against a real project
+  // (staging) whenever the patient-files rules change.
+  it.skip('is write-once [emulator cannot enforce create-vs-update]', async () => {
     await assertSucceeds(uploadBytes(ref(as(A), path()), bytes(), jpeg));
     await assertFails(uploadBytes(ref(as(A), path()), bytes(), jpeg));
-    await assertFails(uploadBytes(ref(as(A), `patient-files/${A}/p1/x2/opg.jpg`), bytes(), jpeg));
   });
 
   it('follows the record: private stays private, team sharing opens it', async () => {

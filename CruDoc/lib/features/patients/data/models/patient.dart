@@ -35,6 +35,16 @@ class Patient {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// The doctors treating this patient, in a clinic that scopes its doctors
+  /// to the patients they treat (`clinics/{id}.clinicalAccessScope` set to
+  /// `'assigned'`). Empty means nobody in particular: the patient stays
+  /// readable by every doctor, so a walk-in just registered at the desk is
+  /// never invisible to the person about to see them.
+  ///
+  /// Ignored entirely in a clinic-wide clinic, which is the default.
+  /// Enforced by firestore.rules; see `patientScopeAllowsGet`.
+  final List<String> assignedDoctorUids;
+
   /// A patient may have at most this many diagnoses recorded.
   static const int maxDiagnoses = 4;
 
@@ -53,6 +63,7 @@ class Patient {
     required this.isArchived,
     required this.createdAt,
     required this.updatedAt,
+    this.assignedDoctorUids = const [],
   });
 
   /// Convenience getter for display purposes.
@@ -97,7 +108,40 @@ class Patient {
       isArchived: map['isArchived'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
+      assignedDoctorUids: assignedFromStored(map['assignedDoctorUids']),
     );
+  }
+
+  /// Encodes for the SQLite column, which holds a JSON array (or '' for
+  /// none, so the column can stay NOT NULL with a simple default).
+  static String assignedToStored(List<String> uids) {
+    final cleaned = uids
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toSet()
+        .toList();
+    return cleaned.isEmpty ? '' : jsonEncode(cleaned);
+  }
+
+  /// Accepts a Firestore list or the JSON string SQLite holds.
+  static List<String> assignedFromStored(Object? value) {
+    if (value is Iterable) {
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList();
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Iterable) return assignedFromStored(decoded);
+      } catch (_) {
+        // Not JSON: treat it as a single uid.
+        return [value.trim()];
+      }
+    }
+    return const [];
   }
 
   /// Converts this [Patient] into a Firestore-writable map.
@@ -117,6 +161,7 @@ class Patient {
       'isArchived': isArchived,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'assignedDoctorUids': assignedDoctorUids,
     };
   }
 
@@ -133,10 +178,12 @@ class Patient {
     bool? isArchived,
     DateTime? createdAt,
     DateTime? updatedAt,
+    List<String>? assignedDoctorUids,
   }) {
     return Patient(
       id: id,
       doctorId: doctorId,
+      assignedDoctorUids: assignedDoctorUids ?? this.assignedDoctorUids,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       phone: phone ?? this.phone,

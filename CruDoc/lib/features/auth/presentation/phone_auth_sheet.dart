@@ -2,17 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+/// The grab handle at the top of the sheet.
+const double _kHandleWidth = 36;
+const double _kHandleHeight = 4;
 
 /// A bottom-sheet that handles Phone Number → OTP verification.
 ///
 /// Returns a [UserCredential] via `Navigator.pop` on success, or null if
 /// the user dismisses the sheet.
+///
+/// With [linkToCurrentUser], the number is added to the account that is
+/// already signed in (email or Google) instead of signing in with it.
 class PhoneAuthSheet extends StatefulWidget {
-  const PhoneAuthSheet({super.key, required this.authService});
+  const PhoneAuthSheet({
+    super.key,
+    required this.authService,
+    this.linkToCurrentUser = false,
+  });
 
   final AuthService authService;
+  final bool linkToCurrentUser;
 
   @override
   State<PhoneAuthSheet> createState() => _PhoneAuthSheetState();
@@ -52,7 +64,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   Future<void> _sendOTP({bool resend = false}) async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty || phone.length < 7) {
-      setState(() => _errorText = 'Enter a valid phone number');
+      setState(() => _errorText = 'Enter your 10-digit mobile number.');
       return;
     }
 
@@ -78,10 +90,19 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
         onAutoVerified: (credential) async {
           // Android auto-retrieval — sign in automatically
           try {
-            final userCredential = await FirebaseAuth.instance
-                .signInWithCredential(credential);
+            final userCredential = widget.linkToCurrentUser
+                ? await widget.authService.linkPhoneCredential(credential)
+                : await FirebaseAuth.instance.signInWithCredential(credential);
             if (!mounted) return;
             Navigator.of(context).pop(userCredential);
+          } on FirebaseAuthException catch (e) {
+            if (!mounted) return;
+            setState(() {
+              _errorText = widget.linkToCurrentUser
+                  ? phoneLinkErrorMessage(e)
+                  : 'Auto-verification failed: ${e.message}';
+              _isLoading = false;
+            });
           } catch (e) {
             if (!mounted) return;
             setState(() {
@@ -93,7 +114,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
         onError: (e) {
           if (!mounted) return;
           setState(() {
-            _errorText = e.message ?? 'Failed to send OTP';
+            _errorText = e.message ?? "Couldn't send the code. Try again.";
             _isLoading = false;
           });
         },
@@ -101,7 +122,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorText = 'Failed to send OTP: $e';
+        _errorText = "Couldn't send the code. Check the connection and try again.";
         _isLoading = false;
       });
     }
@@ -110,7 +131,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   Future<void> _verifyOTP() async {
     final code = _otpController.text.trim();
     if (code.length != 6) {
-      setState(() => _errorText = 'Enter the 6-digit OTP');
+      setState(() => _errorText = 'Enter the 6-digit code.');
       return;
     }
 
@@ -120,37 +141,61 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
     });
 
     try {
-      final userCredential = await widget.authService.verifyOTP(
-        verificationId: _verificationId!,
-        smsCode: code,
-      );
+      final userCredential = widget.linkToCurrentUser
+          ? await widget.authService.linkPhone(
+              verificationId: _verificationId!,
+              smsCode: code,
+            )
+          : await widget.authService.verifyOTP(
+              verificationId: _verificationId!,
+              smsCode: code,
+            );
       if (!mounted) return;
       Navigator.of(context).pop(userCredential);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorText = e.message ?? 'Invalid OTP';
+        _errorText = widget.linkToCurrentUser
+            ? phoneLinkErrorMessage(e)
+            : e.message ?? "That code didn't work. Check it and try again.";
         _isLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorText = 'Verification failed: $e';
+        _errorText = "Couldn't check the code. Try again.";
         _isLoading = false;
       });
     }
   }
 
+  void _changeNumber() => setState(() {
+    _otpSent = false;
+    _verificationId = null;
+    _otpController.clear();
+    _errorText = null;
+  });
+
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
+    final number = '$_countryCode ${_phoneController.text.trim()}';
+    final title = _otpSent
+        ? 'Enter the code'
+        : widget.linkToCurrentUser
+        ? 'Confirm your number'
+        : 'Sign in with your phone';
+    final lead = _otpSent
+        ? 'We sent a 6-digit code to $number.'
+        : widget.linkToCurrentUser
+        ? 'Clinics that invite this number can then find you.'
+        : "We'll text you a one-time code.";
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF087DFF), Color(0xFF075BCE)],
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
         ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         child: Padding(
@@ -158,246 +203,107 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              CruSpace.s12,
+              CruSpace.s20,
+              CruSpace.s20,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Drag handle
-                Container(
-                  width: 44,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(999),
+                Center(
+                  child: Container(
+                    width: _kHandleWidth,
+                    height: _kHandleHeight,
+                    decoration: ShapeDecoration(
+                      color: c.separator,
+                      shape: const StadiumBorder(),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                // Title
-                Text(
-                  _otpSent ? 'Enter OTP' : 'Phone Sign-In',
-                  style: const TextStyle(
-                    fontFamily: AppColors.headingFontFamily,
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+                const SizedBox(height: CruSpace.s20),
+                Semantics(
+                  header: true,
+                  child: Text(title, style: CruType.title.tint(c.label)),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  _otpSent
-                      ? 'We sent a code to $_countryCode ${_phoneController.text.trim()}'
-                      : 'Enter your phone number to receive a one-time code',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                if (!_otpSent) ...[
-                  // Phone number input
-                  Row(
-                    children: [
-                      // Country code
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 13,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _countryCode,
-                          style: const TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Phone field
-                      Expanded(
-                        child: TextField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          style: const TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(10),
-                          ],
-                          decoration: InputDecoration(
-                            hintText: 'Phone number',
-                            hintStyle: TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              color: Colors.white.withValues(alpha: 0.4),
-                              fontSize: 13,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 13,
-                            ),
-                          ),
-                        ),
-                      ),
+                const SizedBox(height: CruSpace.s4),
+                Text(lead, style: CruType.text.tabular.tint(c.label2)),
+                const SizedBox(height: CruSpace.s20),
+                if (!_otpSent)
+                  CruTextField(
+                    key: const ValueKey('phone'),
+                    label: 'Phone number',
+                    controller: _phoneController,
+                    prefix: _countryCode,
+                    keyboardType: TextInputType.phone,
+                    tabular: true,
+                    autofocus: true,
+                    autofillHints: const [
+                      AutofillHints.telephoneNumberNational,
                     ],
-                  ),
-                ] else ...[
-                  // OTP input
-                  TextField(
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _isLoading ? null : _sendOTP(),
+                  )
+                else ...[
+                  CruTextField(
+                    key: const ValueKey('code'),
+                    label: 'Code',
                     controller: _otpController,
                     keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 12,
-                    ),
+                    tabular: true,
+                    autofocus: true,
+                    autofillHints: const [AutofillHints.oneTimeCode],
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(6),
                     ],
-                    decoration: InputDecoration(
-                      hintText: '• • • • • •',
-                      hintStyle: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 24,
-                        letterSpacing: 12,
-                      ),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 16,
-                      ),
-                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _isLoading ? null : _verifyOTP(),
                   ),
-                  const SizedBox(height: 12),
-                  // Resend button
-                  GestureDetector(
-                    onTap: _resendCountdown > 0
-                        ? null
-                        : () => _sendOTP(resend: true),
-                    child: Text(
-                      _resendCountdown > 0
-                          ? 'Resend in ${_resendCountdown}s'
-                          : 'Resend OTP',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: _resendCountdown > 0
-                            ? Colors.white.withValues(alpha: 0.4)
-                            : Colors.white.withValues(alpha: 0.9),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                  const SizedBox(height: CruSpace.s8),
+                  Row(
+                    children: [
+                      if (_resendCountdown > 0)
+                        Text(
+                          'Resend in ${_resendCountdown}s',
+                          style: CruType.text.tabular.tint(c.label3),
+                        )
+                      else
+                        CruLink(
+                          label: 'Resend code',
+                          onPressed: () => _sendOTP(resend: true),
+                        ),
+                      const Spacer(),
+                      CruLink(
+                        label: 'Change number',
+                        onPressed: _changeNumber,
                       ),
-                    ),
+                    ],
                   ),
                 ],
-
-                // Error text
                 if (_errorText != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _errorText!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      color: Colors.redAccent.shade100,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  const SizedBox(height: CruSpace.s12),
+                  Text(_errorText!, style: CruType.text.tint(c.label)),
                 ],
-
-                const SizedBox(height: 20),
-
-                // Primary button
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : _otpSent
-                        ? _verifyOTP
-                        : _sendOTP,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.white.withValues(alpha: 0.5),
-                      foregroundColor: const Color(0xFF087DFF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: Color(0xFF087DFF),
-                            ),
-                          )
-                        : Text(
-                            _otpSent ? 'Verify OTP' : 'Send OTP',
-                            style: const TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                  ),
+                const SizedBox(height: CruSpace.s20),
+                CruButton(
+                  label: _isLoading
+                      ? (_otpSent ? 'Checking…' : 'Sending…')
+                      : (_otpSent ? 'Verify' : 'Send code'),
+                  large: true,
+                  expand: true,
+                  onPressed: _isLoading
+                      ? null
+                      : _otpSent
+                      ? _verifyOTP
+                      : _sendOTP,
                 ),
-
-                if (_otpSent) ...[
-                  const SizedBox(height: 12),
-                  // Change number
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _otpSent = false;
-                        _verificationId = null;
-                        _otpController.clear();
-                        _errorText = null;
-                      });
-                    },
-                    child: Text(
-                      'Change phone number',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -411,14 +317,15 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
 Future<UserCredential?> showPhoneAuthSheet(
   BuildContext context, {
   required AuthService authService,
+  bool linkToCurrentUser = false,
 }) {
   return showModalBottomSheet<UserCredential>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    builder: (_) => PhoneAuthSheet(
+      authService: authService,
+      linkToCurrentUser: linkToCurrentUser,
     ),
-    builder: (_) => PhoneAuthSheet(authService: authService),
   );
 }

@@ -1,23 +1,29 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_invites.dart';
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_team_api.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dental/dental_features.dart';
 import 'package:doctor_management_app/features/dental/presentation/dental_features_picker.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
+import 'package:doctor_management_app/features/team/presentation/contact_invite_picker.dart';
 import 'package:doctor_management_app/features/team/presentation/features_checklist.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-enum _Contact { phone, email }
-
+/// Adds a doctor or staff member to the clinic by inviting their phone
+/// number. Someone already on CruDoc sees the invite in the app straight
+/// away; anyone else is sent the invite message (WhatsApp, SMS or email)
+/// and finds it waiting when they sign up with that number. On a phone the
+/// admin can pick the person from their contacts.
 Future<void> showInviteDialog(BuildContext context) =>
     showDialog<void>(context: context, builder: (_) => const InviteDialog());
 
-/// Invites a doctor or staff member by phone or email. They join by
-/// signing in to CruDoc with that number or address within 7 days.
 class InviteDialog extends ConsumerStatefulWidget {
   const InviteDialog({super.key});
 
@@ -27,8 +33,7 @@ class InviteDialog extends ConsumerStatefulWidget {
 
 class _InviteDialogState extends ConsumerState<InviteDialog> {
   final _name = TextEditingController();
-  final _contactValue = TextEditingController();
-  _Contact _contact = _Contact.phone;
+  final _phone = TextEditingController();
   MemberKind _kind = MemberKind.staff;
   String? _roleId;
   DoctorSpecialty? _specialty;
@@ -37,23 +42,45 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
   bool _busy = false;
   String? _notice;
 
-  /// Set once the invite is sent: the dialog then says what happens next.
+  /// Set once the invite is saved: the dialog then says what happens next.
+  InviteResult? _result;
+
+  /// The invited number in E.164.
   String? _sentTo;
 
   @override
   void dispose() {
     _name.dispose();
-    _contactValue.dispose();
+    _phone.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickContact() async {
+    final clinicId = ref.read(clinicAccessProvider).value?.clinicId;
+    if (clinicId == null) return;
+    final picked = await pickContactToInvite(context, clinicId: clinicId);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _name.text = picked.name;
+      _phone.text = invitePhoneForForm(picked.phone);
+      _notice = null;
+    });
   }
 
   Future<void> _send(ClinicRole? role) async {
     final clinicId = ref.read(clinicAccessProvider).value?.clinicId;
     final name = _name.text.trim();
-    final contact = _contactValue.text.trim();
     if (clinicId == null || role == null) return;
-    if (name.isEmpty || contact.isEmpty) {
-      setState(() => _notice = 'Add a name and a phone number or email.');
+    if (name.isEmpty || _phone.text.trim().isEmpty) {
+      setState(() => _notice = 'Add a name and a phone number.');
+      return;
+    }
+    final phone = invitePhoneE164(_phone.text);
+    if (phone == null) {
+      setState(
+        () => _notice = 'Enter a 10-digit mobile number, or the full number '
+            'starting with +.',
+      );
       return;
     }
     if (_kind == MemberKind.doctor && _specialty == null) {
@@ -68,18 +95,22 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
       final dentist =
           _kind == MemberKind.doctor &&
           _specialty?.type == DoctorSpecialtyType.dentist;
-      await ClinicTeamApi.instance.invite(
+      final result = await ClinicTeamApi.instance.invite(
         clinicId: clinicId,
         name: name,
-        phone: _contact == _Contact.phone ? contact : null,
-        email: _contact == _Contact.email ? contact : null,
+        phone: phone,
         kind: _kind,
         roleId: role.id,
         specialty: _kind == MemberKind.doctor ? _specialty?.label : null,
         modules: _modules?.toList(),
         dentalFeatures: dentist ? [for (final f in _dental) f.key] : null,
       );
-      if (mounted) setState(() => _sentTo = contact);
+      if (mounted) {
+        setState(() {
+          _sentTo = phone;
+          _result = result;
+        });
+      }
     } on ClinicTeamException catch (e) {
       if (mounted) setState(() => _notice = e.message);
     } finally {
@@ -87,23 +118,113 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  String _clinicName() => ref.read(activeClinicProvider).value?.name ?? '';
+
+  String _message() {
+    final profile = ref.read(doctorProfileProvider).value;
+    final inviter = switch (profile?['displayName']) {
+      final String n when n.trim().isNotEmpty && n != 'Doctor' => n,
+      _ => FirebaseAuth.instance.currentUser?.displayName ?? '',
+    };
+    return buildInviteMessage(
+      inviteeName: _name.text.trim(),
+      inviterName: inviter,
+      clinicName: _clinicName(),
+      phone: _sentTo ?? '',
+    );
+  }
+
+  Future<void> _open(String url) async {
+    var ok = false;
+    try {
+      ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    } catch (_) {}
+    if (!ok && mounted) {
+      setState(() => _notice = "Couldn't open that app on this device.");
+    }
+  }
+
+  Widget _doneView(BuildContext context) {
     final c = context.cru;
-    if (_sentTo != null) {
-      final name = _name.text.trim();
+    final name = _name.text.trim();
+    final to = _sentTo ?? '';
+    if (_result!.onCruDoc) {
       return CruFormDialog(
         title: 'Invite sent',
         submitLabel: 'Done',
         cancelLabel: 'Close',
         onSubmit: () => Navigator.of(context).pop(),
         body: Text(
-          'Ask $name to sign in to CruDoc with $_sentTo. '
-          'The invite lasts 7 days.',
+          "Invite sent to $name. They'll see it in CruDoc.",
           style: CruType.text.tint(c.label2),
         ),
       );
     }
+    final text = _message();
+    final body = Uri.encodeComponent(text);
+    final clinic = _clinicName();
+    final subject = Uri.encodeComponent(
+      clinic.isEmpty ? 'Join us on CruDoc' : 'Join $clinic on CruDoc',
+    );
+    return CruFormDialog(
+      title: 'Send the invite',
+      submitLabel: 'Done',
+      cancelLabel: 'Close',
+      notice: _notice,
+      onSubmit: () => Navigator.of(context).pop(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            "$name isn't on CruDoc yet. Send them this message. When they "
+            'sign up with $to, the invite will be waiting.',
+            style: CruType.text.tint(c.label2),
+          ),
+          const SizedBox(height: CruSpace.s12),
+          Container(
+            padding: const EdgeInsets.all(CruSpace.s12),
+            decoration: ShapeDecoration(
+              color: c.inset,
+              shape: cruShape(CruRadius.control),
+            ),
+            child: SelectableText(text, style: CruType.text.tint(c.label)),
+          ),
+          const SizedBox(height: CruSpace.s16),
+          Wrap(
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
+            children: [
+              CruButton(
+                label: 'WhatsApp',
+                icon: CruIcons.whatsapp,
+                kind: CruButtonKind.inset,
+                onPressed: () => _open(
+                  'https://wa.me/${to.replaceAll(RegExp(r'\D'), '')}?text=$body',
+                ),
+              ),
+              CruButton(
+                label: 'SMS',
+                icon: CruIcons.phone,
+                kind: CruButtonKind.inset,
+                onPressed: () => _open('sms:$to?body=$body'),
+              ),
+              CruButton(
+                label: 'Email',
+                icon: CruIcons.arrowUpRight,
+                kind: CruButtonKind.inset,
+                onPressed: () => _open('mailto:?subject=$subject&body=$body'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    if (_result != null) return _doneView(context);
 
     final me = ref.watch(clinicAccessProvider).value;
     final clinic = ref.watch(activeClinicProvider).value;
@@ -121,8 +242,9 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
         : choosableModules(clinic, role);
 
     return CruFormDialog(
-      title: 'Invite to your clinic',
-      subtitle: 'They join by signing in with this phone number or email.',
+      title: 'Add a person',
+      subtitle: 'Invite them by phone number. They join from CruDoc on '
+          'their phone.',
       submitLabel: _busy ? 'Sending…' : 'Send invite',
       busy: _busy,
       notice: _notice,
@@ -130,32 +252,29 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (contactMatchingSupported) ...[
+            CruButton(
+              label: 'Choose from contacts',
+              icon: CruIcons.userPlus,
+              kind: CruButtonKind.inset,
+              expand: true,
+              onPressed: _busy ? null : _pickContact,
+            ),
+            const SizedBox(height: CruSpace.s16),
+          ],
           CruTextField(
             label: 'Name',
             controller: _name,
             textCapitalization: TextCapitalization.words,
           ),
-          const SizedBox(height: CruSpace.s16),
-          CruSegmentedControl<_Contact>(
-            segments: const [
-              CruSegment(_Contact.phone, 'Phone'),
-              CruSegment(_Contact.email, 'Email'),
-            ],
-            selected: _contact,
-            onChanged: (v) => setState(() {
-              _contact = v;
-              _contactValue.clear();
-            }),
-          ),
           const SizedBox(height: CruSpace.s12),
           CruTextField(
-            label: _contact == _Contact.phone ? 'Phone number' : 'Email',
-            controller: _contactValue,
-            prefix: _contact == _Contact.phone ? '+91' : null,
-            keyboardType: _contact == _Contact.phone
-                ? TextInputType.phone
-                : TextInputType.emailAddress,
-            tabular: _contact == _Contact.phone,
+            label: 'Phone number',
+            controller: _phone,
+            prefix: _phone.text.trimLeft().startsWith('+') ? null : '+91',
+            keyboardType: TextInputType.phone,
+            tabular: true,
+            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: CruSpace.s16),
           CruSegmentedControl<MemberKind>(

@@ -228,6 +228,9 @@ class PatientLocalService {
       'syncStatus': syncStatus,
       'pendingDelete': pendingDelete ? 1 : 0,
       'lastSyncedAt': lastSyncedAt,
+      'assignedDoctorUids': Patient.assignedToStored(
+        patient.assignedDoctorUids,
+      ),
     };
   }
 
@@ -270,6 +273,13 @@ class PatientLocalService {
         case 'packageBalance':
           row[entry.key] = (entry.value as num).toDouble();
           break;
+        case 'assignedDoctorUids':
+          row[entry.key] = entry.value is List
+              ? Patient.assignedToStored(
+                  (entry.value as List).map((e) => e.toString()).toList(),
+                )
+              : entry.value;
+          break;
       }
     }
     return row;
@@ -291,6 +301,9 @@ class PatientLocalService {
       isArchived: row['isArchived'] == 1,
       createdAt: _millisToDateTime(row['createdAt']),
       updatedAt: _millisToDateTime(row['updatedAt']),
+      assignedDoctorUids: Patient.assignedFromStored(
+        row['assignedDoctorUids'],
+      ),
     );
   }
 

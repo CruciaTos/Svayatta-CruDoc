@@ -1,0 +1,113 @@
+name: Authorization tests
+
+# The security rules and the clinic team function decide who may read and
+# write patient data. They are cheap to run and expensive to get wrong, so
+# they run on every change to the rules, the functions or these tests.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rules-and-functions:
+    name: Firestore rules, Storage rules, clinic functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: CruDoc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The Firestore and Storage emulators are Java processes.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install the Firebase CLI
+        run: npm install --global firebase-tools@15
+
+      # ----------------------------------------------------------------
+      # Cloud Functions: the clinic team authorization helpers.
+      # Runs first because it needs no emulator and fails fastest.
+      # ----------------------------------------------------------------
+      - name: Install function dependencies
+        run: npm ci --prefix functions || npm install --prefix functions
+
+      - name: Lint functions
+        run: npm run lint --prefix functions
+
+      - name: Test functions
+        run: npm test --prefix functions
+
+      # ----------------------------------------------------------------
+      # Firestore security rules.
+      # ----------------------------------------------------------------
+      - name: Install Firestore rules test dependencies
+        run: npm install --prefix tests/firestore-rules
+
+      - name: Test Firestore rules
+        run: >
+          firebase emulators:exec
+          --only firestore
+          --project demo-crudoc
+          "npm test --prefix tests/firestore-rules"
+
+      # ----------------------------------------------------------------
+      # Storage security rules. These need the Firestore emulator too: the
+      # storage rules resolve clinic membership with firestore.get(), and
+      # that read is answered by the emulator's own project, so --project
+      # must match the id initializeTestEnvironment() uses in the tests.
+      # ----------------------------------------------------------------
+      - name: Install Storage rules test dependencies
+        run: npm install --prefix tests/storage-rules
+
+      - name: Test Storage rules
+        run: >
+          firebase emulators:exec
+          --only storage,firestore
+          --project demo-crudoc
+          "npm test --prefix tests/storage-rules"
+
+  # ------------------------------------------------------------------
+  # The client-side half of the same rules: what the app offers a person,
+  # and what it drops from the device when they lose a permission.
+  # Separate job because it needs the Flutter toolchain and nothing above.
+  # ------------------------------------------------------------------
+  flutter-authorization:
+    name: Clinic access and offline purge (Flutter)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: CruDoc
+
+    steps:
+      # crudoc_shared is a sibling path dependency of CruDoc, so the whole
+      # repository has to be checked out, not just this directory.
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Fetch packages
+        run: flutter pub get
+
+      - name: Test clinic access and sync purge
+        run: >
+          flutter test
+          test/core/clinic
+          test/core/services
+          test/patients
+          test/features/onboarding_clinic_role_test.dart
+          test/features/files
+          test/clinic_team_e2e_flow_test.dart

@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
+
 import 'clinic_access.dart';
 import 'clinic_models.dart';
 import 'clinic_permission.dart';
@@ -26,6 +28,13 @@ class ClinicSession {
   String? _lastLoadedUid;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _memberSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _clinicSubscription;
+
+  /// The clinic-level settings the current access was built from. Kept so a
+  /// change to the member doc and a change to the clinic doc can each
+  /// rebuild access without re-reading the other.
+  ({bool adminClinicalAccess, String clinicalAccessScope})? _clinicSettings;
 
   final StreamController<ClinicAccess?> _streamController =
       StreamController<ClinicAccess?>.broadcast();
@@ -72,11 +81,13 @@ class ClinicSession {
   ///    when perms/role/active change.
   Future<ClinicAccess> load(String uid) async {
     _lastLoadedUid = uid;
-    await _memberSubscription?.cancel();
-    _memberSubscription = null;
+    await _cancelListeners();
 
     final prefs = await SharedPreferences.getInstance();
     final cachedActiveBefore = prefs.getString('clinic.activeId.$uid');
+    // Whether this person, as owner, may open medical records. Read from the
+    // token (no Firestore read), so a solo doctor's start-up is unchanged.
+    final ownerClinical = !await _carriesNonClinicalOwnerClaim();
 
     try {
       // 1. users/{uid}.clinicId (missing/empty → uid).
@@ -94,7 +105,7 @@ class ClinicSession {
       // 2. clinicId == uid → ClinicAccess.owner(uid).
       if (clinicId == uid) {
         _member = null;
-        final access = ClinicAccess.owner(uid);
+        final access = ClinicAccess.owner(uid, clinical: ownerClinical);
         _access = access;
 
         _setPreviousClinicId(cachedActiveBefore, clinicId);
@@ -143,7 +154,14 @@ class ClinicSession {
 
       // active → fromMember
       _member = member;
-      final access = ClinicAccess.fromMember(clinicId, member);
+      final settings = await _readClinicSettings(clinicId);
+      _clinicSettings = settings;
+      final access = ClinicAccess.fromMember(
+        clinicId,
+        member,
+        adminClinicalAccess: settings.adminClinicalAccess,
+        clinicalAccessScope: settings.clinicalAccessScope,
+      );
       _access = access;
 
       _setPreviousClinicId(cachedActiveBefore, clinicId);
@@ -151,14 +169,16 @@ class ClinicSession {
 
       _streamController.add(access);
 
-      // 4. Keep a snapshot listener on the member doc (non-owners) and re-emit
-      //    when perms/role/active change.
+      // 4. Keep snapshot listeners on the member doc and the clinic doc
+      //    (non-owners) and re-emit when perms/role/active change, or when
+      //    the owner changes adminClinicalAccess / clinicalAccessScope.
       _listenToMemberDoc(clinicId, uid);
+      _listenToClinicDoc(clinicId);
 
       return access;
     } on FirebaseException catch (e) {
       if (e.code != 'permission-denied') {
-        return _loadFromCache(prefs, uid, cachedActiveBefore);
+        return _loadFromCache(prefs, uid, cachedActiveBefore, ownerClinical);
       }
       // The rules hide a member doc once it is inactive or gone, so a
       // denied read means this person was removed from the clinic. Falling
@@ -172,7 +192,7 @@ class ClinicSession {
       _removedController.add(null);
       return access;
     } catch (_) {
-      return _loadFromCache(prefs, uid, cachedActiveBefore);
+      return _loadFromCache(prefs, uid, cachedActiveBefore, ownerClinical);
     }
   }
 
@@ -180,8 +200,9 @@ class ClinicSession {
   ClinicAccess _loadFromCache(
     SharedPreferences prefs,
     String uid,
-    String? cachedActiveBefore,
-  ) {
+    String? cachedActiveBefore, [
+    bool ownerClinical = true,
+  ]) {
     final cachedJsonStr = prefs.getString('clinic.access.$uid');
     if (cachedJsonStr != null) {
       try {
@@ -195,12 +216,110 @@ class ClinicSession {
       } catch (_) {}
     }
 
-    final fallback = ClinicAccess.owner(uid);
+    final fallback = ClinicAccess.owner(uid, clinical: ownerClinical);
     _access = fallback;
     _member = null;
     _setPreviousClinicId(cachedActiveBefore, uid);
     _streamController.add(fallback);
     return fallback;
+  }
+
+  /// The nonClinicalOwner claim ensureClinic puts on a manager who owns the
+  /// clinic. Uses the cached token, so it works offline; anything unreadable
+  /// counts as no claim, the same as every solo doctor.
+  Future<bool> _carriesNonClinicalOwnerClaim() async {
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdTokenResult();
+      return token?.claims?['nonClinicalOwner'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// The two clinic-level access settings, read in one fetch.
+  ///
+  /// An absent `adminClinicalAccess` or an unreachable clinic reads as
+  /// `true`, the same permissive default the rules use for a clinic whose
+  /// backfill has not run; an absent scope reads as `'clinic'`, which is
+  /// what every clinic did before the setting existed.
+  Future<({bool adminClinicalAccess, String clinicalAccessScope})>
+  _readClinicSettings(String clinicId) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(clinicId)
+          .get();
+      return _settingsFrom(snap.data());
+    } catch (_) {
+      return (adminClinicalAccess: true, clinicalAccessScope: 'clinic');
+    }
+  }
+
+  static ({bool adminClinicalAccess, String clinicalAccessScope})
+  _settingsFrom(Map<String, dynamic>? data) => (
+    adminClinicalAccess: data?['adminClinicalAccess'] != false,
+    clinicalAccessScope: data?['clinicalAccessScope'] == 'assigned'
+        ? 'assigned'
+        : 'clinic',
+  );
+
+  /// Rebuilds access from the current member and clinic settings and emits it.
+  void _emitMemberAccess(String clinicId) {
+    final m = _member;
+    final s = _clinicSettings;
+    if (m == null || s == null) return;
+    final newAccess = ClinicAccess.fromMember(
+      clinicId,
+      m,
+      adminClinicalAccess: s.adminClinicalAccess,
+      clinicalAccessScope: s.clinicalAccessScope,
+    );
+    _access = newAccess;
+    _streamController.add(newAccess);
+    // Keep the offline cache in step, so a restart without a connection
+    // does not bring back the access from before the change.
+    final uid = _lastLoadedUid;
+    if (uid != null) {
+      unawaited(
+        SharedPreferences.getInstance()
+            .then((prefs) => _saveCache(prefs, uid, clinicId, newAccess))
+            .catchError((_) {}),
+      );
+    }
+  }
+
+  /// The owner's adminClinicalAccess and clinicalAccessScope live on the
+  /// clinic doc, not on anyone's member doc. Without this listener an admin
+  /// or doctor kept their old access until they restarted the app.
+  void _listenToClinicDoc(String clinicId) {
+    _clinicSubscription = FirebaseFirestore.instance
+        .collection('clinics')
+        .doc(clinicId)
+        .snapshots()
+        .listen(
+          (snap) {
+            if (!snap.exists) return;
+            final s = _settingsFrom(snap.data());
+            if (s == _clinicSettings) return;
+            _clinicSettings = s;
+            _emitMemberAccess(clinicId);
+          },
+          // A denied read here means this person left the clinic; the
+          // member listener reports that.
+          onError: (_) {},
+        );
+  }
+
+  /// Fields are cleared before awaiting, so a [load] that starts while this
+  /// is still cancelling never has its new listeners wiped.
+  Future<void> _cancelListeners() async {
+    final member = _memberSubscription;
+    final clinic = _clinicSubscription;
+    _memberSubscription = null;
+    _clinicSubscription = null;
+    _clinicSettings = null;
+    await member?.cancel();
+    await clinic?.cancel();
   }
 
   void _listenToMemberDoc(String clinicId, String uid) {
@@ -211,7 +330,7 @@ class ClinicSession {
         .doc(uid)
         .snapshots()
         .listen(
-          (snap) {
+          (snap) async {
             if (!snap.exists || snap.data() == null) {
               _member = null;
               final fallback = ClinicAccess.owner(uid);
@@ -232,9 +351,8 @@ class ClinicSession {
             }
 
             _member = m;
-            final newAccess = ClinicAccess.fromMember(clinicId, m);
-            _access = newAccess;
-            _streamController.add(newAccess);
+            _clinicSettings ??= await _readClinicSettings(clinicId);
+            _emitMemberAccess(clinicId);
           },
           onError: (_) {
             _removedController.add(null);
@@ -270,8 +388,7 @@ class ClinicSession {
   }
 
   void clear() {
-    _memberSubscription?.cancel();
-    _memberSubscription = null;
+    unawaited(_cancelListeners());
     _access = null;
     _member = null;
     _previousClinicId = null;
@@ -306,7 +423,17 @@ final activeClinicProvider = StreamProvider<Clinic?>((ref) {
 });
 
 /// Whether the signed-in person may do [ClinicPermission] in their clinic.
-/// Always true for an owner or a doctor working alone.
+/// Always true for an owner or a doctor working alone (their access grants
+/// every permission).
+///
+/// Denies while no clinic access has resolved. [ResponsiveShell] holds the
+/// app on a loading screen until it has, so the only case that reaches here
+/// is the demo session, which has no clinic of its own and is allowed
+/// everything. Defaulting to allow instead would briefly offer actions the
+/// person may not have, and in a medical app the wrong default is the
+/// permissive one.
 final clinicCanProvider = Provider.family<bool, ClinicPermission>((ref, p) {
-  return ref.watch(clinicAccessProvider).value?.can(p) ?? true;
+  final access = ref.watch(clinicAccessProvider).value;
+  if (access != null) return access.can(p);
+  return DemoSessionService.isDemoMode;
 });

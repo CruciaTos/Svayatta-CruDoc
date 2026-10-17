@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_team_api.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
@@ -12,6 +15,8 @@ import 'package:doctor_management_app/features/dental/presentation/dental_featur
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
+import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
+import 'package:doctor_management_app/features/team/presentation/join_clinic_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Length of the free trial that starts when onboarding finishes.
@@ -23,12 +28,19 @@ const double _kMaxWidth = 560;
 /// Height of a specialty tile.
 const double _kSpecialtyTile = 92;
 
+/// The first question. [solo] and [clinic] are saved to profiles by name;
+/// [join] is never saved (joining skips the rest of onboarding).
 enum PracticeType {
   solo('Solo practice', 'Just me, one chair or one room.', CruIcons.user),
   clinic(
-    'Clinic',
-    'A team: receptionist, assistants or other doctors.',
+    'Start a clinic',
+    'You set it up and invite your team.',
     CruIcons.patients,
+  ),
+  join(
+    'Join a clinic',
+    'Your clinic admin has invited you, or will.',
+    CruIcons.userPlus,
   );
 
   const PracticeType(this.label, this.detail, this.icon);
@@ -57,9 +69,17 @@ class OnboardingAnswers {
     this.dental = DentalFeature.defaults,
     required this.suggest,
     required this.picked,
+    this.ownerIsDoctor = true,
+    this.clinicName = '',
   });
 
   final PracticeType practice;
+
+  /// Clinic only: whether the person setting it up treats patients.
+  final bool ownerIsDoctor;
+
+  /// Clinic only: its name, if given.
+  final String clinicName;
   final String name;
   final DoctorSpecialtyType specialty;
   final Set<DentalFeature> dental;
@@ -106,6 +126,14 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int _step = 0;
   PracticeType? _practice;
   late final TextEditingController _name;
+
+  /// Clinic only. A manager who owns the clinic runs it but never opens
+  /// medical records; a doctor-owner has full access, as every owner has
+  /// had until now. Solo practice never asks and is unaffected.
+  bool _ownerIsDoctor = true;
+  final TextEditingController _clinicName = TextEditingController();
+
+  bool get _isClinic => _practice == PracticeType.clinic;
   DoctorSpecialtyType? _specialty;
   Set<DentalFeature> _dental = DentalFeature.defaults;
 
@@ -116,6 +144,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   bool _saving = false;
   String? _error;
   LoyaltyCard? _card;
+
+  /// Join a clinic was chosen: the live invite list replaces the steps.
+  bool _joinClinic = false;
 
   @override
   void initState() {
@@ -131,6 +162,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
     if (a != null) {
       _practice = a.practice;
+      _ownerIsDoctor = a.ownerIsDoctor;
+      _clinicName.text = a.clinicName;
       _specialty = a.specialty;
       _dental = a.dental;
       _suggest = a.suggest;
@@ -143,6 +176,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   @override
   void dispose() {
     _name.dispose();
+    _clinicName.dispose();
     super.dispose();
   }
 
@@ -161,6 +195,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Future<void> _next() async {
     if (!_canContinue || _saving) return;
+    if (_step == 0 && _practice == PracticeType.join) {
+      setState(() => _joinClinic = true);
+      return;
+    }
     if (_step < _questionSteps - 1) {
       setState(() => _step++);
       return;
@@ -174,6 +212,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           dental: _dental,
           suggest: _suggest!,
           picked: {..._picked},
+          ownerIsDoctor: _ownerIsDoctor,
+          clinicName: _clinicName.text.trim(),
         ),
       );
       return;
@@ -202,9 +242,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       // `startDoctorTrial` Cloud Function (admin privileges) so the client
       // can't grant itself a longer trial or extra modules by writing
       // Firestore directly. The server computes the 30-day expiry.
-      await FirebaseFunctions.instanceFor(
-        region: 'asia-south1',
-      ).httpsCallable('startDoctorTrial').call({'modules': modules});
+      await FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('startDoctorTrial')
+          .call({'modules': modules});
 
       // Non-entitlement profile fields stay a client write.
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
@@ -217,11 +257,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           'practiceType': _practice!.name,
           'featureChoice': _suggest! ? 'suggested' : 'picked',
           'chosenModules': _modules.toList(),
+          // Kept so a clinic set up later (Settings → Team) still knows
+          // whether its owner is a doctor or a manager.
+          if (_isClinic) 'ownerIsDoctor': _ownerIsDoctor,
+          if (_isClinic && _clinicName.text.trim().isNotEmpty)
+            'clinicName': _clinicName.text.trim(),
           'completedAt': FieldValue.serverTimestamp(),
         },
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       if (user.displayName != name) await user.updateDisplayName(name);
+      if (_isClinic) await _setUpClinic(user, name, spec);
       final card = await LoyaltyService.stampThisMonth();
       if (!mounted) return;
       setState(() {
@@ -229,17 +275,41 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         _step = _questionSteps;
       });
     } catch (e) {
-      if (mounted)
-        setState(
-          () => _error = 'Could not save. Check the connection and try again.',
-        );
+      if (mounted) setState(() => _error = 'Could not save. Check the connection and try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
+  /// A clinic is set up as soon as onboarding finishes, so its owner can add
+  /// people straight away. If it fails (no connection), nothing is lost: the
+  /// choice is on the profile and Settings → Team sets it up from there.
+  Future<void> _setUpClinic(User user, String name, DoctorSpecialty spec) async {
+    try {
+      final clinicName = _clinicName.text.trim();
+      await ClinicTeamApi.instance.ensureClinic(
+        clinicName: clinicName.isEmpty ? name : clinicName,
+        ownerName: name,
+        specialty: spec.label,
+        ownerIsDoctor: _ownerIsDoctor,
+      );
+      // A manager-owner's restriction travels in their sign-in token; fetch
+      // a fresh one so it applies now rather than at the next token refresh.
+      if (!_ownerIsDoctor) await user.getIdToken(true);
+      await ClinicSession.instance.reload();
+    } catch (_) {
+      // Left for Settings → Team, which reads the saved choice.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_joinClinic) {
+      return LiveJoinClinicScreen(
+        onJoined: widget.onDone,
+        onBack: () => setState(() => _joinClinic = false),
+      );
+    }
     final c = context.cru;
     final done = _step == _questionSteps;
     return Scaffold(
@@ -356,7 +426,27 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
+  /// Signed in on a phone without a confirmed number: clinics invite by
+  /// number, so offer to confirm one (never required).
+  bool get _askForPhone =>
+      widget.onAnswered == null &&
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS) &&
+      FirebaseAuth.instance.currentUser?.phoneNumber == null;
+
+  Future<void> _confirmPhone() async {
+    await confirmPhoneForInvites(context);
+    if (mounted) setState(() {});
+  }
+
   Widget _practiceStep() {
+    final c = context.cru;
+    // Before sign-in there is no account to invite yet.
+    final choices = [
+      for (final p in PracticeType.values)
+        if (p != PracticeType.join || widget.onAnswered == null) p,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -364,7 +454,34 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           'Welcome to CruDoc',
           'A few questions so the app fits how you work. Takes a minute.',
         ),
-        for (final p in PracticeType.values) ...[
+        if (_askForPhone) ...[
+          CruCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Confirm your phone number',
+                  style: CruType.headline.tint(c.label),
+                ),
+                const SizedBox(height: CruSpace.s4),
+                Text(
+                  'Clinics invite people by phone number. Confirm yours so '
+                  'an invite can find you.',
+                  style: CruType.text.tint(c.label2),
+                ),
+                const SizedBox(height: CruSpace.s12),
+                CruButton(
+                  label: 'Confirm number',
+                  kind: CruButtonKind.inset,
+                  icon: CruIcons.phone,
+                  onPressed: _confirmPhone,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: CruSpace.s20),
+        ],
+        for (final p in choices) ...[
           _OptionTile(
             icon: p.icon,
             title: p.label,
@@ -374,6 +491,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           ),
           const SizedBox(height: CruSpace.s12),
         ],
+        if (widget.onAnswered == null)
+          Text(
+            'Clinics that have your number can find you on CruDoc to invite '
+            'you. You can turn this off in Settings → Clinic invites.',
+            style: CruType.caption.tint(c.label3),
+          ),
         if (widget.onHaveAccount != null) ...[
           const SizedBox(height: CruSpace.s8),
           Center(
@@ -393,24 +516,53 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading(
-          'About you',
-          'Shown on your prescriptions and to your patients.',
-        ),
+        _heading('About you', 'Shown on your prescriptions and to your patients.'),
+        if (_isClinic) ...[
+          Text('Your role in the clinic', style: CruType.subhead.tint(c.label2)),
+          const SizedBox(height: CruSpace.s8),
+          _OptionTile(
+            icon: CruIcons.user,
+            title: "I'm a doctor here",
+            detail: 'You treat patients and run the clinic.',
+            selected: _ownerIsDoctor,
+            onTap: () => setState(() => _ownerIsDoctor = true),
+          ),
+          const SizedBox(height: CruSpace.s8),
+          _OptionTile(
+            icon: CruIcons.patients,
+            title: 'I manage the clinic',
+            detail: 'You run staff, billing and settings. Medical records '
+                'stay with the doctors.',
+            selected: !_ownerIsDoctor,
+            onTap: () => setState(() => _ownerIsDoctor = false),
+          ),
+          const SizedBox(height: CruSpace.s20),
+          CruTextField(
+            label: 'Clinic name',
+            controller: _clinicName,
+            hint: 'Sunrise Dental',
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: CruSpace.s16),
+        ],
         CruTextField(
           label: 'Your name',
           controller: _name,
-          hint: 'Dr. Priya Sharma',
+          hint: _isClinic && !_ownerIsDoctor ? 'Priya Sharma' : 'Dr. Priya Sharma',
           textCapitalization: TextCapitalization.words,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: CruSpace.s20),
-        Text('Specialty', style: CruType.subhead.tint(c.label2)),
+        Text(
+          _isClinic && !_ownerIsDoctor ? 'Clinic specialty' : 'Specialty',
+          style: CruType.subhead.tint(c.label2),
+        ),
         const SizedBox(height: CruSpace.s8),
         LayoutBuilder(
           builder: (context, box) {
             final columns = box.maxWidth > 440 ? 4 : 3;
-            final w = (box.maxWidth - CruSpace.s8 * (columns - 1)) / columns;
+            final w =
+                (box.maxWidth - CruSpace.s8 * (columns - 1)) / columns;
             return Wrap(
               spacing: CruSpace.s8,
               runSpacing: CruSpace.s8,
@@ -431,7 +583,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         ),
         if (spec?.type == DoctorSpecialtyType.dentist) ...[
           const SizedBox(height: CruSpace.s20),
-          Text('What do you do?', style: CruType.caption.tint(c.label2)),
+          Text(
+            'What do you do?',
+            style: CruType.caption.tint(c.label2),
+          ),
           const SizedBox(height: CruSpace.s8),
           DentalFeaturesPicker(
             selected: _dental,
@@ -458,9 +613,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           icon: CruIcons.sparkle,
           title: 'Use what we suggest',
           detail: [
-            _practice == PracticeType.clinic
-                ? 'Picked for a clinic'
-                : 'Picked for a solo practice',
+            _practice == PracticeType.clinic ? 'Picked for a clinic' : 'Picked for a solo practice',
             ?_spec?.label,
           ].join(' · '),
           selected: _suggest == true,
@@ -727,8 +880,6 @@ class _FeatureRow extends StatelessWidget {
         ],
       ),
     );
-    return onTap == null
-        ? row
-        : CruPressable(onTap: onTap, builder: (_, _) => row);
+    return onTap == null ? row : CruPressable(onTap: onTap, builder: (_, _) => row);
   }
 }

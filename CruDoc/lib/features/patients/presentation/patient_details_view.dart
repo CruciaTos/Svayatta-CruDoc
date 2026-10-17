@@ -31,6 +31,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
@@ -133,6 +134,12 @@ class _DetailsBody extends ConsumerWidget {
     final isPhysio = clinical && ref.watch(isPhysiotherapyProvider);
     final isHomeopath = clinical && specialty == DoctorSpecialtyType.homeopathy;
     // Scans and reports for dentists with radiology enabled.
+    // Who treats this patient. Hides itself unless the clinic scopes its
+    // doctors to the patients they treat.
+    final assignedDoctors = AssignedDoctorsCard(
+      patientId: s.id,
+      assignedDoctorUids: p.assignedDoctorUids,
+    );
     final imaging = ref.watch(hasDentalRadiologyProvider)
         ? PatientImagingCard(patientId: s.id)
         : null;
@@ -294,6 +301,7 @@ class _DetailsBody extends ConsumerWidget {
                     SizedBox(
                       width: CruSize.rightColumn,
                       child: _Stack([
+                        assignedDoctors,
                         ?procedures,
                         ?records,
                         ?files,
@@ -306,6 +314,7 @@ class _DetailsBody extends ConsumerWidget {
                 )
               else
                 _Stack([
+                  assignedDoctors,
                   ?imaging,
                   ?chart,
                   ?sessionHistory,

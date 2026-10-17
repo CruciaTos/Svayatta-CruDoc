@@ -6,8 +6,10 @@
     <!-- Lists home-visit addresses nearest to the doctor first -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Add person: shows which contacts are on CruDoc (asked first) -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <application
-        android:label="doctor_management_app"
+        android:label="CruDoc"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

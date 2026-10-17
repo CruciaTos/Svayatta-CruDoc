@@ -16,7 +16,6 @@ import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
-import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -39,8 +38,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   /// in place.
   _AuthMode _mobileMode = _AuthMode.login;
 
-  /// Phone, first launch: Get started (onboarding questions) comes before
-  /// sign-in. Null while the flag loads.
+  /// First launch: the form opens on Sign up (onboarding comes after the
+  /// account exists). Null while the flag loads.
   bool? _getStarted;
   static const _kSeenGetStarted = 'seen_get_started';
   bool _obscurePassword = true;
@@ -66,7 +65,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         .read(key: _kSeenGetStarted)
         .then((v) => v == 'true', onError: (_) => false)
         .then((seen) {
-          if (mounted) setState(() => _getStarted = !seen);
+          if (!seen) {
+            _secureStorage
+                .write(key: _kSeenGetStarted, value: 'true')
+                .catchError((_) {});
+          }
+          if (mounted) {
+            setState(() {
+              _getStarted = !seen;
+              if (!seen) _mobileMode = _AuthMode.signup;
+            });
+          }
         });
 
     // Clean empty text controllers by default
@@ -617,32 +626,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   // ==================== MOBILE AUTH VIEW (UNCHANGED) ====================
 
-  void _leaveGetStarted({OnboardingAnswers? answers}) {
-    _secureStorage
-        .write(key: _kSeenGetStarted, value: 'true')
-        .catchError((_) {});
-    OnboardingAnswers.pending = answers;
-    setState(() {
-      _getStarted = false;
-      if (answers != null) {
-        _mobileMode = _AuthMode.signup;
-        _nameController.text = answers.name;
-      }
-    });
-  }
-
-  /// First launch, before sign-in (phone and desktop): the onboarding
-  /// questions, or a blank screen while the flag loads. Null once seen.
+  /// Blank while the first-launch flag loads (so the form doesn't open on
+  /// Sign in and then switch); null once it has.
   Widget? _getStartedGate() {
     if (_getStarted == null) {
       return const Scaffold(backgroundColor: Color(0xFF087DFF));
-    }
-    if (_getStarted!) {
-      return OnboardingFlow(
-        onDone: () {},
-        onAnswered: (a) => _leaveGetStarted(answers: a),
-        onHaveAccount: _leaveGetStarted,
-      );
     }
     return null;
   }

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -14,6 +15,8 @@ import 'package:doctor_management_app/features/dental/presentation/dental_featur
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
+import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
+import 'package:doctor_management_app/features/team/presentation/join_clinic_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Length of the free trial that starts when onboarding finishes.
@@ -25,12 +28,19 @@ const double _kMaxWidth = 560;
 /// Height of a specialty tile.
 const double _kSpecialtyTile = 92;
 
+/// The first question. [solo] and [clinic] are saved to profiles by name;
+/// [join] is never saved (joining skips the rest of onboarding).
 enum PracticeType {
   solo('Solo practice', 'Just me, one chair or one room.', CruIcons.user),
   clinic(
-    'Clinic',
-    'A team: receptionist, assistants or other doctors.',
+    'Start a clinic',
+    'You set it up and invite your team.',
     CruIcons.patients,
+  ),
+  join(
+    'Join a clinic',
+    'Your clinic admin has invited you, or will.',
+    CruIcons.userPlus,
   );
 
   const PracticeType(this.label, this.detail, this.icon);
@@ -135,6 +145,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   String? _error;
   LoyaltyCard? _card;
 
+  /// Join a clinic was chosen: the live invite list replaces the steps.
+  bool _joinClinic = false;
+
   @override
   void initState() {
     super.initState();
@@ -182,6 +195,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   Future<void> _next() async {
     if (!_canContinue || _saving) return;
+    if (_step == 0 && _practice == PracticeType.join) {
+      setState(() => _joinClinic = true);
+      return;
+    }
     if (_step < _questionSteps - 1) {
       setState(() => _step++);
       return;
@@ -287,6 +304,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   @override
   Widget build(BuildContext context) {
+    if (_joinClinic) {
+      return LiveJoinClinicScreen(
+        onJoined: widget.onDone,
+        onBack: () => setState(() => _joinClinic = false),
+      );
+    }
     final c = context.cru;
     final done = _step == _questionSteps;
     return Scaffold(
@@ -403,7 +426,27 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
+  /// Signed in on a phone without a confirmed number: clinics invite by
+  /// number, so offer to confirm one (never required).
+  bool get _askForPhone =>
+      widget.onAnswered == null &&
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS) &&
+      FirebaseAuth.instance.currentUser?.phoneNumber == null;
+
+  Future<void> _confirmPhone() async {
+    await confirmPhoneForInvites(context);
+    if (mounted) setState(() {});
+  }
+
   Widget _practiceStep() {
+    final c = context.cru;
+    // Before sign-in there is no account to invite yet.
+    final choices = [
+      for (final p in PracticeType.values)
+        if (p != PracticeType.join || widget.onAnswered == null) p,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -411,7 +454,34 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           'Welcome to CruDoc',
           'A few questions so the app fits how you work. Takes a minute.',
         ),
-        for (final p in PracticeType.values) ...[
+        if (_askForPhone) ...[
+          CruCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Confirm your phone number',
+                  style: CruType.headline.tint(c.label),
+                ),
+                const SizedBox(height: CruSpace.s4),
+                Text(
+                  'Clinics invite people by phone number. Confirm yours so '
+                  'an invite can find you.',
+                  style: CruType.text.tint(c.label2),
+                ),
+                const SizedBox(height: CruSpace.s12),
+                CruButton(
+                  label: 'Confirm number',
+                  kind: CruButtonKind.inset,
+                  icon: CruIcons.phone,
+                  onPressed: _confirmPhone,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: CruSpace.s20),
+        ],
+        for (final p in choices) ...[
           _OptionTile(
             icon: p.icon,
             title: p.label,
@@ -421,6 +491,12 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           ),
           const SizedBox(height: CruSpace.s12),
         ],
+        if (widget.onAnswered == null)
+          Text(
+            'Clinics that have your number can find you on CruDoc to invite '
+            'you. You can turn this off in Settings → Clinic invites.',
+            style: CruType.caption.tint(c.label3),
+          ),
         if (widget.onHaveAccount != null) ...[
           const SizedBox(height: CruSpace.s8),
           Center(

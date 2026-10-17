@@ -88,6 +88,35 @@ class AuthService {
     return _auth.signInWithCredential(credential);
   }
 
+  /// Adds a confirmed phone number to the signed-in account (email or
+  /// Google sign-up), so clinic invites sent to that number can find it.
+  Future<UserCredential> linkPhone({
+    required String verificationId,
+    required String smsCode,
+  }) {
+    return linkPhoneCredential(
+      PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      ),
+    );
+  }
+
+  /// [linkPhone] with a credential Android verified on its own.
+  Future<UserCredential> linkPhoneCredential(AuthCredential credential) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'Sign in first.',
+      );
+    }
+    final result = await user.linkWithCredential(credential);
+    // The server reads the number from the ID token; get one that has it.
+    await result.user?.getIdToken(true);
+    return result;
+  }
+
   // --------------- Sign Out ---------------
 
   Future<void> signOut() async {
@@ -98,6 +127,17 @@ class AuthService {
     await _auth.signOut();
   }
 }
+
+/// What to tell someone when adding a phone number to their account fails.
+String phoneLinkErrorMessage(FirebaseAuthException e) => switch (e.code) {
+  'credential-already-in-use' || 'account-exists-with-different-credential' =>
+    'This number already has its own CruDoc account. Sign in with that '
+        'number instead, or use a different one.',
+  'provider-already-linked' => 'This account already has a phone number.',
+  'invalid-verification-code' => "That code isn't right. Check it and try again.",
+  'session-expired' || 'code-expired' => 'The code expired. Send a new one.',
+  _ => e.message ?? 'Could not confirm the number. Try again.',
+};
 
 /// Custom exception so callers can distinguish "user cancelled" from real errors.
 class FirebaseAuthCancelledException implements Exception {

@@ -9,10 +9,18 @@ import 'package:doctor_management_app/core/services/auth_service.dart';
 ///
 /// Returns a [UserCredential] via `Navigator.pop` on success, or null if
 /// the user dismisses the sheet.
+///
+/// With [linkToCurrentUser], the number is added to the account that is
+/// already signed in (email or Google) instead of signing in with it.
 class PhoneAuthSheet extends StatefulWidget {
-  const PhoneAuthSheet({super.key, required this.authService});
+  const PhoneAuthSheet({
+    super.key,
+    required this.authService,
+    this.linkToCurrentUser = false,
+  });
 
   final AuthService authService;
+  final bool linkToCurrentUser;
 
   @override
   State<PhoneAuthSheet> createState() => _PhoneAuthSheetState();
@@ -78,10 +86,19 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
         onAutoVerified: (credential) async {
           // Android auto-retrieval — sign in automatically
           try {
-            final userCredential = await FirebaseAuth.instance
-                .signInWithCredential(credential);
+            final userCredential = widget.linkToCurrentUser
+                ? await widget.authService.linkPhoneCredential(credential)
+                : await FirebaseAuth.instance.signInWithCredential(credential);
             if (!mounted) return;
             Navigator.of(context).pop(userCredential);
+          } on FirebaseAuthException catch (e) {
+            if (!mounted) return;
+            setState(() {
+              _errorText = widget.linkToCurrentUser
+                  ? phoneLinkErrorMessage(e)
+                  : 'Auto-verification failed: ${e.message}';
+              _isLoading = false;
+            });
           } catch (e) {
             if (!mounted) return;
             setState(() {
@@ -120,16 +137,23 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
     });
 
     try {
-      final userCredential = await widget.authService.verifyOTP(
-        verificationId: _verificationId!,
-        smsCode: code,
-      );
+      final userCredential = widget.linkToCurrentUser
+          ? await widget.authService.linkPhone(
+              verificationId: _verificationId!,
+              smsCode: code,
+            )
+          : await widget.authService.verifyOTP(
+              verificationId: _verificationId!,
+              smsCode: code,
+            );
       if (!mounted) return;
       Navigator.of(context).pop(userCredential);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorText = e.message ?? 'Invalid OTP';
+        _errorText = widget.linkToCurrentUser
+            ? phoneLinkErrorMessage(e)
+            : e.message ?? 'Invalid OTP';
         _isLoading = false;
       });
     } catch (e) {
@@ -174,7 +198,11 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                 const SizedBox(height: 20),
                 // Title
                 Text(
-                  _otpSent ? 'Enter OTP' : 'Phone Sign-In',
+                  _otpSent
+                      ? 'Enter OTP'
+                      : widget.linkToCurrentUser
+                      ? 'Confirm your number'
+                      : 'Phone Sign-In',
                   style: const TextStyle(
                     fontFamily: AppColors.headingFontFamily,
                     color: Colors.white,
@@ -186,6 +214,8 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                 Text(
                   _otpSent
                       ? 'We sent a code to $_countryCode ${_phoneController.text.trim()}'
+                      : widget.linkToCurrentUser
+                      ? 'So clinics that invite this number can find you'
                       : 'Enter your phone number to receive a one-time code',
                   textAlign: TextAlign.center,
                   style: TextStyle(
@@ -411,6 +441,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
 Future<UserCredential?> showPhoneAuthSheet(
   BuildContext context, {
   required AuthService authService,
+  bool linkToCurrentUser = false,
 }) {
   return showModalBottomSheet<UserCredential>(
     context: context,
@@ -419,6 +450,9 @@ Future<UserCredential?> showPhoneAuthSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => PhoneAuthSheet(authService: authService),
+    builder: (_) => PhoneAuthSheet(
+      authService: authService,
+      linkToCurrentUser: linkToCurrentUser,
+    ),
   );
 }

@@ -555,6 +555,8 @@ class CruTextField extends StatefulWidget {
     this.focusNode,
     this.tabular = false,
     this.enabled = true,
+    this.obscureText = false,
+    this.autofillHints,
     this.aiRevealKey,
     this.aiPending = false,
     this.aiStagger = Duration.zero,
@@ -598,6 +600,10 @@ class CruTextField extends StatefulWidget {
 
   /// False while saving: the value dims and can't be edited.
   final bool enabled;
+
+  /// Password fields: the text is hidden.
+  final bool obscureText;
+  final Iterable<String>? autofillHints;
 
   @override
   State<CruTextField> createState() => _CruTextFieldState();
@@ -754,6 +760,8 @@ class _CruTextFieldState extends State<CruTextField> {
                               : TextInputAction.next),
                       textCapitalization: widget.textCapitalization,
                       inputFormatters: widget.inputFormatters,
+                      obscureText: widget.obscureText,
+                      autofillHints: widget.autofillHints,
                       cursorColor: c.accent,
                       style: widget.tabular ? base.tabular : base,
                       onChanged: (v) {

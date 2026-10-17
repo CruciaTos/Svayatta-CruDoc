@@ -28,6 +28,13 @@ class ClinicSession {
   String? _lastLoadedUid;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
   _memberSubscription;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _clinicSubscription;
+
+  /// The clinic-level settings the current access was built from. Kept so a
+  /// change to the member doc and a change to the clinic doc can each
+  /// rebuild access without re-reading the other.
+  ({bool adminClinicalAccess, String clinicalAccessScope})? _clinicSettings;
 
   final StreamController<ClinicAccess?> _streamController =
       StreamController<ClinicAccess?>.broadcast();
@@ -74,8 +81,7 @@ class ClinicSession {
   ///    when perms/role/active change.
   Future<ClinicAccess> load(String uid) async {
     _lastLoadedUid = uid;
-    await _memberSubscription?.cancel();
-    _memberSubscription = null;
+    await _cancelListeners();
 
     final prefs = await SharedPreferences.getInstance();
     final cachedActiveBefore = prefs.getString('clinic.activeId.$uid');
@@ -149,6 +155,7 @@ class ClinicSession {
       // active → fromMember
       _member = member;
       final settings = await _readClinicSettings(clinicId);
+      _clinicSettings = settings;
       final access = ClinicAccess.fromMember(
         clinicId,
         member,
@@ -162,9 +169,11 @@ class ClinicSession {
 
       _streamController.add(access);
 
-      // 4. Keep a snapshot listener on the member doc (non-owners) and re-emit
-      //    when perms/role/active change.
+      // 4. Keep snapshot listeners on the member doc and the clinic doc
+      //    (non-owners) and re-emit when perms/role/active change, or when
+      //    the owner changes adminClinicalAccess / clinicalAccessScope.
       _listenToMemberDoc(clinicId, uid);
+      _listenToClinicDoc(clinicId);
 
       return access;
     } on FirebaseException catch (e) {
@@ -240,16 +249,77 @@ class ClinicSession {
           .collection('clinics')
           .doc(clinicId)
           .get();
-      final data = snap.data();
-      return (
-        adminClinicalAccess: data?['adminClinicalAccess'] != false,
-        clinicalAccessScope: data?['clinicalAccessScope'] == 'assigned'
-            ? 'assigned'
-            : 'clinic',
-      );
+      return _settingsFrom(snap.data());
     } catch (_) {
       return (adminClinicalAccess: true, clinicalAccessScope: 'clinic');
     }
+  }
+
+  static ({bool adminClinicalAccess, String clinicalAccessScope})
+  _settingsFrom(Map<String, dynamic>? data) => (
+    adminClinicalAccess: data?['adminClinicalAccess'] != false,
+    clinicalAccessScope: data?['clinicalAccessScope'] == 'assigned'
+        ? 'assigned'
+        : 'clinic',
+  );
+
+  /// Rebuilds access from the current member and clinic settings and emits it.
+  void _emitMemberAccess(String clinicId) {
+    final m = _member;
+    final s = _clinicSettings;
+    if (m == null || s == null) return;
+    final newAccess = ClinicAccess.fromMember(
+      clinicId,
+      m,
+      adminClinicalAccess: s.adminClinicalAccess,
+      clinicalAccessScope: s.clinicalAccessScope,
+    );
+    _access = newAccess;
+    _streamController.add(newAccess);
+    // Keep the offline cache in step, so a restart without a connection
+    // does not bring back the access from before the change.
+    final uid = _lastLoadedUid;
+    if (uid != null) {
+      unawaited(
+        SharedPreferences.getInstance()
+            .then((prefs) => _saveCache(prefs, uid, clinicId, newAccess))
+            .catchError((_) {}),
+      );
+    }
+  }
+
+  /// The owner's adminClinicalAccess and clinicalAccessScope live on the
+  /// clinic doc, not on anyone's member doc. Without this listener an admin
+  /// or doctor kept their old access until they restarted the app.
+  void _listenToClinicDoc(String clinicId) {
+    _clinicSubscription = FirebaseFirestore.instance
+        .collection('clinics')
+        .doc(clinicId)
+        .snapshots()
+        .listen(
+          (snap) {
+            if (!snap.exists) return;
+            final s = _settingsFrom(snap.data());
+            if (s == _clinicSettings) return;
+            _clinicSettings = s;
+            _emitMemberAccess(clinicId);
+          },
+          // A denied read here means this person left the clinic; the
+          // member listener reports that.
+          onError: (_) {},
+        );
+  }
+
+  /// Fields are cleared before awaiting, so a [load] that starts while this
+  /// is still cancelling never has its new listeners wiped.
+  Future<void> _cancelListeners() async {
+    final member = _memberSubscription;
+    final clinic = _clinicSubscription;
+    _memberSubscription = null;
+    _clinicSubscription = null;
+    _clinicSettings = null;
+    await member?.cancel();
+    await clinic?.cancel();
   }
 
   void _listenToMemberDoc(String clinicId, String uid) {
@@ -281,15 +351,8 @@ class ClinicSession {
             }
 
             _member = m;
-            final s = await _readClinicSettings(clinicId);
-            final newAccess = ClinicAccess.fromMember(
-              clinicId,
-              m,
-              adminClinicalAccess: s.adminClinicalAccess,
-              clinicalAccessScope: s.clinicalAccessScope,
-            );
-            _access = newAccess;
-            _streamController.add(newAccess);
+            _clinicSettings ??= await _readClinicSettings(clinicId);
+            _emitMemberAccess(clinicId);
           },
           onError: (_) {
             _removedController.add(null);
@@ -325,8 +388,7 @@ class ClinicSession {
   }
 
   void clear() {
-    _memberSubscription?.cancel();
-    _memberSubscription = null;
+    unawaited(_cancelListeners());
     _access = null;
     _member = null;
     _previousClinicId = null;

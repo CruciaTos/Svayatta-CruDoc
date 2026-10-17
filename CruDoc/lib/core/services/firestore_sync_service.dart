@@ -166,7 +166,11 @@ class FirestoreSyncService {
 
   static String _keyFor(ClinicAccess? a) => a == null
       ? ''
-      : '${a.clinicId}|${a.roleId}|${(a.perms.map((p) => p.key).toList()..sort()).join(',')}';
+      // kind and clinicalAccessScope decide whether queries narrow to the
+      // doctor's assigned patients, so a change to either has to restart
+      // the listeners just like a change of role or permissions.
+      : '${a.clinicId}|${a.roleId}|${a.kind.value}|${a.clinicalAccessScope}|'
+            '${(a.perms.map((p) => p.key).toList()..sort()).join(',')}';
 
   Future<void> start() async {
     if (_isStarted) return;

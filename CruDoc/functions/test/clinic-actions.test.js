@@ -522,6 +522,186 @@ test('a manager-owner can create staff and doctors', async () => {
 });
 
 // ==================================================================
+section('invite inbox, decline, and accepting safely');
+// ==================================================================
+
+const SMIT = '+919876511111';
+const inviteSmit = (extra = {}) => call(C, {action: 'invite', clinicId: C, name: 'Smit',
+  phone: '9876511111', kind: 'doctor', roleId: 'doctor', ...extra});
+const smitToken = {phone_number: SMIT};
+
+test('an invite to someone already on CruDoc lands in their inbox at once', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  db.seed('users/smit', {name: 'Smit'});
+  const res = await inviteSmit();
+  assert.strictEqual(res.onCruDoc, true);
+  const inbox = db.peek(`users/smit/clinic_invites/${res.inviteId}`);
+  assert.ok(inbox, 'inbox copy written');
+  assert.strictEqual(inbox.clinicId, C);
+  assert.strictEqual(inbox.status, 'pending');
+  assert.strictEqual(inbox.roleName, 'Doctor');
+  assert.strictEqual(db.peek(`clinics/${C}/invites/${res.inviteId}`).inviteeUid, 'smit');
+});
+
+test('an invite to a number not on CruDoc has no inbox yet', async () => {
+  seedClinic();
+  const res = await inviteSmit();
+  assert.strictEqual(res.onCruDoc, false);
+  assert.deepStrictEqual(db.all('users'), []);
+});
+
+test("someone who can't be found still gets the invite, but isn't reported as on CruDoc", async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  db.seed('users/smit', {discoverable: false});
+  const res = await inviteSmit();
+  assert.strictEqual(res.onCruDoc, false);
+  assert.ok(db.peek(`users/smit/clinic_invites/${res.inviteId}`));
+});
+
+test('myInvites fills the inbox for invites sent before the account existed', async () => {
+  seedClinic();
+  const {inviteId} = await inviteSmit();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  const res = await call('smit', {action: 'myInvites'}, smitToken);
+  assert.strictEqual(res.invites.length, 1);
+  assert.ok(db.peek(`users/smit/clinic_invites/${inviteId}`));
+});
+
+test('declining marks the invite, clears the inbox and is audited', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  const {inviteId} = await inviteSmit();
+  await call('smit', {action: 'declineInvite', clinicId: C, inviteId}, smitToken);
+  assert.strictEqual(db.peek(`clinics/${C}/invites/${inviteId}`).status, 'declined');
+  assert.strictEqual(db.peek(`users/smit/clinic_invites/${inviteId}`), undefined);
+  assert.strictEqual(audit('invite.decline').length, 1);
+});
+
+test("nobody can decline someone else's invite", async () => {
+  seedClinic();
+  const {inviteId} = await inviteSmit();
+  await rejects('permission-denied',
+    call('other', {action: 'declineInvite', clinicId: C, inviteId}, {phone_number: '+919800000000'}));
+  assert.strictEqual(db.peek(`clinics/${C}/invites/${inviteId}`).status, 'pending');
+});
+
+test('cancelling an invite takes it out of the inbox', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  const {inviteId} = await inviteSmit();
+  await call(C, {action: 'cancelInvite', clinicId: C, inviteId});
+  assert.strictEqual(db.peek(`users/smit/clinic_invites/${inviteId}`), undefined);
+});
+
+test('accepting joins the clinic and clears the inbox', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  db.seed('users/smit', {name: 'Smit'});
+  const {inviteId} = await inviteSmit();
+  await call('smit', {action: 'acceptInvite', clinicId: C, inviteId}, smitToken);
+  assert.strictEqual(db.peek(`clinics/${C}/members/smit`).active, true);
+  assert.strictEqual(db.peek('users/smit').clinicId, C);
+  assert.strictEqual(db.peek(`users/smit/clinic_invites/${inviteId}`), undefined);
+});
+
+test('the owner of another clinic cannot accept', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  db.seed('users/smit', {clinicId: 'smit', memberKind: 'owner'});
+  db.seed('clinics/smit', {name: 'Smit Clinic', ownerUid: 'smit'});
+  const {inviteId} = await inviteSmit();
+  await rejects('failed-precondition',
+    call('smit', {action: 'acceptInvite', clinicId: C, inviteId}, smitToken));
+  assert.strictEqual(db.peek('users/smit').clinicId, 'smit', 'still in their own clinic');
+});
+
+test('a member of another clinic cannot accept until removed there', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  db.seed('users/smit', {clinicId: 'other-clinic', memberKind: 'doctor'});
+  db.seed('clinics/other-clinic/members/smit', {active: true, roleId: 'doctor', kind: 'doctor'});
+  const {inviteId} = await inviteSmit();
+  await rejects('failed-precondition',
+    call('smit', {action: 'acceptInvite', clinicId: C, inviteId}, smitToken));
+  // Once that clinic has removed them, they can.
+  db.seed('clinics/other-clinic/members/smit', {active: false, roleId: 'doctor', kind: 'doctor'});
+  await call('smit', {action: 'acceptInvite', clinicId: C, inviteId}, smitToken);
+  assert.strictEqual(db.peek('users/smit').clinicId, C);
+});
+
+// ==================================================================
+section('matching contacts');
+// ==================================================================
+
+const match = (uid, phones) => call(uid, {action: 'matchContacts', clinicId: C, phones});
+
+test('reports which contacts are on CruDoc, in the form they were sent', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  auth.seedUser({uid: 'ria', phoneNumber: '+919876522222'});
+  const res = await match(C, ['098765 11111', '+91 98765-22222', '9000000000', 'not a number']);
+  const byPhone = Object.fromEntries(res.matches.map((m) => [m.phone, m.status]));
+  assert.deepStrictEqual(byPhone, {'098765 11111': 'available', '+91 98765-22222': 'available'});
+});
+
+test('marks members and people already invited', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'doc1', phoneNumber: '+919876533333'});
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  await inviteSmit();
+  const res = await match(C, ['9876533333', '9876511111']);
+  const byPhone = Object.fromEntries(res.matches.map((m) => [m.phone, m.status]));
+  assert.deepStrictEqual(byPhone, {'9876533333': 'member', '9876511111': 'invited'});
+});
+
+test('never reports people who turned off being found, or the caller', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  db.seed('users/smit', {discoverable: false});
+  auth.seedUser({uid: C, phoneNumber: '+919876544444'});
+  const res = await match(C, ['9876511111', '9876544444']);
+  assert.deepStrictEqual(res.matches, []);
+});
+
+test('stores nothing about the contacts', async () => {
+  seedClinic();
+  auth.seedUser({uid: 'smit', phoneNumber: SMIT});
+  const before = new Set(db.store.keys());
+  await match(C, ['9876511111', '9000000001']);
+  const added = [...db.store.keys()].filter((k) => !before.has(k));
+  assert.deepStrictEqual(added, [`rate_limits/${C}`], 'only the rate counter is written');
+  assert.ok(!JSON.stringify(db.peek(`rate_limits/${C}`)).includes('98765'));
+});
+
+test('needs the team permission', async () => {
+  seedClinic();
+  await rejects('permission-denied', match('doc1', ['9876511111']));
+  await rejects('permission-denied', match('recep', ['9876511111']));
+});
+
+test('refuses too many numbers in one call or in one hour', async () => {
+  seedClinic();
+  const many = (n, start) => Array.from({length: n}, (_, i) => String(9000000000 + start + i));
+  await rejects('invalid-argument', match(C, many(1001, 0)));
+  for (let i = 0; i < 5; i += 1) await match(C, many(1000, i * 1000));
+  await rejects('resource-exhausted', match(C, many(1, 9000)));
+});
+
+test('contact numbers are normalised the way address books store them', async () => {
+  const {normalizeContactPhone: n} = require('../lib/clinic');
+  assert.strictEqual(n('98765 11111'), SMIT);
+  assert.strictEqual(n('098765-11111'), SMIT);
+  assert.strictEqual(n('+91 (98765) 11111'), SMIT);
+  assert.strictEqual(n('919876511111'), SMIT);
+  assert.strictEqual(n('0091 98765 11111'), SMIT);
+  assert.strictEqual(n('+1 415 555 0100'), '+14155550100');
+  assert.strictEqual(n('12345'), null);
+  assert.strictEqual(n(42), null);
+});
+
+// ==================================================================
 section('the copy of the assignment on clinical records');
 // ==================================================================
 

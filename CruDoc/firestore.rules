@@ -727,8 +727,17 @@ service cloud.firestore {
       // Everything a doctor keeps under their own profile: device sessions,
       // scribe notes (medical_records), campaigns and their recipients, and
       // the legacy per-doctor subcollections.
+      // clinic_invites is the exception: only the clinicTeam function writes
+      // a person's invite inbox (see below), so it can't be faked to them.
       match /{subcollection}/{rest=**} {
-        allow read, write: if isSelf(userId);
+        allow read, write: if isSelf(userId) && subcollection != 'clinic_invites';
+      }
+
+      // Clinic invites waiting for this person. Their app listens here so an
+      // invite pops up the moment it is sent; accepting still goes through
+      // the clinicTeam function, which checks the real invite.
+      match /clinic_invites/{inviteId} {
+        allow read: if isSelf(userId);
       }
 
       // Super Admin can see and revoke a doctor's device sessions.

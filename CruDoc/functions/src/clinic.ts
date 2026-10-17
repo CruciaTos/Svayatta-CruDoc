@@ -312,6 +312,106 @@ export async function adminClinicalAllowed(clinicId: string): Promise<boolean> {
  * everything an admin is entitled to into `perms`, so a shortcut would
  * silently hand back the clinical access that was just withheld.
  */
+/**
+ * Like normalizePhone, for numbers typed into a phone's address book:
+ * spaces, dashes, dots and brackets are dropped, a leading 0 (Indian trunk
+ * prefix) or 00 (international prefix) is understood, and anything that
+ * still isn't a phone number gives null instead of throwing.
+ */
+export function normalizeContactPhone(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  let n = raw.replace(/[\s\-().]/g, "");
+  if (n.startsWith("00")) n = `+${n.slice(2)}`;
+  if (/^0\d{10}$/.test(n)) n = n.slice(1);
+  if (/^91\d{10}$/.test(n)) n = `+${n}`;
+  if (/^\d{10}$/.test(n)) return `+91${n}`;
+  if (/^\+\d{10,15}$/.test(n)) return n;
+  return null;
+}
+
+/** The signed-in phone number, normalised; null when the account has none. */
+function tokenPhone(token: Record<string, unknown> | undefined): string | null {
+  const raw = token?.phone_number;
+  if (!raw) return null;
+  try {
+    return normalizePhone(String(raw));
+  } catch {
+    return String(raw);
+  }
+}
+
+/**
+ * Whether an invite was sent to the signed-in person: its phone matches the
+ * account's phone, or its email matches the account's verified email.
+ */
+export function inviteMatchesCaller(
+  invite: Record<string, unknown>,
+  token: Record<string, unknown> | undefined
+): boolean {
+  const phone = tokenPhone(token);
+  let invitePhone: string | null = null;
+  if (invite.phone) {
+    try {
+      invitePhone = normalizePhone(String(invite.phone));
+    } catch {
+      invitePhone = String(invite.phone);
+    }
+  }
+  if (invitePhone && phone && invitePhone === phone) return true;
+  const email = token?.email_verified && token?.email ?
+    String(token.email).toLowerCase().trim() : null;
+  const inviteEmail = invite.email ? String(invite.email).toLowerCase().trim() : null;
+  return !!(inviteEmail && email && inviteEmail === email);
+}
+
+/** The account with this phone number, if there is one. */
+async function uidForPhone(phone: string): Promise<string | null> {
+  try {
+    return (await admin.auth().getUserByPhoneNumber(phone)).uid;
+  } catch (err) {
+    if ((err as {code?: string}).code === "auth/user-not-found") return null;
+    throw err;
+  }
+}
+
+/**
+ * users/{uid}/clinic_invites/{inviteId}: the invitee's copy of an invite,
+ * which their app listens to so the invite pops up the moment it is sent.
+ * Written only here (the rules refuse clients); the invite under the clinic
+ * stays the one that counts when they accept.
+ */
+function inboxRef(uid: string, inviteId: string) {
+  return admin.firestore().collection("users").doc(uid)
+    .collection("clinic_invites").doc(inviteId);
+}
+
+function inboxEntry(inviteId: string, invite: Record<string, unknown>): Record<string, unknown> {
+  return {
+    inviteId,
+    clinicId: invite.clinicId || "",
+    clinicName: invite.clinicName || "",
+    name: invite.name || "",
+    kind: invite.kind || "staff",
+    roleName: invite.roleName || "",
+    specialty: invite.specialty || "",
+    invitedByName: invite.invitedByName || "",
+    expiresAt: invite.expiresAt ?? null,
+    status: "pending",
+    createdAt: FieldValue.serverTimestamp(),
+  };
+}
+
+/** Whether people may find this account by its phone number (default yes). */
+async function isDiscoverable(uid: string): Promise<boolean> {
+  const snap = await admin.firestore().collection("users").doc(uid).get();
+  return snap.data()?.discoverable !== false;
+}
+
+/** How many contact numbers one person may check per hour. */
+export const MATCH_CONTACTS_PER_HOUR = 5000;
+/** How many numbers one matchContacts call may carry. */
+export const MATCH_CONTACTS_PER_CALL = 1000;
+
 export function requirePerm(c: Caller, perm: string): void {
   if (!c.perms.includes(perm)) {
     throw new HttpsError("permission-denied", `Missing required permission: ${perm}.`);
@@ -632,12 +732,19 @@ export const clinicTeam = onCall(
 
       const now = Date.now();
       const list = [];
+      // Invites sent before this account existed (or before it had this
+      // phone number) have no inbox copy yet; add one so the app's live
+      // listener shows them too.
+      const inboxBatch = db.batch();
+      let inboxWrites = 0;
       for (const doc of invitesMap.values()) {
         const invData = doc.data();
         const exp = invData.expiresAt?.toMillis ?
           invData.expiresAt.toMillis() :
           (invData.expiresAt ? new Date(invData.expiresAt).getTime() : 0);
         if (exp > now) {
+          inboxBatch.set(inboxRef(uid, doc.id), inboxEntry(doc.id, invData), {merge: true});
+          inboxWrites += 1;
           list.push({
             id: doc.id,
             clinicId: invData.clinicId || "",
@@ -651,6 +758,7 @@ export const clinicTeam = onCall(
         }
       }
 
+      if (inboxWrites > 0) await inboxBatch.commit();
       return {invites: list};
     }
 
@@ -733,6 +841,31 @@ export const clinicTeam = onCall(
         const userSnap = await transaction.get(userRef);
         const userData = userSnap.data() || {};
 
+        // One account belongs to one clinic. Someone who runs their own
+        // clinic would otherwise be moved out of it without a word, and
+        // someone already working elsewhere would silently switch clinics.
+        if (clinicId !== uid) {
+          const ownClinic = await transaction.get(db.collection("clinics").doc(uid));
+          if (ownClinic.exists) {
+            throw new HttpsError(
+              "failed-precondition",
+              "You run your own clinic on CruDoc, so this account can't join another clinic."
+            );
+          }
+        }
+        const currentClinic = typeof userData.clinicId === "string" ? userData.clinicId : "";
+        if (currentClinic && currentClinic !== uid && currentClinic !== clinicId) {
+          const currentMember = await transaction.get(
+            db.collection("clinics").doc(currentClinic).collection("members").doc(uid)
+          );
+          if (currentMember.exists && currentMember.data()?.active === true) {
+            throw new HttpsError(
+              "failed-precondition",
+              "You're already part of another clinic. Ask its admin to remove you first."
+            );
+          }
+        }
+
         const memberData: Record<string, unknown> = {
           name: inviteData.name || (request.auth?.token.name as string) || (userData.name as string) || "",
           phone: inviteData.phone || (request.auth?.token.phone_number as string) || (userData.phone as string) || "",
@@ -758,6 +891,7 @@ export const clinicTeam = onCall(
         }
 
         transaction.set(memberRef, memberData);
+        transaction.delete(inboxRef(uid, inviteId));
         transaction.update(inviteRef, {
           status: "accepted",
           acceptedBy: uid,
@@ -906,11 +1040,20 @@ export const clinicTeam = onCall(
       }
 
       const batch = db.batch();
+      // Someone who already has an account with this number gets the
+      // invite in their app straight away.
+      const inviteeUid = phone ? await uidForPhone(phone) : null;
+      if (inviteeUid) invitePayload.inviteeUid = inviteeUid;
+
       batch.set(inviteRef, invitePayload);
+      if (inviteeUid) batch.set(inboxRef(inviteeUid, inviteRef.id), inboxEntry(inviteRef.id, invitePayload));
       addAuditLog(batch, clinicId, caller.uid, "team.invite", inviteRef.id);
       await batch.commit();
 
-      return {inviteId: inviteRef.id};
+      // Only say they're on CruDoc if they let people find them; either way
+      // the invite reaches them.
+      const onCruDoc = inviteeUid ? await isDiscoverable(inviteeUid) : false;
+      return {inviteId: inviteRef.id, onCruDoc};
     }
 
     case "createMember": {
@@ -1060,6 +1203,10 @@ export const clinicTeam = onCall(
       batch.update(inviteRef, {
         status: "cancelled",
       });
+      const cancelled = inviteSnap.data() || {};
+      const inviteeUid = typeof cancelled.inviteeUid === "string" ? cancelled.inviteeUid :
+        (cancelled.phone ? await uidForPhone(String(cancelled.phone)) : null);
+      if (inviteeUid) batch.delete(inboxRef(inviteeUid, inviteId));
       addAuditLog(batch, clinicId, caller.uid, "invite.cancel", inviteId);
       await batch.commit();
 
@@ -1507,6 +1654,125 @@ export const clinicTeam = onCall(
       await batch.commit();
 
       return {success: true, assignedDoctorUids: requested};
+    }
+
+    case "declineInvite": {
+      const clinicId = String(data.clinicId ?? "").trim();
+      const inviteId = String(data.inviteId ?? "").trim();
+      if (!clinicId || !inviteId) {
+        throw new HttpsError("invalid-argument", "clinicId and inviteId are required.");
+      }
+      const inviteRef = db.collection("clinics").doc(clinicId).collection("invites").doc(inviteId);
+      const inviteSnap = await inviteRef.get();
+      const inbox = inboxRef(uid, inviteId);
+      if (!inviteSnap.exists) {
+        // Gone already: just tidy the inbox.
+        await inbox.delete();
+        return {success: true};
+      }
+      const invite = inviteSnap.data() || {};
+      if (!inviteMatchesCaller(invite, request.auth.token as Record<string, unknown>)) {
+        throw new HttpsError("permission-denied", "This invite isn't for you.");
+      }
+      const batch = db.batch();
+      if (invite.status === "pending") {
+        batch.update(inviteRef, {
+          status: "declined",
+          declinedBy: uid,
+          declinedAt: FieldValue.serverTimestamp(),
+        });
+        addAuditLog(batch, clinicId, uid, "invite.decline", inviteId);
+      }
+      batch.delete(inbox);
+      await batch.commit();
+      return {success: true};
+    }
+
+    case "matchContacts": {
+      // Which of the caller's phone contacts already use CruDoc, so an
+      // admin can invite them in the app. Nothing sent here is stored: the
+      // numbers are looked up and dropped. People who turned off "let
+      // clinics find me" are never reported.
+      const clinicId = String(data.clinicId ?? "").trim();
+      const caller = await loadCaller(request, clinicId);
+      requirePerm(caller, "team");
+
+      if (!Array.isArray(data.phones)) {
+        throw new HttpsError("invalid-argument", "phones must be a list.");
+      }
+      if (data.phones.length > MATCH_CONTACTS_PER_CALL) {
+        throw new HttpsError(
+          "invalid-argument",
+          `Send at most ${MATCH_CONTACTS_PER_CALL} numbers at a time.`
+        );
+      }
+
+      // Raw number as sent -> E.164, so the reply can name the caller's own
+      // entries and the app never has to normalise the same way.
+      const byE164 = new Map<string, string[]>();
+      for (const raw of data.phones as unknown[]) {
+        const e164 = normalizeContactPhone(raw);
+        if (!e164) continue;
+        const list = byE164.get(e164) ?? [];
+        if (!list.includes(String(raw))) list.push(String(raw));
+        byE164.set(e164, list);
+      }
+
+      // Rate limit by numbers checked per hour, so the check can't be used
+      // to test every number there is.
+      const limitRef = db.collection("rate_limits").doc(caller.uid);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(limitRef);
+        const prev = snap.data()?.matchContacts || {};
+        const now = Date.now();
+        const windowStart = typeof prev.windowStart === "number" && now - prev.windowStart < 3600_000 ?
+          prev.windowStart : now;
+        const used = windowStart === prev.windowStart ? Number(prev.count || 0) : 0;
+        if (used + byE164.size > MATCH_CONTACTS_PER_HOUR) {
+          throw new HttpsError(
+            "resource-exhausted",
+            "That's a lot of contacts in one go. Try again in an hour."
+          );
+        }
+        tx.set(limitRef, {matchContacts: {windowStart, count: used + byE164.size}}, {merge: true});
+      });
+
+      const numbers = [...byE164.keys()];
+      const found = new Map<string, string>(); // e164 -> uid
+      for (let i = 0; i < numbers.length; i += 100) {
+        const chunk = numbers.slice(i, i + 100).map((phoneNumber) => ({phoneNumber}));
+        const res = await admin.auth().getUsers(chunk);
+        for (const u of res.users) {
+          if (u.phoneNumber && u.uid !== caller.uid) found.set(u.phoneNumber, u.uid);
+        }
+      }
+      if (found.size === 0) return {matches: []};
+
+      const clinicRef = db.collection("clinics").doc(clinicId);
+      const [members, invites, profiles] = await Promise.all([
+        clinicRef.collection("members").where("active", "==", true).get(),
+        clinicRef.collection("invites").where("status", "==", "pending").get(),
+        Promise.all([...found.values()].map((u) => db.collection("users").doc(u).get())),
+      ]);
+      const memberUids = new Set(members.docs.map((d) => d.id));
+      const now = Date.now();
+      const invitedPhones = new Set<string>();
+      for (const d of invites.docs) {
+        const inv = d.data();
+        const exp = inv.expiresAt?.toMillis ? inv.expiresAt.toMillis() :
+          (inv.expiresAt ? new Date(inv.expiresAt).getTime() : 0);
+        if (exp > now && inv.phone) invitedPhones.add(String(inv.phone));
+      }
+      const hidden = new Set(profiles.filter((p) => p.data()?.discoverable === false).map((p) => p.id));
+
+      const matches: {phone: string; status: string}[] = [];
+      for (const [e164, foundUid] of found) {
+        if (hidden.has(foundUid)) continue;
+        const status = memberUids.has(foundUid) ? "member" :
+          invitedPhones.has(e164) ? "invited" : "available";
+        for (const raw of byE164.get(e164) ?? []) matches.push({phone: raw, status});
+      }
+      return {matches};
     }
 
     case "deleteRole": {

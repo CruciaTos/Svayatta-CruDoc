@@ -286,6 +286,29 @@ describe('users', () => {
     const halfAdmin = as('x', { role: 'superAdmin' });
     await assertFails(getDoc(doc(halfAdmin, `users/${A}`)));
   });
+
+  it('lets a person read their clinic invites, but only the server writes them', async () => {
+    await seed(`users/${A}/clinic_invites/i1`, { clinicId: B, status: 'pending' });
+    await assertSucceeds(getDoc(doc(doctor(A), `users/${A}/clinic_invites/i1`)));
+    await assertSucceeds(getDocs(collection(doctor(A), `users/${A}/clinic_invites`)));
+    // Not faked into one's own inbox, not changed, not read by others.
+    await assertFails(setDoc(doc(doctor(A), `users/${A}/clinic_invites/i2`), { clinicId: B }));
+    await assertFails(updateDoc(doc(doctor(A), `users/${A}/clinic_invites/i1`), { status: 'x' }));
+    await assertFails(deleteDoc(doc(doctor(A), `users/${A}/clinic_invites/i1`)));
+    await assertFails(getDoc(doc(doctor(B), `users/${A}/clinic_invites/i1`)));
+  });
+
+  it('lets a person choose whether clinics can find them', async () => {
+    await seed(`users/${A}`, { role: 'doctor' });
+    await assertSucceeds(updateDoc(doc(doctor(A), `users/${A}`), { discoverable: false }));
+    await assertFails(updateDoc(doc(doctor(B), `users/${A}`), { discoverable: true }));
+  });
+
+  it('keeps the contact-check rate counter away from everyone', async () => {
+    await seed(`rate_limits/${A}`, { matchContacts: { count: 1 } });
+    await assertFails(getDoc(doc(doctor(A), `rate_limits/${A}`)));
+    await assertFails(setDoc(doc(doctor(A), `rate_limits/${A}`), { matchContacts: { count: 0 } }));
+  });
 });
 
 describe('subscriptions, feature flags and doctor settings', () => {

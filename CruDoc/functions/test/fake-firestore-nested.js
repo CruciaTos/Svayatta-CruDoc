@@ -95,23 +95,27 @@ function matches(data, {field, op, value}) {
 }
 
 class Query {
-  constructor(db, path, filters = [], limitN = null) {
-    Object.assign(this, {db, path, filters, limitN});
+  constructor(db, path, filters = [], limitN = null, group = false) {
+    Object.assign(this, {db, path, filters, limitN, group});
   }
   where(field, op, value) {
-    return new Query(this.db, this.path, [...this.filters, {field, op, value}], this.limitN);
+    return new Query(this.db, this.path, [...this.filters, {field, op, value}], this.limitN, this.group);
   }
   orderBy() {
     return this;
   }
   limit(n) {
-    return new Query(this.db, this.path, this.filters, n);
+    return new Query(this.db, this.path, this.filters, n, this.group);
   }
   async get() {
     const depth = this.path.split('/').length + 1;
     let docs = [];
     for (const [p, data] of this.db.store) {
-      if (!p.startsWith(`${this.path}/`) || p.split('/').length !== depth) continue;
+      if (this.group) {
+        // Collection group: any collection with this name, at any depth.
+        const parts = p.split('/');
+        if (parts.length % 2 !== 0 || parts[parts.length - 2] !== this.path) continue;
+      } else if (!p.startsWith(`${this.path}/`) || p.split('/').length !== depth) continue;
       if (this.filters.every((f) => matches(data, f))) docs.push(new Snap(new DocRef(this.db, p), data));
     }
     if (this.limitN !== null) docs = docs.slice(0, this.limitN);
@@ -203,6 +207,9 @@ class NestedFakeDb {
   collection(name) {
     return new CollectionRef(this, name);
   }
+  collectionGroup(name) {
+    return new Query(this, name, [], null, true);
+  }
   doc(path) {
     return new DocRef(this, path);
   }
@@ -265,6 +272,17 @@ class FakeAuth {
   }
   async getUserByPhoneNumber(phoneNumber) {
     return this.find((u) => u.phoneNumber === phoneNumber) || Promise.reject(this.notFound());
+  }
+  async getUsers(identifiers) {
+    const users = [];
+    const notFound = [];
+    for (const id of identifiers) {
+      const u = this.find((x) => (id.uid && x.uid === id.uid) ||
+        (id.phoneNumber && x.phoneNumber === id.phoneNumber) || (id.email && x.email === id.email));
+      if (u) users.push(u);
+      else notFound.push(id);
+    }
+    return {users, notFound};
   }
   async createUser(props) {
     const uid = `user${++autoId}`;

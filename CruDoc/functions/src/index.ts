@@ -17,6 +17,16 @@ export * from "./whatsapp-outbox";
 export * from "./ai";
 export * from "./imaging";
 export * from "./clinic";
+export {
+  fanOutPatientAssignment,
+  stampDentalRecordAssignment,
+  stampRadiologyDocAssignment,
+  stampHomeopathyCaseSheetAssignment,
+  stampHomeopathySessionNoteAssignment,
+  stampToothChartEntryAssignment,
+  stampProcedureLogEntryAssignment,
+  stampTreatmentPlanLineItemAssignment,
+} from "./clinical-assignment";
 export * from "./subscription";
 export {voiceApi} from "./voice";
 export {onPatientWrittenIndexPhone} from "./crypto/patientIndex";

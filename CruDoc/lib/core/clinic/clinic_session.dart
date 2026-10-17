@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
+
 import 'clinic_access.dart';
 import 'clinic_models.dart';
 import 'clinic_permission.dart';
@@ -77,6 +79,9 @@ class ClinicSession {
 
     final prefs = await SharedPreferences.getInstance();
     final cachedActiveBefore = prefs.getString('clinic.activeId.$uid');
+    // Whether this person, as owner, may open medical records. Read from the
+    // token (no Firestore read), so a solo doctor's start-up is unchanged.
+    final ownerClinical = !await _carriesNonClinicalOwnerClaim();
 
     try {
       // 1. users/{uid}.clinicId (missing/empty → uid).
@@ -94,7 +99,7 @@ class ClinicSession {
       // 2. clinicId == uid → ClinicAccess.owner(uid).
       if (clinicId == uid) {
         _member = null;
-        final access = ClinicAccess.owner(uid);
+        final access = ClinicAccess.owner(uid, clinical: ownerClinical);
         _access = access;
 
         _setPreviousClinicId(cachedActiveBefore, clinicId);
@@ -143,7 +148,13 @@ class ClinicSession {
 
       // active → fromMember
       _member = member;
-      final access = ClinicAccess.fromMember(clinicId, member);
+      final settings = await _readClinicSettings(clinicId);
+      final access = ClinicAccess.fromMember(
+        clinicId,
+        member,
+        adminClinicalAccess: settings.adminClinicalAccess,
+        clinicalAccessScope: settings.clinicalAccessScope,
+      );
       _access = access;
 
       _setPreviousClinicId(cachedActiveBefore, clinicId);
@@ -158,7 +169,7 @@ class ClinicSession {
       return access;
     } on FirebaseException catch (e) {
       if (e.code != 'permission-denied') {
-        return _loadFromCache(prefs, uid, cachedActiveBefore);
+        return _loadFromCache(prefs, uid, cachedActiveBefore, ownerClinical);
       }
       // The rules hide a member doc once it is inactive or gone, so a
       // denied read means this person was removed from the clinic. Falling
@@ -172,7 +183,7 @@ class ClinicSession {
       _removedController.add(null);
       return access;
     } catch (_) {
-      return _loadFromCache(prefs, uid, cachedActiveBefore);
+      return _loadFromCache(prefs, uid, cachedActiveBefore, ownerClinical);
     }
   }
 
@@ -180,8 +191,9 @@ class ClinicSession {
   ClinicAccess _loadFromCache(
     SharedPreferences prefs,
     String uid,
-    String? cachedActiveBefore,
-  ) {
+    String? cachedActiveBefore, [
+    bool ownerClinical = true,
+  ]) {
     final cachedJsonStr = prefs.getString('clinic.access.$uid');
     if (cachedJsonStr != null) {
       try {
@@ -195,12 +207,49 @@ class ClinicSession {
       } catch (_) {}
     }
 
-    final fallback = ClinicAccess.owner(uid);
+    final fallback = ClinicAccess.owner(uid, clinical: ownerClinical);
     _access = fallback;
     _member = null;
     _setPreviousClinicId(cachedActiveBefore, uid);
     _streamController.add(fallback);
     return fallback;
+  }
+
+  /// The nonClinicalOwner claim ensureClinic puts on a manager who owns the
+  /// clinic. Uses the cached token, so it works offline; anything unreadable
+  /// counts as no claim, the same as every solo doctor.
+  Future<bool> _carriesNonClinicalOwnerClaim() async {
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdTokenResult();
+      return token?.claims?['nonClinicalOwner'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// The two clinic-level access settings, read in one fetch.
+  ///
+  /// An absent `adminClinicalAccess` or an unreachable clinic reads as
+  /// `true`, the same permissive default the rules use for a clinic whose
+  /// backfill has not run; an absent scope reads as `'clinic'`, which is
+  /// what every clinic did before the setting existed.
+  Future<({bool adminClinicalAccess, String clinicalAccessScope})>
+  _readClinicSettings(String clinicId) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(clinicId)
+          .get();
+      final data = snap.data();
+      return (
+        adminClinicalAccess: data?['adminClinicalAccess'] != false,
+        clinicalAccessScope: data?['clinicalAccessScope'] == 'assigned'
+            ? 'assigned'
+            : 'clinic',
+      );
+    } catch (_) {
+      return (adminClinicalAccess: true, clinicalAccessScope: 'clinic');
+    }
   }
 
   void _listenToMemberDoc(String clinicId, String uid) {
@@ -211,7 +260,7 @@ class ClinicSession {
         .doc(uid)
         .snapshots()
         .listen(
-          (snap) {
+          (snap) async {
             if (!snap.exists || snap.data() == null) {
               _member = null;
               final fallback = ClinicAccess.owner(uid);
@@ -232,7 +281,13 @@ class ClinicSession {
             }
 
             _member = m;
-            final newAccess = ClinicAccess.fromMember(clinicId, m);
+            final s = await _readClinicSettings(clinicId);
+            final newAccess = ClinicAccess.fromMember(
+              clinicId,
+              m,
+              adminClinicalAccess: s.adminClinicalAccess,
+              clinicalAccessScope: s.clinicalAccessScope,
+            );
             _access = newAccess;
             _streamController.add(newAccess);
           },
@@ -306,7 +361,17 @@ final activeClinicProvider = StreamProvider<Clinic?>((ref) {
 });
 
 /// Whether the signed-in person may do [ClinicPermission] in their clinic.
-/// Always true for an owner or a doctor working alone.
+/// Always true for an owner or a doctor working alone (their access grants
+/// every permission).
+///
+/// Denies while no clinic access has resolved. [ResponsiveShell] holds the
+/// app on a loading screen until it has, so the only case that reaches here
+/// is the demo session, which has no clinic of its own and is allowed
+/// everything. Defaulting to allow instead would briefly offer actions the
+/// person may not have, and in a medical app the wrong default is the
+/// permissive one.
 final clinicCanProvider = Provider.family<bool, ClinicPermission>((ref, p) {
-  return ref.watch(clinicAccessProvider).value?.can(p) ?? true;
+  final access = ref.watch(clinicAccessProvider).value;
+  if (access != null) return access.can(p);
+  return DemoSessionService.isDemoMode;
 });

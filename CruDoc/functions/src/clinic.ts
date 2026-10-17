@@ -1,6 +1,12 @@
 import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
+// Imported directly rather than read off admin.firestore: the Functions
+// emulator wraps admin.firestore in a bound copy that drops these
+// statics, so admin.firestore.Timestamp / .FieldValue are undefined there
+// (production is unaffected; the classes are the same either way).
+import {FieldValue, Timestamp} from "firebase-admin/firestore";
+import {copyAssignmentsForClinic} from "./clinical-assignment";
 
 // Keep in sync with lib/core/clinic/clinic_permission.dart and the rules.
 export const PERMS = [
@@ -23,6 +29,23 @@ export const IMPLIES: Record<string, string[]> = {
   "clinical.view": ["patients.view"],
   "clinical.edit": ["clinical.view", "patients.view"],
 };
+
+/**
+ * Reading or writing a patient's clinical record. Held apart from the rest
+ * because running a clinic and treating its patients are different kinds of
+ * authority: a practice manager needs staff, seats, billing and settings,
+ * and none of that requires a diagnosis.
+ *
+ * Keep in sync with clinicalPerm() in firestore.rules and storage.rules.
+ */
+export const CLINICAL_PERMS = ["clinical.view", "clinical.edit"];
+
+/**
+ * What the `admin` role gets unconditionally: everything except the clinical
+ * record itself. Clinical access is added only when the clinic owner has
+ * turned on `clinics/{id}.adminClinicalAccess`.
+ */
+export const ADMIN_PERMS = PERMS.filter((p) => !CLINICAL_PERMS.includes(p));
 
 export const ROLE_TEMPLATES = [
   {
@@ -224,12 +247,18 @@ export async function loadCaller(
     throw new HttpsError("invalid-argument", "clinicId is required.");
   }
   if (uid === clinicId) {
+    // A manager who owns the clinic runs it but does not see medical
+    // records. Only a clinic created that way says so; a solo doctor has no
+    // clinic document, and an existing clinic has no such field, so both
+    // keep every permission exactly as before.
+    const clinic = await admin.firestore().collection("clinics").doc(clinicId).get();
+    const ownerIsDoctor = clinic.data()?.ownerIsDoctor !== false;
     return {
       uid,
       clinicId,
       isOwner: true,
       isAdmin: true,
-      perms: [...PERMS],
+      perms: ownerIsDoctor ? [...PERMS] : [...ADMIN_PERMS],
     };
   }
 
@@ -249,7 +278,11 @@ export async function loadCaller(
   }
 
   const isAdmin = data.roleId === "admin";
-  const perms = isAdmin ? [...PERMS] : normalizePerms(data.perms ?? []);
+  // The admin role no longer carries clinical access by default: being able
+  // to run the clinic is not the same as being able to read its charts.
+  const perms = isAdmin ?
+    (await adminClinicalAllowed(clinicId) ? [...PERMS] : [...ADMIN_PERMS]) :
+    normalizePerms(data.perms ?? []);
   return {
     uid,
     clinicId,
@@ -259,9 +292,27 @@ export async function loadCaller(
   };
 }
 
-/** isAdmin or perms includes perm. */
+/**
+ * Whether this clinic's admins may reach clinical records.
+ *
+ * An absent field means a clinic created before the setting existed, and is
+ * read as `true` so that a clinic whose backfill has not run cannot be
+ * locked out of its own records. Once migrate_admin_clinical_access.js has
+ * been applied everywhere, this default should become `false`.
+ */
+export async function adminClinicalAllowed(clinicId: string): Promise<boolean> {
+  const snap = await admin.firestore().collection("clinics").doc(clinicId).get();
+  return snap.data()?.adminClinicalAccess !== false;
+}
+
+/**
+ * Whether the caller holds `perm`.
+ *
+ * There is deliberately no admin shortcut here: `loadCaller` already put
+ * everything an admin is entitled to into `perms`, so a shortcut would
+ * silently hand back the clinical access that was just withheld.
+ */
 export function requirePerm(c: Caller, perm: string): void {
-  if (c.isAdmin) return;
   if (!c.perms.includes(perm)) {
     throw new HttpsError("permission-denied", `Missing required permission: ${perm}.`);
   }
@@ -284,6 +335,31 @@ export function checkEscalation(c: Caller, roleId?: string, perms?: unknown): vo
   }
 }
 
+/**
+ * Staff may *read* clinical records — an assistant or nurse needs the chart
+ * they are assisting with, which is why the built-in Assistant role holds
+ * `clinical.view` — but writing one is a clinical act, so `clinical.edit`
+ * has no business on a staff role.
+ *
+ * The built-in `admin` role is exempt while it still carries every
+ * permission; separating administrative authority from clinical privilege
+ * is what removes that exemption. `saveRole` refuses to modify it anyway.
+ */
+export function assertStaffCannotWriteClinical(
+  kind: "doctor" | "staff",
+  perms: string[],
+  roleId?: string
+): void {
+  if (roleId === "admin") return;
+  if (kind === "staff" && perms.includes("clinical.edit")) {
+    throw new HttpsError(
+      "invalid-argument",
+      "A staff role cannot write clinical records. Set the kind to doctor, " +
+      "or remove clinical.edit from the role."
+    );
+  }
+}
+
 /** Helper to record an access_log audit entry into a batch or transaction. */
 function addAuditLog(
   batchOrTx: admin.firestore.WriteBatch | admin.firestore.Transaction,
@@ -299,7 +375,7 @@ function addAuditLog(
     action,
     target,
     platform: "server",
-    at: admin.firestore.FieldValue.serverTimestamp(),
+    at: FieldValue.serverTimestamp(),
   };
   if ("create" in batchOrTx) {
     (batchOrTx as admin.firestore.WriteBatch).set(logRef, entry);
@@ -408,7 +484,7 @@ export const clinicTeam = onCall(
             specialty,
             qualification: userData.qualification || "",
             registrationNo: userData.registrationNo || "",
-            joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+            joinedAt: FieldValue.serverTimestamp(),
           });
         }
 
@@ -421,13 +497,39 @@ export const clinicTeam = onCall(
         return {clinicId: uid};
       }
 
+      // Whether the person setting up the clinic treats patients. A manager
+      // who owns the clinic runs it but does not see medical records — the
+      // same line drawn for admins. Decided once, here, when the clinic is
+      // created; an existing clinic (above) is never changed by this.
+      // Absent means a doctor, which is what every clinic was before.
+      const ownerIsDoctor = data.ownerIsDoctor !== false;
+
+      if (!ownerIsDoctor) {
+        // The rules read this from the token, so that a manager-owner is
+        // restricted without an extra document read on every request — and
+        // without any change at all for solo doctors, who never carry it.
+        // Set before the clinic exists, so there is no moment in which the
+        // clinic is up but its owner is unrestricted. Merged, never replaced:
+        // claims hold other things (Super Admin's role) too.
+        const existing = (await admin.auth().getUser(uid)).customClaims || {};
+        await admin.auth().setCustomUserClaims(uid, {...existing, nonClinicalOwner: true});
+      }
+
       const batch = db.batch();
       const clinicPayload: Record<string, unknown> = {
         name: clinicName,
         specialty,
         ownerUid: uid,
+        ownerIsDoctor,
         seats: DEFAULT_SEATS,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Administrative authority is not clinical privilege: a new clinic's
+        // admins get no access to clinical records until the owner grants it.
+        // Clinics created before this field existed are backfilled to `true`
+        // by migrate_admin_clinical_access.js, so nobody loses access on
+        // deploy; the rules treat an absent field as `true` for the same
+        // reason. See crudoc-rbac-decisions.
+        adminClinicalAccess: false,
+        createdAt: FieldValue.serverTimestamp(),
       };
       if (userData.enabledModules !== undefined) clinicPayload.enabledModules = userData.enabledModules;
       if (userData.status !== undefined) clinicPayload.status = userData.status;
@@ -443,7 +545,7 @@ export const clinicTeam = onCall(
           kind: role.kind,
           perms: role.perms,
           isSystem: role.id === "admin",
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         });
       }
 
@@ -452,23 +554,35 @@ export const clinicTeam = onCall(
         name: ownerName,
         phone,
         email,
-        kind: "doctor",
+        // A manager-owner is listed as staff: not offered as a doctor to
+        // assign, and counted against staff seats rather than doctor seats.
+        kind: ownerIsDoctor ? "doctor" : "staff",
         roleId: "admin",
         roleName: "Admin",
-        perms: PERMS,
+        perms: ownerIsDoctor ? PERMS : ADMIN_PERMS,
         active: true,
         isOwner: true,
         specialty,
         qualification: userData.qualification || "",
         registrationNo: userData.registrationNo || "",
-        joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+        joinedAt: FieldValue.serverTimestamp(),
       });
 
       batch.set(userRef, {clinicId: uid, memberKind: "owner"}, {merge: true});
       addAuditLog(batch, uid, uid, "team.create", uid);
-      await batch.commit();
+      try {
+        await batch.commit();
+      } catch (err) {
+        if (!ownerIsDoctor) {
+          // Undo the claim so a failed setup leaves the account as it was.
+          const claims = {...((await admin.auth().getUser(uid)).customClaims || {})};
+          delete claims.nonClinicalOwner;
+          await admin.auth().setCustomUserClaims(uid, claims).catch(() => undefined);
+        }
+        throw err;
+      }
 
-      return {clinicId: uid};
+      return {clinicId: uid, ownerIsDoctor};
     }
 
     case "myInvites": {
@@ -632,7 +746,7 @@ export const clinicTeam = onCall(
           specialty: inviteData.specialty || "",
           qualification: "",
           registrationNo: "",
-          joinedAt: admin.firestore.FieldValue.serverTimestamp(),
+          joinedAt: FieldValue.serverTimestamp(),
           invitedBy: inviteData.invitedBy || "",
         };
 
@@ -656,7 +770,7 @@ export const clinicTeam = onCall(
         if (!userData.name && memberData.name) userUpdate.name = memberData.name;
         if (!userData.phone && memberData.phone) userUpdate.phone = memberData.phone;
         if (!userData.email && memberData.email) userUpdate.email = memberData.email;
-        if (!userData.createdAt) userUpdate.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        if (!userData.createdAt) userUpdate.createdAt = FieldValue.serverTimestamp();
 
         transaction.set(userRef, userUpdate, {merge: true});
         addAuditLog(transaction, clinicId, uid, "team.join", uid);
@@ -702,6 +816,15 @@ export const clinicTeam = onCall(
       }
       const roleData = roleSnap.data() || {};
       checkEscalation(caller, roleId, roleData.perms);
+      // The invite carries its own kind, which can differ from the role's, so
+      // the invariant is checked against what the member would actually get.
+      // A role created before this rule existed and holding clinical.edit on
+      // a staff kind is refused here rather than propagated to a new member.
+      assertStaffCannotWriteClinical(
+        kind,
+        normalizePerms(roleData.perms ?? []),
+        roleId
+      );
 
       const memberQuery = phone ?
         db.collection("clinics").doc(clinicId).collection("members")
@@ -766,8 +889,8 @@ export const clinicTeam = onCall(
         status: "pending",
         invitedBy: caller.uid,
         invitedByName,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAt: Timestamp.fromDate(expiresAt),
       };
 
       if (phone) invitePayload.phone = phone;
@@ -788,6 +911,129 @@ export const clinicTeam = onCall(
       await batch.commit();
 
       return {inviteId: inviteRef.id};
+    }
+
+    case "createMember": {
+      // The admin creates a person's account directly, rather than inviting
+      // them to make one. The admin never sets or sees a password: an email
+      // account gets a set-your-password link (sent by the admin's app), a
+      // phone account signs in with a one-time code. Someone who already has
+      // a CruDoc account is not touched — the app invites them instead.
+      const clinicId = String(data.clinicId ?? "").trim();
+      const caller = await loadCaller(request, clinicId);
+      requirePerm(caller, "team");
+
+      const name = String(data.name ?? "").trim();
+      if (!name || name.length > 100) {
+        throw new HttpsError("invalid-argument", "Add the person's name (up to 100 characters).");
+      }
+
+      const rawPhone = typeof data.phone === "string" ? data.phone.trim() : "";
+      const rawEmail = typeof data.email === "string" ? data.email.trim() : "";
+      if ((rawPhone && rawEmail) || (!rawPhone && !rawEmail)) {
+        throw new HttpsError("invalid-argument", "Provide exactly one of phone or email.");
+      }
+      let phone: string | null = null;
+      let email: string | null = null;
+      if (rawPhone) {
+        phone = normalizePhone(rawPhone);
+      } else {
+        const lowerEmail = rawEmail.toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lowerEmail)) {
+          throw new HttpsError("invalid-argument", "Invalid email address format.");
+        }
+        email = lowerEmail;
+      }
+
+      const kind = (data.kind === "doctor" ? "doctor" : "staff") as "doctor" | "staff";
+      const roleId = String(data.roleId ?? "").trim();
+      if (!roleId) {
+        throw new HttpsError("invalid-argument", "roleId is required.");
+      }
+      const roleSnap = await db.collection("clinics").doc(clinicId)
+        .collection("roles").doc(roleId).get();
+      if (!roleSnap.exists) {
+        throw new HttpsError("not-found", "Role not found.");
+      }
+      const roleData = roleSnap.data() || {};
+      checkEscalation(caller, roleId, roleData.perms);
+      assertStaffCannotWriteClinical(kind, normalizePerms(roleData.perms ?? []), roleId);
+
+      // An existing account belongs to someone already; creating a second one
+      // is impossible and taking it over would be wrong. Tell the app to fall
+      // back to an invite, which that person accepts themselves.
+      try {
+        if (phone) {
+          await admin.auth().getUserByPhoneNumber(phone);
+        } else {
+          await admin.auth().getUserByEmail(String(email));
+        }
+        return {mode: "exists"};
+      } catch (err) {
+        if ((err as {code?: string}).code !== "auth/user-not-found") throw err;
+      }
+
+      await checkSeats(clinicId, kind);
+
+      const clinicSnap = await db.collection("clinics").doc(clinicId).get();
+      const clinicName = clinicSnap.data()?.name || "Clinic";
+
+      const created = await admin.auth().createUser(phone ?
+        {phoneNumber: phone, displayName: name} :
+        {email: String(email), displayName: name, emailVerified: false});
+      const newUid = created.uid;
+
+      const memberData: Record<string, unknown> = {
+        name,
+        phone: phone || "",
+        email: email || "",
+        kind,
+        roleId,
+        roleName: roleData.name || roleId,
+        perms: roleId === "admin" ? [...PERMS] : normalizePerms(roleData.perms ?? []),
+        active: true,
+        isOwner: false,
+        specialty: kind === "doctor" ? String(data.specialty || "") : "",
+        qualification: "",
+        registrationNo: "",
+        joinedAt: FieldValue.serverTimestamp(),
+        createdBy: caller.uid,
+      };
+      const normModules = normalizeModules(data.modules);
+      if (normModules !== null) memberData.modules = normModules;
+      if (kind === "doctor") {
+        const normDental = normalizeDental(data.dentalFeatures);
+        if (normDental !== null) memberData.dentalFeatures = normDental;
+      }
+
+      try {
+        const batch = db.batch();
+        batch.set(db.collection("clinics").doc(clinicId).collection("members").doc(newUid), memberData);
+        // The login screen requires a profile, and memberKind tells the app
+        // this person works in a clinic, so they skip the owner's onboarding.
+        batch.set(db.collection("users").doc(newUid), {
+          uid: newUid,
+          name,
+          displayName: name,
+          email: email || "",
+          phone: phone || "",
+          clinicId,
+          memberKind: kind,
+          clinicName,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        addAuditLog(batch, clinicId, caller.uid, "team.createMember", newUid);
+        await batch.commit();
+      } catch (err) {
+        // Never leave an account behind with no clinic to belong to.
+        await admin.auth().deleteUser(newUid).catch(() => undefined);
+        throw new HttpsError(
+          "internal",
+          "Could not finish setting up the account. Nothing was created; try again."
+        );
+      }
+
+      return {mode: "created", uid: newUid, contact: phone ? "phone" : "email"};
     }
 
     case "cancelInvite": {
@@ -881,11 +1127,27 @@ export const clinicTeam = onCall(
 
       if ("modules" in data) {
         if (data.modules === null) {
-          updates.modules = admin.firestore.FieldValue.delete();
+          updates.modules = FieldValue.delete();
         } else {
           const norm = normalizeModules(data.modules);
-          updates.modules = norm !== null ? norm : admin.firestore.FieldValue.delete();
+          updates.modules = norm !== null ? norm : FieldValue.delete();
         }
+      }
+
+      // Changing the role or the kind must not leave a staff member holding
+      // clinical write access — flipping a doctor to staff while they keep a
+      // doctor role's permissions would do exactly that, since `kind` and
+      // `roleId` are updated independently. Checked only when one of the two
+      // actually changes, so a member who predates this rule can still have
+      // their specialty or modules updated.
+      if (updates.roleId !== undefined || updates.kind !== undefined) {
+        const effectiveKind = (updates.kind as "doctor" | "staff" | undefined) ??
+          (targetData.kind === "doctor" ? "doctor" : "staff");
+        const effectivePerms = (updates.perms as string[] | undefined) ??
+          normalizePerms(targetData.perms ?? []);
+        const effectiveRoleId = (updates.roleId as string | undefined) ??
+          String(targetData.roleId ?? "");
+        assertStaffCannotWriteClinical(effectiveKind, effectivePerms, effectiveRoleId);
       }
 
       if (Object.keys(updates).length === 0) {
@@ -931,7 +1193,7 @@ export const clinicTeam = onCall(
       const batch = db.batch();
       batch.update(memberRef, {
         active: false,
-        removedAt: admin.firestore.FieldValue.serverTimestamp(),
+        removedAt: FieldValue.serverTimestamp(),
         removedBy: caller.uid,
       });
 
@@ -939,8 +1201,8 @@ export const clinicTeam = onCall(
       const userSnap = await userRef.get();
       if (userSnap.exists && userSnap.data()?.clinicId === clinicId) {
         batch.update(userRef, {
-          clinicId: admin.firestore.FieldValue.delete(),
-          memberKind: admin.firestore.FieldValue.delete(),
+          clinicId: FieldValue.delete(),
+          memberKind: FieldValue.delete(),
         });
       }
 
@@ -979,6 +1241,7 @@ export const clinicTeam = onCall(
       const kind = (data.kind === "doctor" ? "doctor" : "staff") as "doctor" | "staff";
       const perms = normalizePerms(data.perms);
       checkEscalation(caller, undefined, perms);
+      assertStaffCannotWriteClinical(kind, perms, rawRoleId);
 
       const rolesRef = db.collection("clinics").doc(clinicId).collection("roles");
       const allRolesSnap = await rolesRef.get();
@@ -1018,7 +1281,7 @@ export const clinicTeam = onCall(
         kind,
         perms,
         isSystem: false,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
 
       if (!isNew) {
@@ -1046,6 +1309,204 @@ export const clinicTeam = onCall(
       await auditBatch.commit();
 
       return {roleId: targetRoleId};
+    }
+
+    case "setAdminClinicalAccess": {
+      const clinicId = String(data.clinicId ?? "").trim();
+      const caller = await loadCaller(request, clinicId);
+
+      // Owner only, on purpose. An admin who could grant this to themselves
+      // would make the separation meaningless, and `team` is not enough:
+      // handing out clinical access to the whole admin role is the clinic
+      // owner's call.
+      if (!caller.isOwner) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the clinic owner may change whether admins can open clinical records."
+        );
+      }
+
+      if (typeof data.enabled !== "boolean") {
+        throw new HttpsError("invalid-argument", "enabled must be true or false.");
+      }
+      const enabled = data.enabled;
+
+      const clinicRef = db.collection("clinics").doc(clinicId);
+      if (!(await clinicRef.get()).exists) {
+        throw new HttpsError("not-found", "Clinic not found.");
+      }
+
+      const batch = db.batch();
+      batch.update(clinicRef, {
+        adminClinicalAccess: enabled,
+        adminClinicalAccessSetBy: caller.uid,
+        adminClinicalAccessSetAt: FieldValue.serverTimestamp(),
+      });
+      addAuditLog(
+        batch,
+        clinicId,
+        caller.uid,
+        enabled ? "clinic.adminClinical.grant" : "clinic.adminClinical.revoke",
+        clinicId
+      );
+      await batch.commit();
+
+      return {success: true, adminClinicalAccess: enabled};
+    }
+
+    case "setClinicalAccessScope": {
+      const clinicId = String(data.clinicId ?? "").trim();
+      const caller = await loadCaller(request, clinicId);
+
+      // Owner only, like adminClinicalAccess: deciding whether doctors are
+      // confined to their own patients is not a day-to-day admin task.
+      if (!caller.isOwner) {
+        throw new HttpsError(
+          "permission-denied",
+          "Only the clinic owner may change how doctors reach patients."
+        );
+      }
+
+      const scope = String(data.scope ?? "");
+      if (scope !== "clinic" && scope !== "assigned") {
+        throw new HttpsError(
+          "invalid-argument",
+          "scope must be 'clinic' or 'assigned'."
+        );
+      }
+
+      const clinicRef = db.collection("clinics").doc(clinicId);
+      if (!(await clinicRef.get()).exists) {
+        throw new HttpsError("not-found", "Clinic not found.");
+      }
+
+      // Records written before the assignment copy existed have none, and a
+      // scoped doctor's sync narrows on it. Bring them up to date *before*
+      // scoping starts, so no doctor's records go missing in between.
+      const recordsUpdated = scope === "assigned" ?
+        await copyAssignmentsForClinic(clinicId) :
+        0;
+
+      const batch = db.batch();
+      batch.update(clinicRef, {
+        clinicalAccessScope: scope,
+        clinicalAccessScopeSetBy: caller.uid,
+        clinicalAccessScopeSetAt: FieldValue.serverTimestamp(),
+      });
+      addAuditLog(
+        batch,
+        clinicId,
+        caller.uid,
+        `clinic.clinicalScope.${scope}`,
+        clinicId
+      );
+      await batch.commit();
+
+      return {success: true, clinicalAccessScope: scope, recordsUpdated};
+    }
+
+    case "assignPatient": {
+      const clinicId = String(data.clinicId ?? "").trim();
+      const patientId = String(data.patientId ?? "").trim();
+      if (!clinicId || !patientId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "clinicId and patientId are required."
+        );
+      }
+
+      const caller = await loadCaller(request, clinicId);
+      // Deciding who treats a patient is a scheduling act, so the front desk
+      // can do it; it is not a way to reach clinical records.
+      requirePerm(caller, "patients.edit");
+
+      // This runs with admin rights, so it must not become the way around
+      // scoping: a doctor confined to their own patients could otherwise
+      // assign themselves to anyone. In a scoped clinic only the owner and
+      // unscoped staff (the front desk, admins) decide who treats whom.
+      if (!caller.isOwner) {
+        const [callerMember, clinicSnap] = await Promise.all([
+          db.collection("clinics").doc(clinicId)
+            .collection("members").doc(caller.uid).get(),
+          db.collection("clinics").doc(clinicId).get(),
+        ]);
+        const scoped = clinicSnap.data()?.clinicalAccessScope === "assigned";
+        if (scoped && callerMember.data()?.kind === "doctor") {
+          throw new HttpsError(
+            "permission-denied",
+            "In this clinic, patients are assigned by the front desk or the owner."
+          );
+        }
+      }
+
+      if (!Array.isArray(data.doctorUids)) {
+        throw new HttpsError("invalid-argument", "doctorUids must be a list.");
+      }
+      const requested: string[] = Array.from(
+        new Set<string>(
+          (data.doctorUids as unknown[]).map((u) => String(u).trim())
+        )
+      ).filter((u) => u.length > 0);
+      if (requested.length > 50) {
+        throw new HttpsError(
+          "invalid-argument",
+          "A patient cannot be assigned to more than 50 doctors."
+        );
+      }
+
+      const patientRef = db.collection("patients").doc(patientId);
+      const patientSnap = await patientRef.get();
+      if (!patientSnap.exists) {
+        throw new HttpsError("not-found", "Patient not found.");
+      }
+      // Never let an assignment move a record between clinics.
+      if (patientSnap.data()?.doctorId !== clinicId) {
+        throw new HttpsError(
+          "permission-denied",
+          "That patient belongs to another clinic."
+        );
+      }
+
+      // Only active doctors of this clinic may be assigned. The owner counts
+      // as one; anyone else has to be a doctor-kind member.
+      for (const uid of requested) {
+        if (uid === clinicId) {
+          // The owner can be assigned only if they treat patients.
+          const clinicDoc = await db.collection("clinics").doc(clinicId).get();
+          if (clinicDoc.data()?.ownerIsDoctor === false) {
+            throw new HttpsError(
+              "invalid-argument",
+              "Only doctors can be assigned to a patient."
+            );
+          }
+          continue;
+        }
+        const memberSnap = await db.collection("clinics").doc(clinicId)
+          .collection("members").doc(uid).get();
+        const member = memberSnap.data();
+        if (!memberSnap.exists || member?.active !== true) {
+          throw new HttpsError(
+            "invalid-argument",
+            "Only active members of this clinic can be assigned."
+          );
+        }
+        if (member?.kind !== "doctor") {
+          throw new HttpsError(
+            "invalid-argument",
+            "Only doctors can be assigned to a patient."
+          );
+        }
+      }
+
+      const batch = db.batch();
+      batch.update(patientRef, {
+        assignedDoctorUids: requested,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      addAuditLog(batch, clinicId, caller.uid, "patient.assign", patientId);
+      await batch.commit();
+
+      return {success: true, assignedDoctorUids: requested};
     }
 
     case "deleteRole": {
@@ -1130,7 +1591,7 @@ export const mirrorPlanToClinic = onDocumentWritten(
       if (userData.enabledModules !== undefined) {
         update.enabledModules = userData.enabledModules;
       } else {
-        update.enabledModules = admin.firestore.FieldValue.delete();
+        update.enabledModules = FieldValue.delete();
       }
     }
 
@@ -1139,7 +1600,7 @@ export const mirrorPlanToClinic = onDocumentWritten(
       if (userData.status !== undefined) {
         update.status = userData.status;
       } else {
-        update.status = admin.firestore.FieldValue.delete();
+        update.status = FieldValue.delete();
       }
     }
 
@@ -1154,7 +1615,7 @@ export const mirrorPlanToClinic = onDocumentWritten(
       if (userData.expiresDate !== undefined) {
         update.expiresDate = userData.expiresDate;
       } else {
-        update.expiresDate = admin.firestore.FieldValue.delete();
+        update.expiresDate = FieldValue.delete();
       }
     }
 
@@ -1163,7 +1624,7 @@ export const mirrorPlanToClinic = onDocumentWritten(
       if (userData.subscriptionPlan !== undefined) {
         update.subscriptionPlan = userData.subscriptionPlan;
       } else {
-        update.subscriptionPlan = admin.firestore.FieldValue.delete();
+        update.subscriptionPlan = FieldValue.delete();
       }
     }
 

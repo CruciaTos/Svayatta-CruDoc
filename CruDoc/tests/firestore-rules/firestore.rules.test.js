@@ -714,6 +714,519 @@ describe('clinic members', () => {
   });
 });
 
+describe('patient assignment (clinicalAccessScope)', () => {
+  const DOC1 = 'doc-1';
+  const DOC2 = 'doc-2';
+  const RECEP = 'recep-1';
+
+  async function seedClinic(scope) {
+    const clinicDoc = { name: 'Clinic A', ownerUid: A };
+    if (scope !== undefined) clinicDoc.clinicalAccessScope = scope;
+    await seed(`clinics/${A}`, clinicDoc);
+    for (const uid of [DOC1, DOC2]) {
+      await seed(`clinics/${A}/members/${uid}`, {
+        active: true,
+        kind: 'doctor',
+        roleId: 'doctor',
+        perms: ['patients.view', 'patients.edit', 'clinical.view', 'clinical.edit'],
+        name: uid,
+      });
+    }
+    await seed(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      kind: 'staff',
+      roleId: 'receptionist',
+      perms: ['patients.view', 'patients.edit', 'schedule', 'billing'],
+      name: 'Recep',
+    });
+  }
+
+  const patient = (over = {}) => ({ doctorId: A, name: 'Alice', ...over });
+  const listPatients = (db) =>
+    getDocs(query(collection(db, 'patients'), where('doctorId', '==', A)));
+
+  it('scopes a doctor to their assigned patients when the clinic says so', async () => {
+    await seedClinic('assigned');
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC1] }));
+    await seed('patients/p2', patient({ assignedDoctorUids: [DOC2] }));
+
+    const db1 = as(DOC1, { email: `${DOC1}@clinic.test` });
+    await assertSucceeds(getDoc(doc(db1, 'patients/p1')));
+    await assertFails(getDoc(doc(db1, 'patients/p2')));
+    // Editing someone else's patient is refused too.
+    await assertFails(updateDoc(doc(db1, 'patients/p2'), { doctorId: A, name: 'X' }));
+    await assertSucceeds(updateDoc(doc(db1, 'patients/p1'), { doctorId: A, name: 'Ok' }));
+  });
+
+  it('shares a patient assigned to several doctors', async () => {
+    await seedClinic('assigned');
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC1, DOC2] }));
+    for (const uid of [DOC1, DOC2]) {
+      await assertSucceeds(
+        getDoc(doc(as(uid, { email: `${uid}@clinic.test` }), 'patients/p1')),
+      );
+    }
+  });
+
+  it('keeps an unassigned patient readable by every doctor', async () => {
+    // A walk-in registered at the desk must not be invisible to whoever is
+    // about to see them. Reachable by id; the scoped list below is narrower.
+    await seedClinic('assigned');
+    await seed('patients/p1', patient());
+    await seed('patients/p2', patient({ assignedDoctorUids: [] }));
+    const db1 = as(DOC1, { email: `${DOC1}@clinic.test` });
+    await assertSucceeds(getDoc(doc(db1, 'patients/p1')));
+    await assertSucceeds(getDoc(doc(db1, 'patients/p2')));
+  });
+
+  it('does not scope the front desk, which needs the whole appointment book', async () => {
+    await seedClinic('assigned');
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC1] }));
+    await seed('patients/p2', patient({ assignedDoctorUids: [DOC2] }));
+    const db = as(RECEP, { email: `${RECEP}@clinic.test` });
+    await assertSucceeds(getDoc(doc(db, 'patients/p1')));
+    await assertSucceeds(getDoc(doc(db, 'patients/p2')));
+    await assertSucceeds(listPatients(db));
+  });
+
+  it('does not scope the owner', async () => {
+    await seedClinic('assigned');
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC2] }));
+    await assertSucceeds(getDoc(doc(doctor(A), 'patients/p1')));
+    await assertSucceeds(listPatients(doctor(A)));
+  });
+
+  it('ignores assignment entirely in a clinic-wide clinic', async () => {
+    await seedClinic('clinic');
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC2] }));
+    const db1 = as(DOC1, { email: `${DOC1}@clinic.test` });
+    await assertSucceeds(getDoc(doc(db1, 'patients/p1')));
+    await assertSucceeds(listPatients(db1));
+  });
+
+  it('treats an absent clinicalAccessScope as clinic-wide', async () => {
+    await seedClinic(undefined);
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC2] }));
+    await assertSucceeds(
+      getDoc(doc(as(DOC1, { email: `${DOC1}@clinic.test` }), 'patients/p1')),
+    );
+  });
+
+  it('requires a scoped doctor to narrow their patient query to themselves', async () => {
+    // A rule for a query is satisfied from the query's filters, not by
+    // reading each result, so an unfiltered list cannot be judged per
+    // patient and is refused outright. The client narrows it instead.
+    await seedClinic('assigned');
+    for (let i = 0; i < 12; i++) {
+      await seed(`patients/mine-${i}`, patient({ assignedDoctorUids: [DOC1] }));
+    }
+    await seed('patients/theirs', patient({ assignedDoctorUids: [DOC2] }));
+    const db1 = as(DOC1, { email: `${DOC1}@clinic.test` });
+
+    // Unfiltered: refused, even though most results would be in scope.
+    await assertFails(listPatients(db1));
+
+    // Narrowed to the caller: allowed, and returns only their patients.
+    const mine = await assertSucceeds(
+      getDocs(query(collection(db1, 'patients'),
+        where('doctorId', '==', A),
+        where('assignedDoctorUids', 'array-contains', DOC1))),
+    );
+    if (mine.size !== 12) throw new Error(`expected 12 patients, got ${mine.size}`);
+
+    // Narrowing to somebody else is refused, so the filter cannot be abused
+    // to read another doctor's list.
+    await assertFails(
+      getDocs(query(collection(db1, 'patients'),
+        where('doctorId', '==', A),
+        where('assignedDoctorUids', 'array-contains', DOC2))),
+    );
+  });
+
+  it('does not let a scoped doctor assign themselves to another patient', async () => {
+    await seedClinic('assigned');
+    await seed('patients/p2', patient({ assignedDoctorUids: [DOC2] }));
+    const db1 = as(DOC1, { email: `${DOC1}@clinic.test` });
+    // The update is judged against the stored document, so a doctor cannot
+    // write their own uid into a patient they cannot already reach.
+    await assertFails(
+      updateDoc(doc(db1, 'patients/p2'), { doctorId: A, assignedDoctorUids: [DOC2, DOC1] }),
+    );
+  });
+
+  it('still refuses a non-member and another clinic\'s doctor', async () => {
+    await seedClinic('assigned');
+    await seed('patients/p1', patient({ assignedDoctorUids: [DOC1] }));
+    await assertFails(getDoc(doc(doctor(B), 'patients/p1')));
+  });
+});
+
+describe('a manager who owns the clinic (nonClinicalOwner)', () => {
+  // The claim ensureClinic sets when the person setting up the clinic says
+  // they manage it rather than treat patients.
+  const manager = () => as(A, { email: `${A}@clinic.test`, nonClinicalOwner: true });
+
+  beforeEach(async () => {
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A, ownerIsDoctor: false });
+    await seed('patients/p1', { doctorId: A, name: 'Alice' });
+    await seed('dental_records/d1', { doctorId: A, patientId: 'p1', note: 'private' });
+  });
+
+  it('runs the clinic: patients, schedule, billing, revenue, stock, team, settings', async () => {
+    const db = manager();
+    await assertSucceeds(getDoc(doc(db, 'patients/p1')));
+    await assertSucceeds(setDoc(doc(db, 'patients/p2'), { doctorId: A, name: 'Bob' }));
+    await assertSucceeds(setDoc(doc(db, 'appointments/a1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(db, 'invoices/i1'), { doctorId: A }));
+    await assertSucceeds(getDocs(query(collection(db, 'revenue_entries'), where('doctorId', '==', A))));
+    await assertSucceeds(getDocs(query(collection(db, 'medicines'), where('doctorId', '==', A))));
+    await assertSucceeds(getDoc(doc(db, `clinics/${A}/invites/x`)));
+    await assertSucceeds(updateDoc(doc(db, `clinics/${A}`), { name: 'Renamed' }));
+  });
+
+  it('never opens medical records', async () => {
+    const db = manager();
+    await assertFails(getDoc(doc(db, 'dental_records/d1')));
+    await assertFails(getDocs(query(collection(db, 'dental_records'), where('doctorId', '==', A))));
+    await assertFails(setDoc(doc(db, 'dental_records/d2'), { doctorId: A, patientId: 'p1' }));
+    await assertFails(getDocs(query(collection(db, 'patient_files'),
+      where('doctorId', '==', A), where('visibleTo', 'array-contains', 'team'))));
+  });
+
+  it('is not let in by the admins\' clinical-access setting', async () => {
+    // Granting admins clinical access is the owner's call about other people;
+    // it must not quietly restore the owner's own access.
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A, ownerIsDoctor: false, adminClinicalAccess: true });
+    await seed(`clinics/${A}/members/${A}`, { active: true, kind: 'staff', roleId: 'admin', perms: [] });
+    await assertFails(getDoc(doc(manager(), 'dental_records/d1')));
+  });
+
+  it('leaves a doctor-owner, and every solo doctor, exactly as before', async () => {
+    // No claim: the owner path is the same expression it always was.
+    await assertSucceeds(getDoc(doc(doctor(A), 'dental_records/d1')));
+    await assertSucceeds(getDocs(query(collection(doctor(A), 'dental_records'), where('doctorId', '==', A))));
+    await assertSucceeds(getDoc(doc(doctor(B), 'patients/none-yet')));
+  });
+
+  it('means nothing on anyone but the owner', async () => {
+    // A member who somehow carried the claim is judged as a member.
+    await seed(`clinics/${A}/members/doc-2`, {
+      active: true, kind: 'doctor', roleId: 'doctor', perms: ['patients.view', 'clinical.view'],
+    });
+    const db = as('doc-2', { email: 'doc-2@clinic.test', nonClinicalOwner: true });
+    await assertSucceeds(getDoc(doc(db, 'dental_records/d1')));
+  });
+});
+
+describe('clinical records under patient assignment', () => {
+  const DOC1 = 'doc-1';
+  const DOC2 = 'doc-2';
+  const NURSE = 'nurse-1';
+  const RECEP = 'recep-1';
+  const OTHER = 'other-clinic';
+
+  const clinicalPerms = ['patients.view', 'patients.edit', 'clinical.view', 'clinical.edit'];
+
+  async function seedClinic(scope) {
+    const clinicDoc = { name: 'Clinic A', ownerUid: A };
+    if (scope !== undefined) clinicDoc.clinicalAccessScope = scope;
+    await seed(`clinics/${A}`, clinicDoc);
+    for (const uid of [DOC1, DOC2]) {
+      await seed(`clinics/${A}/members/${uid}`, {
+        active: true, kind: 'doctor', roleId: 'doctor', perms: clinicalPerms, name: uid,
+      });
+    }
+    await seed(`clinics/${A}/members/${NURSE}`, {
+      active: true, kind: 'staff', roleId: 'assistant',
+      perms: ['patients.view', 'clinical.view'], name: 'Nurse',
+    });
+    await seed(`clinics/${A}/members/${RECEP}`, {
+      active: true, kind: 'staff', roleId: 'receptionist',
+      perms: ['patients.view', 'patients.edit', 'schedule'], name: 'Recep',
+    });
+    await seed('patients/mine', { doctorId: A, assignedDoctorUids: [DOC1] });
+    await seed('patients/theirs', { doctorId: A, assignedDoctorUids: [DOC2] });
+    await seed('patients/open', { doctorId: A, assignedDoctorUids: [] });
+    await seed('patients/foreign', { doctorId: OTHER, assignedDoctorUids: [] });
+    // Records carry a copy of their patient's assignment, as the server keeps it.
+    await seed('dental_records/r-mine', { doctorId: A, patientId: 'mine', assignedDoctorUids: [DOC1] });
+    await seed('dental_records/r-theirs', { doctorId: A, patientId: 'theirs', assignedDoctorUids: [DOC2] });
+    await seed('dental_records/r-open', { doctorId: A, patientId: 'open', assignedDoctorUids: [] });
+  }
+
+  const d1 = () => as(DOC1, { email: `${DOC1}@clinic.test` });
+  const forPatient = (db, pid) => getDocs(query(collection(db, 'dental_records'),
+    where('doctorId', '==', A), where('patientId', '==', pid)));
+
+  it('lets a scoped doctor open records of their own and of unassigned patients', async () => {
+    await seedClinic('assigned');
+    await assertSucceeds(getDoc(doc(d1(), 'dental_records/r-mine')));
+    await assertSucceeds(getDoc(doc(d1(), 'dental_records/r-open')));
+  });
+
+  it("keeps a scoped doctor out of another doctor's patient's records", async () => {
+    await seedClinic('assigned');
+    await assertFails(getDoc(doc(d1(), 'dental_records/r-theirs')));
+    await assertFails(forPatient(d1(), 'theirs'));
+    await assertFails(updateDoc(doc(d1(), 'dental_records/r-theirs'), { doctorId: A, note: 'x' }));
+    await assertFails(deleteDoc(doc(d1(), 'dental_records/r-theirs')));
+  });
+
+  it("allows a patient's own screen to query that patient's records", async () => {
+    // How the homeopathy screens read: narrowed to one patient.
+    await seedClinic('assigned');
+    await assertSucceeds(forPatient(d1(), 'mine'));
+    await assertSucceeds(forPatient(d1(), 'open'));
+  });
+
+  it('allows the clinic-wide sync only when narrowed to the caller', async () => {
+    await seedClinic('assigned');
+    const all = (db) => getDocs(query(collection(db, 'dental_records'), where('doctorId', '==', A)));
+    await assertFails(all(d1()));
+    await assertSucceeds(getDocs(query(collection(d1(), 'dental_records'),
+      where('doctorId', '==', A), where('assignedDoctorUids', 'array-contains', DOC1))));
+    // Narrowing to somebody else does not work either.
+    await assertFails(getDocs(query(collection(d1(), 'dental_records'),
+      where('doctorId', '==', A), where('assignedDoctorUids', 'array-contains', DOC2))));
+  });
+
+  it("refuses creating a record for another doctor's patient", async () => {
+    await seedClinic('assigned');
+    await assertFails(setDoc(doc(d1(), 'dental_records/new1'), { doctorId: A, patientId: 'theirs' }));
+    await assertSucceeds(setDoc(doc(d1(), 'dental_records/new2'), { doctorId: A, patientId: 'mine' }));
+  });
+
+  it("refuses moving a record onto a patient the caller cannot reach", async () => {
+    await seedClinic('assigned');
+    await assertFails(updateDoc(doc(d1(), 'dental_records/r-mine'), { doctorId: A, patientId: 'theirs' }));
+  });
+
+  it("refuses a record that points at another clinic's patient", async () => {
+    // Otherwise a record could borrow the open assignment of a foreign patient.
+    await seedClinic('assigned');
+    await assertFails(setDoc(doc(d1(), 'dental_records/borrow'), { doctorId: A, patientId: 'foreign' }));
+  });
+
+  it('refuses a record whose patient cannot be found', async () => {
+    await seedClinic('assigned');
+    await seed('dental_records/orphan', { doctorId: A, patientId: 'ghost', assignedDoctorUids: [] });
+    await assertFails(getDoc(doc(d1(), 'dental_records/orphan')));
+  });
+
+  it('applies to every clinical collection, not just dental records', async () => {
+    await seedClinic('assigned');
+    for (const coll of ['radiology_docs', 'homeopathy_case_sheets', 'homeopathy_session_notes',
+      'tooth_chart_entries', 'procedure_log_entries', 'treatment_plan_line_items']) {
+      await seed(`${coll}/t`, { doctorId: A, patientId: 'theirs', assignedDoctorUids: [DOC2] });
+      await assertFails(getDoc(doc(d1(), `${coll}/t`)));
+      await seed(`${coll}/m`, { doctorId: A, patientId: 'mine', assignedDoctorUids: [DOC1] });
+      await assertSucceeds(getDoc(doc(d1(), `${coll}/m`)));
+    }
+  });
+
+  it('CHARACTERISES staff with clinical access as not scoped', async () => {
+    // An assistant or nurse reads charts across the clinic; scoping applies to
+    // doctors. Pinned so that changing it is a visible decision.
+    await seedClinic('assigned');
+    const nurse = as(NURSE, { email: 'nurse@clinic.test' });
+    await assertSucceeds(getDoc(doc(nurse, 'dental_records/r-theirs')));
+  });
+
+  it('still keeps the front desk out of clinical records altogether', async () => {
+    await seedClinic('assigned');
+    await assertFails(getDoc(doc(as(RECEP, { email: 'r@clinic.test' }), 'dental_records/r-open')));
+  });
+
+  it('does not restrict the owner, or anyone in a clinic-wide clinic', async () => {
+    await seedClinic('assigned');
+    await assertSucceeds(getDoc(doc(doctor(A), 'dental_records/r-theirs')));
+    await assertSucceeds(getDocs(query(collection(doctor(A), 'dental_records'), where('doctorId', '==', A))));
+  });
+
+  it('is a no-op in a clinic-wide clinic', async () => {
+    await seedClinic('clinic');
+    await assertSucceeds(getDoc(doc(d1(), 'dental_records/r-theirs')));
+    await assertSucceeds(getDocs(query(collection(d1(), 'dental_records'), where('doctorId', '==', A))));
+    await assertSucceeds(setDoc(doc(d1(), 'dental_records/n'), { doctorId: A, patientId: 'theirs' }));
+  });
+});
+
+describe('who may set a patient assignment', () => {
+  const DOC1 = 'doc-1';
+  const RECEP = 'recep-1';
+
+  beforeEach(async () => {
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A, clinicalAccessScope: 'assigned' });
+    await seed(`clinics/${A}/members/${DOC1}`, {
+      active: true, kind: 'doctor', roleId: 'doctor',
+      perms: ['patients.view', 'patients.edit', 'clinical.view', 'clinical.edit'],
+    });
+    await seed(`clinics/${A}/members/${RECEP}`, {
+      active: true, kind: 'staff', roleId: 'receptionist',
+      perms: ['patients.view', 'patients.edit', 'schedule'],
+    });
+    await seed('patients/p', { doctorId: A, name: 'P', assignedDoctorUids: [DOC1] });
+  });
+
+  const d1 = () => as(DOC1, { email: `${DOC1}@clinic.test` });
+  const recep = () => as(RECEP, { email: `${RECEP}@clinic.test` });
+
+  it('lets a client create a patient assigned to nobody or to itself only', async () => {
+    await assertSucceeds(setDoc(doc(d1(), 'patients/n1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(d1(), 'patients/n2'), { doctorId: A, assignedDoctorUids: [] }));
+    await assertSucceeds(setDoc(doc(d1(), 'patients/n3'), { doctorId: A, assignedDoctorUids: [DOC1] }));
+    await assertFails(setDoc(doc(d1(), 'patients/n4'), { doctorId: A, assignedDoctorUids: ['doc-2'] }));
+    await assertFails(setDoc(doc(d1(), 'patients/n5'), { doctorId: A, assignedDoctorUids: [DOC1, 'doc-2'] }));
+    // The desk cannot pre-assign a doctor directly; that goes through assignPatient.
+    await assertFails(setDoc(doc(recep(), 'patients/n6'), { doctorId: A, assignedDoctorUids: [DOC1] }));
+  });
+
+  it('never lets a client change an assignment, not even the owner', async () => {
+    await assertFails(updateDoc(doc(d1(), 'patients/p'), { doctorId: A, assignedDoctorUids: [] }));
+    await assertFails(updateDoc(doc(recep(), 'patients/p'), { doctorId: A, assignedDoctorUids: [DOC1, RECEP] }));
+    await assertFails(updateDoc(doc(doctor(A), 'patients/p'), { doctorId: A, assignedDoctorUids: [] }));
+  });
+
+  it('still lets an assigned doctor edit the rest of the patient', async () => {
+    await assertSucceeds(updateDoc(doc(d1(), 'patients/p'), { doctorId: A, name: 'Renamed' }));
+  });
+
+  it('never lets a client set the copy on a clinical record', async () => {
+    await assertFails(setDoc(doc(d1(), 'dental_records/x'), {
+      doctorId: A, patientId: 'p', assignedDoctorUids: [DOC1],
+    }));
+    await seed('dental_records/y', { doctorId: A, patientId: 'p', assignedDoctorUids: [DOC1] });
+    await assertFails(updateDoc(doc(d1(), 'dental_records/y'), { doctorId: A, assignedDoctorUids: [] }));
+    // Editing the record otherwise is fine; the server-kept copy is untouched.
+    await assertSucceeds(updateDoc(doc(d1(), 'dental_records/y'), { doctorId: A, note: 'ok' }));
+  });
+});
+
+describe('admin clinical access (administrative vs clinical authority)', () => {
+  const MGR = 'manager-1';
+
+  /** An admin-role member of clinic A, with the clinic's flag set to `flag`. */
+  async function seedClinic(flag) {
+    const clinicDoc = { name: 'Clinic A', ownerUid: A };
+    if (flag !== undefined) clinicDoc.adminClinicalAccess = flag;
+    await seed(`clinics/${A}`, clinicDoc);
+    // perms is empty on purpose: everything this member can do comes from
+    // holding the admin role, which is what the separation governs.
+    await seed(`clinics/${A}/members/${MGR}`, {
+      active: true,
+      roleId: 'admin',
+      perms: [],
+      name: 'Practice Manager',
+    });
+  }
+
+  const clinicalRead = (db) =>
+    getDocs(query(collection(db, 'dental_records'), where('doctorId', '==', A)));
+
+  it('denies clinical records to an admin when the clinic says no', async () => {
+    await seedClinic(false);
+    await seed('dental_records/d1', { doctorId: A, note: 'private' });
+    const db = as(MGR, { email: `${MGR}@clinic.test` });
+
+    await assertFails(getDoc(doc(db, 'dental_records/d1')));
+    await assertFails(clinicalRead(db));
+    await assertFails(
+      setDoc(doc(db, 'dental_records/d2'), { doctorId: A, note: 'nope' }),
+    );
+    // Files follow clinical.view too.
+    await assertFails(
+      getDocs(query(collection(db, 'patient_files'), where('doctorId', '==', A))),
+    );
+  });
+
+  it('still lets that admin run the clinic', async () => {
+    await seedClinic(false);
+    const db = as(MGR, { email: `${MGR}@clinic.test` });
+
+    // Patients, scheduling, billing, revenue, inventory and team all remain.
+    await assertSucceeds(setDoc(doc(db, 'patients/p1'), { doctorId: A, name: 'Alice' }));
+    await assertSucceeds(
+      getDocs(query(collection(db, 'patients'), where('doctorId', '==', A))),
+    );
+    await assertSucceeds(setDoc(doc(db, 'appointments/a1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(db, 'invoices/i1'), { doctorId: A }));
+    await assertSucceeds(
+      getDocs(query(collection(db, 'revenue_entries'), where('doctorId', '==', A))),
+    );
+    await assertSucceeds(
+      getDocs(query(collection(db, 'medicines'), where('doctorId', '==', A))),
+    );
+    await assertSucceeds(getDoc(doc(db, `clinics/${A}`)));
+    await assertSucceeds(getDoc(doc(db, `clinics/${A}/invites/x`)));
+  });
+
+  it('grants clinical records to an admin when the clinic says yes', async () => {
+    await seedClinic(true);
+    await seed('dental_records/d1', { doctorId: A, note: 'shared' });
+    const db = as(MGR, { email: `${MGR}@clinic.test` });
+
+    await assertSucceeds(getDoc(doc(db, 'dental_records/d1')));
+    await assertSucceeds(clinicalRead(db));
+    await assertSucceeds(
+      setDoc(doc(db, 'dental_records/d2'), { doctorId: A, note: 'ok' }),
+    );
+  });
+
+  it('reads an absent flag permissively, so an un-backfilled clinic keeps working', async () => {
+    await seedClinic(undefined);
+    await seed('dental_records/d1', { doctorId: A, note: 'legacy' });
+    const db = as(MGR, { email: `${MGR}@clinic.test` });
+
+    await assertSucceeds(getDoc(doc(db, 'dental_records/d1')));
+    await assertSucceeds(clinicalRead(db));
+  });
+
+  it('never restricts the owner, whatever the flag says', async () => {
+    await seedClinic(false);
+    await seed('dental_records/d1', { doctorId: A, note: 'mine' });
+
+    await assertSucceeds(getDoc(doc(doctor(A), 'dental_records/d1')));
+    await assertSucceeds(clinicalRead(doctor(A)));
+  });
+
+  it('never restricts a doctor who holds clinical access in their own right', async () => {
+    await seedClinic(false);
+    await seed(`clinics/${A}/members/doc-2`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view', 'clinical.edit'],
+      name: 'Dr Two',
+    });
+    await seed('dental_records/d1', { doctorId: A, note: 'clinical' });
+    const db = as('doc-2', { email: 'doc-2@clinic.test' });
+
+    await assertSucceeds(getDoc(doc(db, 'dental_records/d1')));
+    await assertSucceeds(clinicalRead(db));
+  });
+
+  it('does not let the admin flip the flag by writing the clinic document', async () => {
+    await seedClinic(false);
+    const db = as(MGR, { email: `${MGR}@clinic.test` });
+    // `settings` only permits name/updatedAt, so this must be refused: the
+    // flag is changed through the owner-only clinicTeam action.
+    await assertFails(
+      updateDoc(doc(db, `clinics/${A}`), { adminClinicalAccess: true }),
+    );
+    await assertFails(
+      updateDoc(doc(db, `clinics/${A}`), { name: 'Renamed', adminClinicalAccess: true }),
+    );
+    // Renaming alone is still allowed.
+    await assertSucceeds(updateDoc(doc(db, `clinics/${A}`), { name: 'Renamed' }));
+  });
+
+  it('does not let the owner flip it by a direct client write either', async () => {
+    await seedClinic(false);
+    await assertFails(
+      updateDoc(doc(doctor(A), `clinics/${A}`), { adminClinicalAccess: true }),
+    );
+  });
+});
+
 describe('super admin clinic monitoring (read only)', () => {
   const OWNER = 'owner-1';
   const seedClinic = async () => {

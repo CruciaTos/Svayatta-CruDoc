@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_team_api.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
@@ -57,9 +59,17 @@ class OnboardingAnswers {
     this.dental = DentalFeature.defaults,
     required this.suggest,
     required this.picked,
+    this.ownerIsDoctor = true,
+    this.clinicName = '',
   });
 
   final PracticeType practice;
+
+  /// Clinic only: whether the person setting it up treats patients.
+  final bool ownerIsDoctor;
+
+  /// Clinic only: its name, if given.
+  final String clinicName;
   final String name;
   final DoctorSpecialtyType specialty;
   final Set<DentalFeature> dental;
@@ -106,6 +116,14 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   int _step = 0;
   PracticeType? _practice;
   late final TextEditingController _name;
+
+  /// Clinic only. A manager who owns the clinic runs it but never opens
+  /// medical records; a doctor-owner has full access, as every owner has
+  /// had until now. Solo practice never asks and is unaffected.
+  bool _ownerIsDoctor = true;
+  final TextEditingController _clinicName = TextEditingController();
+
+  bool get _isClinic => _practice == PracticeType.clinic;
   DoctorSpecialtyType? _specialty;
   Set<DentalFeature> _dental = DentalFeature.defaults;
 
@@ -131,6 +149,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
     if (a != null) {
       _practice = a.practice;
+      _ownerIsDoctor = a.ownerIsDoctor;
+      _clinicName.text = a.clinicName;
       _specialty = a.specialty;
       _dental = a.dental;
       _suggest = a.suggest;
@@ -143,6 +163,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   @override
   void dispose() {
     _name.dispose();
+    _clinicName.dispose();
     super.dispose();
   }
 
@@ -174,6 +195,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           dental: _dental,
           suggest: _suggest!,
           picked: {..._picked},
+          ownerIsDoctor: _ownerIsDoctor,
+          clinicName: _clinicName.text.trim(),
         ),
       );
       return;
@@ -217,11 +240,17 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           'practiceType': _practice!.name,
           'featureChoice': _suggest! ? 'suggested' : 'picked',
           'chosenModules': _modules.toList(),
+          // Kept so a clinic set up later (Settings → Team) still knows
+          // whether its owner is a doctor or a manager.
+          if (_isClinic) 'ownerIsDoctor': _ownerIsDoctor,
+          if (_isClinic && _clinicName.text.trim().isNotEmpty)
+            'clinicName': _clinicName.text.trim(),
           'completedAt': FieldValue.serverTimestamp(),
         },
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       if (user.displayName != name) await user.updateDisplayName(name);
+      if (_isClinic) await _setUpClinic(user, name, spec);
       final card = await LoyaltyService.stampThisMonth();
       if (!mounted) return;
       setState(() {
@@ -232,6 +261,27 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       if (mounted) setState(() => _error = 'Could not save. Check the connection and try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  /// A clinic is set up as soon as onboarding finishes, so its owner can add
+  /// people straight away. If it fails (no connection), nothing is lost: the
+  /// choice is on the profile and Settings → Team sets it up from there.
+  Future<void> _setUpClinic(User user, String name, DoctorSpecialty spec) async {
+    try {
+      final clinicName = _clinicName.text.trim();
+      await ClinicTeamApi.instance.ensureClinic(
+        clinicName: clinicName.isEmpty ? name : clinicName,
+        ownerName: name,
+        specialty: spec.label,
+        ownerIsDoctor: _ownerIsDoctor,
+      );
+      // A manager-owner's restriction travels in their sign-in token; fetch
+      // a fresh one so it applies now rather than at the next token refresh.
+      if (!_ownerIsDoctor) await user.getIdToken(true);
+      await ClinicSession.instance.reload();
+    } catch (_) {
+      // Left for Settings → Team, which reads the saved choice.
     }
   }
 
@@ -391,15 +441,46 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _heading('About you', 'Shown on your prescriptions and to your patients.'),
+        if (_isClinic) ...[
+          Text('Your role in the clinic', style: CruType.subhead.tint(c.label2)),
+          const SizedBox(height: CruSpace.s8),
+          _OptionTile(
+            icon: CruIcons.user,
+            title: "I'm a doctor here",
+            detail: 'You treat patients and run the clinic.',
+            selected: _ownerIsDoctor,
+            onTap: () => setState(() => _ownerIsDoctor = true),
+          ),
+          const SizedBox(height: CruSpace.s8),
+          _OptionTile(
+            icon: CruIcons.patients,
+            title: 'I manage the clinic',
+            detail: 'You run staff, billing and settings. Medical records '
+                'stay with the doctors.',
+            selected: !_ownerIsDoctor,
+            onTap: () => setState(() => _ownerIsDoctor = false),
+          ),
+          const SizedBox(height: CruSpace.s20),
+          CruTextField(
+            label: 'Clinic name',
+            controller: _clinicName,
+            hint: 'Sunrise Dental',
+            textCapitalization: TextCapitalization.words,
+          ),
+          const SizedBox(height: CruSpace.s16),
+        ],
         CruTextField(
           label: 'Your name',
           controller: _name,
-          hint: 'Dr. Priya Sharma',
+          hint: _isClinic && !_ownerIsDoctor ? 'Priya Sharma' : 'Dr. Priya Sharma',
           textCapitalization: TextCapitalization.words,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: CruSpace.s20),
-        Text('Specialty', style: CruType.subhead.tint(c.label2)),
+        Text(
+          _isClinic && !_ownerIsDoctor ? 'Clinic specialty' : 'Specialty',
+          style: CruType.subhead.tint(c.label2),
+        ),
         const SizedBox(height: CruSpace.s8),
         LayoutBuilder(
           builder: (context, box) {

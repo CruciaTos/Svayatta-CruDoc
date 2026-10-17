@@ -247,6 +247,25 @@ class Clinic {
   final String status;
   final DateTime? expiresDate;
 
+  /// Whether this clinic's admins may open clinical records. Running the
+  /// clinic and treating its patients are separate kinds of authority, so an
+  /// admin gets no clinical access until the owner grants it. An absent
+  /// field reads as `true` (a clinic predating the setting), matching the
+  /// rules and the backfill migration.
+  final bool adminClinicalAccess;
+
+  /// `'clinic'` (the default) means every doctor sees every patient, which is
+  /// how a small practice covers walk-ins and absences. `'assigned'` scopes
+  /// each doctor to the patients in their `assignedDoctorUids`.
+  ///
+  /// Not settable from the app yet: a scoped doctor's patient queries have to
+  /// narrow to `assignedDoctorUids array-contains <uid>` for the rules to
+  /// allow them, and that filtering is not wired up. Read-only here so the
+  /// value is visible once it is.
+  final String clinicalAccessScope;
+
+  bool get scopesDoctorsToAssignedPatients => clinicalAccessScope == 'assigned';
+
   const Clinic({
     required this.id,
     required this.name,
@@ -257,6 +276,8 @@ class Clinic {
     this.enabledModules,
     this.status = 'active',
     this.expiresDate,
+    this.adminClinicalAccess = true,
+    this.clinicalAccessScope = 'clinic',
   });
 
   factory Clinic.fromMap(String id, Map<String, dynamic> map) {
@@ -295,6 +316,10 @@ class Clinic {
       enabledModules: modules,
       status: map['status'] as String? ?? 'active',
       expiresDate: exp,
+      adminClinicalAccess: map['adminClinicalAccess'] != false,
+      clinicalAccessScope: map['clinicalAccessScope'] == 'assigned'
+          ? 'assigned'
+          : 'clinic',
     );
   }
 
@@ -304,6 +329,8 @@ class Clinic {
     'ownerUid': ownerUid,
     'seats': {'doctor': seatsDoctor, 'staff': seatsStaff},
     if (enabledModules != null) 'enabledModules': enabledModules,
+    'adminClinicalAccess': adminClinicalAccess,
+    'clinicalAccessScope': clinicalAccessScope,
     'status': status,
     if (expiresDate != null) 'expiresDate': Timestamp.fromDate(expiresDate!),
   };

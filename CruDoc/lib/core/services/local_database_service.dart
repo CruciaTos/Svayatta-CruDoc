@@ -474,7 +474,8 @@ class LocalDatabaseService extends ChangeNotifier {
         syncStatus TEXT NOT NULL DEFAULT 'synced'
           CHECK (syncStatus IN ('synced', 'pending')),
         pendingDelete INTEGER NOT NULL DEFAULT 0,
-        lastSyncedAt INTEGER
+        lastSyncedAt INTEGER,
+        assignedDoctorUids TEXT NOT NULL DEFAULT ''
       )
     ''');
   }
@@ -1017,6 +1018,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    // JSON array of doctor uids; '' means nobody in particular. Only
+    // meaningful in a clinic that scopes doctors to assigned patients.
+    'assignedDoctorUids': "assignedDoctorUids TEXT NOT NULL DEFAULT ''",
   };
 
   static const Map<String, String> _visitsColumns = {

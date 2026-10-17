@@ -25,6 +25,15 @@ class DeviceSessionService {
   String? _monitoredDoctorId;
   bool _isRegistering = false;
 
+  /// The registration in progress, and whose it is. A sign-in starts two:
+  /// the login screen registers the session, and so does the auth listener
+  /// in main.dart the moment Firebase reports the sign-in. Run separately,
+  /// each minted its own token; whichever reached the server last disagreed
+  /// with whichever was kept on the device, and the device logged itself
+  /// out as "accessed from another device". Callers now share one.
+  Future<String>? _registration;
+  String? _registrationFor;
+
   /// Returns the doctor UID currently being monitored, if any.
   String? get monitoredDoctorId => _monitoredDoctorId;
 
@@ -48,7 +57,28 @@ class DeviceSessionService {
 
   /// Registers a new active session upon doctor login.
   /// Handles both single-device eviction and multi-device registration.
+  ///
+  /// A call made while one for the same person is still running gets that
+  /// one's token rather than starting another (see [_registration]).
   Future<String> registerNewSession(
+    String doctorId, {
+    String? customDeviceName,
+  }) {
+    final inFlight = _registration;
+    if (inFlight != null && _registrationFor == doctorId) return inFlight;
+    final started = _register(doctorId, customDeviceName: customDeviceName);
+    _registration = started;
+    _registrationFor = doctorId;
+    started.whenComplete(() {
+      if (identical(_registration, started)) {
+        _registration = null;
+        _registrationFor = null;
+      }
+    });
+    return started;
+  }
+
+  Future<String> _register(
     String doctorId, {
     String? customDeviceName,
   }) async {

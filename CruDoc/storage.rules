@@ -12,17 +12,57 @@ service firebase.storage {
       return request.auth != null && request.auth.uid == doctorId;
     }
 
+    // Reading or writing a patient's clinical record, as opposed to running
+    // the clinic. Keep in sync with clinicalPerm() in firestore.rules.
+    function clinicalPerm(perm) {
+      return perm == 'clinical.view' || perm == 'clinical.edit';
+    }
+
+    // Whether this clinic's admins may reach clinical records. Absent means
+    // a clinic created before the setting existed and reads as `true`; see
+    // the longer note in firestore.rules.
+    function adminClinicalAllowed(doctorId) {
+      return firestore.get(/databases/(default)/documents/clinics/$(doctorId))
+        .data.get('adminClinicalAccess', true) == true;
+    }
+
     // Clinic membership; see firestore.rules. The clinic id is the owner's uid.
+    // The admin role carries every administrative permission but no clinical
+    // one unless the owner has granted it.
     function memberAllows(doctorId, perm) {
       let m = firestore.get(/databases/(default)/documents/clinics/$(doctorId)/members/$(request.auth.uid)).data;
       return m.active == true
-        && (perm == 'member' || m.roleId == 'admin' || perm in m.perms);
+        && (perm == 'member'
+          || (m.roleId == 'admin'
+            ? (!clinicalPerm(perm) || adminClinicalAllowed(doctorId))
+            : perm in m.perms));
+    }
+
+    // A manager-owner (nonClinicalOwner claim, set by ensureClinic) runs the
+    // clinic but never opens medical records; see firestore.rules. Read from
+    // the token, so a solo doctor is unaffected.
+    function nonClinicalOwner() {
+      return request.auth.token.get('nonClinicalOwner', false) == true;
     }
 
     // perm: a permission key, 'member' or 'admin' (owner and admin role only).
+    // The owner never falls through to the member check.
     function can(doctorId, perm) {
       return request.auth != null
-        && (request.auth.uid == doctorId || memberAllows(doctorId, perm));
+        && ((request.auth.uid == doctorId
+            && (!clinicalPerm(perm) || !nonClinicalOwner()))
+          || (request.auth.uid != doctorId && memberAllows(doctorId, perm)));
+    }
+
+    // For the catch-all below only. Storage rules are OR'd together, so a
+    // blanket `can(doctorId, 'admin')` on doctors/{id}/** would hand an admin
+    // every patient file regardless of the narrower clinical rules further
+    // down. The owner always passes; an admin passes only while the clinic
+    // still lets admins open clinical records.
+    function ownerOrFullAdmin(doctorId) {
+      return (isOwner(doctorId) && !nonClinicalOwner())
+        || (!isOwner(doctorId)
+          && can(doctorId, 'admin') && adminClinicalAllowed(doctorId));
     }
 
     function withinSizeLimit() {
@@ -57,10 +97,13 @@ service firebase.storage {
 
     // Permanent per-doctor files: patient records, clinic branding,
     // inventory receipts, sterilization strips, backups, exports.
-    // Catch-all: requires admin role or owner.
+    // Catch-all: the owner, or an admin who may still open clinical records
+    // (this path covers patient folders too, so it cannot be granted to an
+    // admin whose clinical access has been withdrawn). The narrower rules
+    // below keep giving admins branding, inventory and backup access.
     match /doctors/{doctorId}/{allPaths=**} {
-      allow read, delete: if can(doctorId, 'admin');
-      allow create, update: if can(doctorId, 'admin')
+      allow read, delete: if ownerOrFullAdmin(doctorId);
+      allow create, update: if ownerOrFullAdmin(doctorId)
         && withinSizeLimit()
         && isAllowedMedicalType();
     }

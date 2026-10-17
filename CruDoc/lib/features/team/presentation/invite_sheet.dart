@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,11 +14,30 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum _Contact { phone, email }
 
+/// What the dialog shows once the person has been added.
+enum _Outcome {
+  /// Email account created and its set-your-password link sent.
+  emailed,
+
+  /// Email account created, but the link could not be sent (offline?).
+  emailFailed,
+
+  /// Phone account created: they sign in with a one-time code.
+  phoneReady,
+
+  /// They already had a CruDoc account, so they were invited instead.
+  invited,
+}
+
 Future<void> showInviteDialog(BuildContext context) =>
     showDialog<void>(context: context, builder: (_) => const InviteDialog());
 
-/// Invites a doctor or staff member by phone or email. They join by
-/// signing in to CruDoc with that number or address within 7 days.
+/// Adds a doctor or staff member to the clinic: the admin enters their
+/// details, role and features, and CruDoc creates their login. The admin
+/// never sets or sees a password — an email account is sent a link to set
+/// its own, a phone account signs in with a one-time code. Someone who
+/// already has a CruDoc account is invited instead, and joins on next
+/// sign-in.
 class InviteDialog extends ConsumerStatefulWidget {
   const InviteDialog({super.key});
 
@@ -37,8 +57,10 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
   bool _busy = false;
   String? _notice;
 
-  /// Set once the invite is sent: the dialog then says what happens next.
+  /// Set once the person is added: the dialog then says what happens next.
+  _Outcome? _outcome;
   String? _sentTo;
+  bool _resending = false;
 
   @override
   void dispose() {
@@ -68,18 +90,52 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
       final dentist =
           _kind == MemberKind.doctor &&
           _specialty?.type == DoctorSpecialtyType.dentist;
-      await ClinicTeamApi.instance.invite(
+      final phone = _contact == _Contact.phone ? contact : null;
+      final email = _contact == _Contact.email ? contact : null;
+      final specialty = _kind == MemberKind.doctor ? _specialty?.label : null;
+      final modules = _modules?.toList();
+      final dental = dentist ? [for (final f in _dental) f.key] : null;
+
+      final result = await ClinicTeamApi.instance.createMember(
         clinicId: clinicId,
         name: name,
-        phone: _contact == _Contact.phone ? contact : null,
-        email: _contact == _Contact.email ? contact : null,
+        phone: phone,
+        email: email,
         kind: _kind,
         roleId: role.id,
-        specialty: _kind == MemberKind.doctor ? _specialty?.label : null,
-        modules: _modules?.toList(),
-        dentalFeatures: dentist ? [for (final f in _dental) f.key] : null,
+        specialty: specialty,
+        modules: modules,
+        dentalFeatures: dental,
       );
-      if (mounted) setState(() => _sentTo = contact);
+
+      final _Outcome outcome;
+      if (result == CreateMemberResult.alreadyHasAccount) {
+        // Their account is theirs; invite them to join rather than touch it.
+        await ClinicTeamApi.instance.invite(
+          clinicId: clinicId,
+          name: name,
+          phone: phone,
+          email: email,
+          kind: _kind,
+          roleId: role.id,
+          specialty: specialty,
+          modules: modules,
+          dentalFeatures: dental,
+        );
+        outcome = _Outcome.invited;
+      } else if (email != null) {
+        outcome = await _sendPasswordLink(email)
+            ? _Outcome.emailed
+            : _Outcome.emailFailed;
+      } else {
+        outcome = _Outcome.phoneReady;
+      }
+      if (mounted) {
+        setState(() {
+          _sentTo = contact;
+          _outcome = outcome;
+        });
+      }
     } on ClinicTeamException catch (e) {
       if (mounted) setState(() => _notice = e.message);
     } finally {
@@ -87,23 +143,74 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     }
   }
 
+  /// Sends the new account's set-your-password email. Firebase sends it to
+  /// the person's own inbox, so the admin never holds a working link.
+  Future<bool> _sendPasswordLink(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email.trim().toLowerCase(),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _resend() async {
+    final email = _sentTo;
+    if (email == null || _resending) return;
+    setState(() => _resending = true);
+    final ok = await _sendPasswordLink(email);
+    if (mounted) {
+      setState(() {
+        _resending = false;
+        _outcome = ok ? _Outcome.emailed : _Outcome.emailFailed;
+      });
+    }
+  }
+
+  Widget _doneView(BuildContext context) {
+    final c = context.cru;
+    final name = _name.text.trim();
+    final to = _sentTo ?? '';
+    final (title, message) = switch (_outcome!) {
+      _Outcome.emailed => (
+        'Account created',
+        "We've emailed $name at $to a link to set their password. "
+            'Once they have, they sign in to CruDoc with that email.',
+      ),
+      _Outcome.emailFailed => (
+        'Account created',
+        'The account for $name is ready, but the set-your-password email '
+            'could not be sent. Check the connection and send it again.',
+      ),
+      _Outcome.phoneReady => (
+        'Account created',
+        '$name signs in to CruDoc with $to, using the one-time code '
+            'sent to that phone. No password is needed.',
+      ),
+      _Outcome.invited => (
+        'Invite sent',
+        "$name already has a CruDoc account, so we've invited them "
+            'instead. They join your clinic the next time they sign in with '
+            '$to. The invite lasts 7 days.',
+      ),
+    };
+    final canResend = _outcome == _Outcome.emailFailed;
+    return CruFormDialog(
+      title: title,
+      submitLabel: canResend ? (_resending ? 'Sending…' : 'Send email again') : 'Done',
+      cancelLabel: 'Close',
+      busy: _resending,
+      onSubmit: canResend ? _resend : () => Navigator.of(context).pop(),
+      body: Text(message, style: CruType.text.tint(c.label2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    if (_sentTo != null) {
-      final name = _name.text.trim();
-      return CruFormDialog(
-        title: 'Invite sent',
-        submitLabel: 'Done',
-        cancelLabel: 'Close',
-        onSubmit: () => Navigator.of(context).pop(),
-        body: Text(
-          'Ask $name to sign in to CruDoc with $_sentTo. '
-          'The invite lasts 7 days.',
-          style: CruType.text.tint(c.label2),
-        ),
-      );
-    }
+    if (_outcome != null) return _doneView(context);
 
     final me = ref.watch(clinicAccessProvider).value;
     final clinic = ref.watch(activeClinicProvider).value;
@@ -121,9 +228,10 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
         : choosableModules(clinic, role);
 
     return CruFormDialog(
-      title: 'Invite to your clinic',
-      subtitle: 'They join by signing in with this phone number or email.',
-      submitLabel: _busy ? 'Sending…' : 'Send invite',
+      title: 'Add a person',
+      subtitle: 'CruDoc creates their login. They sign in with this phone '
+          'number or email.',
+      submitLabel: _busy ? 'Creating…' : 'Create account',
       busy: _busy,
       notice: _notice,
       onSubmit: () => _send(role),

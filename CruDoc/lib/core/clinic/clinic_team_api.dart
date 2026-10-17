@@ -3,6 +3,16 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'clinic_models.dart';
 import 'clinic_permission.dart';
 
+/// What happened when the admin added someone with [ClinicTeamApi.createMember].
+enum CreateMemberResult {
+  /// Their account was created; they can sign in.
+  created,
+
+  /// That phone or email already has a CruDoc account. Nothing was changed;
+  /// invite them instead, and they join when they next sign in.
+  alreadyHasAccount,
+}
+
 /// A clinic team action the server refused, with a message to show.
 class ClinicTeamException implements Exception {
   const ClinicTeamException(this.message);
@@ -24,17 +34,58 @@ class ClinicTeamApi {
   final FirebaseFunctions _functions;
 
   /// Creates the signed-in owner's clinic (once) and returns its id.
+  ///
+  /// [ownerIsDoctor] false sets the clinic up for a manager who runs it but
+  /// does not treat patients: they never open medical records. It only
+  /// counts when the clinic is first created; an existing clinic keeps how it
+  /// was set up.
   Future<String> ensureClinic({
     required String clinicName,
     required String ownerName,
     required String specialty,
+    bool ownerIsDoctor = true,
   }) async {
     final data = await _call('ensureClinic', {
       'clinicName': clinicName,
       'ownerName': ownerName,
       'specialty': specialty,
+      'ownerIsDoctor': ownerIsDoctor,
     });
     return data['clinicId'] as String;
+  }
+
+  /// Creates a login for a new member of the clinic, rather than inviting
+  /// them to make one. Exactly one of [phone] or [email].
+  ///
+  /// Returns [CreateMemberResult.created] once the account exists, or
+  /// [CreateMemberResult.alreadyHasAccount] when that phone or email already
+  /// belongs to someone — they are left untouched, and the caller should
+  /// invite them instead. Throws [ClinicTeamException].
+  Future<CreateMemberResult> createMember({
+    required String clinicId,
+    required String name,
+    String? phone,
+    String? email,
+    required MemberKind kind,
+    required String roleId,
+    String? specialty,
+    List<String>? modules,
+    List<String>? dentalFeatures,
+  }) async {
+    final data = await _call('createMember', {
+      'clinicId': clinicId,
+      'name': name,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      'kind': kind.value,
+      'roleId': roleId,
+      if (specialty != null && specialty.isNotEmpty) 'specialty': specialty,
+      if (modules != null) 'modules': modules,
+      if (dentalFeatures != null) 'dentalFeatures': dentalFeatures,
+    });
+    return data['mode'] == 'exists'
+        ? CreateMemberResult.alreadyHasAccount
+        : CreateMemberResult.created;
   }
 
   /// Invites waiting for the signed-in phone number or verified email.
@@ -142,6 +193,43 @@ class ClinicTeamApi {
 
   Future<void> deleteRole({required String clinicId, required String roleId}) =>
       _call('deleteRole', {'clinicId': clinicId, 'roleId': roleId});
+
+  /// Turns clinical-record access for this clinic's admins on or off.
+  /// Refused for anyone but the clinic owner, and audited either way.
+  Future<void> setAdminClinicalAccess({
+    required String clinicId,
+    required bool enabled,
+  }) => _call('setAdminClinicalAccess', {
+    'clinicId': clinicId,
+    'enabled': enabled,
+  });
+
+  /// Whether doctors see every patient (`'clinic'`) or only the ones assigned
+  /// to them (`'assigned'`). Owner only, and audited.
+  Future<void> setClinicalAccessScope({
+    required String clinicId,
+    required String scope,
+  }) => _call('setClinicalAccessScope', {
+    'clinicId': clinicId,
+    'scope': scope,
+  });
+
+  /// Sets which doctors treat [patientId]. An empty list means nobody in
+  /// particular, which leaves the patient readable by every doctor.
+  /// Needs `patients.edit`, so the front desk can do it.
+  Future<List<String>> assignPatient({
+    required String clinicId,
+    required String patientId,
+    required List<String> doctorUids,
+  }) async {
+    final data = await _call('assignPatient', {
+      'clinicId': clinicId,
+      'patientId': patientId,
+      'doctorUids': doctorUids,
+    });
+    final raw = data['assignedDoctorUids'];
+    return raw is List ? raw.map((e) => e.toString()).toList() : doctorUids;
+  }
 
   Future<Map<String, dynamic>> _call(
     String action, [

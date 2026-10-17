@@ -13,6 +13,7 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/features/team/presentation/activity_log_view.dart';
+import 'package:doctor_management_app/features/team/presentation/admin_clinical_access_card.dart';
 import 'package:doctor_management_app/features/team/presentation/features_checklist.dart';
 import 'package:doctor_management_app/features/team/presentation/invite_sheet.dart';
 import 'package:doctor_management_app/features/team/presentation/member_sheet.dart';
@@ -45,13 +46,23 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
     });
     final user = FirebaseAuth.instance.currentUser;
     final profile = ref.read(doctorProfileProvider).value;
+    // What the person said during onboarding, when the clinic could not be
+    // set up there and then. Absent (an older account) means a doctor-owner,
+    // which is how every clinic was set up before the question existed.
+    final onboarding = profile?['onboarding'];
+    final answers = onboarding is Map ? onboarding : const {};
+    final ownerIsDoctor = answers['ownerIsDoctor'] != false;
+    final givenName = (answers['clinicName'] as String?)?.trim() ?? '';
     try {
       await ClinicTeamApi.instance.ensureClinic(
-        clinicName:
-            DoctorProfileHelper.tryFormatClinicName(user, profile) ?? '',
+        clinicName: givenName.isNotEmpty
+            ? givenName
+            : DoctorProfileHelper.tryFormatClinicName(user, profile) ?? '',
         ownerName: DoctorProfileHelper.formatDoctorName(user, profile),
         specialty: ref.read(activeDoctorSpecialtyProvider).value?.label ?? '',
+        ownerIsDoctor: ownerIsDoctor,
       );
+      if (!ownerIsDoctor) await user?.getIdToken(true);
       await ClinicSession.instance.reload();
     } on ClinicTeamException catch (e) {
       if (mounted) setState(() => _setupError = e.message);
@@ -122,7 +133,7 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
                   ),
                   const SizedBox(width: CruSpace.s16),
                   CruButton(
-                    label: 'Invite',
+                    label: 'Add person',
                     onPressed: () => showInviteDialog(context),
                   ),
                 ],
@@ -146,6 +157,12 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
           _TeamTab.roles => const RolesView(),
           _TeamTab.activity => const ActivityLogView(),
         },
+        // Owner-only, and only once the clinic has an admin other than the
+        // owner; the card hides itself otherwise.
+        if (_tab == _TeamTab.members) ...[
+          const SizedBox(height: CruSpace.cardGap),
+          AdminClinicalAccessCard(me: me, clinic: clinic, members: members),
+        ],
       ],
     );
   }

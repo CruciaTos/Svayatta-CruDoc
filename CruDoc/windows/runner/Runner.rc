@@ -92,9 +92,9 @@ BEGIN
             VALUE "CompanyName", "CruDoc" "\0"
             VALUE "FileDescription", "CruDoc" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "doctor_management_app" "\0"
+            VALUE "InternalName", "CruDoc" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 CruDoc. All rights reserved." "\0"
-            VALUE "OriginalFilename", "doctor_management_app.exe" "\0"
+            VALUE "OriginalFilename", "CruDoc.exe" "\0"
             VALUE "ProductName", "CruDoc" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END

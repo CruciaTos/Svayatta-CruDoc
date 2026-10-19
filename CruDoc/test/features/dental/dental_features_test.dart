@@ -25,20 +25,23 @@ void main() {
       );
     });
 
-    test('3. fromLegacySpecialty Oral & Maxillofacial Radiologist, shortLabel, type name', () {
-      expect(
-        DentalFeature.fromLegacySpecialty('Oral & Maxillofacial Radiologist'),
-        equals({DentalFeature.radiology}),
-      );
-      expect(
-        DentalFeature.fromLegacySpecialty('OMR'),
-        equals({DentalFeature.radiology}),
-      );
-      expect(
-        DentalFeature.fromLegacySpecialty('oralRadiologist'),
-        equals({DentalFeature.radiology}),
-      );
-    });
+    test(
+      '3. fromLegacySpecialty Oral & Maxillofacial Radiologist, shortLabel, type name',
+      () {
+        expect(
+          DentalFeature.fromLegacySpecialty('Oral & Maxillofacial Radiologist'),
+          equals({DentalFeature.radiology}),
+        );
+        expect(
+          DentalFeature.fromLegacySpecialty('OMR'),
+          equals({DentalFeature.radiology}),
+        );
+        expect(
+          DentalFeature.fromLegacySpecialty('oralRadiologist'),
+          equals({DentalFeature.radiology}),
+        );
+      },
+    );
 
     test('4. fromLegacySpecialty Dentist and null returns defaults', () {
       expect(
@@ -57,13 +60,13 @@ void main() {
         isFalse,
       );
       expect(
-        DentalFeature.allowsTab(DesktopTab.labCases, {DentalFeature.chairside, DentalFeature.prostho}),
+        DentalFeature.allowsTab(DesktopTab.labCases, {
+          DentalFeature.chairside,
+          DentalFeature.prostho,
+        }),
         isTrue,
       );
-      expect(
-        DentalFeature.allowsTab(DesktopTab.revenue, {}),
-        isTrue,
-      );
+      expect(DentalFeature.allowsTab(DesktopTab.revenue, {}), isTrue);
     });
 
     test('6. DoctorSpecialty.fromString Endodontist resolves to Dentist', () {
@@ -82,6 +85,11 @@ void main() {
         DoctorSpecialty.fromString('Orthodontist').type,
         equals(DoctorSpecialtyType.dentist),
       );
+    });
+
+    test('Referrals open for every specialty, not just dental', () {
+      expect(DentalFeature.allowsTab(DesktopTab.dentalReferrals, {}), isTrue);
+      expect(DentalFeature.allowsTab(DesktopTab.recalls, {}), isFalse);
     });
   });
 }

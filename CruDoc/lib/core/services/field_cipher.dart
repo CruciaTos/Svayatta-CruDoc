@@ -41,13 +41,20 @@ class FieldCipher {
   /// Decrypts a value produced by [encrypt]. Values without the marker
   /// prefix are returned unchanged (legacy/plaintext data).
   static String decrypt(String? value) {
+    final key = EncryptionKeyManager.instance.currentKey;
+    if (key == null && (value?.startsWith(_prefix) ?? false)) {
+      return value!; // can't decrypt yet — surface ciphertext rather than crash
+    }
+    return decryptWith(value, key);
+  }
+
+  /// Like [decrypt], with an explicit [key] instead of the clinic's: for
+  /// data that isn't the clinic's own, such as a referral another doctor
+  /// sent ([EncryptionKeyManager.shareKey]).
+  static String decryptWith(String? value, enc.Key? key) {
     if (value == null || value.isEmpty) return value ?? '';
     if (!value.startsWith(_prefix)) return value;
-
-    final key = EncryptionKeyManager.instance.currentKey;
-    if (key == null) {
-      return value; // can't decrypt yet — surface ciphertext rather than crash
-    }
+    if (key == null) return value;
 
     try {
       final body = value.substring(_prefix.length);

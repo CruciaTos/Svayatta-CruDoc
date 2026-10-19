@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_network_watcher.dart';
 import 'package:doctor_management_app/features/mobile/mobile_shell.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
@@ -19,7 +20,8 @@ const double kDesktopBreakpoint = 900;
 /// Picks between the phone [MobileShell] and [DesktopShell] based on the
 /// available width. A new doctor (no specialty, never onboarded) sees
 /// [OnboardingFlow] first. Clinic invites pop up over all of it
-/// ([ClinicInviteWatcher]).
+/// ([ClinicInviteWatcher]), and referrals from other doctors are announced
+/// ([ReferralNetworkWatcher]).
 class ResponsiveShell extends ConsumerStatefulWidget {
   const ResponsiveShell({super.key});
 
@@ -57,7 +59,8 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       _onboarded = true;
       _stampChecked = true;
     }),
-    child: _content(context),
+    // Referrals other doctors send arrive (and are announced) anywhere.
+    child: ReferralNetworkWatcher(child: _content(context)),
   );
 
   Widget _content(BuildContext context) {

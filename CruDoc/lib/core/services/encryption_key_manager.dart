@@ -85,6 +85,16 @@ class EncryptionKeyManager {
     await _secureStorage.delete(key: 'crudoc_dek_$doctorId');
   }
 
+  /// The key a referral sent between doctors (`referral_shares/{shareId}`)
+  /// has its text fields encrypted with. Both doctors derive it, whichever
+  /// clinic they are in. Mirrors `shareKey` in functions/src/referrals.ts.
+  static enc.Key shareKey(String shareId) {
+    final digest = sha256.convert(
+      utf8.encode('referral-share::$shareId::$_appPepper'),
+    );
+    return enc.Key(Uint8List.fromList(digest.bytes));
+  }
+
   enc.Key _deriveKek(String doctorId) {
     final digest = sha256.convert(utf8.encode('$doctorId::$_appPepper'));
     return enc.Key(Uint8List.fromList(digest.bytes));

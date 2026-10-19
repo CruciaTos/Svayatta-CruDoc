@@ -275,7 +275,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final state = ref.watch(inventoryControllerProvider);
     final async = ref.watch(inventoryViewProvider);
     final view = async.value;
@@ -290,6 +289,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       view: view,
       onNewOrder: () => _controller.setTab(InventoryTab.orders),
       onAddItem: () => InventoryActions.addItem(context, ref),
+      onScan: () => InventoryActions.scanItem(context, ref),
     );
     final toolbar = InventoryToolbar(
       tab: state.tab,

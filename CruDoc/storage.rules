@@ -220,6 +220,25 @@ service firebase.storage {
         && request.resource.contentType == 'application/octet-stream';
     }
 
+    // Files attached to a referral sent to another doctor, uploaded by the
+    // sender before the referralNetwork function records them. Write-once,
+    // so a file can't be swapped after it was sent. Nobody reads them here:
+    // both doctors get a short-lived link from the function instead, which
+    // checks the share and writes an access log. Keep the size and types in
+    // sync with MAX_ATTACHMENT_BYTES / ATTACHMENT_TYPES in referrals.ts.
+    match /referral_uploads/{uid}/{shareId}/{fileName} {
+      allow create: if isOwner(uid)
+        && request.resource.size <= 15 * 1024 * 1024
+        && request.resource.contentType in [
+          'application/pdf',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'application/dicom'
+        ];
+      allow read, update, delete: if false;
+    }
+
     // Ephemeral voice dictation awaiting transcription. Write-once:
     // no update, so a recording can't be swapped after upload.
     match /voice-scratch/doctors/{doctorId}/{allPaths=**} {

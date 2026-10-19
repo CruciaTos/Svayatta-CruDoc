@@ -29,6 +29,9 @@
 	<!-- Required by the `record` package for AI Voice Scribe audio capture -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>CruDoc uses the microphone to record consultation audio for the AI Voice Scribe feature. Recordings are processed to generate clinical notes and are deleted after the doctor reviews and confirms them.</string>
+	<!-- Required by `speech_to_text` for voice commands -->
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>CruDoc turns what you say into commands, like booking an appointment or opening a patient.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

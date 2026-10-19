@@ -15,6 +15,8 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_view_providers.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
+import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
@@ -1890,17 +1892,21 @@ class VoiceController {
     String? name;
     if (tab != null) {
       final go = _ref.read(shellNavigatorProvider);
-      if (go == null) {
+      if (go != null) {
+        // Close any page or dialog on top first.
+        Navigator.of(
+          _context(),
+          rootNavigator: true,
+        ).popUntil((r) => r.isFirst);
+        final from = _ref.read(shellCurrentTabProvider);
+        if (from != tab && (_history.isEmpty || _history.last != from)) {
+          _history.add(from);
+        }
+        go(tab);
+      } else if (!_navigatePhone(tab)) {
         understood.value = "Can't switch screens here";
         return;
       }
-      // Close any page or dialog on top first.
-      Navigator.of(_context(), rootNavigator: true).popUntil((r) => r.isFirst);
-      final from = _ref.read(shellCurrentTabProvider);
-      if (from != tab && (_history.isEmpty || _history.last != from)) {
-        _history.add(from);
-      }
-      go(tab);
       final appts = _ref.read(apptsControllerProvider.notifier);
       if (target.view != null) appts.setView(target.view!);
       if (target.date != null) appts.goTo(target.date!);
@@ -1915,6 +1921,33 @@ class VoiceController {
         '${target.view!.label} view',
       if (target.date != null) DateFormat('EEE d MMM').format(target.date!),
     ].join(' · ');
+  }
+
+  /// The phone: its own tabs, and the rest as pages over them, as More
+  /// opens them. False when the phone shell isn't up or has no such page.
+  bool _navigatePhone(int tab) {
+    final switchTab = _ref.read(mobileTabSwitcherProvider);
+    if (switchTab == null) return false;
+    final phoneTab = switch (tab) {
+      DesktopTab.dashboard => MobileTab.home,
+      DesktopTab.appointments || DesktopTab.queue => MobileTab.schedule,
+      DesktopTab.patients => MobileTab.patients,
+      // Revenue opens in place inside More.
+      DesktopTab.revenue => MobileTab.more,
+      _ => null,
+    };
+    if (phoneTab == null && mobileDestinationScreen(tab) == null) {
+      return false;
+    }
+    Navigator.of(_context(), rootNavigator: true).popUntil((r) => r.isFirst);
+    _ref.read(mobileRevenueOpenProvider.notifier).state =
+        tab == DesktopTab.revenue;
+    if (phoneTab != null) {
+      switchTab(phoneTab);
+    } else {
+      openMobileDestination(_context(), tab);
+    }
+    return true;
   }
 
   /// Opens one in-screen spot; returns its name for the pill.
@@ -2041,7 +2074,15 @@ class VoiceController {
       return;
     }
     final go = _ref.read(shellNavigatorProvider);
-    if (go == null) return;
+    if (go == null) {
+      // The phone: Back from a tab goes Home, like the system gesture.
+      final switchTab = _ref.read(mobileTabSwitcherProvider);
+      if (switchTab == null) return;
+      _ref.read(mobileRevenueOpenProvider.notifier).state = false;
+      switchTab(MobileTab.home);
+      understood.value = 'Back to Home';
+      return;
+    }
     final tab = _history.isEmpty ? DesktopTab.dashboard : _history.removeLast();
     go(tab);
     understood.value = 'Back to ${DesktopTab.label(tab)}';

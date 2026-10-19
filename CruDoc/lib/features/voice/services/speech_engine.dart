@@ -10,6 +10,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:record/record.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
+import 'package:speech_to_text/speech_recognition_result.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 /// One transcript update. [isFinal] is true once the doctor lets go of the
 /// talk key; partials arrive while they are still speaking.
@@ -47,6 +49,9 @@ class VoiceTranscript {
 /// every so often for that live, filling-in feel, and a last pass runs when
 /// the key is released. On-device decoding happens in a background isolate
 /// so the UI never stalls.
+///
+/// Phones have no speech server: they use the phone's own recognizer
+/// (Google's on Android, Apple's on iOS), see [onPhone].
 class SpeechEngine {
   SpeechEngine._();
   static final instance = SpeechEngine._();
@@ -132,6 +137,8 @@ class SpeechEngine {
   String _dictationContext = '';
 
   Future<void> setHandsFree(bool on) async {
+    // Phones listen only while the island is held (or after a tap).
+    if (onPhone) return;
     await init();
     await _ensureMic();
     _handsFree = on;
@@ -142,6 +149,11 @@ class SpeechEngine {
   /// [VoiceTranscript.dictation] set: live partials for the sentence being
   /// spoken, and a final for each sentence once the speaker pauses.
   Future<void> startDictation() async {
+    // The phone's recognizer stops at every pause and can't share the mic
+    // with the scribe's recording.
+    if (onPhone) {
+      throw StateError('Live transcription needs the clinic PC');
+    }
     await init();
     await _ensureMic();
     if (_dictating) return;
@@ -176,7 +188,7 @@ class SpeechEngine {
   }
 
   bool get isListening => _listening;
-  bool get isReady => _worker != null || _serverUp;
+  bool get isReady => _worker != null || _serverUp || _phoneReady;
   bool _serverUp = false;
 
   /// The server sends audio to Sarvam: each pass is a paid API call, so
@@ -196,6 +208,7 @@ class SpeechEngine {
 
   /// Loads the model (or starts the GPU server). Safe to call repeatedly.
   Future<void> init() => _initFuture ??= () async {
+    if (onPhone) return _initPhone();
     await (model == 'server' ? _startServer() : _spawnWorker());
     try {
       await _ensureMic();
@@ -385,7 +398,19 @@ class SpeechEngine {
   /// the scribe owns the mic then, and cuts sentences itself.
   Future<void> start() async {
     if (_dictating) return;
+    if (onPhone) {
+      _phoneHeld = true;
+      return _beginOnPhone(held: true);
+    }
     await _begin();
+  }
+
+  /// Phones: listens until the speaker pauses, for a tap on the mic
+  /// rather than a hold.
+  Future<void> listenOnce() async {
+    if (_dictating || !onPhone) return;
+    _phoneHeld = false;
+    await _beginOnPhone(held: false);
   }
 
   /// Stops listening and emits the final text. Call on talk-key up.
@@ -393,6 +418,7 @@ class SpeechEngine {
   /// can't cut the consultation's transcript short.
   Future<void> stop() async {
     if (_dictating) return;
+    if (onPhone) _phoneHeld = false;
     await _end();
   }
 
@@ -436,6 +462,7 @@ class SpeechEngine {
 
   Future<void> _end({bool? dictation}) {
     if (!_listening) return _ending ?? Future<void>.value();
+    if (onPhone) return _endOnPhone();
     return _ending ??= _finish(
       dictation ?? _dictating,
     ).whenComplete(() => _ending = null);
@@ -726,7 +753,7 @@ class SpeechEngine {
     String text,
     List<({String id, List<String> phrases})> options,
   ) async {
-    if (model != 'server') return null;
+    if (model != 'server' || !_serverUp) return null;
     try {
       final r = await _http
           .post(
@@ -748,6 +775,169 @@ class SpeechEngine {
       debugPrint('[SpeechEngine] meaning match failed: $e');
       return null;
     }
+  }
+
+  // ── Phones ─────────────────────────────────────────────────────────
+
+  /// Android and iOS: no speech server, so the phone's own recognizer
+  /// (Google's or Apple's) is used, with live partials. It owns the mic
+  /// while it listens, so the always-open mic, pre-roll and hands-free
+  /// are clinic-PC only.
+  static bool get onPhone =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  final _phone = stt.SpeechToText();
+  bool _phoneReady = false;
+  String? _phoneLocale;
+
+  /// The island is still held: when the recognizer stops at a pause it is
+  /// started again, and the pieces make one utterance.
+  bool _phoneHeld = false;
+
+  /// This utterance's finished pieces, and the piece being spoken.
+  String _phoneSaid = '';
+  String _phoneHeard = '';
+
+  /// Completes when the piece being listened to has ended.
+  Completer<void>? _phonePiece;
+  Timer? _phoneQuiet;
+
+  /// Asks for the mic the first time voice is used, not at launch.
+  Future<void> _initPhone() async {
+    final ok = await _phone.initialize(
+      onStatus: _onPhoneStatus,
+      onError: (e) => debugPrint('[SpeechEngine] phone: ${e.errorMsg}'),
+    );
+    if (!ok) {
+      _initFuture = null; // ask again on the next hold
+      throw StateError(
+        await _phone.hasPermission
+            ? "This phone doesn't have speech recognition"
+            : 'Allow the microphone to talk to CruDoc',
+      );
+    }
+    // Indian English when the phone has it: names, "5 p.m.", rupees.
+    try {
+      final locales = await _phone.locales();
+      _phoneLocale = locales
+          .map((l) => l.localeId)
+          .where((id) => id.toLowerCase().replaceAll('-', '_') == 'en_in')
+          .firstOrNull;
+    } catch (e) {
+      debugPrint('[SpeechEngine] phone locales: $e');
+    }
+    _phoneReady = true;
+  }
+
+  /// [held]: started by a hold, so a release while the mic permission
+  /// prompt was up means it shouldn't start at all.
+  Future<void> _beginOnPhone({required bool held}) async {
+    if (_listening || _starting) return;
+    _starting = true;
+    try {
+      await init();
+    } finally {
+      _starting = false;
+    }
+    if (_listening || (held && !_phoneHeld)) return;
+    _utterance++;
+    _began = DateTime.now();
+    _starts.add(null);
+    _listening = true;
+    _phoneSaid = '';
+    unawaited(_listenOnPhone(_utterance));
+  }
+
+  /// One piece: until the recognizer stops at a pause, or the island is
+  /// let go.
+  Future<void> _listenOnPhone(int utterance) async {
+    final piece = _phonePiece = Completer<void>();
+    _phoneHeard = '';
+    // A recognizer that never starts (busy, unavailable) ends the piece;
+    // "listening" calls this off.
+    _phoneQuiet?.cancel();
+    _phoneQuiet = Timer(const Duration(seconds: 3), _endPhonePiece);
+    try {
+      await _phone.listen(
+        onResult: (r) => _onPhoneResult(utterance, r),
+        // Android reports roughly -2 to 10 dB.
+        onSoundLevelChange: (db) =>
+            level.value = ((db + 2) / 12).clamp(0.0, 1.0),
+        listenOptions: stt.SpeechListenOptions(
+          localeId: _phoneLocale,
+          listenMode: stt.ListenMode.dictation,
+          cancelOnError: true,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[SpeechEngine] phone listen failed: $e');
+      _endPhonePiece();
+    }
+    await piece.future;
+    if (utterance != _utterance || !_listening) return;
+    final words = _phoneHeard;
+    _phoneSaid = '$_phoneSaid $words'.trim();
+    // Still held after a pause: keep going, as one utterance. A piece
+    // that heard nothing (silence, an error) ends it, so a recognizer
+    // that keeps failing can't spin.
+    final tooLong = DateTime.now().difference(_began!) > _maxUtterance;
+    if (_phoneHeld && words.isNotEmpty && !tooLong) {
+      return _listenOnPhone(utterance);
+    }
+    _listening = false;
+    _phoneHeld = false;
+    level.value = 0;
+    _transcripts.add(
+      VoiceTranscript(_clean(_phoneSaid), isFinal: true, source: 'accurate'),
+    );
+  }
+
+  void _onPhoneResult(int utterance, SpeechRecognitionResult r) {
+    if (utterance != _utterance || !_listening) return;
+    _phoneHeard = r.recognizedWords.trim();
+    // A piece ends with "done", below, once its last words are in.
+    if (r.finalResult) return;
+    final text = _clean('$_phoneSaid $_phoneHeard');
+    if (text.isNotEmpty) {
+      _transcripts.add(
+        VoiceTranscript(text, isFinal: false, source: 'accurate'),
+      );
+    }
+  }
+
+  /// "done" comes once the recognizer has stopped and its last words are
+  /// in. One that stops without them is given a moment, then ended.
+  void _onPhoneStatus(String status) {
+    if (status == stt.SpeechToText.listeningStatus) {
+      _phoneQuiet?.cancel();
+    } else if (status == stt.SpeechToText.doneStatus) {
+      _endPhonePiece();
+    } else if (status == stt.SpeechToText.notListeningStatus) {
+      _phoneQuiet?.cancel();
+      _phoneQuiet = Timer(const Duration(seconds: 2), _endPhonePiece);
+    }
+  }
+
+  void _endPhonePiece() {
+    _phoneQuiet?.cancel();
+    final piece = _phonePiece;
+    if (piece != null && !piece.isCompleted) piece.complete();
+  }
+
+  /// The island is let go: the recognizer finishes the last words.
+  Future<void> _endOnPhone() async {
+    final utterance = _utterance;
+    await Future<void>.delayed(_tail);
+    if (utterance != _utterance || !_listening) return;
+    await _phone.stop();
+    if (utterance != _utterance || !_listening) return;
+    // A recognizer that never answers still ends the utterance.
+    _phoneQuiet?.cancel();
+    _phoneQuiet = Timer(const Duration(seconds: 3), () {
+      if (utterance != _utterance || !_listening) return;
+      unawaited(_phone.cancel());
+      _endPhonePiece();
+    });
   }
 
   /// Whisper writes "Tomorrow at 5 p.m."; lower-case it for the parser,

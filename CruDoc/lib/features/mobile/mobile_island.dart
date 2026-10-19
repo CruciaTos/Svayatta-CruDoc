@@ -33,7 +33,7 @@ class IslandVoice {
     required this.onPick,
   });
 
-  /// Voice works on this device (the clinic PC today, not phones).
+  /// Voice works on this device (the phone's own speech recognizer).
   final bool available;
   final bool listening;
   final String heard;
@@ -110,8 +110,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
     MobileHaptics.commit();
     if (!widget.voice.available) {
       _say(
-        widget.voice.error ??
-            'Voice runs on the clinic PC for now. Phones are next.',
+        widget.voice.error ?? "Voice isn't available on this device",
       );
       return;
     }
@@ -173,8 +172,13 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
       child: AnimatedContainer(
         duration: _morph,
         curve: _spring,
-        width: width,
-        constraints: BoxConstraints(minHeight: compactH),
+        // Always a finite width range, so it can animate: at rest up to the
+        // screen's width (it fits its contents), otherwise exactly [width].
+        constraints: BoxConstraints(
+          minWidth: width ?? 0,
+          maxWidth: width ?? screen.width,
+          minHeight: compactH,
+        ),
         clipBehavior: Clip.antiAlias,
         decoration: ShapeDecoration(
           color: _black,
@@ -271,7 +275,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
   Widget _compact(DashboardData d, double h) {
     final serving = _serving(d);
     final waiting = d.glance?.waiting ?? 0;
-    // Without voice (phones, for now) there is no mic: the state splits
+    // Without voice there is no mic: the state splits
     // around the camera, its two halves the same width so the gap sits
     // right under it, and the capsule stays small.
     final talk = widget.voice.available;
@@ -494,7 +498,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
               ),
               const SizedBox(width: 6),
               Text(
-                widget.voice.available ? 'Hold to talk' : 'Voice: clinic PC',
+                widget.voice.available ? 'Hold to talk' : 'Voice off',
                 style: MobileType.caption.tint(_white60),
               ),
             ],

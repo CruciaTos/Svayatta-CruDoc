@@ -11,10 +11,10 @@ import 'package:doctor_management_app/core/theme/cru_tokens.dart';
 import 'package:doctor_management_app/core/theme/cru_type.dart';
 import 'package:doctor_management_app/features/mobile/mobile_island.dart';
 import 'package:doctor_management_app/features/shell/presentation/responsive_shell.dart';
-import 'package:doctor_management_app/shared/widgets/cru/cru_pressable.dart';
 
 import '../services/speech_engine.dart';
 import '../voice_controller.dart';
+import 'voice_bubble.dart';
 
 /// Hold F2 anywhere in the app to talk. A pill at the top shows the words
 /// live while talking, then what the app understood, and prompts for
@@ -85,9 +85,12 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
         });
       }
     });
-    // Voice needs the clinic PC's speech server; phones show the island
-    // without it (see MobileIsland).
-    if (cruIsTouchPlatform) return;
+    // Phones use their own recognizer, set up on the first hold so the
+    // microphone prompt comes when the doctor first talks.
+    if (SpeechEngine.onPhone) {
+      _loaded = true;
+      return;
+    }
     _engine.init().then(
       (_) => mounted ? setState(() => _loaded = true) : null,
       onError: (Object e) =>
@@ -233,9 +236,23 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
   }
 
   void _talk() {
-    _engine.start().catchError((Object err) {
-      if (mounted) setState(() => _error = 'Microphone failed: $err');
-    });
+    _engine.start().catchError(_onTalkFailed);
+  }
+
+  /// Tablets: a tap on the pill's mic listens until the doctor pauses.
+  void _talkOnce() {
+    _engine.listenOnce().catchError(_onTalkFailed);
+  }
+
+  void _onTalkFailed(Object err) {
+    if (!mounted) return;
+    // On a phone it's shown in the island, and the next hold tries again
+    // (the mic may have been refused once).
+    if (SpeechEngine.onPhone) {
+      _voice.understood.value = err is StateError ? err.message : '$err';
+      return;
+    }
+    setState(() => _error = 'Microphone failed: $err');
   }
 
   Future<void> _toggleHandsFree() async {
@@ -278,13 +295,13 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
                     appRouter.routerDelegate.navigatorKey.currentContext ??
                     context,
                 voice: IslandVoice(
-                  available: !cruIsTouchPlatform && _loaded && _error == null,
+                  available: _loaded && _error == null,
                   listening: _listening,
                   heard: _heard,
                   understood: _showResult ? _voice.understood.value : null,
                   ready: _voice.ready.value,
                   need: _voice.hint.value,
-                  error: cruIsTouchPlatform ? null : _error,
+                  error: _error,
                   ask: _voice.asking.value,
                   level: _engine.level,
                   onTalkStart: _talk,
@@ -296,6 +313,19 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
               ),
             ),
           ),
+          // The floating mic, wherever the doctor has put it.
+          if (_loaded && _error == null)
+            Positioned.fill(
+              child: VoiceBubble(
+                listening: _listening,
+                level: _engine.level,
+                onTalkStart: _talk,
+                onTalkEnd: () {
+                  if (!_engine.handsFree) _engine.stop();
+                },
+                onTap: SpeechEngine.onPhone ? _talkOnce : _toggleHandsFree,
+              ),
+            ),
         ],
       );
     }
@@ -327,7 +357,12 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
                     heard: _heard,
                     ms: _ms,
                     handsFree: _engine.handsFree,
-                    onMic: _loaded ? _toggleHandsFree : null,
+                    tapToTalk: SpeechEngine.onPhone,
+                    onMic: !_loaded
+                        ? null
+                        : SpeechEngine.onPhone
+                        ? _talkOnce
+                        : _toggleHandsFree,
                     ask: _voice.asking.value,
                     level: _engine.level,
                     onPick: (i) => _voice.pickChoice(i),
@@ -363,6 +398,7 @@ class _Strip extends StatelessWidget {
     required this.heard,
     required this.ms,
     required this.handsFree,
+    required this.tapToTalk,
     required this.onMic,
     required this.ask,
     required this.onPick,
@@ -372,8 +408,12 @@ class _Strip extends StatelessWidget {
   /// Always listening; utterances end at pauses.
   final bool handsFree;
 
-  /// Tapping the mic switches hands-free on or off.
+  /// Tapping the mic switches hands-free on or off; with [tapToTalk] it
+  /// listens until the doctor pauses.
   final VoidCallback? onMic;
+
+  /// A tablet: no Space key to hold, so the mic is tapped instead.
+  final bool tapToTalk;
 
   final bool listening;
   final bool loaded;
@@ -521,7 +561,11 @@ class _Strip extends StatelessWidget {
         _micIcon(c, handsFree ? Icons.hearing : Icons.mic_none, lit: handsFree),
         const SizedBox(width: CruSpace.s8),
         Text(
-          handsFree ? 'Hands-free' : 'Hold Space',
+          handsFree
+              ? 'Hands-free'
+              : tapToTalk
+              ? 'Tap to talk'
+              : 'Hold Space',
           style: CruType.callout.copyWith(color: c.label2),
         ),
       ],

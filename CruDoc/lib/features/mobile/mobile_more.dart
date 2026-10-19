@@ -239,8 +239,8 @@ class MobileMoreScreen extends ConsumerWidget {
           // straight into place.
           _RevenueSlot(
             child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.sizeOf(context).width * 0.05 + 5,
+              padding: const EdgeInsets.symmetric(
+                horizontal: MobileMetrics.gutter,
               ),
               child: MobileWaveCard(
                 key: cardKey,

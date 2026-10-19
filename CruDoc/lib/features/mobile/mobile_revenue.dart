@@ -260,7 +260,8 @@ final _periodOverviewProvider =
 
 /// A card for each period, side by side: swipe the card to slide to the
 /// next period (the tabs only swipe from anywhere else). The period
-/// buttons above slide the cards too. The next card peeks at the edge.
+/// buttons above slide the cards too. Each card fills the gutters, as wide
+/// as the period buttons and lists around it.
 class _PeriodCards extends ConsumerStatefulWidget {
   const _PeriodCards({required this.period, required this.onChanged});
 
@@ -276,7 +277,6 @@ class _PeriodCardsState extends ConsumerState<_PeriodCards> {
 
   late final PageController _pages = PageController(
     initialPage: _values.indexOf(widget.period),
-    viewportFraction: 0.9,
   );
 
   /// True while the buttons drive the slide, so the cards passed on the
@@ -320,7 +320,9 @@ class _PeriodCardsState extends ConsumerState<_PeriodCards> {
         itemBuilder: (context, i) {
           final o = ref.watch(_periodOverviewProvider(_values[i]));
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.symmetric(
+              horizontal: MobileMetrics.gutter,
+            ),
             child: o == null
                 ? const MobileCard(
                     child: MobileLoading('Loading revenue…', height: 200),

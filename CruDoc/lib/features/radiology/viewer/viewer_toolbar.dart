@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/features/radiology/viewer/save_status.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_icons.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -213,6 +215,7 @@ class RadViewerTopBar extends StatelessWidget {
     required this.onShortcuts,
     required this.shortcutsKey,
     this.onOpen3d,
+    this.saveState,
   });
 
   final RadStudy study;
@@ -225,6 +228,9 @@ class RadViewerTopBar extends StatelessWidget {
 
   /// Opens the 3D view; null hides the button (not a volume).
   final VoidCallback? onOpen3d;
+
+  /// Whether the doctor's work is saved and synced; null hides it.
+  final ValueListenable<RadSaveState>? saveState;
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +330,10 @@ class RadViewerTopBar extends StatelessWidget {
               foreground: c.redText,
             ),
             const SizedBox(width: CruSpace.s8),
+          ],
+          if (saveState != null) ...[
+            RadSaveStatus(state: saveState!, compact: phone),
+            const SizedBox(width: CruSpace.s12),
           ],
           if (r != null && !phone) ...[
             radReportStatusPill(c, r.status),

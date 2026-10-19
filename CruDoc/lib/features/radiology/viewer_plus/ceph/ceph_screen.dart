@@ -48,7 +48,8 @@ class _Snapshot {
   final Set<String> skipped;
 }
 
-class _RadCephScreenState extends ConsumerState<RadCephScreen> {
+class _RadCephScreenState extends ConsumerState<RadCephScreen>
+    with WidgetsBindingObserver {
   late final RadiologyController _rad;
   late final RadiologyRepository _repo;
 
@@ -97,6 +98,7 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _rad = ref.read(radiologyProvider);
     _repo = ref.read(radiologyRepositoryProvider);
     unawaited(_load());
@@ -104,6 +106,7 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveTimer?.cancel();
     if (_dirty) unawaited(_write(_saveNow));
     _image.value?.dispose();
@@ -112,6 +115,14 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     _view.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Leaving the app (switching away, locking the phone) saves at once.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed || !_dirty) return;
+    _saveTimer?.cancel();
+    unawaited(_write(_saveNow));
   }
 
   // ───────────────────────────── Loading ─────────────────────────────

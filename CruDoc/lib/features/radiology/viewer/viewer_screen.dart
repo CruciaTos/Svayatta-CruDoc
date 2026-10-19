@@ -2,23 +2,30 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/files/data/files_repository.dart'
+    show FileSource, FilesRepository;
 import 'package:doctor_management_app/features/radiology/ai/rad_ai.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_viewer_screen.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 import 'package:doctor_management_app/features/radiology/dicom/dicom_file.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
 import 'package:doctor_management_app/features/radiology/open_study.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/features/radiology/viewer/annotation_merge.dart';
 import 'package:doctor_management_app/features/radiology/viewer/annotation_painter.dart';
+import 'package:doctor_management_app/features/radiology/viewer/image_look.dart';
 import 'package:doctor_management_app/features/radiology/viewer/image_render.dart';
 import 'package:doctor_management_app/features/radiology/viewer/measure.dart';
+import 'package:doctor_management_app/features/radiology/viewer/save_status.dart';
 import 'package:doctor_management_app/features/radiology/viewer/side_panel.dart';
 import 'package:doctor_management_app/features/radiology/viewer/thumbnail_strip.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_dialogs.dart';
@@ -35,7 +42,7 @@ import 'package:doctor_management_app/features/radiology/viewer_plus/image_filte
 import 'package:doctor_management_app/features/radiology/viewer_plus/subtraction/subtraction_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-enum _ExportKind { pngMarks, png, jpgMarks, jpg, area, dicom }
+enum _ExportKind { toFiles, pngMarks, png, jpgMarks, jpg, area, dicom }
 
 /// The phone bar's groups: each opens its own row of tools.
 enum _PhoneGroup { adjust, measure, draw, rotate, more }
@@ -82,9 +89,11 @@ class RadViewerScreen extends ConsumerStatefulWidget {
 }
 
 class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
+    with WidgetsBindingObserver
     implements RadViewportHost, RadSidePanelHost {
   final _focus = FocusNode(debugLabel: 'Radiology viewer');
   late final RadiologyController _ctl;
+  late final RadiologyRepository _repo;
   late final RadPixelCache _cache;
   late final RadThumbCache _thumbs;
   final _roi = RadRoiCache();
@@ -104,6 +113,27 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   final _redo = <_Snapshot>[];
   Timer? _saveTimer;
   bool _dirty = false;
+
+  /// The annotations and calibration as last loaded or saved: the base the
+  /// working copy is merged from when the study changed elsewhere.
+  Map<String, List<RadAnnotation>> _savedAnnos = {};
+  Map<String, double> _savedCal = {};
+
+  /// Looks changed since the last save, by image (or stack) key; null
+  /// means the image is back to how it opens.
+  final _lookEdits = <String, RadImageLook?>{};
+
+  /// Saves run one after another, each merging onto the one before.
+  Future<void> _saving = Future.value();
+
+  /// An annotation is being dragged: another device's copy waits.
+  bool _editing = false;
+
+  /// A save is being written: its own copy may come back first.
+  bool _writing = false;
+  RadStudy? _lastFresh;
+  final _saveState = ValueNotifier(RadSaveState.none);
+  Timer? _syncTimer;
 
   RadViewerPrefs _prefs = const RadViewerPrefs();
   final _pendingPrefs = <String, dynamic>{};
@@ -137,6 +167,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   void initState() {
     super.initState();
     _ctl = ref.read(radiologyProvider);
+    _repo = ref.read(radiologyRepositoryProvider);
+    WidgetsBinding.instance.addObserver(this);
     _cache = RadPixelCache(_loadPixels, capacity: 12);
     _thumbs = RadThumbCache(_ctl.thumbSourceOf);
     final init = widget.initialStudy;
@@ -153,22 +185,27 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveTimer?.cancel();
-    final s = _study;
-    if (_dirty && s != null) {
-      unawaited(
-        _ctl.saveStudy(
-          s.copyWith(annotations: _copyAnnos(), calibration: {..._cal}),
-        ),
-      );
-    }
+    _syncTimer?.cancel();
+    if (_dirty || _lookEdits.isNotEmpty) unawaited(_saveStudy((s) => s));
     _flushPrefs();
     for (final p in _panes) {
       p.dispose();
     }
     _thumbs.dispose();
     _focus.dispose();
+    _saveState.dispose();
     super.dispose();
+  }
+
+  /// Leaving the app (switching away, locking the phone) saves at once:
+  /// the app may not come back.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) return;
+    unawaited(_flush());
+    _flushPrefs();
   }
 
   Future<void> _loadPrefs() async {
@@ -205,6 +242,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   /// Takes the provider's copy unless ours is newer (just saved).
   void _accept(RadStudy fresh) {
+    if (identical(fresh, _lastFresh)) return;
+    _lastFresh = fresh;
     final cur = _study;
     if (cur == null ||
         fresh.updatedAt.millisecondsSinceEpoch >=
@@ -212,7 +251,27 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       _study = fresh;
       _studies[fresh.id] = fresh;
     }
+    // Another device's annotations show at once while nothing here is
+    // waiting to save (otherwise the save merges them in).
+    if (_started &&
+        !_dirty &&
+        !_editing &&
+        !_writing &&
+        _lookEdits.isEmpty &&
+        (!radSameAnnotations(fresh.annotations, _savedAnnos) ||
+            !mapEquals(fresh.calibration, _savedCal))) {
+      _annos = _copyOf(fresh.annotations);
+      _cal = {...fresh.calibration};
+      _savedAnnos = _copyOf(fresh.annotations);
+      _savedCal = {...fresh.calibration};
+      _undo.clear();
+      _redo.clear();
+    }
   }
+
+  static Map<String, List<RadAnnotation>> _copyOf(
+    Map<String, List<RadAnnotation>> m,
+  ) => {for (final e in m.entries) e.key: [...e.value]};
 
   // ───────────────────────────── Images and stacks ─────────────────────────────
 
@@ -306,12 +365,53 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       },
     );
     if (!mounted) return;
+    if (!keepView && p.hasImage) {
+      final look = _lookFor(studyId, p);
+      if (look != null) {
+        await p.applyLook(look);
+      } else if (!mapEquals(p.filters.toJson(), p.baseFilters.toJson())) {
+        // The last image's filters stay with it; this one opens plain.
+        await p.applyLook(
+          RadImageLook(center: p.center, width: p.width, filters: p.baseFilters),
+        );
+      }
+      if (!mounted) return;
+    }
     if (_link && !keepView && _panes.isNotEmpty && !identical(p, _pane)) {
       p.scale = _pane.scale;
       p.pan = _pane.pan;
       p.touch();
     }
     _checkZoomUpgrade();
+  }
+
+  /// Images of one slice stack share a look (by the stack's first slice).
+  static String _lookKey(RadPane p) => p.stack?.first ?? p.imageId;
+
+  /// The look [p]'s image was left with: an unsaved change first.
+  RadImageLook? _lookFor(String studyId, RadPane p) {
+    final key = _lookKey(p);
+    if (studyId == _study?.id && _lookEdits.containsKey(key)) {
+      return _lookEdits[key];
+    }
+    final s = _studies[studyId];
+    return s == null ? null : radLooksOf(s)[key];
+  }
+
+  /// The doctor changed how [p]'s image looks: kept for it, saved shortly.
+  void _lookChanged(RadPane p) {
+    final s = _study;
+    if (s == null || p.studyId != s.id || !p.hasImage) return;
+    _lookEdits[_lookKey(p)] = p.look;
+    _scheduleSave();
+  }
+
+  RadPane _newPane(String studyId, RadFilterSettings filters) {
+    final p = RadPane(studyId: studyId, imageId: '')
+      ..filters = filters
+      ..baseFilters = filters;
+    p.onLook = () => _lookChanged(p);
+    return p;
   }
 
   Future<void> _upgradeToFull(Iterable<String> imageIds) async {
@@ -355,6 +455,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       for (final e in s.annotations.entries) e.key: [...e.value],
     };
     _cal = {...s.calibration};
+    _savedAnnos = _copyOf(s.annotations);
+    _savedCal = {...s.calibration};
+    unawaited(_checkSynced());
     final st = _prefs.stateFor(s.modality);
     _layout = RadLayout.fromName(st['layout']);
     final tool = RadTool.fromName(st['tool']);
@@ -386,7 +489,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       ),
     ];
     for (var i = 0; i < _layout.panes; i++) {
-      final p = RadPane(studyId: s.id, imageId: '')..filters = filters;
+      final p = _newPane(s.id, filters);
       _panes.add(p);
       if (i < order.length && order[i].isNotEmpty) _show(p, s.id, order[i]);
     }
@@ -413,7 +516,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                 )
                 .firstOrNull ??
             '';
-        final p = RadPane(studyId: s.id, imageId: '')..filters = _pane.filters;
+        final p = _newPane(s.id, _pane.baseFilters);
         _panes.add(p);
         if (next.isNotEmpty) _show(p, s.id, next);
       }
@@ -609,42 +712,123 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   void _scheduleSave() {
     _dirty = true;
+    _setSaveState(RadSaveState.saving);
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 700), _flush);
   }
 
   Future<void> _flush() async {
     _saveTimer?.cancel();
-    if (!_dirty) return;
+    if (!_dirty && _lookEdits.isEmpty) return;
     await _saveStudy((s) => s);
   }
 
-  /// Saves the study with [change] applied and the working annotations.
+  /// Saves the study with [change] applied, the working annotations and
+  /// the changed looks. Saves run one at a time.
   Future<void> _saveStudy(
     RadStudy Function(RadStudy s) change, {
     String? audit,
     String detail = '',
+  }) {
+    final run = _saving.then(
+      (_) => _save(change, audit: audit, detail: detail),
+    );
+    _saving = run.catchError((Object _) {});
+    return run;
+  }
+
+  /// Merges onto the study as it is in the database now, so whatever
+  /// another device synced in meanwhile (annotations, tracing, AI reads)
+  /// is kept, then writes it; the write syncs to the cloud from there.
+  Future<void> _save(
+    RadStudy Function(RadStudy s) change, {
+    String? audit,
+    String detail = '',
   }) async {
-    final base = _study;
-    if (base == null) return;
+    final mine = _study;
+    if (mine == null) return;
     _saveTimer?.cancel();
     _dirty = false;
-    final next = change(
-      base,
-    ).copyWith(annotations: _copyAnnos(), calibration: {..._cal});
-    _study = next;
-    _studies[next.id] = next;
+    final looks = {..._lookEdits};
+    _lookEdits.clear();
+    _setSaveState(RadSaveState.saving);
+    _writing = true;
     try {
+      final latest = await _repo.study(mine.id) ?? mine;
+      final local = _copyAnnos();
+      final cal = {..._cal};
+      final annos = radMergeAnnotations(
+        base: _savedAnnos,
+        local: local,
+        remote: latest.annotations,
+      );
+      final mergedCal = radMergeCalibration(
+        base: _savedCal,
+        local: cal,
+        remote: latest.calibration,
+      );
+      final changed = change(latest);
+      final next = changed.copyWith(
+        annotations: annos,
+        calibration: mergedCal,
+        extras: radExtrasWithLooks(changed.extras, looks),
+      );
       await _ctl.saveStudy(next, auditAction: audit, detail: detail);
+      _study = next;
+      _studies[next.id] = next;
+      _savedAnnos = _copyOf(annos);
+      _savedCal = {...mergedCal};
+      // Another device's annotations came in with the merge: show them,
+      // keeping anything drawn here while this save ran.
+      final cameIn =
+          !radSameAnnotations(annos, local) || !mapEquals(mergedCal, cal);
+      if (cameIn && mounted) {
+        setState(() {
+          _annos = radMergeAnnotations(
+            base: local,
+            local: _copyAnnos(),
+            remote: annos,
+          );
+          _cal = radMergeCalibration(base: cal, local: {..._cal}, remote: mergedCal);
+          _undo.clear();
+          _redo.clear();
+        });
+      }
+      if (!_dirty && _lookEdits.isEmpty) unawaited(_checkSynced());
     } catch (_) {
+      for (final e in looks.entries) {
+        _lookEdits.putIfAbsent(e.key, () => e.value);
+      }
       _dirty = true;
+      _setSaveState(RadSaveState.failed);
       if (mounted) {
         radToast(
           context,
           "Couldn't save the changes. They'll be saved again shortly.",
         );
+        _saveTimer?.cancel();
+        _saveTimer = Timer(const Duration(seconds: 3), _flush);
       }
-      _scheduleSave();
+    } finally {
+      _writing = false;
+    }
+  }
+
+  void _setSaveState(RadSaveState state) {
+    if (mounted) _saveState.value = state;
+  }
+
+  /// Saved on this device until the sync has sent it; checked again every
+  /// few seconds until it has.
+  Future<void> _checkSynced() async {
+    _syncTimer?.cancel();
+    final id = _study?.id ?? widget.studyId;
+    final synced = await _repo.isSynced(id);
+    if (!mounted || _dirty || _lookEdits.isNotEmpty) return;
+    if (synced == null) return;
+    _setSaveState(synced ? RadSaveState.synced : RadSaveState.savedHere);
+    if (!synced) {
+      _syncTimer = Timer(const Duration(seconds: 3), _checkSynced);
     }
   }
 
@@ -791,7 +975,10 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   }
 
   @override
-  void beginEdit() => _snapshot();
+  void beginEdit() {
+    _editing = true;
+    _snapshot();
+  }
 
   @override
   void updateAnnotation(RadPane pane, RadAnnotation a) {
@@ -803,7 +990,10 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   }
 
   @override
-  void endEdit() => _scheduleSave();
+  void endEdit() {
+    _editing = false;
+    _scheduleSave();
+  }
 
   @override
   void viewChanged(RadPane pane) {
@@ -1362,6 +1552,10 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         if (mounted) radToast(context, 'Area saved');
         return;
       }
+      if (kind == _ExportKind.toFiles) {
+        await _saveToPatientFiles(s, p, index);
+        return;
+      }
       final marks =
           kind == _ExportKind.pngMarks || kind == _ExportKind.jpgMarks;
       final jpg = kind == _ExportKind.jpg || kind == _ExportKind.jpgMarks;
@@ -1397,6 +1591,46 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// The image as the doctor sees it, marks included, added to the
+  /// patient's Files (and from there uploaded) instead of saved to a
+  /// folder on this device.
+  Future<void> _saveToPatientFiles(RadStudy s, RadPane p, int index) async {
+    if (s.patientId.isEmpty) {
+      radToast(context, 'Link this study to a patient first');
+      return;
+    }
+    final view = await radRenderPaneView(
+      p,
+      annotations: _annotationsFor(p),
+      mmPerPx: _mmPerPxFor(p),
+      withAnnotations: true,
+      roi: _roi,
+    );
+    if (view == null) return;
+    final bytes = await radEncodePng(view);
+    view.dispose();
+    if (bytes == null || !mounted) return;
+    final added = await FilesRepository.instance.addFiles([
+      FileSource(
+        name: '${radExportName(s)}_${index}_marked.png',
+        sizeBytes: bytes.lengthInBytes,
+        bytes: bytes,
+      ),
+    ], patientId: s.patientId);
+    if (!mounted) return;
+    if (added == 0) {
+      radToast(context, "Couldn't add it to the patient's files");
+      return;
+    }
+    await _ctl.log(
+      'Saved to patient files',
+      targetKind: 'study',
+      targetId: s.id,
+      detail: 'PNG of image $index, with marks',
+    );
+    if (mounted) radToast(context, "Added to the patient's files");
   }
 
   Future<void> _push(Widget page) async {
@@ -1682,6 +1916,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                     tooltip: 'Export',
                     enabled: has && !_busy,
                     items: () => [
+                      radMenuItem(
+                        context,
+                        _ExportKind.toFiles,
+                        "Save to patient's files (with marks)",
+                        icon: RadViewerIcons.file,
+                      ),
                       radMenuItem(
                         context,
                         _ExportKind.pngMarks,
@@ -2062,6 +2302,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   Future<void> _exportSheet() async {
     final image = _imageRef(_pane);
     final kind = await _sheet<_ExportKind>('Export', [
+      (_ExportKind.toFiles, "Save to patient's files (with marks)"),
       (_ExportKind.pngMarks, 'PNG with marks'),
       (_ExportKind.png, 'PNG without marks'),
       (_ExportKind.jpgMarks, 'JPG with marks'),
@@ -2243,6 +2484,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                   onShortcuts: _openShortcuts,
                   shortcutsKey: _prefs.keyFor(RadViewerAction.shortcuts),
                   onOpen3d: radIsVolume(s) ? _open3d : null,
+                  saveState: _saveState,
                 ),
                 if (!phone) _toolbar(s, others),
               ],

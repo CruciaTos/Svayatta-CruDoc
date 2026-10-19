@@ -151,6 +151,21 @@ class RadiologyRepository {
   Future<void> saveStudy(String doctorId, RadStudy s) =>
       _put(doctorId, RadKind.study, s.id, s.toJson(), patientId: s.patientId);
 
+  /// True once the record's latest version has reached the cloud; false
+  /// while it is saved on this device only; null when there is no record.
+  Future<bool?> isSynced(String id) async {
+    final db = await _db.localDatabase;
+    final rows = await db.query(
+      _table,
+      columns: ['syncStatus'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['syncStatus'] == 'synced';
+  }
+
   /// Removes the study and its files.
   Future<void> deleteStudy(String doctorId, String id) async {
     await _delete(id);

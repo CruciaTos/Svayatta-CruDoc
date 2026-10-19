@@ -7,6 +7,7 @@ import 'package:flutter/painting.dart';
 
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
+import 'package:doctor_management_app/features/radiology/viewer/image_look.dart';
 import 'package:doctor_management_app/features/radiology/viewer/image_render.dart';
 import 'package:doctor_management_app/features/radiology/viewer_plus/image_filters.dart';
 
@@ -140,6 +141,14 @@ class RadPane extends ChangeNotifier {
   bool userInvert = false;
   RadFilterSettings filters = const RadFilterSettings();
 
+  /// The filters an image opens with (this study type's last ones), so a
+  /// look only counts as changed when the doctor changed them here.
+  RadFilterSettings baseFilters = const RadFilterSettings();
+
+  /// The doctor changed the window, invert, rotation, flips or filters.
+  /// Not called when an image opens or a saved look is put back.
+  VoidCallback? onLook;
+
   // ── View ──
   /// Zoom relative to "fit" (1 = the whole image fits the pane).
   double scale = 1;
@@ -196,6 +205,52 @@ class RadPane extends ChangeNotifier {
 
   void touch() {
     if (!_disposed) notifyListeners();
+  }
+
+  /// How the image is shown now, or null while it is as it opens (or
+  /// nothing is loaded).
+  RadImageLook? get look {
+    final p = px;
+    if (p == null) return null;
+    final (c, w) = p.defaultWindow;
+    final plain =
+        center == c &&
+        width == w &&
+        !userInvert &&
+        quarterTurns == 0 &&
+        !flipH &&
+        !flipV &&
+        mapEquals(filters.toJson(), baseFilters.toJson());
+    if (plain) return null;
+    return RadImageLook(
+      center: center,
+      width: width,
+      invert: userInvert,
+      quarterTurns: quarterTurns,
+      flipH: flipH,
+      flipV: flipV,
+      filters: filters,
+    );
+  }
+
+  /// Shows the image the way it was saved (call once it has loaded).
+  Future<void> applyLook(RadImageLook l) async {
+    if (px == null) return;
+    center = l.center;
+    width = math.max(l.width, 1e-3);
+    userInvert = l.invert;
+    quarterTurns = l.quarterTurns % 4;
+    flipH = l.flipH;
+    flipV = l.flipV;
+    final valuesChanged =
+        l.filters.sharpen != filters.sharpen || l.filters.clahe != filters.clahe;
+    filters = l.filters;
+    if (valuesChanged) {
+      await _applyValueFilters();
+    } else {
+      requestRender(progressive: true);
+    }
+    touch();
   }
 
   // ───────────────────────────── Loading ─────────────────────────────
@@ -317,6 +372,7 @@ class RadPane extends ChangeNotifier {
     center = c;
     width = math.max(w, 1e-3);
     requestRender(interactive: interactive);
+    onLook?.call();
   }
 
   void resetWindow() {
@@ -326,17 +382,20 @@ class RadPane extends ChangeNotifier {
     center = c;
     width = w;
     requestRender(progressive: true);
+    onLook?.call();
   }
 
   void toggleInvert() {
     userInvert = !userInvert;
     requestRender(progressive: true);
+    onLook?.call();
   }
 
   Future<void> setFilters(RadFilterSettings f) async {
     final valuesChanged =
         f.sharpen != filters.sharpen || f.clahe != filters.clahe;
     filters = f;
+    onLook?.call();
     if (px == null) {
       touch();
       return;
@@ -523,6 +582,7 @@ class RadPane extends ChangeNotifier {
   void rotate() {
     quarterTurns = (quarterTurns + 1) % 4;
     touch();
+    onLook?.call();
   }
 
   void flip({bool horizontal = true}) {
@@ -532,6 +592,7 @@ class RadPane extends ChangeNotifier {
       flipV = !flipV;
     }
     touch();
+    onLook?.call();
   }
 
   /// Back to how the image opened.
@@ -550,6 +611,7 @@ class RadPane extends ChangeNotifier {
     }
     requestRender();
     touch();
+    onLook?.call();
   }
 
   /// The raw value under a pane point, with the image coordinates.

@@ -89,7 +89,8 @@ class _Candidate {
   final RadImageRef image;
 }
 
-class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
+class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen>
+    with WidgetsBindingObserver {
   late final RadiologyController _rad;
   late final RadiologyRepository _repo;
 
@@ -139,6 +140,7 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _rad = ref.read(radiologyProvider);
     _repo = ref.read(radiologyRepositoryProvider);
     unawaited(_load());
@@ -146,6 +148,7 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveTimer?.cancel();
     if (_dirty) unawaited(_write(_saveNow));
     _a?.image?.dispose();
@@ -155,6 +158,14 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     _view.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  /// Leaving the app (switching away, locking the phone) saves at once.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed || !_dirty) return;
+    _saveTimer?.cancel();
+    unawaited(_write(_saveNow));
   }
 
   // ───────────────────────────── Loading ─────────────────────────────

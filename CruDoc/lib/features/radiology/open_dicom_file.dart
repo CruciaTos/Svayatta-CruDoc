@@ -18,6 +18,11 @@ import 'package:doctor_management_app/features/radiology/viewer/viewer_screen.da
 /// The study `extras` key naming the Files entry a study was made from.
 const String kRadSourceFileKey = 'sourceFileId';
 
+/// The study made from a Files entry has an id taken from the file's, so
+/// two devices opening the same file before either has synced make one
+/// study between them, not two.
+String radStudyIdForFile(String fileId) => 'study_file_$fileId';
+
 /// Opens a DICOM file from Files in CruDoc's X-ray viewer.
 ///
 /// The viewer works on studies, so the first open turns the file into one
@@ -42,6 +47,10 @@ Future<bool> openDicomFileInViewer(
       break;
     }
   }
+  // Made on another device and synced, but not in the list yet.
+  study ??= await container
+      .read(radiologyRepositoryProvider)
+      .study(radStudyIdForFile(file.id));
   study ??= await _studyFromFile(ctrl, file, local, patientName);
   if (study == null) return false;
 
@@ -71,7 +80,7 @@ Future<RadStudy?> _studyFromFile(
     if (scan.isEmpty) return null;
     final g = scan.groups.first;
 
-    final id = radId('study_');
+    final id = radStudyIdForFile(file.id);
     final dir = await ctrl.studyDir(id);
     final images = await copyIntoStudy(g, dir.path);
     final now = DateTime.now();

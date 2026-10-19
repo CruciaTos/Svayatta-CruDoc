@@ -13,6 +13,7 @@ class InventoryHeader extends StatelessWidget {
     required this.view,
     required this.onNewOrder,
     required this.onAddItem,
+    required this.onScan,
   });
 
   /// Null while loading (the subtitle shows a skeleton).
@@ -21,6 +22,7 @@ class InventoryHeader extends StatelessWidget {
   /// Opens the existing Orders (reorder queue) section.
   final VoidCallback onNewOrder;
   final VoidCallback onAddItem;
+  final VoidCallback onScan;
 
   @override
   Widget build(BuildContext context) {
@@ -49,41 +51,49 @@ class InventoryHeader extends StatelessWidget {
           );
 
     if (cruIsPhone(context)) {
-      // Phone: title and count, then the two buttons side by side.
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      // Phone: title and count on left, scan and add item buttons at top right.
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Inventory',
-              style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Inventory',
+                    style: CruType.largeTitle
+                        .copyWith(fontSize: 26)
+                        .tint(c.label),
+                  ),
+                ),
+                const SizedBox(height: CruSpace.s2),
+                SizedBox(
+                  height: CruType.text.fontSize! * CruType.text.height!,
+                  child: subtitle ??
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: SkeletonBox(width: 130, height: 12),
+                      ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: CruSpace.s2),
-          SizedBox(
-            height: CruType.text.fontSize! * CruType.text.height!,
-            child: subtitle ?? const Align(
-                    alignment: Alignment.centerLeft,
-                    child: SkeletonBox(width: 180, height: 12),
-                  ),
+          const SizedBox(width: CruSpace.s8),
+          CruSquareButton(
+            icon: InventoryIcons.camera,
+            secondary: true,
+            semanticLabel: 'Scan item or bill',
+            tooltip: 'Scan item',
+            onPressed: onScan,
           ),
-          const SizedBox(height: CruSpace.s14),
-          Row(
-            children: [
-              CruButton(
-                label: 'New order',
-                kind: CruButtonKind.secondary,
-                icon: InventoryIcons.cart,
-                onPressed: onNewOrder,
-              ),
-              const SizedBox(width: CruSpace.s8),
-              CruButton(
-                label: 'Add item',
-                icon: CruIcons.plus,
-                onPressed: onAddItem,
-              ),
-            ],
+          const SizedBox(width: CruSpace.s8),
+          CruButton(
+            label: 'Add item',
+            icon: CruIcons.plus,
+            onPressed: onAddItem,
           ),
         ],
       );
@@ -105,10 +115,11 @@ class InventoryHeader extends StatelessWidget {
               const SizedBox(height: CruSpace.s2),
               SizedBox(
                 height: CruType.text.fontSize! * CruType.text.height!,
-                child: subtitle ?? const Align(
-                        alignment: Alignment.centerLeft,
-                        child: SkeletonBox(width: 180, height: 12),
-                      ),
+                child: subtitle ??
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: SkeletonBox(width: 180, height: 12),
+                    ),
               ),
             ],
           ),
@@ -119,6 +130,13 @@ class InventoryHeader extends StatelessWidget {
           kind: CruButtonKind.secondary,
           icon: InventoryIcons.cart,
           onPressed: onNewOrder,
+        ),
+        const SizedBox(width: CruSpace.s10),
+        CruButton(
+          label: 'Scan',
+          kind: CruButtonKind.secondary,
+          icon: InventoryIcons.camera,
+          onPressed: onScan,
         ),
         const SizedBox(width: CruSpace.s10),
         CruButton(label: 'Add item', icon: CruIcons.plus, onPressed: onAddItem),

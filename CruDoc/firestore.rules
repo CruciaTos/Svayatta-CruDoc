@@ -642,6 +642,41 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // REFERRALS BETWEEN DOCTORS
+    // ============================================================
+    // Written only by the referralNetwork Cloud Function
+    // (functions/src/referrals.ts). A share is the copy of one referral one
+    // doctor sent another: exactly those two people read it, nobody else in
+    // either clinic, and never Super Admin. Clients list with
+    // where('senderUid', '==', uid) or where('recipientUid', '==', uid).
+
+    match /referral_shares/{shareId} {
+      allow get: if isAuthenticated()
+        && (resource == null
+          || request.auth.uid == resource.data.senderUid
+          || request.auth.uid == resource.data.recipientUid);
+      allow list: if isAuthenticated()
+        && (resource.data.senderUid == request.auth.uid
+          || resource.data.recipientUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Doctors who chose to be found by other doctors. A card that is not
+    // listed is visible to its owner only. Clients search with
+    // where('listed', '==', true) and searchTokens array-contains.
+    match /doctor_directory/{uid} {
+      allow get: if isAuthenticated()
+        && (resource == null || resource.data.listed == true || isSelf(uid));
+      allow list: if isAuthenticated() && resource.data.listed == true;
+      allow write: if false;
+    }
+
+    // Which uid holds each @handle; the function's uniqueness check only.
+    match /doctor_handles/{handle} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
     // CLINICS, MEMBERS, ROLES, INVITES
     // ============================================================
     // Written by the clinicTeam Cloud Function (Admin SDK). A member may

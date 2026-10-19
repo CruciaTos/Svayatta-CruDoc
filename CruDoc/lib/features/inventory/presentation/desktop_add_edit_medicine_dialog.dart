@@ -29,6 +29,7 @@ Future<bool?> showDesktopAddEditMedicineDialog(
   BuildContext context, {
   MedicineModel? medicine,
   InventoryRepository? repository,
+  XFile? initialReceiptImage,
 }) {
   return showDialog<bool>(
     context: context,
@@ -36,6 +37,7 @@ Future<bool?> showDesktopAddEditMedicineDialog(
     builder: (_) => DesktopAddEditMedicineDialog(
       medicine: medicine,
       repository: repository,
+      initialReceiptImage: initialReceiptImage,
     ),
   );
 }
@@ -45,10 +47,12 @@ class DesktopAddEditMedicineDialog extends StatefulWidget {
     super.key,
     this.medicine,
     this.repository,
+    this.initialReceiptImage,
   });
 
   final MedicineModel? medicine;
   final InventoryRepository? repository;
+  final XFile? initialReceiptImage;
 
   @override
   State<DesktopAddEditMedicineDialog> createState() =>
@@ -189,6 +193,12 @@ class _DesktopAddEditMedicineDialogState
     _batch = TextEditingController(text: m?.batchNumber ?? '');
     _expiryDate = m?.expiryDate;
     _imageUrl = m?.imageUrl;
+    if (widget.initialReceiptImage != null) {
+      _receiptImage = widget.initialReceiptImage;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scanReceiptWithOcr(widget.initialReceiptImage!);
+      });
+    }
   }
 
   @override
@@ -266,7 +276,11 @@ class _DesktopAddEditMedicineDialogState
       setState(() {
         _scanning = false;
         _ocrFieldsFilled = result.filledFieldCount;
-        if (result.filledFieldCount > 0) _dirty = true;
+        if (result.filledFieldCount > 0) {
+          _dirty = true;
+          _notice =
+              'Detected ${result.filledFieldCount} fields from photo. Please verify details.';
+        }
 
         if (result.name != null && result.name!.isNotEmpty) {
           _name.text = result.name!;
@@ -734,8 +748,17 @@ class _DesktopAddEditMedicineDialogState
         ),
         title: 'Fill from a bill',
         subtitle: 'Supplier bill or a photo of the strip',
-        onTap: _saving ? null : () => _pickReceiptImage(ImageSource.gallery),
+        onTap: _saving ? null : () => _pickReceiptImage(ImageSource.camera),
         actions: [
+          CruCapsuleButton(
+            label: 'Camera',
+            icon: InventoryIcons.camera,
+            kind: CruCapsuleKind.surface,
+            onPressed: _saving
+                ? null
+                : () => _pickReceiptImage(ImageSource.camera),
+          ),
+          const SizedBox(width: CruSpace.s6),
           CruCapsuleButton(
             label: 'Choose…',
             kind: CruCapsuleKind.surface,

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
+import 'package:doctor_management_app/core/services/push_notifications.dart';
 
 /// Thin wrapper around [FirebaseAuth] that centralises every
 /// authentication flow the app supports (Google, Phone OTP).
@@ -121,6 +122,8 @@ class AuthService {
 
   Future<void> signOut() async {
     DemoSessionService.endDemoSession();
+    // Before signing out: deleting the token needs the signed-in account.
+    await PushNotifications.instance.forgetThisDevice();
     try {
       await _googleSignIn.signOut();
     } catch (_) {}

@@ -6,7 +6,9 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_pdf.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_share_flows.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
@@ -91,7 +93,8 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
 
       if (query.isNotEmpty) {
         final p = patients.where((p) => p.id == r.patientId).firstOrNull;
-        final patientName = p?.fullName.toLowerCase() ?? '';
+        final patientName = (p?.fullName ?? r.share?.patientName ?? '')
+            .toLowerCase();
         final reason = r.reason.toLowerCase();
         final contact = r.contactName.toLowerCase();
         if (!patientName.contains(query) &&
@@ -274,14 +277,16 @@ class _ReferralListRow extends ConsumerWidget {
         ? r.contactName
         : (isOut ? 'Specialist' : 'Referring Doctor');
     final phone = cruIsPhone(context);
-    final name = patient?.fullName ?? 'Patient #${r.patientId.substring(0, 4)}';
+    final name = referralPatientLabel(r, patient);
+    final shared = r.isShared;
 
     return DentalListRow(
-      semanticLabel: '${r.reason} - ${patient?.fullName ?? 'Patient'}',
+      semanticLabel: '${r.reason} - $name',
       onTap: () => showDialog<void>(
         context: context,
-        builder: (_) =>
-            ReferralEditDialog(initialReferral: r, initialPatient: patient),
+        builder: (_) => shared
+            ? SharedReferralDialog(referral: r)
+            : ReferralEditDialog(initialReferral: r, initialPatient: patient),
       ),
       minHeight: 56,
       child: Row(
@@ -329,7 +334,7 @@ class _ReferralListRow extends ConsumerWidget {
             SizedBox(
               width: 140,
               child: Text(
-                patient?.fullName ?? 'Patient #${r.patientId.substring(0, 4)}',
+                name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: CruType.callout.w600.tint(c.label),
@@ -372,6 +377,15 @@ class _ReferralListRow extends ConsumerWidget {
             const SizedBox(width: CruSpace.s8),
           ],
 
+          if (shared) ...[
+            CruPill(
+              text: 'CruDoc',
+              background: c.accentTint,
+              foreground: c.accent,
+            ),
+            const SizedBox(width: CruSpace.s8),
+          ],
+
           // Status pill
           CruPill(
             text: r.status.label,
@@ -391,7 +405,7 @@ class _ReferralListRow extends ConsumerWidget {
           const SizedBox(width: CruSpace.s8),
 
           // WhatsApp Capsule button (in the menu on a phone)
-          if (patient != null && !phone)
+          if (patient != null && !phone && !shared)
             CruCapsuleButton(
               label: 'WhatsApp',
               icon: CruIcons.phone,
@@ -404,53 +418,133 @@ class _ReferralListRow extends ConsumerWidget {
             tooltip: 'Actions',
             icon: CruIcon(CruIcons.more, size: 18, color: c.label2),
             itemBuilder: (ctx) => [
-              if (phone && patient != null) ...[
-                const PopupMenuItem(
-                  value: 'whatsapp',
-                  child: Text('Send on WhatsApp'),
-                ),
-                const PopupMenuDivider(),
-              ],
-              if (isOut) ...[
-                if (r.status != ReferralStatus.acknowledged)
+              if (shared) ...[
+                const PopupMenuItem(value: 'open', child: Text('Open')),
+                if (!isOut &&
+                    r.isUnfiledShare &&
+                    r.status != ReferralStatus.withdrawn)
                   const PopupMenuItem(
-                    value: 'acknowledged',
-                    child: Text('Mark acknowledged'),
+                    value: 'file',
+                    child: Text('Add to my patients'),
                   ),
-                if (r.status != ReferralStatus.seen)
-                  const PopupMenuItem(value: 'seen', child: Text('Mark seen')),
-                if (r.status != ReferralStatus.completed)
-                  const PopupMenuItem(
-                    value: 'completed',
-                    child: Text('Mark completed'),
-                  ),
-                if (r.status != ReferralStatus.declined)
-                  const PopupMenuItem(
-                    value: 'declined',
-                    child: Text('Declined'),
-                  ),
-                const PopupMenuItem(value: 'pdf', child: Text('Letter (PDF)')),
-              ] else ...[
-                if (patient != null)
+                if (!isOut && patient != null)
                   const PopupMenuItem(
                     value: 'bookVisit',
                     child: Text('Book visit'),
                   ),
-                const PopupMenuItem(value: 'reply', child: Text('Write reply')),
-                if (r.status != ReferralStatus.completed)
+                if (isOut && r.status.isOpen)
                   const PopupMenuItem(
-                    value: 'completed',
-                    child: Text('Mark completed'),
+                    value: 'withdraw',
+                    child: Text('Withdraw'),
                   ),
-                const PopupMenuItem(value: 'pdf', child: Text('Summary (PDF)')),
+                if (patient != null)
+                  PopupMenuItem(
+                    value: 'pdf',
+                    child: Text(isOut ? 'Letter (PDF)' : 'Summary (PDF)'),
+                  ),
+                if (!r.isUnfiledShare)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete from my records'),
+                  ),
+              ] else ...[
+                if (isOut &&
+                    r.status == ReferralStatus.draft &&
+                    patient != null) ...[
+                  const PopupMenuItem(value: 'send', child: Text('Send…')),
+                  const PopupMenuDivider(),
+                ],
+                if (phone && patient != null) ...[
+                  const PopupMenuItem(
+                    value: 'whatsapp',
+                    child: Text('Send on WhatsApp'),
+                  ),
+                  const PopupMenuDivider(),
+                ],
+                if (isOut) ...[
+                  if (r.status != ReferralStatus.acknowledged)
+                    const PopupMenuItem(
+                      value: 'acknowledged',
+                      child: Text('Mark acknowledged'),
+                    ),
+                  if (r.status != ReferralStatus.seen)
+                    const PopupMenuItem(
+                      value: 'seen',
+                      child: Text('Mark seen'),
+                    ),
+                  if (r.status != ReferralStatus.completed)
+                    const PopupMenuItem(
+                      value: 'completed',
+                      child: Text('Mark completed'),
+                    ),
+                  if (r.status != ReferralStatus.declined)
+                    const PopupMenuItem(
+                      value: 'declined',
+                      child: Text('Declined'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'pdf',
+                    child: Text('Letter (PDF)'),
+                  ),
+                ] else ...[
+                  if (patient != null)
+                    const PopupMenuItem(
+                      value: 'bookVisit',
+                      child: Text('Book visit'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'reply',
+                    child: Text('Write reply'),
+                  ),
+                  if (r.status != ReferralStatus.completed)
+                    const PopupMenuItem(
+                      value: 'completed',
+                      child: Text('Mark completed'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'pdf',
+                    child: Text('Summary (PDF)'),
+                  ),
+                ],
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete referral'),
+                ),
               ],
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete referral'),
-              ),
             ],
             onSelected: (action) async {
               switch (action) {
+                case 'open':
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => SharedReferralDialog(referral: r),
+                  );
+                  break;
+                case 'file':
+                  await fileSharedReferral(context, ref, r);
+                  break;
+                case 'withdraw':
+                  final ok = await confirmDental(
+                    context,
+                    title: 'Withdraw this referral?',
+                    body:
+                        '${drName(targetName)} will no longer see the patient\'s details or files.',
+                    action: 'Withdraw',
+                  );
+                  if (ok && context.mounted) {
+                    await runShareStep(
+                      context,
+                      r,
+                      ShareStep.withdraw,
+                      done: 'Referral withdrawn',
+                    );
+                  }
+                  break;
+                case 'send':
+                  if (patient != null) {
+                    await sendDraftReferral(context, ref, r, patient!);
+                  }
+                  break;
                 case 'whatsapp':
                   if (patient != null) {
                     await sendReferralWhatsApp(context, ref, r, patient!);
@@ -495,14 +589,20 @@ class _ReferralListRow extends ConsumerWidget {
                   }
                   break;
                 case 'delete':
+                  final withdraws = shared && isOut && r.status.isOpen;
                   final ok = await confirmDental(
                     context,
                     title: 'Delete referral?',
-                    body:
-                        'This will remove the referral for ${patient?.fullName ?? 'this patient'}.',
+                    body: withdraws
+                        ? 'This withdraws it from ${drName(targetName)} and removes it from your records.'
+                        : 'This will remove the referral for $name from your records.',
                     action: 'Delete',
                   );
-                  if (ok) {
+                  if (ok && context.mounted) {
+                    if (withdraws &&
+                        !await runShareStep(context, r, ShareStep.withdraw)) {
+                      break;
+                    }
                     await deleteDentalRecord(ref, r.record);
                     if (context.mounted) recToast(context, 'Referral deleted');
                   }
@@ -513,5 +613,68 @@ class _ReferralListRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// The patient a referral is about: this clinic's patient, or the name the
+/// referring doctor sent for one not filed here yet.
+String referralPatientLabel(DentalReferral r, Patient? patient) {
+  if (patient != null) return patient.fullName;
+  final shared = r.share?.patientName ?? '';
+  if (shared.trim().isNotEmpty) return shared;
+  if (r.status == ReferralStatus.withdrawn) return 'Withdrawn referral';
+  return r.patientId.length >= 4
+      ? 'Patient #${r.patientId.substring(0, 4)}'
+      : 'Patient';
+}
+
+/// Sends a saved draft: in CruDoc (after the patient's consent) when the
+/// contact is on CruDoc, else by WhatsApp, email or an invitation.
+Future<void> sendDraftReferral(
+  BuildContext context,
+  WidgetRef ref,
+  DentalReferral referral,
+  Patient patient,
+) async {
+  final contact = ref
+      .read(referralContactsProvider)
+      .where((c) => c.id == referral.contactId)
+      .firstOrNull;
+  if (contact == null) {
+    recToast(context, 'Pick who to refer to first: open the referral to edit');
+    return;
+  }
+  if (!contact.onCruDoc) {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => ReferralSendOptionsDialog(
+        referral: referral,
+        patient: patient,
+        contact: contact,
+      ),
+    );
+    return;
+  }
+  final ok = await confirmDental(
+    context,
+    title: 'Send to ${drName(contact.crudocName)} in CruDoc?',
+    body:
+        'Only if ${patient.fullName} agreed: their name, contact details, '
+        'findings and files go to this doctor, who gets a notification.',
+    action: 'Patient agreed, send',
+  );
+  if (!ok || !context.mounted) return;
+  try {
+    await sendReferralInCruDoc(
+      ref,
+      referral: referral,
+      patient: patient,
+      contact: contact,
+    );
+    if (context.mounted) {
+      recToast(context, 'Sent to ${drName(contact.crudocName)}');
+    }
+  } on ReferralNetworkException catch (e) {
+    if (context.mounted) recToast(context, e.message);
   }
 }

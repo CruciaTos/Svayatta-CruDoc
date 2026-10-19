@@ -596,3 +596,39 @@ describe('patient-files (Files screen)', () => {
     await assertFails(uploadBytes(ref(as(B), path()), bytes(), jpeg));
   });
 });
+
+describe('referral attachments', () => {
+  const SMIT = 'doctor-smit';
+  const path = (uid = A, name = 'xray.png') => `referral_uploads/${uid}/share_0000000001/${name}`;
+  const png = { contentType: 'image/png' };
+
+  it('lets a doctor upload into their own folder only', async () => {
+    await assertSucceeds(uploadBytes(ref(as(A), path()), bytes(), png));
+    await assertSucceeds(uploadBytes(ref(as(A), path(A, 'letter.pdf')), bytes(), pdf));
+    await assertFails(uploadBytes(ref(as(B), path(A, 'other.png')), bytes(), png));
+    await assertFails(uploadBytes(ref(anonymous(), path(A, 'anon.png')), bytes(), png));
+  });
+
+  // As for voice-scratch: the emulator judges an overwriting upload as a
+  // `create`, so the missing `update` is tested by changing the metadata.
+  it('is write-once: no update, no delete', async () => {
+    await seed(path(), 'image/png');
+    await assertFails(updateMetadata(ref(as(A), path()), { contentType: 'image/png' }));
+    await assertFails(deleteObject(ref(as(A), path())));
+  });
+
+  it('is never read directly, not even by the two doctors', async () => {
+    await seed(path(), 'image/png');
+    await assertFails(getBytes(ref(as(A), path())));
+    await assertFails(getBytes(ref(as(SMIT), path())));
+    await assertFails(getBytes(ref(as(B), path())));
+  });
+
+  it('caps size at 15 MB and takes only documents and images', async () => {
+    await assertFails(uploadBytes(ref(as(A), path(A, 'big.pdf')), bytes(15 * MB + 1), pdf));
+    await assertFails(
+      uploadBytes(ref(as(A), path(A, 'run.exe')), bytes(), { contentType: 'application/x-msdownload' }),
+    );
+    await assertFails(uploadBytes(ref(as(A), path(A, 'page.html')), bytes(), { contentType: 'text/html' }));
+  });
+});

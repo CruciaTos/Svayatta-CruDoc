@@ -35,6 +35,12 @@ abstract final class InventoryIcons {
     'L13.41 5.64a3.5 3.5 0 0 1 4.95 4.95z'
     'M8.8 8.8l6.4 6.4',
   );
+
+  /// Camera (take photo of medicine packaging or bill for OCR).
+  static const camera = CruIconData(
+    'M4 8a2 2 0 0 1 2-2h2.2l1.6-2.2A1 1 0 0 1 10.6 3.5h2.8a1 1 0 0 1 .8.3L15.8 6H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z',
+    circles: [(12, 13, 3.5)],
+  );
 }
 
 /// Item type is a GAP; the stored unit decides between a pill and a box.

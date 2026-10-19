@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Referral notifications (Android 13+ asks the person first). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Required by the `record` package for audio recording (AI Voice Scribe) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -42,6 +44,11 @@
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
             android:value="false" />
+        <!-- Pushes about referrals between doctors land in this channel
+             (created by ReferralNotifications at start-up). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="referrals" />
         <!-- Google Maps SDK for Android — required by google_maps_flutter.
              Replace the placeholder with your real API key from
              https://console.cloud.google.com/apis/credentials -->

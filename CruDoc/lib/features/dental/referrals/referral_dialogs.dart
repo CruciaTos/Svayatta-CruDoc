@@ -7,12 +7,14 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
-import 'package:doctor_management_app/features/dental/referrals/referral_pdf.dart';
-import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_share_flows.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
@@ -49,6 +51,9 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
   bool _busy = false;
   String? _teethError;
+
+  /// The patient agreed to their details going to the other doctor.
+  bool _consent = false;
 
   @override
   void initState() {
@@ -144,6 +149,13 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
     }
   }
 
+  /// Saving sends the referral in CruDoc: going out, to a contact on
+  /// CruDoc, and not sent there already.
+  bool get _sendsInCruDoc =>
+      _direction == ReferralDirection.out &&
+      (_selectedContact?.onCruDoc ?? false) &&
+      !(widget.initialReferral?.isShared ?? false);
+
   Future<void> _save() async {
     if (_patient == null) {
       recToast(context, 'Please select a patient');
@@ -151,6 +163,13 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
     }
     if (_reason.text.trim().isEmpty) {
       recToast(context, 'Please enter a reason for referral');
+      return;
+    }
+    if (_sendsInCruDoc && !_consent) {
+      recToast(
+        context,
+        'Confirm the patient agreed to share their details first',
+      );
       return;
     }
 
@@ -174,6 +193,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
       final contactId = _selectedContact?.id ?? r?.contactId ?? '';
 
       final now = DateTime.now();
+      final nav = Navigator.of(context);
+      DentalReferral saved;
 
       if (r == null) {
         // Create new
@@ -199,7 +220,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
           'reply': '',
         }, at: now);
         await saveDentalRecord(ref, record);
-        if (mounted) recToast(context, 'Referral draft created');
+        saved = DentalReferral.fromRecord(record);
       } else {
         // Update existing
         final updatedRecord = r.record.copyWith(
@@ -218,10 +239,48 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
           },
         );
         await saveDentalRecord(ref, updatedRecord);
-        if (mounted) recToast(context, 'Referral updated');
+        saved = DentalReferral.fromRecord(updatedRecord);
       }
 
-      if (mounted) Navigator.of(context).pop(true);
+      final contact = _selectedContact;
+      if (_sendsInCruDoc && contact != null) {
+        try {
+          await sendReferralInCruDoc(
+            ref,
+            referral: saved,
+            patient: _patient!,
+            contact: contact,
+          );
+          if (mounted) {
+            recToast(context, 'Sent to ${drName(contact.crudocName)}');
+          }
+        } on ReferralNetworkException catch (e) {
+          // The draft is kept; it can be sent again from the list.
+          if (mounted) recToast(context, 'Saved as a draft. ${e.message}');
+        }
+      } else if (mounted) {
+        recToast(
+          context,
+          r == null ? 'Referral draft created' : 'Referral updated',
+        );
+      }
+
+      if (mounted) nav.pop(true);
+      // A new referral to someone who isn't on CruDoc: offer the other ways.
+      if (r == null &&
+          contact != null &&
+          !contact.onCruDoc &&
+          _direction == ReferralDirection.out &&
+          nav.mounted) {
+        await showDialog<void>(
+          context: nav.context,
+          builder: (_) => ReferralSendOptionsDialog(
+            referral: saved,
+            patient: _patient!,
+            contact: contact,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) recToast(context, 'Error saving referral: $e');
     } finally {
@@ -241,6 +300,15 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
           .firstOrNull;
       if (match != null) _selectedContact = match;
     }
+    // The newest copy of the picked contact: matching to CruDoc can finish
+    // after it was picked.
+    final fresh = contacts
+        .where((cnt) => cnt.id == _selectedContact?.id)
+        .firstOrNull;
+    if (fresh != null) _selectedContact = fresh;
+
+    final dental = ref.watch(isDentalProvider);
+    final shared = widget.initialReferral?.isShared ?? false;
 
     return CruFormDialog(
       title: widget.initialReferral == null ? 'New referral' : 'Edit referral',
@@ -249,9 +317,11 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
           : 'Referred to this clinic',
       width: 580,
       busy: _busy,
-      submitLabel: widget.initialReferral == null
-          ? 'Create referral'
-          : 'Save changes',
+      submitLabel: _sendsInCruDoc
+          ? 'Send referral'
+          : (widget.initialReferral == null
+                ? 'Create referral'
+                : 'Save changes'),
       onSubmit: _save,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -320,7 +390,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
                           DropdownMenuItem<String>(
                             value: cnt.id,
                             child: Text(
-                              '${cnt.name}${cnt.specialty.isNotEmpty ? ' · ${cnt.specialty}' : ''}',
+                              '${cnt.name}${cnt.specialty.isNotEmpty ? ' · ${cnt.specialty}' : ''}'
+                              '${cnt.onCruDoc ? ' · On CruDoc' : ''}',
                               style: CruType.body.tint(c.label),
                             ),
                           ),
@@ -354,17 +425,19 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
           ),
           const SizedBox(height: CruSpace.s12),
 
-          // Teeth (FDI)
-          CruTextField(
-            label: 'Teeth (FDI, comma-separated)',
-            controller: _teeth,
-            hint: 'e.g. 16, 26, 36 (always stored as FDI)',
-            help: _teethError,
-            onChanged: (_) {
-              if (_teethError != null) setState(() => _teethError = null);
-            },
-          ),
-          const SizedBox(height: CruSpace.s12),
+          // Teeth (FDI): dental practices only.
+          if (dental || _teeth.text.isNotEmpty) ...[
+            CruTextField(
+              label: 'Teeth (FDI, comma-separated)',
+              controller: _teeth,
+              hint: 'e.g. 16, 26, 36 (always stored as FDI)',
+              help: _teethError,
+              onChanged: (_) {
+                if (_teethError != null) setState(() => _teethError = null);
+              },
+            ),
+            const SizedBox(height: CruSpace.s12),
+          ],
 
           // Findings
           CruTextField(
@@ -468,26 +541,14 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
               ),
           const SizedBox(height: CruSpace.s20),
 
-          // Shared case access placeholder notice
-          Container(
-            padding: const EdgeInsets.all(CruSpace.s12),
-            decoration: BoxDecoration(
-              color: c.inset,
-              borderRadius: BorderRadius.circular(CruRadius.control),
+          // How this referral reaches the other doctor.
+          if (_direction == ReferralDirection.out)
+            _CruDocNotice(
+              contact: _selectedContact,
+              shared: shared,
+              consent: _consent,
+              onConsent: (v) => setState(() => _consent = v),
             ),
-            child: Row(
-              children: [
-                CruIcon(CruIcons.help, size: 16, color: c.label2),
-                const SizedBox(width: CruSpace.s8),
-                Expanded(
-                  child: Text(
-                    'Sharing the case with the other doctor inside CruDoc needs the cloud: not connected yet.',
-                    style: CruType.caption.tint(c.label2),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -517,6 +578,11 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
   late final TextEditingController _turnaround;
   bool _busy = false;
 
+  /// Linked CruDoc account (uid, name, specialty), and whether it was
+  /// picked by hand from the directory rather than matched by number.
+  late CruDocDoctor? _crudoc;
+  late bool _linkedByHand;
+
   @override
   void initState() {
     super.initState();
@@ -531,6 +597,34 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
     _turnaround = TextEditingController(
       text: c?.turnaroundDays != null ? '${c!.turnaroundDays}' : '',
     );
+    _crudoc = (c?.onCruDoc ?? false)
+        ? CruDocDoctor(
+            uid: c!.crudocUid,
+            name: c.crudocName,
+            specialty: c.crudocSpecialty,
+          )
+        : null;
+    final record =
+        (ref.read(clinicRecordsProvider(RecKind.referralContact)).value ?? [])
+            .where((r) => r.id == c?.id)
+            .firstOrNull;
+    _linkedByHand = record?.str('crudocSource') == 'directory';
+  }
+
+  Future<void> _findOnCruDoc() async {
+    final picked = await showDialog<CruDocDoctor>(
+      context: context,
+      builder: (_) => FindDoctorDialog(initialQuery: _name.text.trim()),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _crudoc = picked;
+      _linkedByHand = true;
+      if (_name.text.trim().isEmpty) _name.text = picked.name;
+      if (_specialty.text.trim().isEmpty) _specialty.text = picked.specialty;
+      if (_clinic.text.trim().isEmpty) _clinic.text = picked.clinicName;
+      if (_city.text.trim().isEmpty) _city.text = picked.city;
+    });
   }
 
   @override
@@ -554,6 +648,29 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
 
     setState(() => _busy = true);
     try {
+      // A number or email may belong to a doctor on CruDoc. Checked before
+      // closing, so the referral form this was opened from gets the match.
+      final phone = _phone.text.trim();
+      final email = _email.text.trim();
+      if (!_linkedByHand && (phone.isNotEmpty || email.isNotEmpty)) {
+        try {
+          final matches = await ReferralNetworkApi.instance.matchContacts(
+            clinicId: ref.read(dentalDoctorIdProvider),
+            contacts: [
+              ReferralContact(id: 'c', name: '', phone: phone, email: email),
+            ],
+          );
+          _crudoc = matches['c'];
+        } on ReferralNetworkException catch (e) {
+          // Offline or refused: keep whatever link it had, and say so.
+          if (mounted) {
+            recToast(context, "Couldn't check CruDoc: ${e.message}");
+          }
+        }
+      } else if (!_linkedByHand) {
+        _crudoc = null;
+      }
+
       final turnaround = int.tryParse(_turnaround.text.trim());
       final contactData = {
         'name': _name.text.trim(),
@@ -564,6 +681,12 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
         'city': _city.text.trim(),
         'notes': _notes.text.trim(),
         'turnaroundDays': ?turnaround,
+        'crudocUid': _crudoc?.uid ?? '',
+        'crudocName': _crudoc?.name ?? '',
+        'crudocSpecialty': _crudoc?.specialty ?? '',
+        'crudocSource': _crudoc == null
+            ? ''
+            : (_linkedByHand ? 'directory' : 'match'),
       };
 
       ReferralContact resultContact;
@@ -590,7 +713,12 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
         }
       }
 
-      if (mounted) Navigator.of(context).pop(resultContact);
+      if (mounted) {
+        if (resultContact.onCruDoc) {
+          recToast(context, 'On CruDoc: ${drName(resultContact.crudocName)}');
+        }
+        Navigator.of(context).pop(resultContact);
+      }
     } catch (e) {
       if (mounted) recToast(context, 'Error saving contact: $e');
     } finally {
@@ -609,6 +737,16 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _CruDocLinkRow(
+            doctor: _crudoc,
+            byHand: _linkedByHand,
+            onFind: _findOnCruDoc,
+            onUnlink: () => setState(() {
+              _crudoc = null;
+              _linkedByHand = false;
+            }),
+          ),
+          const SizedBox(height: CruSpace.s16),
           CruTextField(label: 'Doctor / Contact name', controller: _name),
           const SizedBox(height: CruSpace.s12),
           CruTextField(label: 'Clinic / Hospital', controller: _clinic),
@@ -620,7 +758,7 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
           ),
           const SizedBox(height: CruSpace.s12),
           CruTextField(
-            label: 'Phone (for WhatsApp)',
+            label: 'Phone (WhatsApp, and finding them on CruDoc)',
             controller: _phone,
             keyboardType: TextInputType.phone,
           ),
@@ -661,10 +799,43 @@ class _ContactDirectoryDialogState
     extends ConsumerState<ContactDirectoryDialog> {
   late bool _labsOnly;
 
+  /// Contacts are checked against CruDoc once per run of the app.
+  static bool _matchedThisRun = false;
+
   @override
   void initState() {
     super.initState();
     _labsOnly = widget.initialLabsOnly;
+    if (!_matchedThisRun) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        // Tried again next time if CruDoc couldn't be reached.
+        _matchedThisRun = await refreshContactMatches(ref) != null;
+      });
+    }
+  }
+
+  Future<void> _addFromCruDoc() async {
+    final picked = await showDialog<CruDocDoctor>(
+      context: context,
+      builder: (_) => const FindDoctorDialog(),
+    );
+    if (picked == null || !mounted) return;
+    final rec = DentalRecord.create('', RecKind.referralContact, {
+      'name': picked.name,
+      'clinic': picked.clinicName,
+      'specialty': picked.specialty,
+      'city': picked.city,
+      'phone': '',
+      'email': '',
+      'notes': '',
+      'crudocUid': picked.uid,
+      'crudocName': picked.name,
+      'crudocSpecialty': picked.specialty,
+      'crudocSource': 'directory',
+    });
+    await saveDentalRecord(ref, rec);
+    if (mounted) recToast(context, 'Added ${drName(picked.name)}');
   }
 
   @override
@@ -683,13 +854,34 @@ class _ContactDirectoryDialogState
         tone: CruTileTone.neutral,
       ),
       width: 560,
-      footer: CruButton(
-        label: 'New contact',
-        icon: CruIcons.plus,
-        onPressed: () => showDialog<void>(
-          context: context,
-          builder: (_) => const EditContactDialog(),
-        ),
+      footer: Wrap(
+        spacing: CruSpace.s8,
+        runSpacing: CruSpace.s8,
+        alignment: WrapAlignment.end,
+        children: [
+          CruButton(
+            label: 'Your listing',
+            kind: CruButtonKind.secondary,
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => const DirectoryProfileDialog(),
+            ),
+          ),
+          CruButton(
+            label: 'Find on CruDoc',
+            icon: CruIcons.search,
+            kind: CruButtonKind.secondary,
+            onPressed: _addFromCruDoc,
+          ),
+          CruButton(
+            label: 'New contact',
+            icon: CruIcons.plus,
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => const EditContactDialog(),
+            ),
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -761,6 +953,14 @@ class _ContactDirectoryDialogState
                                 cnt.name,
                                 style: CruType.callout.w600.tint(c.label),
                               ),
+                              if (cnt.onCruDoc) ...[
+                                const SizedBox(width: CruSpace.s8),
+                                CruPill(
+                                  text: 'On CruDoc',
+                                  background: c.accentTint,
+                                  foreground: c.accent,
+                                ),
+                              ],
                               if (cnt.turnaroundDays != null) ...[
                                 const SizedBox(width: CruSpace.s8),
                                 CruPill(
@@ -1026,66 +1226,161 @@ Future<void> updateReferralStatus(
   await saveDentalRecord(ref, updatedRecord);
 }
 
-/// Sends referral letter via WhatsApp, sets status to sent, and gives file snackbar.
-Future<void> sendReferralWhatsApp(
-  BuildContext context,
-  WidgetRef ref,
-  DentalReferral referral,
-  Patient patient,
-) async {
-  final contacts = ref.read(referralContactsProvider);
-  final contact = contacts
-      .where((cnt) => cnt.id == referral.contactId)
-      .firstOrNull;
-  final phone = contact?.phone ?? '';
+// ───────────────────────────── CruDoc link widgets ─────────────────────────────
 
-  if (phone.isEmpty) {
-    recToast(context, 'No phone number saved for ${referral.contactName}');
-    return;
-  }
+/// In the referral form: whether saving sends the referral in CruDoc (with
+/// the patient's consent) or leaves WhatsApp and email to do it.
+class _CruDocNotice extends StatelessWidget {
+  const _CruDocNotice({
+    required this.contact,
+    required this.shared,
+    required this.consent,
+    required this.onConsent,
+  });
 
-  // 1. Generate and save PDF letter
-  final pdfPath = await ReferralPdfService.saveLetterToFolder(
-    referral: referral,
-    patient: patient,
-    ref: ref,
-    isReply: referral.direction == ReferralDirection.inbound,
-  );
+  final ReferralContact? contact;
+  final bool shared;
+  final bool consent;
+  final ValueChanged<bool> onConsent;
 
-  // 2. Open WhatsApp
-  final message = referral.direction == ReferralDirection.out
-      ? 'Hello Dr. ${referral.contactName}, referring patient ${patient.fullName} (${referral.reason}, Urgency: ${referral.urgency.label}). Referral letter attached.'
-      : 'Hello Dr. ${referral.contactName}, here is the treatment summary for ${patient.fullName} (${referral.reason}). Summary letter attached.';
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final cnt = contact;
+    Widget box(Widget child, {bool accent = false}) => Container(
+      padding: const EdgeInsets.all(CruSpace.s12),
+      decoration: BoxDecoration(
+        color: accent ? c.accentTint : c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.control),
+      ),
+      child: child,
+    );
+    Widget line(String text, {CruIconData icon = CruIcons.help}) => Row(
+      children: [
+        CruIcon(icon, size: 16, color: c.label2),
+        const SizedBox(width: CruSpace.s8),
+        Expanded(child: Text(text, style: CruType.caption.tint(c.label2))),
+      ],
+    );
 
-  final uri = WhatsAppTemplateService.buildDirectWhatsAppUrl(
-    rawPhone: phone,
-    message: message,
-  );
-
-  if (uri != null) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  // 3. Update status to sent if draft
-  if (referral.status == ReferralStatus.draft) {
-    await updateReferralStatus(
-      ref,
-      referral,
-      ReferralStatus.sent,
-      note: 'Sent via WhatsApp',
+    if (shared) {
+      return box(
+        line(
+          'Already sent in CruDoc. Changes here stay in your records; the '
+          'other doctor keeps what was sent.',
+          icon: CruIcons.check,
+        ),
+      );
+    }
+    if (cnt == null) {
+      return box(line('Pick who you are referring to.'));
+    }
+    if (!cnt.onCruDoc) {
+      return box(
+        line(
+          '${cnt.name} isn\'t on CruDoc. After saving, send the letter on '
+          'WhatsApp or by email, or invite them to join.',
+        ),
+      );
+    }
+    return box(
+      accent: true,
+      CruPressable(
+        onTap: () => onConsent(!consent),
+        builder: (_, _) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: consent,
+              onChanged: (v) => onConsent(v ?? false),
+              activeColor: c.accent,
+              checkColor: c.onAccent,
+              side: BorderSide(color: c.separator, width: 1.5),
+            ),
+            const SizedBox(width: CruSpace.s4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${drName(cnt.crudocName.isNotEmpty ? cnt.crudocName : cnt.name)} '
+                    'is on CruDoc',
+                    style: CruType.callout.w600.tint(c.label),
+                  ),
+                  const SizedBox(height: CruSpace.s2),
+                  Text(
+                    'The patient agreed to their name, contact details, '
+                    'findings and files going to this doctor. They get a '
+                    'notification and see it in their Referrals.',
+                    style: CruType.caption.tint(c.label2),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
+}
 
-  if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Referral letter saved: ${p.basename(pdfPath)}'),
-        action: SnackBarAction(
-          label: 'Show in folder',
-          onPressed: () {
-            launchUrl(Uri.file(p.dirname(pdfPath)));
-          },
-        ),
+/// In the contact form: the CruDoc account this contact is linked to.
+class _CruDocLinkRow extends StatelessWidget {
+  const _CruDocLinkRow({
+    required this.doctor,
+    required this.byHand,
+    required this.onFind,
+    required this.onUnlink,
+  });
+
+  final CruDocDoctor? doctor;
+  final bool byHand;
+  final VoidCallback onFind;
+  final VoidCallback onUnlink;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final d = doctor;
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s12),
+      decoration: BoxDecoration(
+        color: d == null ? c.inset : c.accentTint,
+        borderRadius: BorderRadius.circular(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  d == null
+                      ? 'Not linked to CruDoc'
+                      : 'On CruDoc: ${drName(d.name)}',
+                  style: CruType.callout.w600.tint(c.label),
+                ),
+                Text(
+                  d == null
+                      ? 'Their phone or email is checked when you save. Or find them in the directory.'
+                      : (byHand
+                            ? 'Picked from the directory. Referrals reach them in the app.'
+                            : 'Matched by phone or email. Referrals reach them in the app.'),
+                  style: CruType.caption.tint(c.label2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          if (d == null)
+            CruCapsuleButton(
+              label: 'Find',
+              icon: CruIcons.search,
+              onPressed: onFind,
+            )
+          else if (byHand)
+            CruCapsuleButton(label: 'Unlink', onPressed: onUnlink),
+        ],
       ),
     );
   }

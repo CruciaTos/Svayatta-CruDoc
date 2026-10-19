@@ -113,12 +113,13 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
           DentalIcons.plan,
         ),
         _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
-        _NavItem(
-          DesktopTab.dentalReferrals,
-          'Referrals',
-          CruIcons.arrowUpRight,
-        ),
       ],
+      // Every specialty refers patients to other doctors.
+      const _NavItem(
+        DesktopTab.dentalReferrals,
+        'Referrals',
+        CruIcons.arrowUpRight,
+      ),
       const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
     ]),
     _NavGroup('Clinic', [

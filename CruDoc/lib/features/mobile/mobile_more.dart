@@ -304,7 +304,9 @@ class MobileMoreScreen extends ConsumerWidget {
         if (specialty.isNotEmpty) ...[
           const SizedBox(height: CruSpace.s16),
           MobileRowGroup(
-            title: 'Dental',
+            title: ref.watch(dentalFeaturesProvider).isEmpty
+                ? 'Clinical'
+                : 'Dental',
 
             children: [
               for (final t in specialty)

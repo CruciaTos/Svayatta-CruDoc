@@ -28,5 +28,6 @@ export {
   stampTreatmentPlanLineItemAssignment,
 } from "./clinical-assignment";
 export * from "./subscription";
+export {referralNetwork} from "./referrals";
 export {voiceApi} from "./voice";
 export {onPatientWrittenIndexPhone} from "./crypto/patientIndex";

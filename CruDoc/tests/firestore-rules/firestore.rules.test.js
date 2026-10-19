@@ -1554,3 +1554,92 @@ describe('files screen: folders and patient files', () => {
     await assertSucceeds(updateDoc(doc(db, 'patient_files/x1'), { isDeleted: true }));
   });
 });
+
+describe('referrals between doctors', () => {
+  const SMIT = 'doctor-smit';
+  const share = (extra = {}) => ({
+    senderUid: A,
+    senderClinicId: A,
+    recipientUid: SMIT,
+    status: 'sent',
+    reason: 'enc:v1:x.y',
+    ...extra,
+  });
+
+  it('lets exactly the sender and the recipient read a share', async () => {
+    await seed('referral_shares/s1', share());
+    await assertSucceeds(getDoc(doc(doctor(A), 'referral_shares/s1')));
+    await assertSucceeds(getDoc(doc(doctor(SMIT), 'referral_shares/s1')));
+    await assertFails(getDoc(doc(doctor(B), 'referral_shares/s1')));
+    await assertFails(getDoc(doc(admin(), 'referral_shares/s1')));
+    await assertFails(getDoc(doc(anonymous(), 'referral_shares/s1')));
+  });
+
+  it('keeps the sender\'s clinic team out', async () => {
+    // A member of the sender's clinic with full clinical access still
+    // can't read a share the owner sent: it is between two doctors.
+    await seed(`clinics/${A}`, { name: 'A clinic' });
+    await seed(`clinics/${A}/members/member-doc`, {
+      active: true, roleId: 'doctor', perms: ['clinical.view', 'clinical.edit', 'patients.view'],
+    });
+    await seed('referral_shares/s1', share());
+    await assertFails(getDoc(doc(doctor('member-doc'), 'referral_shares/s1')));
+    await assertFails(
+      getDocs(query(collection(doctor('member-doc'), 'referral_shares'),
+        where('senderClinicId', '==', A))),
+    );
+  });
+
+  it('lists only with a filter on your own uid', async () => {
+    await seed('referral_shares/s1', share());
+    await seed('referral_shares/s2', share({ senderUid: B, recipientUid: SMIT }));
+    await assertSucceeds(
+      getDocs(query(collection(doctor(SMIT), 'referral_shares'), where('recipientUid', '==', SMIT))),
+    );
+    await assertSucceeds(
+      getDocs(query(collection(doctor(A), 'referral_shares'), where('senderUid', '==', A))),
+    );
+    // Someone else's inbox, or everything.
+    await assertFails(
+      getDocs(query(collection(doctor(A), 'referral_shares'), where('recipientUid', '==', SMIT))),
+    );
+    await assertFails(getDocs(collection(doctor(A), 'referral_shares')));
+  });
+
+  it('never lets a client write a share, not even its own', async () => {
+    await seed('referral_shares/s1', share());
+    await assertFails(setDoc(doc(doctor(A), 'referral_shares/s9'), share()));
+    await assertFails(updateDoc(doc(doctor(SMIT), 'referral_shares/s1'), { status: 'completed' }));
+    await assertFails(updateDoc(doc(doctor(A), 'referral_shares/s1'), { recipientUid: B }));
+    await assertFails(deleteDoc(doc(doctor(A), 'referral_shares/s1')));
+  });
+
+  it('shows directory cards only when listed, and never takes client writes', async () => {
+    await seed(`doctor_directory/${SMIT}`, { listed: true, displayName: 'Smit', searchTokens: ['sm'] });
+    await seed(`doctor_directory/${B}`, { listed: false, displayName: 'B', searchTokens: [] });
+    await assertSucceeds(getDoc(doc(doctor(A), `doctor_directory/${SMIT}`)));
+    await assertFails(getDoc(doc(doctor(A), `doctor_directory/${B}`)));
+    await assertSucceeds(getDoc(doc(doctor(B), `doctor_directory/${B}`)));
+    await assertFails(getDoc(doc(anonymous(), `doctor_directory/${SMIT}`)));
+
+    await assertSucceeds(
+      getDocs(query(collection(doctor(A), 'doctor_directory'),
+        where('listed', '==', true), where('searchTokens', 'array-contains', 'sm'))),
+    );
+    await assertFails(getDocs(collection(doctor(A), 'doctor_directory')));
+
+    await assertFails(setDoc(doc(doctor(A), `doctor_directory/${A}`), { listed: true }));
+    await assertFails(updateDoc(doc(doctor(SMIT), `doctor_directory/${SMIT}`), { handle: 'x' }));
+    await assertFails(getDoc(doc(doctor(A), 'doctor_handles/smit')));
+    await assertFails(setDoc(doc(doctor(A), 'doctor_handles/smit'), { uid: A }));
+  });
+
+  it('keeps device tokens private to their owner', async () => {
+    const db = doctor(SMIT);
+    await assertSucceeds(
+      setDoc(doc(db, `users/${SMIT}/device_tokens/t1`), { token: 't1', platform: 'android' }),
+    );
+    await assertFails(getDoc(doc(doctor(A), `users/${SMIT}/device_tokens/t1`)));
+    await assertFails(setDoc(doc(doctor(A), `users/${SMIT}/device_tokens/t2`), { token: 'x' }));
+  });
+});

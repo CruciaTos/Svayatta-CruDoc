@@ -1,37 +1,28 @@
 // desktop_scribe_screen.dart
 //
-// Full-panel AI Voice Scribe screen for the desktop shell.
+// The AI Scribe tab: today's visits on the left, the selected visit's
+// consent / recording / processing / saved-note panel on the right. While
+// recording, the right side widens to show the conversation as it is
+// transcribed. On a phone (opened from More) the panel sits above the list.
 //
-// Rendered as a SizedBox.expand content-area widget with the same glass
-// container and header as DesktopQueueScreen / DesktopEventsScreen, so the
-// sidebar stays visible throughout the recording → review flow.
-//
-// Layout: today's visits on the left, the selected visit's consent /
-// recording / processing / saved-note panel on the right. While recording,
-// the right side widens to show the conversation as it is transcribed.
-//
-// Recording and processing are driven by ScribeSessionController — the same
-// state machine the mobile sheet uses. When the doctor finishes, the
+// Recording and processing are driven by ScribeSessionController, the same
+// state machine the phone's sheet uses. When the doctor finishes, the
 // session notes are written and saved straight to the patient's record.
-
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_session_controller.dart';
 import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_recorder_widgets.dart';
-
-const ScribePalette _p = ScribePalette.desktop;
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class DesktopScribeScreen extends ConsumerStatefulWidget {
   const DesktopScribeScreen({super.key});
@@ -91,70 +82,46 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   }
 
   Future<void> _discardRecording() async {
-    final ok = await showScribeConfirmDialog(
+    final ok = await confirmDental(
       context,
-      palette: _p,
-      icon: Icons.delete_outline_rounded,
       title: 'Discard this conversation?',
-      message: 'Nothing is saved to the patient’s record.',
-      confirmLabel: 'Discard',
-      cancelLabel: 'Keep',
+      body: 'Nothing is saved to the patient’s record.',
+      action: 'Discard',
     );
     if (ok) await _session?.discardRecording();
   }
 
-  // =========================================================================
-  // BUILD
-  // =========================================================================
+  // ---- Build ----
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFCBD5E1), width: 0.5),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSessionHeader(),
-                  const SizedBox(height: 20),
-                  Expanded(child: _buildSessionBody()),
-                ],
-              ),
-            ),
+    final phone = cruIsPhone(context);
+    final visits = ref.watch(todaysVisitsWithPatientsProvider);
+    final count = visits.value
+        ?.where((v) => v.visit.status != VisitStatus.cancelled)
+        .length;
+    final today = DateFormat('EEEE d MMM').format(DateTime.now());
+    return Padding(
+      padding: phone ? CruSpace.mainPaddingPhone : CruSpace.mainPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DentalPageHeader(
+            title: 'AI Scribe',
+            subtitle: count == null
+                ? today
+                : '$today · ${count == 0 ? 'No visits' : count == 1 ? '1 visit' : '$count visits'}',
           ),
-        ),
+          const SizedBox(height: CruSpace.cardGap),
+          Expanded(child: _body()),
+        ],
       ),
     );
   }
 
-  // ---- Headers ----
-
-  Widget _buildSessionHeader() {
-    return _PageHeader(
-      icon: Icons.mic_rounded,
-      title: 'AI Voice Scribe',
-      subtitle:
-          'Talk with the patient — the scribe writes the session notes and '
-          'saves them to their record',
-      pill: DateFormat('EEEE, MMM d').format(DateTime.now()),
-    );
-  }
-
-  // ---- Session (visit picker + recorder) ----
-
-  Widget _buildSessionBody() {
+  Widget _body() {
     final session = _session;
-    final isLiveRecording =
+    final live =
         session != null &&
         (session.phase == ScribeSessionPhase.recording ||
             session.phase == ScribeSessionPhase.paused);
@@ -162,44 +129,33 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 820) {
-          if (isLiveRecording) {
+          if (live) {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(width: 300, child: _buildVisitList(scrollable: true)),
-                const SizedBox(width: 20),
-                Expanded(child: _buildLiveRecordingWorkspace(session)),
+                SizedBox(width: 300, child: _visitList(scrollable: true)),
+                const SizedBox(width: CruSpace.cardGap),
+                Expanded(child: _liveWorkspace(session)),
               ],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(child: _buildVisitList(scrollable: true)),
-              const SizedBox(width: 20),
-              SizedBox(width: 420, child: _buildSessionPanel(expand: true)),
+              Expanded(child: _visitList(scrollable: true)),
+              const SizedBox(width: CruSpace.cardGap),
+              SizedBox(width: 420, child: _sessionPanel(expand: true)),
             ],
           );
         }
-        if (isLiveRecording) {
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildLiveRecordingWorkspace(session),
-                const SizedBox(height: 16),
-                _buildVisitList(scrollable: false),
-              ],
-            ),
-          );
-        }
+        // Narrow (a phone, or a small window): the panel on top.
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSessionPanel(expand: false),
-              const SizedBox(height: 16),
-              _buildVisitList(scrollable: false),
+              _sessionPanel(expand: false),
+              const SizedBox(height: CruSpace.cardGap),
+              _visitList(scrollable: false),
             ],
           ),
         );
@@ -207,19 +163,23 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     );
   }
 
-  Widget _buildVisitList({required bool scrollable}) {
+  // ---- Today's visits ----
+
+  Widget _visitList({required bool scrollable}) {
     final visitsAsync = ref.watch(todaysVisitsWithPatientsProvider);
     final locked = _sessionLocked;
 
-    Widget content = visitsAsync.when(
+    final Widget content = visitsAsync.when(
       loading: () => const Padding(
-        padding: EdgeInsets.all(32),
+        padding: EdgeInsets.all(CruSpace.s32),
         child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
       ),
-      error: (e, _) => _EmptyState(
-        icon: Icons.error_outline_rounded,
-        title: "Couldn't load today's visits",
-        message: '$e',
+      error: (e, _) => Center(
+        child: DentalEmptyState(
+          icon: CruIcons.warning,
+          title: "Couldn't load today's visits",
+          body: '$e',
+        ),
       ),
       data: (all) {
         final visits =
@@ -229,17 +189,19 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                     a.visit.scheduledStart.compareTo(b.visit.scheduledStart),
               );
         if (visits.isEmpty) {
-          return const _EmptyState(
-            icon: Icons.event_busy_rounded,
-            title: 'No visits today',
-            message:
-                'Schedule a visit in Appointments, then come back to '
-                'record it.',
+          return const Center(
+            child: DentalEmptyState(
+              icon: CruIcons.calendar,
+              title: 'No visits today',
+              body:
+                  'Book a visit in Appointments, then come back here to '
+                  'record it.',
+            ),
           );
         }
-        final tiles = [
+        final rows = [
           for (final vwp in visits)
-            _VisitTile(
+            _VisitRow(
               visit: vwp.visit,
               patient: vwp.patient,
               selected: _visit?.id == vwp.visit.id,
@@ -248,118 +210,65 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             ),
         ];
         if (!scrollable) {
-          return Column(children: tiles);
+          return Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const CruSeparator(indent: _VisitRow.indent),
+                rows[i],
+              ],
+            ],
+          );
         }
         return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          itemCount: tiles.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 6),
-          itemBuilder: (_, i) => tiles[i],
+          itemCount: rows.length,
+          separatorBuilder: (_, _) =>
+              const CruSeparator(indent: _VisitRow.indent),
+          itemBuilder: (_, i) => rows[i],
         );
       },
     );
 
-    final count = visitsAsync.value
-        ?.where((v) => v.visit.status != VisitStatus.cancelled)
-        .length;
-
-    return _Card(
-      padding: EdgeInsets.zero,
+    return CruCard(
+      semanticLabel: "Today's visits",
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        0,
+        CruSpace.s12,
+        CruSpace.s12,
+      ),
       child: Column(
         mainAxisSize: scrollable ? MainAxisSize.max : MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          "TODAY'S VISITS",
-                          style: _p.sectionLabel,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (count != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _p.field,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: _p.border),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: _p.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (locked) ...[
-                  const SizedBox(width: 8),
-                  Tooltip(
-                    message:
-                        'Finish or discard the current conversation to switch visits',
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          size: 13,
-                          color: _p.hint,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Locked',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _p.hint,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          DentalGroupLabel(
+            "Today's visits",
+            trailing: locked ? 'Locked while recording' : null,
           ),
-          if (scrollable)
-            Expanded(child: content)
-          else
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: content,
-            ),
+          if (scrollable) Expanded(child: content) else content,
         ],
       ),
     );
   }
 
-  Widget _buildSessionPanel({required bool expand}) {
+  // ---- The selected visit ----
+
+  Widget _sessionPanel({required bool expand}) {
     final session = _session;
     if (session == null) {
-      return _Card(
-        child: const _EmptyState(
-          icon: Icons.touch_app_outlined,
-          title: 'Select a visit',
-          message:
-              'Choose one of today’s visits to start recording its '
-              'consultation.',
+      return const CruCard(
+        semanticLabel: 'Scribe',
+        padding: EdgeInsets.all(CruSpace.s12),
+        child: Center(
+          child: SingleChildScrollView(
+            child: DentalEmptyState(
+              icon: CruIcons.mic,
+              title: 'Choose a visit',
+              body:
+                  'Pick one of today’s visits to record its consultation. '
+                  'The scribe writes the session notes and saves them to the '
+                  'patient’s record.',
+            ),
+          ),
         ),
       );
     }
@@ -368,21 +277,18 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
       listenable: session,
       builder: (context, _) {
         final body = switch (session.phase) {
-          ScribeSessionPhase.ready => _buildReadyPanel(session),
-          ScribeSessionPhase.done => _buildSavedPanel(session.note!),
+          ScribeSessionPhase.ready => _readyPanel(session),
+          ScribeSessionPhase.done => _savedPanel(session.note!),
           ScribeSessionPhase.recording ||
           ScribeSessionPhase.paused => ScribeRecorderPanel(
             controller: session,
-            palette: _p,
             onDiscard: _discardRecording,
           ),
           ScribeSessionPhase.processing => ScribeProcessingPanel(
             controller: session,
-            palette: _p,
           ),
           ScribeSessionPhase.failed => ScribeFailurePanel(
             controller: session,
-            palette: _p,
             onDiscard: _discardRecording,
           ),
         };
@@ -390,30 +296,34 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             session.phase != ScribeSessionPhase.ready &&
             session.phase != ScribeSessionPhase.done;
 
-        return _Card(
+        return CruCard(
+          semanticLabel: 'Scribe',
           padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
             children: [
               _PatientSummary(visit: _visit!, patient: _patient),
-              Divider(height: 1, color: _p.border),
+              const CruSeparator(),
               if (expand)
                 Expanded(
                   child: centred
                       ? Center(
                           child: SingleChildScrollView(
-                            padding: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(CruSpace.s24),
                             child: body,
                           ),
                         )
                       : SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(CruSpace.s20),
                           child: body,
                         ),
                 )
               else
-                Padding(padding: const EdgeInsets.all(20), child: body),
+                Padding(
+                  padding: const EdgeInsets.all(CruSpace.s20),
+                  child: body,
+                ),
             ],
           ),
         );
@@ -421,143 +331,92 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     );
   }
 
-  Widget _buildLiveRecordingWorkspace(ScribeSessionController session) {
+  /// Recording on a wide screen: the controls in a bar, the conversation
+  /// filling the card as it is heard.
+  Widget _liveWorkspace(ScribeSessionController session) {
+    final c = context.cru;
     final paused = session.phase == ScribeSessionPhase.paused;
-    final statusColor = paused ? _p.warning : _p.danger;
 
-    return _Card(
+    return CruCard(
+      semanticLabel: 'Recording',
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _PatientSummary(visit: _visit!, patient: _patient),
-          Divider(height: 1, color: _p.border),
+          const CruSeparator(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: _p.field,
+            color: c.inset,
+            padding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s16,
+              vertical: CruSpace.s10,
+            ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: statusColor,
-                        ),
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        paused ? 'PAUSED' : 'LISTENING',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: statusColor,
-                          letterSpacing: 0.7,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
+                ScribeStatusPill(paused: paused),
+                const SizedBox(width: CruSpace.s14),
                 ValueListenableBuilder<Duration>(
                   valueListenable: session.elapsed,
                   builder: (context, elapsed, _) => Text(
                     formatScribeDuration(elapsed),
-                    style: TextStyle(
-                      fontFamily: AppColors.headingFontFamily,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: _p.textPrimary,
-                    ),
+                    style: CruType.title.tabular.tint(c.label),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: CruSpace.s16),
                 Expanded(
-                  child: SizedBox(
+                  child: ScribeWaveform(
+                    levels: session.levels,
+                    color: paused ? c.label3 : c.redText,
                     height: 28,
-                    child: ScribeWaveform(
-                      levels: session.levels,
-                      color: paused ? _p.hint : _p.danger,
-                    ),
                   ),
                 ),
-                const SizedBox(width: 14),
-                IconButton(
-                  tooltip: paused ? 'Resume recording' : 'Pause recording',
-                  icon: Icon(
-                    paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  ),
-                  color: _p.textPrimary,
-                  onPressed: paused ? session.resume : session.pause,
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  tooltip: 'Discard recording',
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  color: _p.textSecondary,
-                  onPressed: _discardRecording,
-                ),
-                const SizedBox(width: 10),
-                FilledButton.icon(
-                  onPressed: session.finish,
-                  icon: const Icon(Icons.stop_rounded, size: 18),
-                  label: const Text('Finish & write notes'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _p.primary,
-                    foregroundColor: Colors.white,
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                  ),
+                const SizedBox(width: CruSpace.s14),
+                ScribeRecorderControls(
+                  controller: session,
+                  onDiscard: _discardRecording,
+                  compact: true,
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: _p.border),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            child: Text('CONVERSATION', style: _p.sectionLabel),
+          const CruSeparator(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              CruSpace.s4,
+              CruSpace.s8,
+              0,
+            ),
+            child: DentalGroupLabel('Conversation'),
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s20,
+                CruSpace.s4,
+                CruSpace.s20,
+                CruSpace.s20,
+              ),
               child: Align(
                 alignment: Alignment.topLeft,
                 child: ScribeLiveTranscript(
                   transcript: session.transcript,
-                  palette: _p,
-                  fontSize: 14,
+                  large: true,
                 ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              0,
+              CruSpace.s20,
+              CruSpace.s16,
+            ),
             child: Text(
-              'Talk with the patient as you normally would. When you '
-              'finish, the session notes are written and saved to their '
-              'record.',
-              style: TextStyle(fontSize: 12.5, color: _p.textSecondary),
+              'Talk with the patient as you normally would. When you finish, '
+              'the session notes are written and saved to their record.',
+              style: CruType.caption.tint(c.label2),
             ),
           ),
         ],
@@ -565,34 +424,25 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     );
   }
 
-  Widget _buildReadyPanel(ScribeSessionController session) {
+  Widget _readyPanel(ScribeSessionController session) {
+    final c = context.cru;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ScribeStepsStrip(palette: _p),
-        const SizedBox(height: 22),
-        Text('PATIENT CONSENT', style: _p.sectionLabel),
-        const SizedBox(height: 10),
+        const ScribeStepsStrip(),
+        const SizedBox(height: CruSpace.s24),
+        Text('PATIENT CONSENT', style: CruType.groupLabel.tint(c.label3)),
+        const SizedBox(height: CruSpace.s8),
         ScribeConsentCard(
           value: session.consentGiven,
           onChanged: session.setConsent,
-          palette: _p,
-          background: _p.field,
         ),
         if (session.error != null) ...[
-          const SizedBox(height: 14),
-          ScribeNotice(
-            icon: Icons.error_outline_rounded,
-            color: _p.danger,
-            background: _p.dangerSoft,
-            message: session.error!,
-          ),
+          const SizedBox(height: CruSpace.s14),
+          ScribeNotice(tone: ScribeNoticeTone.danger, message: session.error!),
         ],
-        const SizedBox(height: 20),
-        ScribePrimaryButton(
-          label: 'Start recording',
-          icon: Icons.mic_rounded,
-          color: _p.primary,
+        const SizedBox(height: CruSpace.s20),
+        ScribeStartButton(
           onPressed: session.consentGiven ? session.start : null,
         ),
       ],
@@ -600,83 +450,64 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   }
 
   /// The session note just saved to the patient's record.
-  Widget _buildSavedPanel(ConsultationNote note) {
+  Widget _savedPanel(ConsultationNote note) {
+    final c = context.cru;
     final unsure = note.confidenceNote.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ScribeNotice(
-          icon: Icons.check_circle_rounded,
-          color: _p.success,
-          background: _p.success.withValues(alpha: 0.08),
+          tone: ScribeNoticeTone.success,
           title: 'Saved to the patient record',
           message:
               'Added to ${_patient?.fullName ?? 'the patient'}’s session '
               'notes.',
         ),
-        const SizedBox(height: 20),
-        Text('SESSION NOTE', style: _p.sectionLabel),
-        const SizedBox(height: 10),
-        Text(
-          sessionTitle(note),
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            color: _p.textPrimary,
-          ),
-        ),
+        const SizedBox(height: CruSpace.s20),
+        Text('SESSION NOTE', style: CruType.groupLabel.tint(c.label3)),
+        const SizedBox(height: CruSpace.s8),
+        Text(sessionTitle(note), style: CruType.headline.tint(c.label)),
         if (unsure.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: CruSpace.s10),
           ScribeNotice(
-            icon: Icons.warning_amber_rounded,
-            color: _p.warning,
-            background: _p.warningSoft,
+            tone: ScribeNoticeTone.warning,
             title: 'Check',
             message: unsure,
           ),
         ],
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s10),
         Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: _p.field,
-            borderRadius: BorderRadius.circular(_p.fieldRadius),
-            border: Border.all(color: _p.border),
+          padding: const EdgeInsets.all(CruSpace.s14),
+          decoration: ShapeDecoration(
+            color: c.inset,
+            shape: cruShape(CruRadius.control),
           ),
           child: SelectableText(
             note.notes,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.5,
-              color: _p.textPrimary,
-            ),
+            style: CruType.body.tint(c.label),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: CruSpace.s20),
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
+              child: CruButton(
+                label: 'Open / edit',
+                icon: CruIcons.pen,
+                kind: CruButtonKind.secondary,
+                large: true,
+                expand: true,
                 onPressed: () =>
                     openSessionNote(context, note: note, patient: _patient),
-                icon: const Icon(Icons.edit_note_rounded, size: 20),
-                label: const Text('Open / edit'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _p.textPrimary,
-                  minimumSize: const Size.fromHeight(48),
-                  side: BorderSide(color: _p.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: CruSpace.s10),
             Expanded(
-              child: ScribePrimaryButton(
+              child: CruButton(
                 label: 'Done',
-                icon: Icons.check_rounded,
-                color: _p.primary,
+                icon: CruIcons.check,
+                large: true,
+                expand: true,
                 onPressed: _resetToIdle,
               ),
             ),
@@ -687,195 +518,45 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   }
 }
 
-// ===========================================================================
-// Pieces
-// ===========================================================================
+// ---- Pieces ----
 
-class _PageHeader extends StatelessWidget {
-  const _PageHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.pill,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String? pill;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: _p.accentSoft,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(icon, color: _p.accent, size: 24),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      title,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: _p.textPrimary,
-                        fontFamily: AppColors.headingFontFamily,
-                      ),
-                    ),
-                  ),
-                  if (pill != null) ...[
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _p.field,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: _p.border),
-                      ),
-                      child: Text(
-                        pill!,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _p.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: _p.textSecondary),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.child, this.padding = const EdgeInsets.all(20)});
-
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: _p.card,
-        borderRadius: BorderRadius.circular(_p.cardRadius),
-        border: Border.all(color: _p.cardBorder),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: _p.field,
-                shape: BoxShape.circle,
-                border: Border.all(color: _p.border),
-              ),
-              child: Icon(icon, color: _p.textSecondary, size: 26),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: _p.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: _p.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-String _initials(Patient? patient) {
-  final name = patient?.fullName.trim() ?? '';
-  if (name.isEmpty) return '?';
-  final parts = name.split(RegExp(r'\s+'));
-  final first = parts.first.characters.first;
-  final last = parts.length > 1 ? parts.last.characters.first : '';
-  return '$first$last'.toUpperCase();
-}
-
-(Color, String) _statusStyle(VisitStatus status) => switch (status) {
-  VisitStatus.scheduled => (_p.accent, 'Scheduled'),
-  VisitStatus.completed => (_p.success, 'Completed'),
-  VisitStatus.cancelled => (_p.danger, 'Cancelled'),
-  VisitStatus.missed => (_p.warning, 'Missed'),
+/// Scheduled (quiet), Completed (green), Missed (amber).
+Widget _statusPill(CruColors c, VisitStatus status) => switch (status) {
+  VisitStatus.scheduled => CruPill(
+    text: 'Scheduled',
+    background: c.inset,
+    foreground: c.label2,
+  ),
+  VisitStatus.completed => CruPill(
+    text: 'Completed',
+    background: c.greenTint,
+    foreground: c.greenText,
+  ),
+  VisitStatus.cancelled => CruPill(
+    text: 'Cancelled',
+    background: c.redTint,
+    foreground: c.redText,
+  ),
+  VisitStatus.missed => CruPill(
+    text: 'Missed',
+    background: c.amberTint,
+    foreground: c.amberText,
+  ),
 };
 
-class _VisitTile extends StatelessWidget {
-  const _VisitTile({
+/// One of today's visits: who, when, where, and its status. The visit
+/// being recorded stays highlighted; the others dim while it records.
+class _VisitRow extends StatelessWidget {
+  const _VisitRow({
     required this.visit,
     required this.patient,
     required this.selected,
     required this.enabled,
     required this.onTap,
   });
+
+  /// Separators start under the name, past the monogram.
+  static const indent = CruSpace.s12 + CruSize.monogramRow + CruSpace.s12;
 
   final Visit visit;
   final Patient? patient;
@@ -885,86 +566,62 @@ class _VisitTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (statusColor, statusLabel) = _statusStyle(visit.status);
-    return Opacity(
+    final c = context.cru;
+    final name = patient?.fullName ?? 'Unknown patient';
+    final where = visit.visitType == VisitType.home ? 'Home visit' : 'Clinic';
+    return AnimatedOpacity(
+      duration: CruMotion.of(context, CruMotion.fast),
       opacity: enabled ? 1 : 0.45,
-      child: Material(
-        color: selected ? _p.accentSoft : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(
-            color: selected ? _p.accent : Colors.transparent,
-            width: 1.2,
+      child: CruPressable(
+        onTap: enabled ? onTap : null,
+        scaleOnPress: false,
+        semanticLabel: '$name, ${DateFormat('h:mm a').format(visit.scheduledStart)}',
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          constraints: const BoxConstraints(minHeight: 60),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s12,
+            vertical: CruSpace.s8,
           ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          hoverColor: _p.field,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 19,
-                  backgroundColor: selected ? _p.accent : _p.field,
-                  child: Text(
-                    _initials(patient),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white : _p.textSecondary,
+          decoration: ShapeDecoration(
+            color: selected
+                ? c.accentTint
+                : hovered && enabled
+                ? c.hoverFill
+                : c.hoverFill.withValues(alpha: 0),
+            shape: cruShape(CruRadius.control),
+          ),
+          child: Row(
+            children: [
+              CruMonogram(name: name),
+              const SizedBox(width: CruSpace.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CruType.row.tint(c.label),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        patient?.fullName ?? 'Unknown patient',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _p.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${DateFormat('h:mm a').format(visit.scheduledStart)}'
-                        ' · ${visit.visitType == VisitType.home ? 'Home visit' : 'Clinic'}',
-                        style: TextStyle(fontSize: 12, color: _p.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    statusLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
+                    const SizedBox(height: CruSpace.s2),
+                    Text(
+                      '${DateFormat('h:mm a').format(visit.scheduledStart)} · $where',
+                      style: CruType.subhead.tabular.tint(c.label2),
                     ),
-                  ),
+                  ],
                 ),
-                if (selected) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.check_circle_rounded, color: _p.accent, size: 20),
-                ],
+              ),
+              const SizedBox(width: CruSpace.s8),
+              _statusPill(c, visit.status),
+              if (selected) ...[
+                const SizedBox(width: CruSpace.s8),
+                CruIcon(CruIcons.check, size: 18, color: c.accentText),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -972,6 +629,7 @@ class _VisitTile extends StatelessWidget {
   }
 }
 
+/// Who is being seen: name, sex and age, time and where.
 class _PatientSummary extends StatelessWidget {
   const _PatientSummary({required this.visit, required this.patient});
 
@@ -980,49 +638,36 @@ class _PatientSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final p = patient;
+    final name = p?.fullName ?? 'Unknown patient';
     final details = [
       if (p != null) '${p.gender}, ${p.age} yrs',
       DateFormat('h:mm a').format(visit.scheduledStart),
       visit.visitType == VisitType.home ? 'Home visit' : 'Clinic',
     ].join(' · ');
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+      padding: const EdgeInsets.all(CruSpace.s16),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: _p.accent,
-            child: Text(
-              _initials(p),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
+          CruMonogram(name: name, vibrant: true),
+          const SizedBox(width: CruSpace.s12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  p?.fullName ?? 'Unknown patient',
+                  name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: _p.textPrimary,
-                  ),
+                  style: CruType.headline.tint(c.label),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: CruSpace.s2),
                 Text(
                   details,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12.5, color: _p.textSecondary),
+                  style: CruType.subhead.tabular.tint(c.label2),
                 ),
               ],
             ),

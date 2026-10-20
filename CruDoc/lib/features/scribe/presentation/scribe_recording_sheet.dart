@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart'
+    show confirmDental;
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_session_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_recorder_widgets.dart';
 import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -95,8 +95,6 @@ class ScribeRecordingSheet extends ConsumerStatefulWidget {
 }
 
 class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
-  ScribePalette get _palette => ScribePalette.of(context);
-
   late final ScribeSessionController _session;
   bool _closed = false;
 
@@ -136,17 +134,13 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
   /// Close button / back gesture: confirm before losing a recording.
   Future<void> _requestClose() async {
     if (_session.phase == ScribeSessionPhase.processing) {
-      final leave = await showScribeConfirmDialog(
+      final leave = await confirmDental(
         context,
-        palette: _palette,
-        icon: Icons.hourglass_top_rounded,
         title: 'Still writing the notes',
-        message:
+        body:
             "If you close now, the session note is still saved to the "
             "patient's record once it's written.",
-        confirmLabel: 'Close anyway',
-        cancelLabel: 'Wait',
-        destructive: false,
+        action: 'Close anyway',
       );
       if (leave) _close();
       return;
@@ -160,14 +154,11 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
   }
 
   Future<bool> _confirmDiscard() {
-    return showScribeConfirmDialog(
+    return confirmDental(
       context,
-      palette: _palette,
-      icon: Icons.delete_outline_rounded,
       title: 'Discard this conversation?',
-      message: 'Nothing is saved to the patient’s record.',
-      confirmLabel: 'Discard',
-      cancelLabel: 'Keep',
+      body: 'Nothing is saved to the patient’s record.',
+      action: 'Discard',
     );
   }
 
@@ -234,50 +225,34 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
     final token = widget.tokenNumber;
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: _palette.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Icon(Icons.mic_rounded, color: _palette.primary, size: 22),
-        ),
-        const SizedBox(width: 12),
+        const CruIconTile(icon: CruIcons.mic, tone: CruTileTone.accent),
+        const SizedBox(width: CruSpace.s12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'AI Voice Scribe',
-                style: AppColors.sectionHeading.copyWith(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: c.label,
-                ),
+              Semantics(
+                header: true,
+                child: Text('AI Scribe', style: CruType.title.tint(c.label)),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: CruSpace.s2),
               Text(
                 [
                   if (token != null) 'Token $token',
                   patientName,
                   when,
                 ].join(' · '),
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: c.label2,
-                  fontSize: 12,
-                  fontFeatures: CruType.tabular,
-                ),
+                style: CruType.subhead.tabular.tint(c.label2),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
-        IconButton(
+        CruIconButton(
+          icon: CruIcons.close,
+          semanticLabel: 'Close',
           tooltip: 'Close',
-          icon: Icon(Icons.close_rounded, color: c.label2),
           onPressed: _requestClose,
         ),
       ],
@@ -295,21 +270,19 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
           padding: const EdgeInsets.only(top: 4, bottom: 8),
           child: ScribeRecorderPanel(
             controller: _session,
-            palette: _palette,
             onDiscard: _discardRecording,
           ),
         );
       case ScribeSessionPhase.processing:
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 28),
-          child: ScribeProcessingPanel(controller: _session, palette: _palette),
+          child: ScribeProcessingPanel(controller: _session),
         );
       case ScribeSessionPhase.failed:
         return Padding(
           padding: const EdgeInsets.only(top: 8),
           child: ScribeFailurePanel(
             controller: _session,
-            palette: _palette,
             onDiscard: _discardRecording,
           ),
         );
@@ -318,32 +291,27 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
 
   Widget _buildReady() {
     if (widget.startedFromQueue) return _buildQueueReady();
+    final c = context.cru;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ScribeStepsStrip(palette: _palette),
-        const SizedBox(height: 24),
-        Text('PATIENT CONSENT', style: _palette.sectionLabel),
-        const SizedBox(height: 10),
+        const ScribeStepsStrip(),
+        const SizedBox(height: CruSpace.s24),
+        Text('PATIENT CONSENT', style: CruType.groupLabel.tint(c.label3)),
+        const SizedBox(height: CruSpace.s8),
         ScribeConsentCard(
           value: _session.consentGiven,
           onChanged: _session.setConsent,
-          palette: _palette,
         ),
         if (_session.error != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: CruSpace.s14),
           ScribeNotice(
-            icon: Icons.error_outline_rounded,
-            color: _palette.danger,
-            background: _palette.dangerSoft,
+            tone: ScribeNoticeTone.danger,
             message: _session.error!,
           ),
         ],
-        const SizedBox(height: 20),
-        ScribePrimaryButton(
-          label: 'Start recording',
-          icon: Icons.mic_rounded,
-          color: _palette.primary,
+        const SizedBox(height: CruSpace.s20),
+        ScribeStartButton(
           onPressed: _session.consentGiven ? _session.start : null,
         ),
       ],
@@ -357,48 +325,37 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('BEFORE YOU BEGIN', style: _palette.sectionLabel),
-        const SizedBox(height: 10),
+        Text('BEFORE YOU BEGIN', style: CruType.groupLabel.tint(c.label3)),
+        const SizedBox(height: CruSpace.s8),
         Text(
           'Ask the patient if this consultation can be recorded. The '
           'conversation is transcribed and an AI writes the session note '
           'from it; the recording is deleted from this device as soon as it '
           'stops.',
-          style: TextStyle(
-            fontFamily: AppColors.bodyFontFamily,
-            fontSize: 13.5,
-            height: 1.4,
-            color: c.label2,
-          ),
+          style: CruType.text.tint(c.label2),
         ),
         if (_session.error != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: CruSpace.s14),
           ScribeNotice(
-            icon: Icons.error_outline_rounded,
-            color: _palette.danger,
-            background: _palette.dangerSoft,
+            tone: ScribeNoticeTone.danger,
             message: _session.error!,
           ),
         ],
-        const SizedBox(height: 20),
-        ScribePrimaryButton(
-          label: 'Patient agreed — start recording',
-          icon: Icons.mic_rounded,
-          color: _palette.primary,
+        const SizedBox(height: CruSpace.s20),
+        CruButton(
+          label: 'Patient agreed, start recording',
+          icon: CruIcons.mic,
+          large: true,
+          expand: true,
           onPressed: _session.consentAndStart,
         ),
-        const SizedBox(height: 6),
-        TextButton(
-          onPressed: _close,
-          style: TextButton.styleFrom(
-            foregroundColor: c.label2,
-            textStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+        const SizedBox(height: CruSpace.s12),
+        Center(
+          child: CruLink(
+            label: 'Patient declined, don’t record',
+            color: c.label2,
+            onPressed: _close,
           ),
-          child: const Text('Patient declined — don’t record'),
         ),
       ],
     );

@@ -1,10 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_session_controller.dart';
-import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 String formatScribeDuration(Duration d) {
   final h = d.inHours;
@@ -13,75 +12,21 @@ String formatScribeDuration(Duration d) {
   return h > 0 ? '$h:$m:$s' : '$m:$s';
 }
 
-/// Confirmation dialog styled like the host screen's other dialogs.
-Future<bool> showScribeConfirmDialog(
-  BuildContext context, {
-  required ScribePalette palette,
-  required String title,
-  required String message,
-  required String confirmLabel,
-  String cancelLabel = 'Cancel',
-  bool destructive = true,
-  IconData? icon,
-}) async {
-  final color = destructive ? palette.danger : palette.primary;
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: palette.labelsOutsideCards
-          ? AppColors.cardSurface
-          : Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(palette.cardRadius + 4),
-      ),
-      title: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: palette.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-      content: Text(
-        message,
-        style: TextStyle(
-          fontSize: 14,
-          height: 1.45,
-          color: palette.textSecondary,
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          style: TextButton.styleFrom(foregroundColor: palette.textSecondary),
-          child: Text(cancelLabel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          style: FilledButton.styleFrom(
-            backgroundColor: color,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          child: Text(confirmLabel),
-        ),
-      ],
-    ),
+/// Icons the scribe needs beyond [CruIcons], drawn the same way.
+abstract final class ScribeIcons {
+  static const pause = CruIconData('M8.5 5.5v13M15.5 5.5v13');
+  static const stop = CruIconData(
+    'M7 6.5h10a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V7a.5.5 0 0 1 .5-.5z',
   );
-  return result ?? false;
+  static const trash = CruIconData(
+    'M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5',
+  );
+  static const retry = CruIconData(
+    'M4.5 12a7.5 7.5 0 0 1 13-5.1M19.5 12a7.5 7.5 0 0 1-13 5.1M17.5 3.5v3.4h-3.4M6.5 20.5v-3.4h3.4',
+  );
+  static const lock = CruIconData(
+    'M7 10.5V8a5 5 0 0 1 10 0v2.5M6 10.5h12v9.5H6z',
+  );
 }
 
 /// Live microphone level bars, newest on the right.
@@ -90,7 +35,7 @@ class ScribeWaveform extends StatelessWidget {
     super.key,
     required this.levels,
     required this.color,
-    this.height = 56,
+    this.height = 48,
   });
 
   final ValueListenable<List<double>> levels;
@@ -144,139 +89,137 @@ class _WaveformPainter extends CustomPainter {
       old.values != values || old.color != color;
 }
 
-/// The consent acknowledgement that gates recording (§0.8 of the plan).
+/// The consent acknowledgement that gates recording.
 class ScribeConsentCard extends StatelessWidget {
   const ScribeConsentCard({
     super.key,
     required this.value,
     required this.onChanged,
-    required this.palette,
-    this.background,
   });
 
   final bool value;
   final ValueChanged<bool> onChanged;
-  final ScribePalette palette;
-  final Color? background;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: background ?? palette.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(palette.cardRadius),
-        side: BorderSide(
-          color: value
-              ? palette.primary.withValues(alpha: 0.45)
-              : palette.cardBorder,
-          width: value ? 1.4 : 1,
+    final c = context.cru;
+    return CruPressable(
+      onTap: () => onChanged(!value),
+      scaleOnPress: false,
+      semanticLabel: 'The patient has agreed to be recorded',
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s8,
+          CruSpace.s10,
+          CruSpace.s16,
+          CruSpace.s12,
         ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => onChanged(!value),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Checkbox(
-                value: value,
-                onChanged: (v) => onChanged(v ?? false),
-                activeColor: palette.primary,
-                side: BorderSide(color: palette.hint, width: 1.6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5),
+        decoration: ShapeDecoration(
+          color: value ? c.accentTint : (hovered ? c.hoverFill : c.inset),
+          shape: cruShape(CruRadius.control),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: value,
+              onChanged: (v) => onChanged(v ?? false),
+              activeColor: c.accent,
+              checkColor: c.onAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+              side: BorderSide(color: c.separator, width: 1.5),
+            ),
+            const SizedBox(width: CruSpace.s4),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: CruSpace.s10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'The patient knows this consultation is being recorded '
+                      'and has agreed',
+                      style: CruType.row.tint(c.label),
+                    ),
+                    const SizedBox(height: CruSpace.s4),
+                    Text(
+                      'The conversation is transcribed and an AI writes the '
+                      'session note from it. The recording is deleted from '
+                      'this device as soon as it stops.',
+                      style: CruType.caption.tint(c.label2),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'The patient knows this consultation is being '
-                        'recorded and has agreed',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                          color: palette.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'The conversation is transcribed and an AI writes '
-                        'the session note from it. The recording is deleted '
-                        'from this device as soon as it stops.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.4,
-                          color: palette.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Talk → AI writes the notes → saved to the record, as a compact
-/// three-step strip.
-class ScribeStepsStrip extends StatelessWidget {
-  const ScribeStepsStrip({super.key, required this.palette});
+/// "Start recording": faded, and not tappable, until the patient's
+/// consent is ticked.
+class ScribeStartButton extends StatelessWidget {
+  const ScribeStartButton({super.key, required this.onPressed});
 
-  final ScribePalette palette;
+  /// Null while recording can't start yet.
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: CruMotion.of(context, CruMotion.fast),
+      opacity: onPressed == null ? 0.4 : 1,
+      child: CruButton(
+        label: 'Start recording',
+        icon: CruIcons.mic,
+        large: true,
+        expand: true,
+        onPressed: onPressed,
+      ),
+    );
+  }
+}
+
+/// Talk → AI writes the notes → saved to the record.
+class ScribeStepsStrip extends StatelessWidget {
+  const ScribeStepsStrip({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
     const steps = [
-      (Icons.mic_none_rounded, 'Talk with\nthe patient'),
-      (Icons.auto_awesome_outlined, 'AI writes the\nsession notes'),
-      (Icons.folder_shared_outlined, 'Saved to the\npatient record'),
+      (CruIcons.mic, 'Talk with the patient'),
+      (CruIcons.sparkle, 'AI writes the session notes'),
+      (CruIcons.fileText, 'Saved to the patient record'),
     ];
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < steps.length; i++) ...[
           if (i > 0)
             Padding(
-              padding: const EdgeInsets.only(bottom: 22),
-              child: Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: palette.hint,
-              ),
+              padding: const EdgeInsets.only(top: CruSpace.s10),
+              child: CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
             ),
           Expanded(
             child: Column(
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: palette.primary.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(steps[i].$1, size: 20, color: palette.primary),
+                CruIconTile(
+                  icon: steps[i].$1,
+                  tone: i == 1 ? CruTileTone.accent : CruTileTone.neutral,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: CruSpace.s8),
                 Text(
                   steps[i].$2,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.3,
-                    fontWeight: FontWeight.w500,
-                    color: palette.textSecondary,
-                  ),
+                  style: CruType.caption.tint(c.label2),
                 ),
               ],
             ),
@@ -287,17 +230,93 @@ class ScribeStepsStrip extends StatelessWidget {
   }
 }
 
-/// Timer, live waveform and pause / finish / discard controls.
+/// "Recording" (a pulsing red dot) or "Paused" (amber).
+class ScribeStatusPill extends StatefulWidget {
+  const ScribeStatusPill({super.key, required this.paused});
+
+  final bool paused;
+
+  @override
+  State<ScribeStatusPill> createState() => _ScribeStatusPillState();
+}
+
+class _ScribeStatusPillState extends State<ScribeStatusPill>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.paused) _pulse.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(ScribeStatusPill old) {
+    super.didUpdateWidget(old);
+    if (!widget.paused && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (widget.paused && _pulse.isAnimating) {
+      _pulse
+        ..stop()
+        ..value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final paused = widget.paused;
+    final fg = paused ? c.amberText : c.redText;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s10,
+        vertical: CruSpace.s4,
+      ),
+      decoration: ShapeDecoration(
+        color: paused ? c.amberTint : c.redTint,
+        shape: const StadiumBorder(),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            opacity: Tween(begin: 0.35, end: 1.0).animate(_pulse),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s6),
+          Text(
+            paused ? 'Paused' : 'Recording',
+            style: CruType.caption.w600.tint(fg),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Timer, live waveform, what has been heard, and pause / finish /
+/// discard: the recorder on the phone's sheet and the desktop panel.
 class ScribeRecorderPanel extends StatelessWidget {
   const ScribeRecorderPanel({
     super.key,
     required this.controller,
-    required this.palette,
     required this.onDiscard,
   });
 
   final ScribeSessionController controller;
-  final ScribePalette palette;
 
   /// Called when the doctor taps Discard; the host confirms first.
   final VoidCallback onDiscard;
@@ -306,46 +325,39 @@ class ScribeRecorderPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final paused = controller.phase == ScribeSessionPhase.paused;
-    final statusColor = paused ? palette.warning : palette.danger;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _StatusPill(
-          color: statusColor,
-          label: paused ? 'Paused' : 'Recording',
-          pulsing: !paused,
-        ),
-        const SizedBox(height: 14),
+        Center(child: ScribeStatusPill(paused: paused)),
+        const SizedBox(height: CruSpace.s12),
         ValueListenableBuilder<Duration>(
           valueListenable: controller.elapsed,
           builder: (context, elapsed, _) => Text(
             formatScribeDuration(elapsed),
-            style: TextStyle(
-              fontFamily: AppColors.headingFontFamily,
-              fontSize: 44,
-              fontWeight: FontWeight.w300,
-              letterSpacing: 2,
-              color: palette.textPrimary,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+            textAlign: TextAlign.center,
+            style: CruType.metric.copyWith(fontSize: 44).tint(c.label),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: CruSpace.s16),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: palette.card,
-            borderRadius: BorderRadius.circular(palette.cardRadius),
-            border: Border.all(color: palette.cardBorder),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s14,
+            vertical: CruSpace.s10,
+          ),
+          decoration: ShapeDecoration(
+            color: c.inset,
+            shape: cruShape(CruRadius.control),
           ),
           child: ScribeWaveform(
             levels: controller.levels,
-            color: paused ? palette.hint : palette.danger,
+            color: paused ? c.label3 : c.redText,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s10),
         ValueListenableBuilder<Duration>(
           valueListenable: controller.elapsed,
           builder: (context, elapsed, _) {
@@ -357,66 +369,80 @@ class ScribeRecorderPanel extends StatelessWidget {
                   ? 'Recording stops automatically in '
                         '${formatScribeDuration(remaining)}'
                   : paused
-                  ? 'Recording paused — resume when the consultation continues.'
+                  ? 'Paused. Resume when the consultation continues.'
                   : 'Talk with the patient as you normally would. Keep the '
                         'device between you.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.4,
-                color: nearLimit ? palette.warning : palette.textSecondary,
-                fontWeight: nearLimit ? FontWeight.w600 : FontWeight.w400,
-              ),
+              style: nearLimit
+                  ? CruType.caption.w600.tint(c.amberText)
+                  : CruType.caption.tint(c.label2),
             );
           },
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          decoration: BoxDecoration(
-            color: palette.accentSoft,
-            borderRadius: BorderRadius.circular(palette.fieldRadius + 2),
+          padding: const EdgeInsets.all(CruSpace.s12),
+          decoration: ShapeDecoration(
+            color: c.aiTint,
+            shape: cruShape(CruRadius.control),
           ),
           child: ScribeLiveTranscript(
             transcript: controller.transcript,
-            palette: palette,
             maxHeight: 96,
           ),
         ),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _RoundAction(
-              icon: Icons.delete_outline_rounded,
-              label: 'Discard',
-              color: palette.textSecondary,
-              palette: palette,
-              onTap: onDiscard,
-            ),
-            const SizedBox(width: 28),
-            _RoundAction(
-              icon: Icons.stop_rounded,
-              label: 'Finish',
-              color: Colors.white,
-              background: palette.danger,
-              size: 72,
-              iconSize: 34,
-              palette: palette,
-              onTap: controller.finish,
-              tooltip: 'Stop recording and write the session notes',
-            ),
-            const SizedBox(width: 28),
-            _RoundAction(
-              icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-              label: paused ? 'Resume' : 'Pause',
-              color: palette.textPrimary,
-              palette: palette,
-              onTap: paused ? controller.resume : controller.pause,
-            ),
-          ],
+        const SizedBox(height: CruSpace.s20),
+        ScribeRecorderControls(controller: controller, onDiscard: onDiscard),
+      ],
+    );
+  }
+}
+
+/// Discard, pause / resume and Finish, in one row.
+class ScribeRecorderControls extends StatelessWidget {
+  const ScribeRecorderControls({
+    super.key,
+    required this.controller,
+    required this.onDiscard,
+    this.compact = false,
+  });
+
+  final ScribeSessionController controller;
+  final VoidCallback onDiscard;
+
+  /// Fits a toolbar: the Finish button keeps its own width.
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final paused = controller.phase == ScribeSessionPhase.paused;
+    final finish = CruButton(
+      label: compact ? 'Finish & write notes' : 'Finish',
+      icon: ScribeIcons.stop,
+      large: !compact,
+      expand: !compact,
+      semanticLabel: 'Stop recording and write the session notes',
+      onPressed: controller.finish,
+    );
+    return Row(
+      mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        CruIconButton(
+          icon: ScribeIcons.trash,
+          semanticLabel: 'Discard recording',
+          tooltip: 'Discard recording',
+          onPressed: onDiscard,
         ),
+        const SizedBox(width: CruSpace.s8),
+        CruButton(
+          label: paused ? 'Resume' : 'Pause',
+          icon: paused ? CruIcons.play : ScribeIcons.pause,
+          kind: CruButtonKind.secondary,
+          large: !compact,
+          onPressed: paused ? controller.resume : controller.pause,
+        ),
+        const SizedBox(width: CruSpace.s8),
+        if (compact) finish else Expanded(child: finish),
       ],
     );
   }
@@ -427,17 +453,17 @@ class ScribeLiveTranscript extends StatefulWidget {
   const ScribeLiveTranscript({
     super.key,
     required this.transcript,
-    required this.palette,
     this.maxHeight,
-    this.fontSize = 12.5,
+    this.large = false,
   });
 
   final ValueListenable<String> transcript;
-  final ScribePalette palette;
 
   /// Grows up to this height, then scrolls. Null fills the space given.
   final double? maxHeight;
-  final double fontSize;
+
+  /// Body-size text, for the desktop's full conversation pane.
+  final bool large;
 
   @override
   State<ScribeLiveTranscript> createState() => _ScribeLiveTranscriptState();
@@ -478,23 +504,20 @@ class _ScribeLiveTranscriptState extends State<ScribeLiveTranscript> {
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.palette;
+    final c = context.cru;
+    final style = widget.large ? CruType.body : CruType.subhead;
     return ValueListenableBuilder<String>(
       valueListenable: widget.transcript,
       builder: (context, text, _) {
         if (text.trim().isEmpty) {
           return Row(
             children: [
-              Icon(Icons.hearing_rounded, size: 18, color: p.accent),
-              const SizedBox(width: 10),
+              CruIcon(CruIcons.mic, size: 16, color: c.ai),
+              const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Text(
                   'Listening… the conversation appears here as it is heard.',
-                  style: TextStyle(
-                    fontSize: widget.fontSize,
-                    height: 1.4,
-                    color: p.textSecondary,
-                  ),
+                  style: style.tint(c.label2),
                 ),
               ),
             ],
@@ -504,14 +527,7 @@ class _ScribeLiveTranscriptState extends State<ScribeLiveTranscript> {
           controller: _scroll,
           child: SizedBox(
             width: double.infinity,
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: widget.fontSize,
-                height: 1.5,
-                color: p.textPrimary,
-              ),
-            ),
+            child: Text(text, style: style.tint(c.label)),
           ),
         );
         final maxHeight = widget.maxHeight;
@@ -528,50 +544,39 @@ class _ScribeLiveTranscriptState extends State<ScribeLiveTranscript> {
 
 /// Spinner with progress copy while the AI writes the notes.
 class ScribeProcessingPanel extends StatelessWidget {
-  const ScribeProcessingPanel({
-    super.key,
-    required this.controller,
-    required this.palette,
-  });
+  const ScribeProcessingPanel({super.key, required this.controller});
 
   final ScribeSessionController controller;
-  final ScribePalette palette;
 
   static String _stage(int seconds) {
     if (seconds < 4) return 'Reading through the conversation…';
     if (seconds < 30) return 'Writing the session notes…';
-    return 'Still working — long consultations take a little longer…';
+    return 'Still working. Long consultations take a little longer…';
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 84,
-          height: 84,
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: palette.primary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+          width: 64,
+          height: 64,
+          padding: const EdgeInsets.all(CruSpace.s18),
+          decoration: ShapeDecoration(
+            color: c.aiTint,
+            shape: const CircleBorder(),
           ),
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            color: palette.primary,
-          ),
+          child: CircularProgressIndicator(strokeWidth: 2.5, color: c.ai),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: CruSpace.s16),
         Text(
           'Writing session notes',
-          style: TextStyle(
-            fontFamily: AppColors.headingFontFamily,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: palette.textPrimary,
-          ),
+          textAlign: TextAlign.center,
+          style: CruType.headline.tint(c.label),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: CruSpace.s6),
         ValueListenableBuilder<int>(
           valueListenable: controller.processingSeconds,
           builder: (context, seconds, _) => AnimatedSwitcher(
@@ -580,393 +585,141 @@ class ScribeProcessingPanel extends StatelessWidget {
               _stage(seconds),
               key: ValueKey(_stage(seconds)),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: palette.primary,
-              ),
+              style: CruType.subhead.w500.tint(c.ai),
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: CruSpace.s4),
         Text(
           "They're saved to the patient's record as soon as they're ready.",
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 12.5,
-            height: 1.4,
-            color: palette.textSecondary,
-          ),
+          style: CruType.caption.tint(c.label2),
         ),
       ],
     );
   }
 }
 
-/// Shown when the notes couldn't be written: explains why and offers
-/// recovery.
+/// Shown when the notes couldn't be written: says why and offers a way
+/// on.
 class ScribeFailurePanel extends StatelessWidget {
   const ScribeFailurePanel({
     super.key,
     required this.controller,
-    required this.palette,
     required this.onDiscard,
   });
 
   final ScribeSessionController controller;
-  final ScribePalette palette;
 
   /// Called when the doctor taps Discard; the host confirms first.
   final VoidCallback onDiscard;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Center(
-          child: Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: palette.dangerSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.cloud_off_rounded,
-              size: 30,
-              color: palette.danger,
-            ),
-          ),
+        const Center(
+          child: CruIconTile(icon: CruIcons.warning, tone: CruTileTone.red),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: CruSpace.s14),
         Text(
           "Couldn't write the session notes",
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontFamily: AppColors.headingFontFamily,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: palette.textPrimary,
-          ),
+          style: CruType.headline.tint(c.label),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: CruSpace.s6),
         Text(
           controller.error ?? 'Something went wrong.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13,
-            height: 1.45,
-            color: palette.textSecondary,
-          ),
+          style: CruType.subhead.tint(c.label2),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: CruSpace.s20),
         if (controller.canRetry) ...[
-          ScribePrimaryButton(
+          CruButton(
             label: 'Try again',
-            icon: Icons.refresh_rounded,
-            color: palette.primary,
+            icon: ScribeIcons.retry,
+            large: true,
+            expand: true,
             onPressed: controller.retry,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: CruSpace.s10),
         ],
-        if (controller.canSaveTranscript)
-          OutlinedButton.icon(
+        if (controller.canSaveTranscript) ...[
+          CruButton(
+            label: 'Save the transcript instead',
+            icon: CruIcons.fileText,
+            kind: CruButtonKind.secondary,
+            large: true,
+            expand: true,
             onPressed: controller.saveTranscript,
-            icon: const Icon(Icons.subject_rounded, size: 20),
-            label: const Text('Save the transcript instead'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: palette.textPrimary,
-              minimumSize: const Size.fromHeight(48),
-              side: BorderSide(color: palette.border),
-              textStyle: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
           ),
-        const SizedBox(height: 4),
-        TextButton(
-          onPressed: onDiscard,
-          style: TextButton.styleFrom(foregroundColor: palette.danger),
-          child: const Text('Discard the conversation'),
+          const SizedBox(height: CruSpace.s10),
+        ],
+        Center(
+          child: CruLink(
+            label: 'Discard the conversation',
+            color: c.redText,
+            onPressed: onDiscard,
+          ),
         ),
       ],
     );
   }
 }
 
-/// Tinted inline notice used across the scribe screens.
+enum ScribeNoticeTone { success, warning, danger, ai }
+
+/// A tinted line or two inside a scribe panel: saved, check this, or why
+/// something failed.
 class ScribeNotice extends StatelessWidget {
   const ScribeNotice({
     super.key,
-    required this.icon,
-    required this.color,
-    required this.background,
+    required this.tone,
     required this.message,
     this.title,
-    this.action,
   });
 
-  final IconData icon;
-  final Color color;
-  final Color background;
+  final ScribeNoticeTone tone;
   final String message;
   final String? title;
-  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
+    final (CruIconData icon, Color fg, Color bg) = switch (tone) {
+      ScribeNoticeTone.success => (CruIcons.check, c.greenText, c.greenTint),
+      ScribeNoticeTone.warning => (CruIcons.warning, c.amberText, c.amberTint),
+      ScribeNoticeTone.danger => (CruIcons.warning, c.redText, c.redTint),
+      ScribeNoticeTone.ai => (CruIcons.sparkle, c.ai, c.aiTint),
+    };
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+      padding: const EdgeInsets.all(CruSpace.s12),
+      decoration: ShapeDecoration(
+        color: bg,
+        shape: cruShape(CruRadius.control),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 10),
+          CruIcon(icon, size: 18, color: fg),
+          const SizedBox(width: CruSpace.s10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (title != null) ...[
-                  Text(
-                    title!,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
+                  Text(title!, style: CruType.subhead.w600.tint(fg)),
+                  const SizedBox(height: CruSpace.s2),
                 ],
-                Text(
-                  message,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    height: 1.45,
-                    color: Color.lerp(color, Colors.black, 0.35),
-                  ),
-                ),
-                if (action != null) ...[const SizedBox(height: 8), action!],
+                Text(message, style: CruType.subhead.tint(fg)),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class ScribePrimaryButton extends StatelessWidget {
-  const ScribePrimaryButton({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onPressed,
-    this.busy = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onPressed;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton.icon(
-      onPressed: busy ? null : onPressed,
-      icon: busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : Icon(icon, size: 20),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        disabledBackgroundColor: color.withValues(alpha: 0.35),
-        disabledForegroundColor: Colors.white.withValues(alpha: 0.9),
-        minimumSize: const Size.fromHeight(50),
-        textStyle: const TextStyle(
-          fontFamily: AppColors.bodyFontFamily,
-          fontSize: 14.5,
-          fontWeight: FontWeight.w700,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatefulWidget {
-  const _StatusPill({
-    required this.color,
-    required this.label,
-    required this.pulsing,
-  });
-
-  final Color color;
-  final String label;
-  final bool pulsing;
-
-  @override
-  State<_StatusPill> createState() => _StatusPillState();
-}
-
-class _StatusPillState extends State<_StatusPill>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.pulsing) _pulse.repeat(reverse: true);
-  }
-
-  @override
-  void didUpdateWidget(_StatusPill old) {
-    super.didUpdateWidget(old);
-    if (widget.pulsing && !_pulse.isAnimating) {
-      _pulse.repeat(reverse: true);
-    } else if (!widget.pulsing && _pulse.isAnimating) {
-      _pulse
-        ..stop()
-        ..value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: widget.color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FadeTransition(
-            opacity: Tween(begin: 0.35, end: 1.0).animate(_pulse),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: widget.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            widget.label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: widget.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RoundAction extends StatelessWidget {
-  const _RoundAction({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.palette,
-    required this.onTap,
-    this.background,
-    this.size = 56,
-    this.iconSize = 24,
-    this.tooltip,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color? background;
-  final ScribePalette palette;
-  final VoidCallback onTap;
-  final double size;
-  final double iconSize;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final button = Material(
-      color: background ?? palette.card,
-      shape: CircleBorder(
-        side: background == null
-            ? BorderSide(color: palette.border)
-            : BorderSide.none,
-      ),
-      elevation: 0,
-      shadowColor: (background ?? Colors.black).withValues(alpha: 0.4),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(icon, size: iconSize, color: color),
-        ),
-      ),
-    );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 72,
-          child: Center(
-            child: tooltip == null
-                ? button
-                : Tooltip(message: tooltip!, child: button),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: palette.textSecondary,
-          ),
-        ),
-      ],
     );
   }
 }

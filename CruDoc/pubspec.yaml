@@ -103,6 +103,9 @@ dev_dependencies:
   freezed: ^3.2.5
   json_serializable: ^6.14.0
   mocktail: ^1.0.4
+  # Gives each test file its own app folder (test/support/isolated_app_dirs.dart).
+  path_provider_platform_interface: ^2.1.2
+  plugin_platform_interface: ^2.1.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

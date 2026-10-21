@@ -14,7 +14,10 @@ import 'package:doctor_management_app/features/inventory/data/providers/inventor
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
+import 'support/isolated_app_dirs.dart';
+
 void main() {
+  useIsolatedAppDirs();
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
@@ -26,6 +29,9 @@ void main() {
   setUp(() async {
     db = await databaseFactory.openDatabase(inMemoryDatabasePath);
     await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(testDoctorId);
+    // The repository uses the real local database file, which outlives a
+    // run: start every test from empty, or earlier rows change the counts.
+    await LocalDatabaseService.instance.wipeAllLocalData();
     repository = DentalRepository();
   });
 
@@ -121,8 +127,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('Dental Consumables & Stock'), findsOneWidget);
       expect(find.text('Composite Shade A2'), findsOneWidget);
@@ -154,14 +159,16 @@ void main() {
         createdAt: now,
         updatedAt: now,
       );
-      await repository.saveSterilizationLog(cycle);
+      await tester.runAsync(() => repository.saveSterilizationLog(cycle));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             dentalRepositoryProvider.overrideWithValue(repository),
+            // Signed out, the screen asks for its fallback clinic id; the
+            // cycle above belongs to the test clinic.
             sterilizationLogProvider.overrideWith((ref, docId) async {
-              return repository.getSterilizationLogs(docId);
+              return repository.getSterilizationLogs(testDoctorId);
             }),
           ],
           child: const MaterialApp(
@@ -170,8 +177,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('Autoclave Sterilization Log'), findsOneWidget);
       expect(find.text('PASS'), findsWidgets);
@@ -221,8 +227,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('DENTAL QUICK ACTIONS'), findsOneWidget);
       expect(find.text('Tooth Chart'), findsOneWidget);
@@ -232,11 +237,22 @@ void main() {
 
       // Tap Tooth Chart -> opens patient selection sheet
       await tester.tap(find.text('Tooth Chart'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('Select Patient for Tooth Chart'), findsOneWidget);
       expect(find.text('Quick Patient'), findsOneWidget);
     });
   });
+}
+
+/// Lets real database I/O (sqflite over FFI, which runs outside the widget
+/// test's fake clock) finish, and the widgets rebuild with what it read.
+/// Awaiting it directly inside testWidgets never completes.
+Future<void> _settleDb(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
 }

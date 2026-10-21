@@ -3,6 +3,8 @@
 
 import 'package:flutter_riverpod/misc.dart' show Override;
 
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
@@ -151,5 +153,12 @@ List<Override> revenueOverrides({
     subscriptionInfoProvider.overrideWith((ref) => Stream.value(fixturePlan)),
     // Sidebar Queue badge ("• 2" in the mock-up).
     waitingNowCountProvider.overrideWithValue(2),
+    // The clinic owner: roles without revenue only get the Invoices tab.
+    // Answered at once rather than from the access stream, whose first
+    // frame (still loading) would build the Firebase-backed Invoices list.
+    clinicAccessProvider.overrideWith(
+      (ref) => Stream.value(ClinicAccess.owner('dr-revenue')),
+    ),
+    clinicCanProvider.overrideWith((ref, permission) => true),
   ];
 }

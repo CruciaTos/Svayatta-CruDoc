@@ -6,7 +6,10 @@ import 'package:doctor_management_app/features/dental/data/models/tooth_chart_en
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/sterilization_log_model.dart';
 
+import 'support/isolated_app_dirs.dart';
+
 void main() {
+  useIsolatedAppDirs();
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;

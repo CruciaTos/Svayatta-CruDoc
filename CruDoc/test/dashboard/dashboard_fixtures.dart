@@ -4,6 +4,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
@@ -277,6 +279,11 @@ List<Override> dashboardOverrides({
         ),
     ]),
     subscriptionInfoProvider.overrideWith((ref) => Stream.value(fixturePlan)),
+    // Dr Deshpande owns the clinic, so money (Collected today, Collections)
+    // is shown: it is hidden from roles without revenue.
+    clinicAccessProvider.overrideWith(
+      (ref) => Stream.value(ClinicAccess.owner('dr-deshpande')),
+    ),
   ];
 }
 

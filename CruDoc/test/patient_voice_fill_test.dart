@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
+import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
 
@@ -246,10 +248,18 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: DesktopAddEditPatientDialog(
-              voiceFillService: _FakeVoiceFillService(fill),
+        // The dialog's WhatsApp reminder notice reads the doctor's profile;
+        // reminders off keeps it hidden and Firebase out of this test.
+        ProviderScope(
+          overrides: [
+            whatsAppRemindersAvailableProvider.overrideWithValue(false),
+            whatsAppRemindersEnabledProvider.overrideWithValue(false),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: DesktopAddEditPatientDialog(
+                voiceFillService: _FakeVoiceFillService(fill),
+              ),
             ),
           ),
         ),

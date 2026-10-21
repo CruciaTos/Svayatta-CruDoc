@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
@@ -41,6 +44,12 @@ void main() {
         ProviderScope(
           overrides: [
             activeDoctorSpecialtyProvider.overrideWith((ref) => Stream.value(dentistSpecialty)),
+            // The dental screen is for a chairside dentist who may open
+            // clinical records (isDentistProvider).
+            clinicAccessProvider.overrideWith(
+              (ref) => Stream.value(ClinicAccess.owner('doc-gate-1')),
+            ),
+            dentalFeaturesProvider.overrideWithValue({DentalFeature.chairside}),
             patientsStreamProvider.overrideWith((ref) => Stream.value([testPatient])),
             visitsForPatientProvider(testPatient.id).overrideWith((ref) => Stream.value(<Visit>[])),
             patientToothChartProvider(testPatient.id).overrideWith((ref) => Future.value(<ToothChartEntryModel>[])),

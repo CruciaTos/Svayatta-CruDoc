@@ -14,7 +14,10 @@ import 'package:doctor_management_app/features/dental/presentation/widgets/denta
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/data/services/invoice_local_service.dart';
 
+import 'support/isolated_app_dirs.dart';
+
 void main() {
+  useIsolatedAppDirs();
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
@@ -27,6 +30,9 @@ void main() {
   setUp(() async {
     db = await databaseFactory.openDatabase(inMemoryDatabasePath);
     await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(testDoctorId);
+    // The repository uses the real local database file, which outlives a
+    // run: start every test from empty, or earlier rows change the counts.
+    await LocalDatabaseService.instance.wipeAllLocalData();
     repository = DentalRepository();
   });
 
@@ -216,14 +222,21 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      await DentalCatalogSeed.seedIfNeeded(repository, testDoctorId);
+      await tester.runAsync(
+        () => DentalCatalogSeed.seedIfNeeded(repository, testDoctorId),
+      );
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             dentalRepositoryProvider.overrideWithValue(repository),
+            // Signed out, the screen asks for its fallback clinic id; the
+            // catalog above was seeded for the test clinic.
             dentalCatalogProvider.overrideWith((ref, docId) async {
-              return repository.getProcedureCatalog(docId, includeArchived: true);
+              return repository.getProcedureCatalog(
+                testDoctorId,
+                includeArchived: true,
+              );
             }),
           ],
           child: const MaterialApp(
@@ -232,8 +245,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('Dental Procedure Catalog'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
@@ -270,8 +282,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('Log Dental Procedure'), findsOneWidget);
       expect(find.text('Tooth 36'), findsOneWidget); // preselected tooth
@@ -299,7 +310,7 @@ void main() {
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
-      await repository.saveTreatmentPlanLineItem(item);
+      await tester.runAsync(() => repository.saveTreatmentPlanLineItem(item));
 
       await tester.pumpWidget(
         ProviderScope(
@@ -320,8 +331,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await _settleDb(tester);
 
       expect(find.text('Treatment Plan & Quote'), findsOneWidget);
       expect(find.text('Jane Smith'), findsOneWidget);
@@ -330,4 +340,16 @@ void main() {
       expect(find.text('Create Invoice'), findsOneWidget);
     });
   });
+}
+
+/// Lets real database I/O (sqflite over FFI, which runs outside the widget
+/// test's fake clock) finish, and the widgets rebuild with what it read.
+/// Awaiting it directly inside testWidgets never completes.
+Future<void> _settleDb(WidgetTester tester) async {
+  for (var i = 0; i < 10; i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+  }
 }

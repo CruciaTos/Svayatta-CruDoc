@@ -5,8 +5,10 @@ import 'package:crudoc_shared/subscription/feature_catalog.dart';
 import 'package:crudoc_shared/subscription/upgrade_request_model.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
+import 'package:doctor_management_app/features/subscription/data/plan_payment.dart';
 
 export 'package:crudoc_shared/subscription/feature_catalog.dart';
+export 'package:doctor_management_app/features/subscription/data/plan_payment.dart';
 
 /// Information about a doctor's subscription status.
 class DoctorSubscriptionInfo {
@@ -36,7 +38,7 @@ class DoctorSubscriptionInfo {
 }
 
 /// Service handling doctor subscription state, feature upgrade requests,
-/// and automated in-app payment activation.
+/// and paying for plans by UPI.
 class DoctorSubscriptionService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -120,57 +122,54 @@ class DoctorSubscriptionService {
     });
   }
 
-  /// Processes the in-app (simulated) payment and activates the selected
-  /// features for 1 month (30 days).
+  /// Opens a UPI checkout for [modules] through CruDoc's payment gateway.
   ///
-  /// The actual entitlement write is done by the `activateDoctorFeatures`
-  /// Cloud Function running with admin privileges — the client never writes
-  /// its own `enabledModules`/`expiresDate`, so features cannot be unlocked
-  /// by tampering with Firestore directly. The server also computes the
-  /// expiry, so the plan length can't be forged.
-  Future<({bool success, String transactionId, DateTime newExpiryDate})>
-  processPaymentAndActivateFeatures({
-    required List<String> selectedModules,
-    required double amountPaid,
-    required String paymentMethod,
-    String? transactionReference,
-  }) async {
-    final user = _auth.currentUser;
-    if (user == null) {
+  /// The `planPayments` function prices the modules itself and returns the
+  /// payment page to open; nothing is unlocked here. The plan is activated on
+  /// the server once the bank confirms the payment, and [watchPlanPayment]
+  /// reports it.
+  Future<PlanCheckout> startPlanCheckout(List<String> modules) async {
+    if (_auth.currentUser == null) {
       throw StateError('No doctor logged in');
     }
-
-    final HttpsCallableResult result;
     try {
-      result = await _functions.httpsCallable('activateDoctorFeatures').call({
-        'selectedModules': selectedModules,
-        'amount': amountPaid,
-        'paymentMethod': paymentMethod,
-        'transactionReference': transactionReference,
+      final result = await _functions.httpsCallable('planPayments').call({
+        'action': 'start',
+        'modules': modules,
+      });
+      return PlanCheckout.fromMap(Map<String, dynamic>.from(result.data as Map));
+    } on FirebaseFunctionsException catch (e) {
+      throw StateError(e.message ?? 'Could not open the payment page.');
+    }
+  }
+
+  /// Gives up on an open checkout and frees the gateway for the next person.
+  /// If the money was already sent, the plan is still activated.
+  Future<void> cancelPlanCheckout(String orderId) async {
+    try {
+      await _functions.httpsCallable('planPayments').call({
+        'action': 'cancel',
+        'orderId': orderId,
       });
     } on FirebaseFunctionsException catch (e) {
-      throw StateError(e.message ?? 'Activation failed. Please try again.');
+      throw StateError(e.message ?? 'Could not cancel the payment.');
     }
+  }
 
-    final data = Map<String, dynamic>.from(result.data as Map);
-    final transactionId = (data['transactionId'] as String?) ?? '';
-    final validUntilRaw = data['validUntil'] as String?;
-    final newExpiresDate =
-        DateTime.tryParse(validUntilRaw ?? '') ??
-        DateTime.now().add(const Duration(days: 30));
+  /// The checkout [orderId] as the server updates it.
+  Stream<PlanPayment> watchPlanPayment(String orderId) => _firestore
+      .collection('plan_payments')
+      .doc(orderId)
+      .snapshots()
+      .where((doc) => doc.exists)
+      .map(PlanPayment.fromSnapshot);
 
-    // A paid month earns a loyalty stamp (one per calendar month). This
-    // writes to the doctor's own loyalty subcollection, so it stays on the
-    // client.
+  /// A paid month earns a loyalty stamp (one per calendar month). This writes
+  /// to the doctor's own loyalty subcollection, so it stays on the client.
+  Future<void> stampPaidMonth() async {
     try {
       await LoyaltyService.stampThisMonth();
     } catch (_) {}
-
-    return (
-      success: true,
-      transactionId: transactionId,
-      newExpiryDate: newExpiresDate,
-    );
   }
 
   /// Streams the current doctor's submitted upgrade requests.

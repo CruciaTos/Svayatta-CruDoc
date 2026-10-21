@@ -534,6 +534,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.appointments ||
             shown == DesktopTab.settings ||
             shown == DesktopTab.files ||
+            shown == DesktopTab.scribe ||
             DesktopTab.isDental(shown) ||
             DesktopTab.isRadiology(shown);
 

@@ -225,7 +225,7 @@ export async function loadDoctor(uid: string): Promise<DoctorCard | null> {
 }
 
 /** Counts [n] uses of [key] against [limit] per [windowMs]; throws when over. */
-async function spend(uid: string, key: string, n: number, limit: number,
+export async function spend(uid: string, key: string, n: number, limit: number,
   windowMs: number, message: string): Promise<void> {
   const db = admin.firestore();
   const ref = db.collection("rate_limits").doc(uid);

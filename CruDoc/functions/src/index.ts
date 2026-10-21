@@ -28,6 +28,7 @@ export {
   stampTreatmentPlanLineItemAssignment,
 } from "./clinical-assignment";
 export * from "./subscription";
+export {planPayments, youpiWebhook} from "./plan-payments";
 export {referralNetwork} from "./referrals";
 export {voiceApi} from "./voice";
 export {onPatientWrittenIndexPhone} from "./crypto/patientIndex";

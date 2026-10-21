@@ -5,10 +5,11 @@ import * as admin from "firebase-admin";
 // statics, so admin.firestore.Timestamp / .FieldValue are undefined there
 // (production is unaffected; the classes are the same either way).
 import {Timestamp} from "firebase-admin/firestore";
+import {decryptProfileField} from "./crypto/profileCipher";
 
 // Features a doctor always keeps, even once a plan expires. Mirrors
 // DoctorFeatureGuard.baseModules in the Flutter app.
-const BASE_MODULES = ["dashboard", "patients", "appointments", "inventory"];
+export const BASE_MODULES = ["dashboard", "patients", "appointments", "inventory"];
 
 // Every module key the app recognises. Anything outside this set is ignored
 // so a tampered client cannot smuggle in unknown entitlements. Keep in sync
@@ -32,7 +33,7 @@ const PLAN_DAYS = 30;
 
 /** Normalises a client-supplied module list: lowercased, known keys only,
  * base modules always included, de-duplicated. */
-function sanitiseModules(raw: unknown): string[] {
+export function sanitiseModules(raw: unknown): string[] {
   const picked = Array.isArray(raw) ?
     raw
       .map((m) => String(m).toLowerCase().trim())
@@ -41,99 +42,87 @@ function sanitiseModules(raw: unknown): string[] {
   return Array.from(new Set<string>([...BASE_MODULES, ...picked]));
 }
 
+/** What a verified payment bought, for [writePaidPlan]. */
+export interface PaidPlan {
+  /** The paid modules bought; the base modules are added here. */
+  modules: string[];
+  amountInr: number;
+  paymentMethod: string;
+  /** The bank's reference for the transfer (the UTR, for UPI). */
+  transactionReference: string;
+  /** Extra fields for the receipt, e.g. the gateway's payment id. */
+  receipt?: Record<string, unknown>;
+}
+
 /**
- * Activates the selected paid modules for 30 days after an in-app payment.
+ * Activates [plan] for 30 days on [uid]'s profile, inside a transaction.
  *
- * The client never writes its own entitlements; it hands over the chosen
- * modules and payment metadata and this function — running with admin
- * privileges — is the only writer of `enabledModules`, `status` and
- * `expiresDate`. The expiry is computed server-side so a tampered client
- * cannot grant itself a longer plan.
+ * Only ever called once a payment has been verified (see plan-payments.ts);
+ * there is deliberately no callable that does this on a client's say-so. The
+ * previous `activateDoctorFeatures` callable trusted the amount the app sent,
+ * so anyone signed in could unlock every module for nothing.
+ *
+ * [user] is users/{uid} as read in the same transaction, for the receipt.
  */
-export const activateDoctorFeatures = onCall(
-  {region: "asia-south1", maxInstances: 10},
-  async (request) => {
-    if (!request.auth || !request.auth.uid) {
-      throw new HttpsError("unauthenticated", "Authentication required.");
-    }
-    const uid = request.auth.uid;
-    const data = request.data || {};
+export function writePaidPlan(
+  tx: admin.firestore.Transaction,
+  uid: string,
+  user: admin.firestore.DocumentData,
+  plan: PaidPlan,
+): {transactionId: string; validUntil: Timestamp} {
+  const db = admin.firestore();
+  const modules = sanitiseModules(plan.modules);
+  const now = Timestamp.now();
+  const validUntil = Timestamp.fromDate(
+    new Date(Date.now() + PLAN_DAYS * 24 * 60 * 60 * 1000),
+  );
+  const transactionId =
+    `TXN_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  const allowMultiDevice = modules.includes("multi_device_access");
 
-    const modules = sanitiseModules(data.selectedModules);
-
-    const amount = Number(data.amount);
-    if (!Number.isFinite(amount) || amount < 0) {
-      throw new HttpsError("invalid-argument", "A valid amount is required.");
-    }
-    const paymentMethod = String(data.paymentMethod ?? "Unknown").slice(0, 64);
-    const transactionReference =
-      String(data.transactionReference ?? "").slice(0, 128) || null;
-
-    const db = admin.firestore();
-    const now = Timestamp.now();
-    const validUntil = Timestamp.fromDate(
-      new Date(Date.now() + PLAN_DAYS * 24 * 60 * 60 * 1000),
-    );
-    const transactionId =
-      `TXN_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-    const allowMultiDevice = modules.includes("multi_device_access");
-
-    const userRef = db.collection("users").doc(uid);
-    const txnRef = db.collection("payment_transactions").doc(transactionId);
-    const settingsRef = db.collection("doctor_settings").doc(uid);
-
-    const userSnap = await userRef.get();
-    const userData = userSnap.data() || {};
-
-    const batch = db.batch();
-    batch.set(
-      userRef,
-      {
-        enabledModules: modules,
-        status: "active",
-        expiresDate: validUntil,
-        allowMultiDevice,
-        lastPaymentDate: now,
-        lastTransactionId: transactionId,
-        lastPaymentAmount: amount,
-        lastPaymentMethod: paymentMethod,
-      },
-      {merge: true},
-    );
-    batch.set(
-      settingsRef,
-      {
-        doctorId: uid,
-        enabledModules: modules,
-        allowMultiDevice,
-        lastModified: now,
-      },
-      {merge: true},
-    );
-    batch.set(txnRef, {
-      transactionId,
-      doctorId: uid,
-      doctorEmail: request.auth.token.email ?? userData.email ?? "",
-      doctorName: request.auth.token.name ?? userData.displayName ?? "Doctor",
-      amount,
-      currency: "INR",
-      paymentMethod,
-      transactionReference: transactionReference ?? transactionId,
-      activatedModules: modules,
-      validUntil,
-      status: "success",
-      timestamp: now,
-    });
-    await batch.commit();
-
-    return {
-      success: true,
-      transactionId,
-      validUntil: validUntil.toDate().toISOString(),
+  tx.set(
+    db.collection("users").doc(uid),
+    {
       enabledModules: modules,
-    };
-  },
-);
+      status: "active",
+      expiresDate: validUntil,
+      allowMultiDevice,
+      lastPaymentDate: now,
+      lastTransactionId: transactionId,
+      lastPaymentAmount: plan.amountInr,
+      lastPaymentMethod: plan.paymentMethod,
+    },
+    {merge: true},
+  );
+  tx.set(
+    db.collection("doctor_settings").doc(uid),
+    {
+      doctorId: uid,
+      enabledModules: modules,
+      allowMultiDevice,
+      lastModified: now,
+    },
+    {merge: true},
+  );
+  tx.set(db.collection("payment_transactions").doc(transactionId), {
+    transactionId,
+    doctorId: uid,
+    doctorEmail: String(user.email ?? ""),
+    doctorName: decryptProfileField(user.name, uid) ||
+      decryptProfileField(user.displayName, uid) || "Doctor",
+    amount: plan.amountInr,
+    currency: "INR",
+    paymentMethod: plan.paymentMethod,
+    transactionReference: plan.transactionReference,
+    activatedModules: modules,
+    validUntil,
+    status: "success",
+    timestamp: now,
+    ...(plan.receipt ?? {}),
+  });
+
+  return {transactionId, validUntil};
+}
 
 /**
  * Starts (or returns) a doctor's free trial during onboarding.

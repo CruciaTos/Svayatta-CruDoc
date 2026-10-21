@@ -198,6 +198,44 @@ describe('access_logs', () => {
   });
 });
 
+describe('plan payments and receipts', () => {
+  const order = { doctorId: A, modules: ['revenue'], amountPaise: 99900, status: 'pending' };
+
+  it('lets a doctor watch their own checkout, and nobody else', async () => {
+    await seed('plan_payments/o1', order);
+    await assertSucceeds(getDoc(doc(doctor(A), 'plan_payments/o1')));
+    await assertSucceeds(
+      getDocs(query(collection(doctor(A), 'plan_payments'), where('doctorId', '==', A))),
+    );
+    await assertSucceeds(getDoc(doc(admin(), 'plan_payments/o1')));
+    await assertFails(getDoc(doc(doctor(B), 'plan_payments/o1')));
+    await assertFails(getDocs(collection(doctor(B), 'plan_payments')));
+    await assertFails(getDoc(doc(anonymous(), 'plan_payments/o1')));
+  });
+
+  it('never lets a client mark a checkout paid or start one itself', async () => {
+    await seed('plan_payments/o1', order);
+    await assertFails(updateDoc(doc(doctor(A), 'plan_payments/o1'), { status: 'paid' }));
+    await assertFails(setDoc(doc(doctor(A), 'plan_payments/o2'), { ...order, status: 'paid' }));
+    await assertFails(deleteDoc(doc(doctor(A), 'plan_payments/o1')));
+  });
+
+  it('keeps the UTR ledger closed', async () => {
+    await seed('plan_payment_utrs/412345678901', { orderId: 'o1', doctorId: A });
+    await assertFails(getDoc(doc(doctor(A), 'plan_payment_utrs/412345678901')));
+    await assertFails(setDoc(doc(doctor(A), 'plan_payment_utrs/999999999999'), { orderId: 'o2' }));
+  });
+
+  it('refuses a receipt written by the app', async () => {
+    await assertFails(setDoc(doc(doctor(A), 'payment_transactions/t1'), {
+      doctorId: A, amount: 0, status: 'success',
+    }));
+    await seed('payment_transactions/t2', { doctorId: A, amount: 999, status: 'success' });
+    await assertSucceeds(getDoc(doc(doctor(A), 'payment_transactions/t2')));
+    await assertFails(getDoc(doc(doctor(B), 'payment_transactions/t2')));
+  });
+});
+
 describe('doctor_keys', () => {
   const key = { wrappedKey: 'iv.cipher' };
 
@@ -325,16 +363,23 @@ describe('subscriptions, feature flags and doctor settings', () => {
 });
 
 describe('payments and upgrade requests', () => {
-  for (const name of ['payment_transactions', 'upgrade_requests']) {
-    it(`${name}: doctor creates and reads own only`, async () => {
-      await assertSucceeds(setDoc(doc(doctor(A), `${name}/t1`), { doctorId: A }));
-      await assertSucceeds(getDoc(doc(doctor(A), `${name}/t1`)));
-      await assertFails(getDoc(doc(doctor(B), `${name}/t1`)));
-      await assertFails(setDoc(doc(doctor(B), `${name}/t2`), { doctorId: A }));
-      await assertFails(updateDoc(doc(doctor(A), `${name}/t1`), { status: 'x' }));
-      await assertSucceeds(updateDoc(doc(admin(), `${name}/t1`), { status: 'x' }));
-    });
-  }
+  it('upgrade_requests: doctor creates and reads own only', async () => {
+    const name = 'upgrade_requests';
+    await assertSucceeds(setDoc(doc(doctor(A), `${name}/t1`), { doctorId: A }));
+    await assertSucceeds(getDoc(doc(doctor(A), `${name}/t1`)));
+    await assertFails(getDoc(doc(doctor(B), `${name}/t1`)));
+    await assertFails(setDoc(doc(doctor(B), `${name}/t2`), { doctorId: A }));
+    await assertFails(updateDoc(doc(doctor(A), `${name}/t1`), { status: 'x' }));
+    await assertSucceeds(updateDoc(doc(admin(), `${name}/t1`), { status: 'x' }));
+  });
+
+  // Receipts come only from the youpiWebhook function; see 'plan payments
+  // and receipts' above for the doctor's side.
+  it('payment_transactions: Super Admin may correct a receipt, a doctor may not', async () => {
+    await seed('payment_transactions/t1', { doctorId: A, status: 'success' });
+    await assertFails(updateDoc(doc(doctor(A), 'payment_transactions/t1'), { status: 'x' }));
+    await assertSucceeds(updateDoc(doc(admin(), 'payment_transactions/t1'), { status: 'x' }));
+  });
 });
 
 describe('admin-only collections', () => {

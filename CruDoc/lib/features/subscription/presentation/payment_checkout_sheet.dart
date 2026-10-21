@@ -1,13 +1,26 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
 import 'package:crudoc_shared/theme/cru_colors.dart';
 
-/// Interactive in-app checkout modal that processes doctor payment and
-/// immediately unlocks and activates the selected features for 1 month (30 days).
+/// Checkout for a month of paid modules, paid by UPI on CruDoc's own payment
+/// gateway.
+///
+/// Opens the gateway's payment page (QR code and UPI app links) and follows
+/// `plan_payments/{orderId}`, which only the server writes. Features unlock
+/// when the bank confirms the payment, not when this sheet says so; closing
+/// the sheet early loses nothing.
+///
+/// Pops `true` once the plan is active.
 class PaymentCheckoutSheet extends StatefulWidget {
   final List<String> selectedModules;
+
+  /// What the upgrade screen showed. The server's price is the one charged
+  /// and replaces this once the checkout opens.
   final double totalAmount;
 
   const PaymentCheckoutSheet({
@@ -46,60 +59,100 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           ? CruColors.evening
           : CruColors.day);
 
-  String _selectedMethod = 'upi'; // 'upi', 'card', 'netbanking'
-  String _selectedUpiApp = 'gpay'; // 'gpay', 'phonepe', 'paytm', 'bhim'
-  final TextEditingController _upiIdController = TextEditingController(
-    text: 'doctor@okaxis',
+  static const _green = Color(0xFF16A34A);
+
+  bool _opening = false;
+  bool _cancelling = false;
+  PlanCheckout? _checkout;
+  PlanPayment? _payment;
+  StreamSubscription<PlanPayment>? _watch;
+
+  final _currency = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
   );
-  final TextEditingController _cardNumberController = TextEditingController(
-    text: '4532 •••• •••• 8821',
-  );
 
-  bool _isProcessing = false;
-  bool _isSuccess = false;
-  String? _transactionId;
-  DateTime? _newExpiryDate;
+  double get _amountInr => _checkout != null
+      ? _checkout!.amountPaise / 100
+      : widget.totalAmount;
 
-  Future<void> _handlePayment() async {
-    setState(() => _isProcessing = true);
+  PlanPaymentStatus? get _status =>
+      _payment?.status ?? (_checkout != null ? PlanPaymentStatus.pending : null);
 
-    // Realistic payment processing delay
-    await Future.delayed(const Duration(seconds: 2));
+  @override
+  void dispose() {
+    _watch?.cancel();
+    super.dispose();
+  }
 
+  Future<void> _startCheckout() async {
+    setState(() => _opening = true);
     try {
-      final methodLabel = _selectedMethod == 'upi'
-          ? 'UPI (${_selectedUpiApp.toUpperCase()})'
-          : (_selectedMethod == 'card' ? 'Credit/Debit Card' : 'Net Banking');
-
-      final result = await _subscriptionService
-          .processPaymentAndActivateFeatures(
-            selectedModules: widget.selectedModules,
-            amountPaid: widget.totalAmount,
-            paymentMethod: methodLabel,
-            transactionReference: _selectedMethod == 'upi'
-                ? _upiIdController.text.trim()
-                : 'CARD_PAYMENT',
-          );
-
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-          _isSuccess = true;
-          _transactionId = result.transactionId;
-          _newExpiryDate = result.newExpiryDate;
-        });
-      }
+      final checkout = await _subscriptionService.startPlanCheckout(
+        widget.selectedModules,
+      );
+      if (!mounted) return;
+      _watch?.cancel();
+      _watch = _subscriptionService
+          .watchPlanPayment(checkout.orderId)
+          .listen(_onPayment);
+      setState(() {
+        _checkout = checkout;
+        _payment = null;
+        _opening = false;
+      });
+      await _openPaymentPage();
     } catch (e) {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment activation failed: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _opening = false);
+      _showError(e is StateError ? e.message : '$e');
     }
+  }
+
+  void _onPayment(PlanPayment payment) {
+    if (!mounted) return;
+    final wasPaid = _payment?.status == PlanPaymentStatus.paid;
+    setState(() => _payment = payment);
+    if (payment.status == PlanPaymentStatus.paid && !wasPaid) {
+      _subscriptionService.stampPaidMonth();
+    }
+  }
+
+  Future<void> _openPaymentPage() async {
+    final url = _checkout?.checkoutUrl;
+    if (url == null) return;
+    final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _showError('Could not open the payment page. Check your browser.');
+    }
+  }
+
+  Future<void> _cancel() async {
+    final orderId = _checkout?.orderId;
+    if (orderId == null) return;
+    setState(() => _cancelling = true);
+    try {
+      await _subscriptionService.cancelPlanCheckout(orderId);
+    } catch (e) {
+      if (mounted) _showError(e is StateError ? e.message : '$e');
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+  }
+
+  void _tryAgain() {
+    _watch?.cancel();
+    setState(() {
+      _checkout = null;
+      _payment = null;
+    });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+    );
   }
 
   String _getModuleTitle(String moduleKey) {
@@ -109,21 +162,16 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     return moduleKey;
   }
 
-  @override
-  void dispose() {
-    _upiIdController.dispose();
-    _cardNumberController.dispose();
-    super.dispose();
+  double? _getModulePrice(String moduleKey) {
+    for (final item in DoctorSubscriptionService.availableFeatures) {
+      if (item.moduleKey == moduleKey) return item.monthlyPriceInr;
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '₹',
-      decimalDigits: 0,
-    );
-
+    final status = _status;
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.90,
@@ -132,143 +180,90 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
         color: _c.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      child: _isSuccess
-          ? _buildSuccessReceipt(currencyFormatter)
+      child: status == PlanPaymentStatus.paid
+          ? _buildSuccessReceipt()
           : Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Top drag handle
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 12, bottom: 8),
-                    decoration: BoxDecoration(
-                      color: _c.separator,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-
-                // Header
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(
-                          Icons.lock_open_rounded,
-                          color: Color(0xFF16A34A),
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Secure Checkout & Activation',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: _c.label,
-                                fontFamily: AppColors.headingFontFamily,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Instant 1-month clinical feature activation',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _c.label2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _isProcessing
-                            ? null
-                            : () => Navigator.pop(context),
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: _c.label2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _buildHandle(),
+                _buildHeader(),
                 Divider(height: 1, color: _c.separator),
-
-                // Body content
-                Expanded(
+                Flexible(
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     children: [
-                      // Order Summary Box
-                      _buildOrderSummaryBox(currencyFormatter),
-                      const SizedBox(height: 20),
-
-                      Text(
-                        'SELECT PAYMENT METHOD',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                          color: _c.label2,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Method 1: UPI Fast Pay
-                      _buildPaymentOption(
-                        id: 'upi',
-                        title: 'UPI Fast Pay',
-                        subtitle: 'Google Pay, PhonePe, Paytm, BHIM',
-                        icon: Icons.qr_code_2_rounded,
-                        child: _buildUpiSection(),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Method 2: Cards
-                      _buildPaymentOption(
-                        id: 'card',
-                        title: 'Credit / Debit Card',
-                        subtitle: 'Visa, MasterCard, RuPay',
-                        icon: Icons.credit_card_rounded,
-                        child: _buildCardSection(),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Method 3: Net Banking
-                      _buildPaymentOption(
-                        id: 'netbanking',
-                        title: 'Net Banking',
-                        subtitle: 'HDFC, ICICI, SBI, Axis, Kotak',
-                        icon: Icons.account_balance_rounded,
-                        child: const SizedBox.shrink(),
-                      ),
+                      _buildOrderSummaryBox(),
                       const SizedBox(height: 16),
-
-                      // Trust & Security Badge
-                      _buildSecurityBadge(),
+                      _buildStatusPanel(status),
                     ],
                   ),
                 ),
-
-                // Pay Button Bar
-                _buildPayButtonBar(currencyFormatter),
+                _buildActionBar(status),
               ],
             ),
     );
   }
 
-  Widget _buildOrderSummaryBox(NumberFormat currencyFormatter) {
+  Widget _buildHandle() {
+    return Center(
+      child: Container(
+        width: 44,
+        height: 4,
+        margin: const EdgeInsets.only(top: 12, bottom: 8),
+        decoration: BoxDecoration(
+          color: _c.separator,
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _green.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.qr_code_2_rounded, color: _green, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pay by UPI',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: _c.label,
+                    fontFamily: AppColors.headingFontFamily,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Google Pay, PhonePe, Paytm, BHIM or any UPI app',
+                  style: TextStyle(fontSize: 12, color: _c.label2),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _opening ? null : () => Navigator.pop(context),
+            icon: Icon(Icons.close_rounded, color: _c.label2),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderSummaryBox() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -293,7 +288,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16A34A).withValues(alpha: 0.15),
+                  color: _green.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
@@ -301,7 +296,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF16A34A),
+                    color: _green,
                   ),
                 ),
               ),
@@ -309,6 +304,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           ),
           const SizedBox(height: 10),
           ...widget.selectedModules.map((modKey) {
+            final price = _getModulePrice(modKey);
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 2.5),
               child: Row(
@@ -316,26 +312,24 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                   const Icon(
                     Icons.check_circle_rounded,
                     size: 15,
-                    color: Color(0xFF16A34A),
+                    color: _green,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _getModuleTitle(modKey),
+                      style: TextStyle(fontSize: 12.5, color: _c.label),
+                    ),
+                  ),
+                  if (price != null)
+                    Text(
+                      _currency.format(price),
                       style: TextStyle(
-                        fontSize: 12.5,
-                        color: _c.label,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _c.label2,
                       ),
                     ),
-                  ),
-                  Text(
-                    'Active',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _c.accent,
-                    ),
-                  ),
                 ],
               ),
             );
@@ -355,7 +349,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                 ),
               ),
               Text(
-                currencyFormatter.format(widget.totalAmount),
+                _currency.format(_amountInr),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -369,272 +363,91 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     );
   }
 
-  Widget _buildPaymentOption({
-    required String id,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Widget child,
-  }) {
-    final isSelected = _selectedMethod == id;
+  /// What is happening now, in a sentence or two.
+  Widget _buildStatusPanel(PlanPaymentStatus? status) {
+    final (IconData icon, Color tone, String title, String body) = switch (status) {
+      null => (
+        Icons.lock_outline_rounded,
+        _c.accent,
+        'How it works',
+        'We open CruDoc\'s secure payment page. Scan the QR code or pick your '
+            'UPI app there, and pay. Your features switch on by themselves as '
+            'soon as your bank confirms, usually within a minute.',
+      ),
+      PlanPaymentStatus.starting || PlanPaymentStatus.pending => (
+        Icons.hourglass_top_rounded,
+        _c.accent,
+        'Waiting for your payment',
+        [
+          if ((_checkout?.queuePosition ?? 0) > 0)
+            'Someone else is paying right now. You\'re number '
+                '${_checkout!.queuePosition} in line on the payment page.',
+          'Finish paying on the payment page. This updates by itself once '
+              'your bank confirms. You can close it; your features still '
+              'switch on.',
+        ].join('\n\n'),
+      ),
+      PlanPaymentStatus.expired => (
+        Icons.timer_off_rounded,
+        Colors.orange,
+        'The payment page timed out',
+        'Nothing was charged. If money did leave your account, it will be '
+            'matched and your features switched on; otherwise try again.',
+      ),
+      PlanPaymentStatus.failed => (
+        Icons.error_outline_rounded,
+        Colors.redAccent,
+        'We couldn\'t confirm a payment',
+        'If money left your account, contact CruDoc support with your UPI '
+            'reference number and we\'ll sort it out.',
+      ),
+      PlanPaymentStatus.cancelled => (
+        Icons.cancel_outlined,
+        _c.label2,
+        'Payment cancelled',
+        'If you had already paid, your features will still switch on.',
+      ),
+      PlanPaymentStatus.review => (
+        Icons.manage_search_rounded,
+        Colors.orange,
+        'We\'re checking your payment',
+        'A payment arrived that we need to check by hand before switching your '
+            'features on. This usually takes under a working day. Your '
+            'reference: ${_checkout?.orderId ?? _payment?.orderId ?? ''}',
+      ),
+      PlanPaymentStatus.paid => (Icons.check_rounded, _green, '', ''),
+    };
 
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isSelected ? _c.accent.withValues(alpha: 0.1) : _c.inset,
+        color: tone.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? _c.accent : _c.separator,
-          width: isSelected ? 1.5 : 1.0,
-        ),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => setState(() => _selectedMethod = id),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? _c.accent
-                          : _c.separator.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 20,
-                      color: isSelected ? _c.onAccent : _c.label2,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: _c.label,
-                          ),
-                        ),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _c.label2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Radio<String>(
-                    value: id,
-                    groupValue: _selectedMethod,
-                    onChanged: (val) => setState(() => _selectedMethod = val!),
-                    activeColor: _c.accent,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          if (isSelected) child,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpiSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Divider(height: 1, color: _c.separator),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildUpiAppPill('gpay', 'Google Pay'),
-              _buildUpiAppPill('phonepe', 'PhonePe'),
-              _buildUpiAppPill('paytm', 'Paytm'),
-              _buildUpiAppPill('bhim', 'BHIM UPI'),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _upiIdController,
-            decoration: InputDecoration(
-              isDense: true,
-              labelText: 'UPI ID / VPA',
-              hintText: 'e.g. yourname@oksbi',
-              labelStyle: TextStyle(color: _c.label2),
-              hintStyle: TextStyle(color: _c.label2),
-              prefixIcon: Icon(Icons.alternate_email_rounded, size: 18, color: _c.label2),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _c.separator),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _c.separator),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _c.accent, width: 1.5),
-              ),
-              filled: true,
-              fillColor: _c.surface,
-            ),
-            style: TextStyle(fontSize: 13, color: _c.label),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpiAppPill(String id, String label) {
-    final isSelected = _selectedUpiApp == id;
-    return InkWell(
-      onTap: () => setState(() => _selectedUpiApp = id),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? _c.accent : _c.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? _c.accent : _c.separator,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? _c.onAccent : _c.label,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCardSection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-      child: Column(
-        children: [
-          Divider(height: 1, color: _c.separator),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _cardNumberController,
-            decoration: InputDecoration(
-              isDense: true,
-              labelText: 'Card Number',
-              labelStyle: TextStyle(color: _c.label2),
-              prefixIcon: Icon(Icons.credit_card, size: 18, color: _c.label2),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _c.separator),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _c.separator),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: _c.accent, width: 1.5),
-              ),
-              filled: true,
-              fillColor: _c.surface,
-            ),
-            style: TextStyle(fontSize: 13, color: _c.label),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    isDense: true,
-                    labelText: 'MM / YY',
-                    labelStyle: TextStyle(color: _c.label2),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _c.separator),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _c.separator),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _c.accent, width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: _c.surface,
-                  ),
-                  style: TextStyle(fontSize: 13, color: _c.label),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  decoration: InputDecoration(
-                    isDense: true,
-                    labelText: 'CVV',
-                    labelStyle: TextStyle(color: _c.label2),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _c.separator),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _c.separator),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _c.accent, width: 1.5),
-                    ),
-                    filled: true,
-                    fillColor: _c.surface,
-                  ),
-                  obscureText: true,
-                  style: TextStyle(fontSize: 13, color: _c.label),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSecurityBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: _c.inset,
-        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tone.withValues(alpha: 0.25)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.shield_rounded, size: 16, color: Color(0xFF16A34A)),
-          const SizedBox(width: 8),
-          Text(
-            '256-Bit Encrypted Healthcare Payment Gateway',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _c.label2,
+          Icon(icon, size: 20, color: tone),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: _c.label,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: TextStyle(fontSize: 12.5, height: 1.4, color: _c.label2),
+                ),
+              ],
             ),
           ),
         ],
@@ -642,7 +455,51 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     );
   }
 
-  Widget _buildPayButtonBar(NumberFormat currencyFormatter) {
+  Widget _buildActionBar(PlanPaymentStatus? status) {
+    final List<Widget> buttons = switch (status) {
+      null => [
+        _primaryButton(
+          label: _opening
+              ? 'Opening payment page...'
+              : 'Pay ${_currency.format(_amountInr)} by UPI',
+          icon: Icons.lock_rounded,
+          busy: _opening,
+          onPressed: _opening ? null : _startCheckout,
+        ),
+      ],
+      PlanPaymentStatus.starting || PlanPaymentStatus.pending => [
+        _primaryButton(
+          label: 'Open payment page again',
+          icon: Icons.open_in_new_rounded,
+          onPressed: _openPaymentPage,
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: _cancelling ? null : _cancel,
+          child: Text(
+            _cancelling ? 'Cancelling...' : 'Cancel payment',
+            style: TextStyle(color: _c.label2),
+          ),
+        ),
+      ],
+      PlanPaymentStatus.expired ||
+      PlanPaymentStatus.failed ||
+      PlanPaymentStatus.cancelled => [
+        _primaryButton(
+          label: 'Try again',
+          icon: Icons.refresh_rounded,
+          onPressed: _tryAgain,
+        ),
+      ],
+      PlanPaymentStatus.review || PlanPaymentStatus.paid => [
+        _primaryButton(
+          label: 'Close',
+          icon: Icons.check_rounded,
+          onPressed: () => Navigator.pop(context, false),
+        ),
+      ],
+    };
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
       decoration: BoxDecoration(
@@ -651,49 +508,54 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton.icon(
-            onPressed: _isProcessing ? null : _handlePayment,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E78FF),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            icon: _isProcessing
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.lock_rounded, size: 18),
-            label: Text(
-              _isProcessing
-                  ? 'Processing Payment & Unlocking Features...'
-                  : 'Pay ${currencyFormatter.format(widget.totalAmount)} & Activate Now',
-              style: const TextStyle(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: buttons),
+      ),
+    );
+  }
+
+  Widget _primaryButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool busy = false,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1E78FF),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
+        ),
+        icon: busy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Icon(icon, size: 18),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
         ),
       ),
     );
   }
 
-  Widget _buildSuccessReceipt(NumberFormat currencyFormatter) {
-    return Padding(
+  Widget _buildSuccessReceipt() {
+    final payment = _payment;
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(28),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 76,
@@ -704,7 +566,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             ),
             child: const Icon(
               Icons.check_circle_rounded,
-              color: Color(0xFF16A34A),
+              color: _green,
               size: 48,
             ),
           ),
@@ -720,13 +582,11 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Your selected clinical modules are now unlocked and active.',
+            'Your bank confirmed the payment. Your selected modules are now active.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13.5, color: _c.label2),
           ),
           const SizedBox(height: 20),
-
-          // Receipt Box
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -739,11 +599,16 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
               children: [
                 _buildReceiptRow(
                   'Amount Paid:',
-                  currencyFormatter.format(widget.totalAmount),
+                  _currency.format((payment?.amountPaise ?? 0) / 100),
                   isBold: true,
                 ),
                 const SizedBox(height: 6),
-                _buildReceiptRow('Transaction ID:', _transactionId ?? '—'),
+                _buildReceiptRow('UPI Reference (UTR):', payment?.utr ?? '—'),
+                const SizedBox(height: 6),
+                _buildReceiptRow(
+                  'Transaction ID:',
+                  payment?.transactionId ?? '—',
+                ),
                 const SizedBox(height: 6),
                 _buildReceiptRow(
                   'Activated Features:',
@@ -752,8 +617,8 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                 const SizedBox(height: 6),
                 _buildReceiptRow(
                   'Plan Valid Until:',
-                  _newExpiryDate != null
-                      ? DateFormat('dd MMM yyyy').format(_newExpiryDate!)
+                  payment?.validUntil != null
+                      ? DateFormat('dd MMM yyyy').format(payment!.validUntil!)
                       : '30 Days',
                   isBold: true,
                 ),
@@ -761,16 +626,13 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             ),
           ),
           const SizedBox(height: 26),
-
           SizedBox(
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context, true); // Close checkout
-              },
+              onPressed: () => Navigator.pop(context, true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
+                backgroundColor: _green,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -792,16 +654,18 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: _c.label2),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            color: isBold ? _c.label : _c.label2,
+        Text(label, style: TextStyle(fontSize: 12, color: _c.label2)),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+              color: isBold ? _c.label : _c.label2,
+            ),
           ),
         ),
       ],

@@ -738,7 +738,7 @@ service cloud.firestore {
         || (isAuthenticated() && resource.data.email == request.auth.token.email);
 
       // Subscription/entitlement fields are written only by the
-      // activateDoctorFeatures / startDoctorTrial Cloud Functions (admin
+      // youpiWebhook (a verified UPI payment) / startDoctorTrial Cloud Functions (admin
       // SDK, which bypasses these rules). A doctor must never set them on
       // their own profile, or they could unlock every paid module for free.
       // Keep in sync with functions/src/subscription.ts.
@@ -812,12 +812,26 @@ service cloud.firestore {
     // PAYMENTS AND UPGRADE REQUESTS
     // ============================================================
 
-    // Receipts are written by the doctor's app and never edited from a client.
+    // Receipts are written only by the youpiWebhook function, once a UPI
+    // payment is verified. A client-written receipt would show Super Admin a
+    // "success" that no money stands behind.
     match /payment_transactions/{transactionId} {
       allow read: if isSuperAdmin()
         || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
-      allow create: if isAuthenticated() && writesOwnDoctorId();
+      allow create: if false;
       allow update, delete: if isSuperAdmin();
+    }
+
+    // One UPI checkout for a plan (functions/src/plan-payments.ts). The app
+    // watches its own to learn the outcome; only the functions write them.
+    // Query with where('doctorId', '==', uid).
+    match /plan_payments/{orderId} {
+      allow get: if isAuthenticated()
+        && (resource == null || resource.data.doctorId == request.auth.uid
+          || isSuperAdmin());
+      allow list: if isSuperAdmin()
+        || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
+      allow write: if false;
     }
 
     match /upgrade_requests/{requestId} {

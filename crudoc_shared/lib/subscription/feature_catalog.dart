@@ -19,6 +19,9 @@ class FeaturePricingItem {
 
 /// Every module a doctor can have, shared by the clinic app (upgrade
 /// screen) and Super Admin (upgrade requests).
+///
+/// These prices are what the app shows; what a UPI checkout charges is
+/// MODULE_PRICES_INR in CruDoc/functions/src/plan-payments.ts. Change both.
 const List<FeaturePricingItem> featureCatalog = [
   FeaturePricingItem(
     moduleKey: 'dashboard',

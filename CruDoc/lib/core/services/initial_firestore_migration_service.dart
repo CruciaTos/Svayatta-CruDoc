@@ -316,7 +316,7 @@ class InitialFirestoreMigrationService {
           'description': FieldCipher.decrypt(
             data['description'] as String? ?? '',
           ),
-          'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+          'amount': _amountFrom(data['amount']),
           'type': data['type'] as String? ?? 'miscellaneous',
           'kind': data['kind'] as String? ?? 'income',
           'payer': data['payer'] == null
@@ -340,7 +340,7 @@ class InitialFirestoreMigrationService {
           'description': FieldCipher.decrypt(
             data['description'] as String? ?? '',
           ),
-          'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+          'amount': _amountFrom(data['amount']),
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
           'payer': data['payer'] == null
               ? null
@@ -360,6 +360,16 @@ class InitialFirestoreMigrationService {
       default:
         throw ArgumentError('Unsupported migration collection: $collection');
     }
+  }
+
+  /// `amount` as stored in Firestore: encrypted text (what the sync service
+  /// writes, see FirestoreSyncService) or, on records from before amounts
+  /// were encrypted, a plain number.
+  double _amountFrom(Object? value) {
+    if (value is String) {
+      return double.tryParse(FieldCipher.decrypt(value)) ?? 0;
+    }
+    return (value as num?)?.toDouble() ?? 0;
   }
 
   int _timestampToMillis(Object? value, {required int fallback}) {

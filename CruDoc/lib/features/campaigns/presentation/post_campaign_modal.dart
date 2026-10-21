@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
@@ -314,7 +314,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
         setState(() {
           _whatsAppNote =
               'Email sent. WhatsApp could not be queued: '
-              '${e is FirebaseFunctionsException ? e.message : e}';
+              '${e is CallableException ? e.message : e}';
         });
       }
     }

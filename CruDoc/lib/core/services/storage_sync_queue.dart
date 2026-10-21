@@ -422,6 +422,22 @@ class StorageSyncQueue {
     }
   }
 
+  /// The links of every unfinished item that runs [handler], so a feature
+  /// can tell what it already has on its way before queueing again.
+  Future<List<UploadLink>> openLinks(String handler) async {
+    final doctorId = _currentDoctorId();
+    if (doctorId == null) return const [];
+    final open = await _store.list(doctorId, {
+      UploadStatus.pending,
+      UploadStatus.uploading,
+      UploadStatus.failed,
+    });
+    return [
+      for (final item in open)
+        if (item.link?.handler == handler) item.link!,
+    ];
+  }
+
   Future<PendingUpload?> get(String queueId) => _store.get(queueId);
 
   /// Puts a failed item back in line, ignoring its backoff.

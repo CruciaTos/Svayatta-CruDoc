@@ -332,6 +332,33 @@ void main() {
     });
   });
 
+  group('openLinks', () {
+    test('lists only unfinished items for that handler', () async {
+      final h = _Harness();
+      h.queue.registerLinkHandler('rad', (_) async {});
+      // Uploaded and linked: finished, so not listed.
+      await h.enqueue(
+        link: const UploadLink.viaHandler('rad', docId: 's1', args: {'i': 'a'}),
+      );
+      await h.settle();
+
+      h.online = false; // The rest wait.
+      await h.enqueue(
+        link: const UploadLink.viaHandler('rad', docId: 's1', args: {'i': 'b'}),
+      );
+      await h.enqueue(
+        link: const UploadLink.viaHandler('other', docId: 's1'),
+      );
+      await h.enqueue(); // No link at all.
+
+      final open = await h.queue.openLinks('rad');
+      expect([for (final l in open) l.args['i']], ['b']);
+
+      h.doctor = null;
+      expect(await h.queue.openLinks('rad'), isEmpty, reason: 'signed out');
+    });
+  });
+
   group('cancel', () {
     test('drops a waiting file before it is uploaded', () async {
       final h = _Harness()..uploadOutcomes.add(_fb('retry-limit-exceeded'));

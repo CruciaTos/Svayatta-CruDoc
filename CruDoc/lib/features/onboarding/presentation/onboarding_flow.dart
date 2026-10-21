@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -242,9 +242,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       // `startDoctorTrial` Cloud Function (admin privileges) so the client
       // can't grant itself a longer trial or extra modules by writing
       // Firestore directly. The server computes the 30-day expiry.
-      await FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('startDoctorTrial')
-          .call({'modules': modules});
+      // CallableClient: the cloud_functions plugin has no Windows build.
+      await CallableClient().call('startDoctorTrial', {'modules': modules});
 
       // Non-entitlement profile fields stay a client write.
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({

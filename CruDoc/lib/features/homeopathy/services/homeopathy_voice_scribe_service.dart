@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 
 /// Service that leverages Gemini 2.0 Flash to extract structured homeopathic case
@@ -283,14 +283,10 @@ JSON SCHEMA STRUCTURE:
     // Attempt 2: Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     if (rawJsonResponse.isEmpty) {
       try {
-        final callable = FirebaseFunctions.instanceFor(
-          region: 'asia-south1',
-        ).httpsCallable('extractHomeopathyCaseSheet');
-        final result = await callable
-            .call({'transcript': transcript})
+        // CallableClient: the cloud_functions plugin has no Windows build.
+        final data = await CallableClient()
+            .call('extractHomeopathyCaseSheet', {'transcript': transcript})
             .timeout(const Duration(seconds: 15));
-
-        final data = result.data;
         if (data is Map) {
           if (data['caseSheet'] is Map) {
             rawJsonResponse = jsonEncode(data['caseSheet']);

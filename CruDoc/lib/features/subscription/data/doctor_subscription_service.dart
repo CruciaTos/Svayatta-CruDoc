@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:crudoc_shared/subscription/feature_catalog.dart';
 import 'package:crudoc_shared/subscription/upgrade_request_model.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/subscription/data/plan_payment.dart';
@@ -42,16 +42,17 @@ class DoctorSubscriptionInfo {
 class DoctorSubscriptionService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
-  final FirebaseFunctions _functions;
+  final CallableClient _functions;
 
   DoctorSubscriptionService({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-    FirebaseFunctions? functions,
+    CallableClient? functions,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
        _auth = auth ?? FirebaseAuth.instance,
-       _functions =
-           functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
+       // CallableClient, not the cloud_functions plugin: the plugin has no
+       // Windows implementation, so checkout would fail on the desktop app.
+       _functions = functions ?? CallableClient();
 
   static const List<FeaturePricingItem> availableFeatures = featureCatalog;
 
@@ -133,13 +134,15 @@ class DoctorSubscriptionService {
       throw StateError('No doctor logged in');
     }
     try {
-      final result = await _functions.httpsCallable('planPayments').call({
+      final result = await _functions.call('planPayments', {
         'action': 'start',
         'modules': modules,
       });
-      return PlanCheckout.fromMap(Map<String, dynamic>.from(result.data as Map));
-    } on FirebaseFunctionsException catch (e) {
-      throw StateError(e.message ?? 'Could not open the payment page.');
+      return PlanCheckout.fromMap(Map<String, dynamic>.from(result as Map));
+    } on CallableException catch (e) {
+      throw StateError(
+        e.message.isNotEmpty ? e.message : 'Could not open the payment page.',
+      );
     }
   }
 
@@ -147,12 +150,14 @@ class DoctorSubscriptionService {
   /// If the money was already sent, the plan is still activated.
   Future<void> cancelPlanCheckout(String orderId) async {
     try {
-      await _functions.httpsCallable('planPayments').call({
+      await _functions.call('planPayments', {
         'action': 'cancel',
         'orderId': orderId,
       });
-    } on FirebaseFunctionsException catch (e) {
-      throw StateError(e.message ?? 'Could not cancel the payment.');
+    } on CallableException catch (e) {
+      throw StateError(
+        e.message.isNotEmpty ? e.message : 'Could not cancel the payment.',
+      );
     }
   }
 

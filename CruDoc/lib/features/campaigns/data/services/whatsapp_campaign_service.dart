@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 /// Client access to the per-clinic WhatsApp campaign backend.
@@ -11,13 +11,13 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 class WhatsAppCampaignService {
   WhatsAppCampaignService({
     FirebaseFirestore? firestore,
-    FirebaseFunctions? functions,
+    CallableClient? functions,
   }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _functions =
-           functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
+       // CallableClient: the cloud_functions plugin has no Windows build.
+       _functions = functions ?? CallableClient();
 
   final FirebaseFirestore _firestore;
-  final FirebaseFunctions _functions;
+  final CallableClient _functions;
 
   static const _connectionsCollection = 'whatsapp_connections';
 
@@ -38,7 +38,7 @@ class WhatsAppCampaignService {
 
   /// Queues a WhatsApp campaign for server-side sending.
   ///
-  /// Throws [FirebaseFunctionsException] — notably `failed-precondition` when
+  /// Throws [CallableException] — notably `failed-precondition` when
   /// the clinic's number is not connected — which the caller surfaces.
   Future<WhatsAppEnqueueResult> enqueueCampaign({
     required String campaignId,
@@ -47,17 +47,14 @@ class WhatsAppCampaignService {
     required String clinicPhone,
     required List<WhatsAppCampaignRecipient> recipients,
   }) async {
-    final callable = _functions.httpsCallable('enqueueCampaign');
-    final res = await callable.call<Map<String, dynamic>>({
+    final res = await _functions.call('enqueueCampaign', {
       'campaignId': campaignId,
       'message': message,
       'clinicName': clinicName,
       'clinicPhone': clinicPhone,
       'recipients': [for (final r in recipients) r.toMap()],
     });
-    return WhatsAppEnqueueResult.fromMap(
-      Map<String, dynamic>.from(res.data),
-    );
+    return WhatsAppEnqueueResult.fromMap(Map<String, dynamic>.from(res as Map));
   }
 }
 

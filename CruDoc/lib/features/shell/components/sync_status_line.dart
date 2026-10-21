@@ -242,4 +242,5 @@ String uploadKindLabel(UploadKind kind) => switch (kind) {
   UploadKind.imagingOriginal => 'Radiology image',
   UploadKind.imagingPreview => 'Radiology preview',
   UploadKind.patientFile => 'Patient file',
+  UploadKind.patientFileView => 'Patient file preview',
 };

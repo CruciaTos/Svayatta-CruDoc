@@ -231,13 +231,29 @@ class MedicalStorageService {
     _requireOneOf(contentType, PatientFileTypes.contentTypes);
     final path =
         'patient-files/$doctorId/${_segment(patientId)}/${_segment(fileId)}/original';
-    return _put(
-      path,
-      bytes,
-      contentType,
-      {'doctorId': doctorId, 'patientId': patientId, 'category': 'files'},
-      limit: PatientFileTypes.maxBytesFor(contentType),
-    );
+    return _put(path, bytes, contentType, {
+      'doctorId': doctorId,
+      'patientId': patientId,
+      'category': 'files',
+    }, limit: PatientFileTypes.maxBytesFor(contentType));
+  }
+
+  /// The progressive JPEG a Files-screen picture is viewed from, next to
+  /// its original. A phone shows it while it downloads.
+  Future<StoredFile> uploadPatientFileView({
+    required String doctorId,
+    required String patientId,
+    required String fileId,
+    required Uint8List bytes,
+  }) {
+    _requireSignedInAs(doctorId);
+    final path =
+        'patient-files/$doctorId/${_segment(patientId)}/${_segment(fileId)}/view';
+    return _put(path, bytes, _jpeg, {
+      'doctorId': doctorId,
+      'patientId': patientId,
+      'category': 'files',
+    }, limit: PatientFileTypes.maxBytes);
   }
 
   /// Voice dictation for transcription. Stored under `voice-scratch/`, which
@@ -373,6 +389,65 @@ class MedicalStorageService {
     AccessAuditService.instance.fileDownloaded(storagePath);
     await _storage.ref(storagePath).writeToFile(destination);
     return destination;
+  }
+
+  /// Writes the file to [destination] as it arrives, calling [onBytes] with
+  /// everything received so far after each network chunk, so a viewer can
+  /// draw a picture before it has all of it. Reads through the Storage REST
+  /// endpoint with the person's ID token, so storage.rules still decide.
+  /// Not available on web.
+  Future<void> streamToFile(
+    String storagePath,
+    File destination, {
+    required void Function(Uint8List soFar, int? total) onBytes,
+  }) async {
+    if (kIsWeb) {
+      throw UnsupportedError('streamToFile is not supported on web.');
+    }
+    _requireOwnedPath(storagePath);
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token == null) throw StateError('Signed out.');
+    AccessAuditService.instance.fileDownloaded(storagePath);
+    final uri = Uri.parse(
+      'https://firebasestorage.googleapis.com/v0/b/${_storage.bucket}/o/'
+      '${Uri.encodeComponent(storagePath)}?alt=media',
+    );
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 20);
+    IOSink? sink;
+    try {
+      final request = await client.getUrl(uri);
+      request.headers.set(HttpHeaders.authorizationHeader, 'Firebase $token');
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.ok) {
+        await response.drain<void>();
+        throw HttpException('HTTP ${response.statusCode}', uri: uri);
+      }
+      final total = response.contentLength >= 0 ? response.contentLength : null;
+      var buffer = Uint8List(total ?? 1 << 20);
+      var length = 0;
+      sink = destination.openWrite();
+      await for (final chunk in response) {
+        sink.add(chunk);
+        if (length + chunk.length > buffer.length) {
+          var size = buffer.length * 2;
+          while (size < length + chunk.length) {
+            size *= 2;
+          }
+          buffer = Uint8List(size)..setRange(0, length, buffer);
+        }
+        buffer.setRange(length, length + chunk.length, chunk);
+        length += chunk.length;
+        onBytes(Uint8List.sublistView(buffer, 0, length), total);
+      }
+      await sink.flush();
+      if (total != null && length != total) {
+        throw HttpException('Short download: $length of $total', uri: uri);
+      }
+    } finally {
+      await sink?.close();
+      client.close(force: true);
+    }
   }
 
   /// The size of the object at [storagePath], or null when there is none.

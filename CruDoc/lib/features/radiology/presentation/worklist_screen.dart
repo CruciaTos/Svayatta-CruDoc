@@ -8,6 +8,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/gl
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_viewer_screen.dart';
+import 'package:doctor_management_app/features/radiology/data/pacs_connection.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_study.dart';
@@ -94,6 +95,8 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
     final async = ref.watch(radStudiesProvider);
     final studies = async.value;
     final referrers = ref.watch(radReferrerByIdProvider);
+    // Watching also keeps the scanner receiver listening.
+    final received = ref.watch(radReceiverProvider);
     final now = DateTime.now();
 
     final open =
@@ -244,6 +247,40 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
               ],
             ),
           const SizedBox(height: CruSpace.cardGap),
+          if (received.received.isNotEmpty) ...[
+            CruCard(
+              semanticLabel: 'Scans received',
+              padding: const EdgeInsets.symmetric(
+                horizontal: CruSpace.s20,
+                vertical: CruSpace.s12,
+              ),
+              child: Row(
+                children: [
+                  const CruIconTile(
+                    icon: RadIcons.import,
+                    tone: CruTileTone.neutral,
+                  ),
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(
+                    child: Text(
+                      '${RadFormat.images(received.received.length)} received'
+                      '${received.lastFrom.isEmpty ? ' from scanners' : ' from ${received.lastFrom}'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: CruType.callout.tabular.tint(c.label),
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s12),
+                  CruButton(
+                    label: 'Add to worklist',
+                    kind: CruButtonKind.inset,
+                    onPressed: () => importRadReceived(context, ref),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: CruSpace.cardGap),
+          ],
           DentalFilterBar(
             searchWidth: 300,
             filters: [
@@ -402,7 +439,17 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
   }
 }
 
-enum _RowAction { report, view3d, edit, routine, urgent, stat, invoice, delete }
+enum _RowAction {
+  report,
+  view3d,
+  edit,
+  sendPacs,
+  routine,
+  urgent,
+  stat,
+  invoice,
+  delete,
+}
 
 class _StudyRow extends ConsumerWidget {
   const _StudyRow({
@@ -427,6 +474,8 @@ class _StudyRow extends ConsumerWidget {
           context: context,
           builder: (_) => RadStudyFormDialog(existing: study),
         );
+      case _RowAction.sendPacs:
+        await sendRadStudyToPacs(context, ref, study);
       case _RowAction.routine:
       case _RowAction.urgent:
       case _RowAction.stat:
@@ -471,6 +520,9 @@ class _StudyRow extends ConsumerWidget {
         study.description,
     ].where((s) => s.isNotEmpty).join(' · ');
     final priority = radPriorityPill(c, study.priority);
+    final hasPacs = ref.watch(
+      radPacsServersProvider.select((a) => a.value?.isNotEmpty ?? false),
+    );
     // Phone: the due time joins the second line; referrer and priority
     // columns stay on the desktop.
     final phone = cruIsPhone(context);
@@ -600,6 +652,11 @@ class _StudyRow extends ConsumerWidget {
                 value: _RowAction.edit,
                 child: Text('Edit referral'),
               ),
+              if (hasPacs)
+                const PopupMenuItem(
+                  value: _RowAction.sendPacs,
+                  child: Text('Send to PACS'),
+                ),
               const PopupMenuDivider(),
               for (final (a, p) in const [
                 (_RowAction.routine, RadPriority.routine),

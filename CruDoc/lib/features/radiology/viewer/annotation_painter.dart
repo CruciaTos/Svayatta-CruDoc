@@ -18,6 +18,10 @@ abstract final class RadInk {
   /// Between panes.
   static const gutter = Color(0xFF1C1E22);
 
+  /// An image's frame while it loads, and the light drifting over it.
+  static const loadingFrame = Color(0xFF15171A);
+  static const loadingGlow = Color(0x26FFFFFF);
+
   /// Measurement ink: the warm yellow radiologists expect.
   static const annotation = Color(0xFFFFD166);
   static const selected = Color(0xFFFFFFFF);

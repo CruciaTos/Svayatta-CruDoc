@@ -163,6 +163,14 @@ class RadPane extends ChangeNotifier {
   // ── Rendered ──
   ui.Image? image;
   ui.Image? placeholder;
+
+  /// What was on screen before the newest image, kept while the newest
+  /// sharpens over it from blurred to sharp. A new [revealGen]
+  /// asks the viewport to run that reveal; it calls [endReveal] after.
+  ui.Image? revealFrom;
+  bool _revealFromOwned = false;
+  int revealGen = 0;
+  bool _revealNext = false;
   int nominalWidth = 0;
   int nominalHeight = 0;
   VoidCallback? _thumbListener;
@@ -243,7 +251,8 @@ class RadPane extends ChangeNotifier {
     flipH = l.flipH;
     flipV = l.flipV;
     final valuesChanged =
-        l.filters.sharpen != filters.sharpen || l.filters.clahe != filters.clahe;
+        l.filters.sharpen != filters.sharpen ||
+        l.filters.clahe != filters.clahe;
     filters = l.filters;
     if (valuesChanged) {
       await _applyValueFilters();
@@ -274,6 +283,8 @@ class RadPane extends ChangeNotifier {
     this.imageId = imageId;
     this.frame = frame;
     this.placeholder = placeholder;
+    // Opening an image reveals it; stepping through a stack's frames doesn't.
+    _revealNext = !keepView;
     this.nominalWidth = nominalWidth ?? 0;
     this.nominalHeight = nominalHeight ?? 0;
     draft = null;
@@ -292,6 +303,7 @@ class RadPane extends ChangeNotifier {
       _thumbListener = onThumbArrived((thumb) {
         if (_disposed || gen != _loadGen || px != null || image != null) return;
         this.placeholder = thumb;
+        revealGen++;
         touch();
       });
     }
@@ -342,6 +354,8 @@ class RadPane extends ChangeNotifier {
     image?.dispose();
     image = null;
     placeholder = null;
+    _revealNext = false;
+    _dropRevealFrom();
     nominalWidth = 0;
     nominalHeight = 0;
     touch();
@@ -361,6 +375,8 @@ class RadPane extends ChangeNotifier {
     image?.dispose();
     image = null;
     placeholder = null;
+    _revealNext = false;
+    _dropRevealFrom();
     nominalWidth = 0;
     nominalHeight = 0;
     touch();
@@ -462,7 +478,13 @@ class RadPane extends ChangeNotifier {
         img.dispose();
         return;
       }
-      image?.dispose();
+      if (_revealNext) {
+        _revealNext = false;
+        _setRevealFrom(image ?? placeholder, owned: image != null);
+        revealGen++;
+      } else {
+        image?.dispose();
+      }
       image = img;
       placeholder = null;
       notifyListeners();
@@ -645,6 +667,28 @@ class RadPane extends ChangeNotifier {
     image?.dispose();
     image = null;
     placeholder = null;
+    _dropRevealFrom();
     super.dispose();
+  }
+
+  void _setRevealFrom(ui.Image? from, {required bool owned}) {
+    _dropRevealFrom();
+    revealFrom = from;
+    _revealFromOwned = owned;
+  }
+
+  /// Thumbnails belong to the thumbnail cache; only rendered images are
+  /// this pane's to dispose.
+  void _dropRevealFrom() {
+    if (_revealFromOwned) revealFrom?.dispose();
+    revealFrom = null;
+    _revealFromOwned = false;
+  }
+
+  /// The viewport's reveal has finished: the older image can go.
+  void endReveal() {
+    if (revealFrom == null || _disposed) return;
+    _dropRevealFrom();
+    touch();
   }
 }

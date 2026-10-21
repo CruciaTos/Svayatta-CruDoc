@@ -29,7 +29,10 @@ enum UploadKind {
   imagingPreview,
 
   /// A file added on the Files screen (any type it takes).
-  patientFile;
+  patientFile,
+
+  /// The progressive JPEG a Files-screen picture is viewed from.
+  patientFileView;
 
   /// Kinds stored under a patient, which need a `patientId`.
   bool get isPatientScoped => switch (this) {
@@ -43,7 +46,8 @@ enum UploadKind {
     voiceDictation ||
     imagingOriginal ||
     imagingPreview ||
-    patientFile => true,
+    patientFile ||
+    patientFileView => true,
     _ => false,
   };
 }

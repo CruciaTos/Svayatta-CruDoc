@@ -15,6 +15,7 @@ import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/services/storage_sync_queue.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
+import 'package:doctor_management_app/features/files/data/file_previews.dart';
 import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/files/data/files_cloud_sync.dart';
 
@@ -87,6 +88,10 @@ class FilesRepository {
   static const _files = 'patient_files';
   static const _folders = 'file_folders';
   static const linkHandler = 'files.storagePath';
+  static const viewLinkHandler = 'files.viewPath';
+
+  /// A picture's progressive view on this device, next to its original.
+  static const _viewName = 'view.jpg';
   static const Uuid _uuid = Uuid();
 
   final LocalDatabaseService _db = LocalDatabaseService.instance;
@@ -106,6 +111,10 @@ class FilesRepository {
     StorageSyncQueue.instance.registerLinkHandler(
       linkHandler,
       (ctx) => instance._recordUpload(ctx),
+    );
+    StorageSyncQueue.instance.registerLinkHandler(
+      viewLinkHandler,
+      (ctx) => instance._recordView(ctx),
     );
     LocalStorageManager.instance.registerSource(_FilesLocalSource());
   }
@@ -151,6 +160,7 @@ class FilesRepository {
   /// Every file this person may see, newest first. [patientId] limits it
   /// to one patient; [limit] to the newest few.
   Future<List<PatientFile>> files({String? patientId, int? limit}) async {
+    _backfillPreviews();
     FilesCloudSync.instance.ensureStarted();
     final db = await _db.localDatabase;
     final rows = await db.query(
@@ -519,6 +529,8 @@ class FilesRepository {
       if (queued == null) {
         // Signed out or refused by the queue: keep it here, say so.
         await _putFile(f.copyWith(cloudStatus: FileCloudStatus.localOnly));
+      } else if (FilePreviews.canPreview(type)) {
+        unawaited(_makePreviews(id, bytes));
       }
       added++;
     }
@@ -583,9 +595,11 @@ class FilesRepository {
     await _putFile(f.copyWith(isDeleted: true, updatedAt: now));
     await StorageSyncQueue.instance.cancelByLink(linkHandler, f.id);
     await _removeLocalCopy(f);
+    await StorageSyncQueue.instance.cancelByLink(viewLinkHandler, f.id);
     if (f.storagePath.isNotEmpty) {
       unawaited(_deleteObject(f.storagePath));
     }
+    if (f.viewPath.isNotEmpty) unawaited(_deleteObject(f.viewPath));
   }
 
   Future<void> _deleteObject(String path) async {
@@ -685,10 +699,158 @@ class FilesRepository {
       await _deleteObject(ctx.storagePath);
       return;
     }
-    await _putFile(
-      f.copyWith(storagePath: ctx.storagePath, updatedAt: DateTime.now()),
-    );
+    await _patchFile(f.id, {'storagePath': ctx.storagePath});
     _changed();
+  }
+
+  Future<void> _recordView(UploadLinkContext ctx) async {
+    final f = await file(ctx.link.docId);
+    if (f == null || f.isDeleted) {
+      await _deleteObject(ctx.storagePath);
+      return;
+    }
+    await _patchFile(f.id, {'viewPath': ctx.storagePath});
+    _changed();
+  }
+
+  /// Sets [values] on one record and queues it to sync, without
+  /// rewriting the other columns (an upload landing at the same time
+  /// keeps its path).
+  Future<void> _patchFile(String id, Map<String, Object?> values) async {
+    final db = await _db.localDatabase;
+    await db.update(
+      _files,
+      {
+        ...values,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'syncStatus': 'pending',
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ───────────────────────────── Previews ─────────────────────────────
+
+  /// Makes [id]'s thumbnail and, for a picture, queues its progressive
+  /// view. [bytes] is the original.
+  Future<void> _makePreviews(String id, Uint8List bytes) async {
+    final f = await file(id);
+    if (f == null || f.isDeleted) return;
+    final previews = await FilePreviews.make(bytes, f.contentType);
+    if (previews == null) return;
+    final latest = await file(id);
+    if (latest == null || latest.isDeleted) return;
+    if (latest.thumb.isEmpty) await _patchFile(id, {'thumb': previews.thumb});
+    final view = previews.view;
+    if (view != null && latest.viewPath.isEmpty && !await _viewPending(id)) {
+      await StorageSyncQueue.instance.enqueue(
+        kind: UploadKind.patientFileView,
+        patientId: latest.patientId,
+        bytes: view,
+        contentType: 'image/jpeg',
+        link: UploadLink.viaHandler(viewLinkHandler, docId: id),
+      );
+    }
+    _changed();
+  }
+
+  Future<bool> _viewPending(String id) async =>
+      (await StorageSyncQueue.instance.openLinks(
+        viewLinkHandler,
+      )).any((l) => l.docId == id);
+
+  static bool _backfillStarted = false;
+
+  /// Once a session: previews for this person's files added before
+  /// previews existed, from the copies on this device.
+  void _backfillPreviews() {
+    if (_backfillStarted || doctorId.isEmpty) return;
+    _backfillStarted = true;
+    unawaited(() async {
+      final db = await _db.localDatabase;
+      final rows = await db.query(
+        _files,
+        where:
+            "doctorId = ? AND ownerUid = ? AND isDeleted = 0 "
+            "AND localPath != '' AND thumb = ''",
+        whereArgs: [doctorId, uid],
+      );
+      for (final r in rows) {
+        final f = PatientFile.fromLocalMap(r);
+        if (!FilePreviews.canPreview(f.contentType)) continue;
+        await ensurePreviews(f);
+      }
+    }());
+  }
+
+  /// Makes previews [f] is missing, when this device has its original and
+  /// this person added it (the record is theirs to change).
+  Future<void> ensurePreviews(PatientFile f) async {
+    if (f.ownerUid != uid || !FilePreviews.canPreview(f.contentType)) return;
+    final picture = PatientFileTypes.isViewableImage(f.contentType);
+    if (f.thumb.isNotEmpty && (!picture || f.viewPath.isNotEmpty)) return;
+    if (picture && f.thumb.isNotEmpty && await _viewPending(f.id)) return;
+    final local = await existingLocalCopy(f);
+    if (local == null) return;
+    try {
+      await _makePreviews(f.id, await local.readAsBytes());
+    } catch (e) {
+      debugPrint('[Files] previews for ${f.id}: $e');
+    }
+  }
+
+  /// The complete progressive view on this device, if there is one.
+  Future<File?> existingViewCopy(PatientFile f) async {
+    if (f.viewPath.isEmpty) return null;
+    final file = File(p.join((await _clinicDir()).path, f.id, _viewName));
+    return await file.exists() ? file : null;
+  }
+
+  /// Downloads [f]'s picture for the viewer, calling [onBytes] with the
+  /// bytes so far as they arrive, and returns the finished file. Reads the
+  /// progressive view when there is one (it draws from any prefix), else
+  /// the original, which is then kept as this device's copy.
+  Future<File> streamPicture(
+    PatientFile f, {
+    required void Function(Uint8List soFar, int? total) onBytes,
+  }) async {
+    final useView = f.viewPath.isNotEmpty;
+    final source = useView ? f.viewPath : f.storagePath;
+    if (source.isEmpty) return localCopy(f);
+    final rel = useView
+        ? p.join(f.id, _viewName)
+        : p.join(f.id, _diskName(f.name));
+    final dest = File(p.join((await _clinicDir()).path, rel));
+    await dest.parent.create(recursive: true);
+    final part = File('${dest.path}.part');
+    try {
+      await MedicalStorageService.instance.streamToFile(
+        source,
+        part,
+        onBytes: onBytes,
+      );
+      if (await dest.exists()) await dest.delete();
+      await part.rename(dest.path);
+    } catch (e) {
+      debugPrint('[Files] streaming ${f.id} failed, downloading: $e');
+      try {
+        if (await part.exists()) await part.delete();
+      } catch (_) {}
+      return localCopy(f);
+    }
+    if (!useView) {
+      // Device-only: not a change to sync.
+      final db = await _db.localDatabase;
+      await db.update(
+        _files,
+        {'localPath': rel},
+        where: 'id = ?',
+        whereArgs: [f.id],
+      );
+      unawaited(ensurePreviews(f.copyWith(localPath: rel)));
+    }
+    return dest;
   }
 
   // ─────────────────────── Space on this device ───────────────────────
@@ -704,7 +866,8 @@ class FilesRepository {
     final rows = await db.query(
       _files,
       columns: ['id', 'localPath', 'storagePath'],
-      where: "doctorId = ? AND isDeleted = 0 AND localPath != '' "
+      where:
+          "doctorId = ? AND isDeleted = 0 AND localPath != '' "
           "AND storagePath != ''",
       whereArgs: [clinic],
     );
@@ -723,6 +886,27 @@ class FilesRepository {
           storagePath: storagePath,
           isStillSafe: () => _copyIsInCloud(id, rel, storagePath),
           onRemoved: () => _forgetLocalCopy(id, rel, file),
+        ),
+      );
+    }
+    // Progressive views: copies of what is in the cloud, always safe to drop.
+    final views = await db.query(
+      _files,
+      columns: ['id', 'viewPath'],
+      where: "doctorId = ? AND isDeleted = 0 AND viewPath != ''",
+      whereArgs: [clinic],
+    );
+    for (final r in views) {
+      final file = File(p.join(dir.path, r['id'] as String, _viewName));
+      if (!await file.exists()) continue;
+      out.add(
+        LocalAsset(
+          file: file,
+          bytes: await file.length(),
+          lastUsed: await LocalStorageManager.lastUsedOf(file),
+          storagePath: r['viewPath'] as String,
+          isStillSafe: () async => true,
+          onRemoved: () async => notifyChanged(),
         ),
       );
     }

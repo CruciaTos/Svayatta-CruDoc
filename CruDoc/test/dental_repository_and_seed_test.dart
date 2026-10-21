@@ -7,7 +7,10 @@ import 'package:doctor_management_app/features/dental/data/models/sterilization_
 import 'package:doctor_management_app/features/dental/data/repositories/dental_repository.dart';
 import 'package:doctor_management_app/features/dental/data/seed/dental_catalog_seed.dart';
 
+import 'support/isolated_app_dirs.dart';
+
 void main() {
+  useIsolatedAppDirs();
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;

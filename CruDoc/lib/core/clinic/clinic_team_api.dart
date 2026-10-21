@@ -1,4 +1,4 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 
 import 'clinic_models.dart';
 import 'clinic_permission.dart';
@@ -59,13 +59,14 @@ class ClinicTeamException implements Exception {
 /// The `clinicTeam` Cloud Function (functions/src/clinic.ts): one callable,
 /// one method per action. Every method throws [ClinicTeamException].
 class ClinicTeamApi {
-  ClinicTeamApi({FirebaseFunctions? functions})
-    : _functions =
-          functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
+  // CallableClient, not the cloud_functions plugin: the plugin has no
+  // Windows build, so the team screens failed on the desktop app.
+  ClinicTeamApi({CallableClient? functions})
+    : _functions = functions ?? CallableClient();
 
   static final ClinicTeamApi instance = ClinicTeamApi();
 
-  final FirebaseFunctions _functions;
+  final CallableClient _functions;
 
   /// Creates the signed-in owner's clinic (once) and returns its id.
   ///
@@ -308,24 +309,24 @@ class ClinicTeamApi {
     Map<String, dynamic> data = const {},
   ]) async {
     try {
-      final result = await _functions.httpsCallable('clinicTeam').call<dynamic>(
-        {'action': action, ...data},
-      );
-      final raw = result.data;
+      final raw = await _functions.call('clinicTeam', {
+        'action': action,
+        ...data,
+      });
       return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
-    } on FirebaseFunctionsException catch (e) {
+    } on CallableException catch (e) {
       throw ClinicTeamException(_messageFor(e));
     } catch (_) {
       throw const ClinicTeamException("Couldn't reach CruDoc. Try again.");
     }
   }
 
-  static String _messageFor(FirebaseFunctionsException e) => switch (e.code) {
+  static String _messageFor(CallableException e) => switch (e.code) {
     'resource-exhausted' ||
     'already-exists' ||
     'failed-precondition' ||
     'invalid-argument' ||
-    'not-found' => e.message ?? "That didn't work. Try again.",
+    'not-found' => e.message.isNotEmpty ? e.message : "That didn't work. Try again.",
     'permission-denied' => "You don't have permission to do that.",
     'unauthenticated' => 'Sign in again to continue.',
     _ => "Couldn't reach CruDoc. Try again.",

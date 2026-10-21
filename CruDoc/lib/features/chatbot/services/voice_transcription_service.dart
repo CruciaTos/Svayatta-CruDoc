@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 
 /// Exception thrown when audio recording or transcription fails.
 class VoiceTranscriptionException implements Exception {
@@ -200,15 +200,14 @@ class VoiceTranscriptionService {
 
     // 2. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
-      final callable = FirebaseFunctions.instanceFor(
-        region: 'asia-south1',
-      ).httpsCallable('transcribeVoiceAudio');
+      // CallableClient: the cloud_functions plugin has no Windows build.
       final base64Audio = base64Encode(audioBytes);
-      final result = await callable
-          .call({'audioBase64': base64Audio, 'mimeType': 'audio/mp4'})
+      final data = await CallableClient()
+          .call('transcribeVoiceAudio', {
+            'audioBase64': base64Audio,
+            'mimeType': 'audio/mp4',
+          })
           .timeout(const Duration(seconds: 12));
-
-      final data = result.data;
       if (data is Map && data['text'] is String) {
         final text = (data['text'] as String).trim();
         if (text.isNotEmpty) {

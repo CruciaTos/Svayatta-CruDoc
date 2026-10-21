@@ -397,7 +397,9 @@ class _StorageCardState extends ConsumerState<_StorageCard> {
     final studies = ref.watch(radStudiesProvider).value ?? const <RadStudy>[];
     return _Card(
       title: 'Storage and records',
-      description: 'Scans stay on this computer. Nothing is uploaded.',
+      description:
+          'Scans of a patient are backed up to the cloud. Settings → Storage '
+          'sets how much this computer keeps.',
       child: Column(
         children: [
           _ActionRow(

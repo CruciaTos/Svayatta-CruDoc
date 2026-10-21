@@ -5,11 +5,14 @@ import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 
+import 'support/isolated_app_dirs.dart';
+
 /// firestore_sync_service.dart inserts and reads `groupId` for
 /// stock_transactions. Databases created before that column existed must be
 /// upgraded in place, or every live-sync doc fails with "table
 /// stock_transactions has no column named groupId".
 void main() {
+  useIsolatedAppDirs();
   TestWidgetsFlutterBinding.ensureInitialized();
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;

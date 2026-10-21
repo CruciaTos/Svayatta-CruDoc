@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
@@ -125,11 +125,12 @@ class RadViewFetch {
 
   Future<RadViewInfo?> _defaultGetInfo(String storagePath) async {
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('getImagingView');
-      final result = await callable.call<dynamic>({'storagePath': storagePath});
-      if (result.data is Map) {
-        final map = Map<String, dynamic>.from(result.data as Map);
+      // CallableClient: the cloud_functions plugin has no Windows build.
+      final data = await CallableClient().call('getImagingView', {
+        'storagePath': storagePath,
+      });
+      if (data is Map) {
+        final map = Map<String, dynamic>.from(data);
         return RadViewInfo.fromMap(map);
       }
       return null;

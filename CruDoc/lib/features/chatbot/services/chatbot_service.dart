@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 
 /// Message model for the chat conversation.
@@ -160,18 +160,14 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
 
     // 1. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
-      final callable = FirebaseFunctions.instanceFor(
-        region: 'asia-south1',
-      ).httpsCallable('chatWithAssistant');
-      final result = await callable
-          .call({
+      // CallableClient: the cloud_functions plugin has no Windows build.
+      final data = await CallableClient()
+          .call('chatWithAssistant', {
             'message': userMessage,
             'history': _history,
             'enabledModules': enabledModules,
           })
           .timeout(const Duration(seconds: 12));
-
-      final data = result.data;
       if (data is Map && data['reply'] is String) {
         final reply = (data['reply'] as String).trim();
         if (reply.isNotEmpty) {

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -38,6 +39,7 @@ import 'package:doctor_management_app/features/settings/data/appearance_preferen
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
+import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
 import 'package:doctor_management_app/features/team/presentation/team_section.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -60,6 +62,9 @@ enum SettingsSection {
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
   appearance('Appearance', CruIcons.sun),
+
+  /// Not on the web, which keeps nothing on the device.
+  storage('Storage', CruIcons.download),
 
   /// Clinics whose plan includes messaging.
   reminders('Patient reminders', CruIcons.whatsapp),
@@ -94,6 +99,7 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
       access == null || access.kind == MemberKind.doctor || isOwner,
     SettingsSection.team => access != null && access.can(ClinicPermission.team),
     SettingsSection.myFeatures => !isOwner,
+    SettingsSection.storage => !kIsWeb,
     _ => true,
   };
 }
@@ -146,6 +152,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.accounts => const _AccountsSection(),
       SettingsSection.devices => _DevicesSection(user: user),
       SettingsSection.appearance => const _AppearanceSection(),
+      SettingsSection.storage => const StorageSection(),
       SettingsSection.reminders => const _RemindersSection(),
       SettingsSection.dental => const _DentalSection(),
       SettingsSection.radiology => const RadSettingsSection(),

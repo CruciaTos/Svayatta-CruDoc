@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +27,7 @@ import 'core/pdf/services/generated_document_sync.dart';
 import 'core/services/storage_sync_queue.dart';
 import 'features/dental/records/dental_photo_cloud_sync.dart';
 import 'features/inventory/data/services/inventory_receipt_sync.dart';
+import 'core/services/local_storage_manager.dart';
 import 'features/radiology/data/radiology_cloud_sync.dart';
 import 'features/scribe/data/services/scribe_audio_sync.dart';
 import 'features/scribe/presentation/consultation_scribe_launcher.dart';
@@ -199,8 +202,14 @@ void _wireDoctorScopedStartup() {
       await InitialFirestoreMigrationService.instance.runIfNeeded();
       await FirestoreSyncService.instance.start();
       FilesCloudSync.instance.ensureStarted();
+      // Study images that never reached the cloud (imported before uploads
+      // existed, or before the study had a patient). In the background.
+      unawaited(RadiologyCloudSync.catchUp());
+      // Keeps this device within the storage limit set in Settings.
+      LocalStorageManager.instance.start();
     },
     close: () async {
+      LocalStorageManager.instance.stop();
       FilesCloudSync.instance.stop();
       await FirestoreSyncService.instance.stop();
       await LocalDatabaseService.instance.close();

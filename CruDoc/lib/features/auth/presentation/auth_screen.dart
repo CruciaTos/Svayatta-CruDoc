@@ -7,13 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -254,11 +254,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       // Auto-init trial via startDoctorTrial Cloud Function if not already set
       try {
-        final existingStatus = snap.exists ? snap.data()?['status'] : null;
+        // Parenthesised: `a ? b?['x'] : c` parses `?[` as another `?`.
+        final existingStatus = snap.exists ? (snap.data()?['status']) : null;
         if (existingStatus == null) {
-          await FirebaseFunctions.instanceFor(region: 'asia-south1')
-              .httpsCallable('startDoctorTrial')
-              .call({'modules': DoctorFeatureGuard.baseModules});
+          // CallableClient: the cloud_functions plugin has no Windows build.
+          await CallableClient().call('startDoctorTrial', {
+            'modules': DoctorFeatureGuard.baseModules,
+          });
         }
       } catch (e) {
         debugPrint('Auto trial start notice: $e');

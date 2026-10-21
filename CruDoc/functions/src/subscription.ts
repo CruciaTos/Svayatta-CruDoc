@@ -159,11 +159,22 @@ export const startDoctorTrial = onCall(
       (status === "trial" || status === "active") &&
       expiresMs > Date.now()
     ) {
+      const patch: Record<string, unknown> = {};
+      if (existing.role !== "doctor") patch.role = "doctor";
+      if (existing.isDeleted !== false) patch.isDeleted = false;
+      if (data.modules && Array.isArray(data.modules)) {
+        patch.enabledModules = modules;
+        patch.allowMultiDevice = allowMultiDevice;
+      }
+      if (Object.keys(patch).length > 0) {
+        await userRef.set(patch, {merge: true});
+      }
+
       return {
         started: false,
         alreadyActive: true,
         validUntil: new Date(expiresMs).toISOString(),
-        enabledModules: Array.isArray(existing.enabledModules) ?
+        enabledModules: Array.isArray(existing.enabledModules) && !data.modules ?
           existing.enabledModules :
           modules,
       };
@@ -176,6 +187,8 @@ export const startDoctorTrial = onCall(
 
     await userRef.set(
       {
+        role: "doctor",
+        isDeleted: false,
         status: "trial",
         subscriptionPlan: "Trial",
         expiresDate: validUntil,
@@ -185,6 +198,15 @@ export const startDoctorTrial = onCall(
       },
       {merge: true},
     );
+
+    try {
+      await admin.auth().setCustomUserClaims(uid, {
+        role: "doctor",
+        enabledModules: modules,
+      });
+    } catch (err) {
+      console.warn("Failed to set custom claims for doctor:", err);
+    }
 
     return {
       started: true,

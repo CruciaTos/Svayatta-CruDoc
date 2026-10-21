@@ -249,6 +249,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       // Non-entitlement profile fields stay a client write.
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'displayName': name,
+        'name': name,
+        'role': 'doctor',
+        'isDeleted': false,
         'practiceType': _practice!.name,
         if (spec.type == DoctorSpecialtyType.dentist)
           'dentalFeatures': [for (final f in _dental) f.key],

@@ -13,6 +13,8 @@ import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -171,6 +173,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
 
     DemoSessionService.startDemoSession(spec);
+    if (user != null) {
+      await DeviceSessionService.instance.registerNewSession(user.uid);
+    }
     if (_rememberMe) {
       unawaited(_secureStorage.write(key: 'remembered_email', value: email));
       unawaited(_secureStorage.write(key: 'remember_me', value: 'true'));
@@ -211,14 +216,52 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         await ref.set({
           'uid': user.uid,
           'email': user.email ?? '',
+          'name': derivedName,
           'displayName': derivedName,
+          'role': 'doctor',
+          'isDeleted': false,
+          'accountCreated': FieldValue.serverTimestamp(),
           'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
-      } else if (derivedName.isNotEmpty) {
-        final existingName = snap.data()?['displayName'] as String?;
-        if (existingName == null || existingName.isEmpty) {
-          await ref.update({'displayName': derivedName});
+      } else {
+        final data = snap.data() ?? {};
+        final updates = <String, dynamic>{};
+
+        if (data['role'] != 'doctor') {
+          updates['role'] = 'doctor';
         }
+        if (data['isDeleted'] != false) {
+          updates['isDeleted'] = false;
+        }
+        final existingName = (data['displayName'] as String?)?.trim();
+        if (existingName == null || existingName.isEmpty) {
+          updates['displayName'] = derivedName;
+        }
+        final existingDocName = (data['name'] as String?)?.trim();
+        if (existingDocName == null || existingDocName.isEmpty) {
+          updates['name'] = derivedName;
+        }
+        if (data['accountCreated'] == null) {
+          updates['accountCreated'] =
+              data['createdAt'] ?? FieldValue.serverTimestamp();
+        }
+        if (updates.isNotEmpty) {
+          updates['updatedAt'] = FieldValue.serverTimestamp();
+          await ref.set(updates, SetOptions(merge: true));
+        }
+      }
+
+      // Auto-init trial via startDoctorTrial Cloud Function if not already set
+      try {
+        final existingStatus = snap.exists ? snap.data()?['status'] : null;
+        if (existingStatus == null) {
+          await FirebaseFunctions.instanceFor(region: 'asia-south1')
+              .httpsCallable('startDoctorTrial')
+              .call({'modules': DoctorFeatureGuard.baseModules});
+        }
+      } catch (e) {
+        debugPrint('Auto trial start notice: $e');
       }
     } catch (e) {
       debugPrint('Sync user profile warning: $e');

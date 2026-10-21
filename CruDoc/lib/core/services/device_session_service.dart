@@ -6,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/device_session.dart';
 import '../utils/device_info_helper.dart';
+import '../utils/doctor_feature_guard.dart';
+import 'demo_session_service.dart';
 
 /// Manages active device sessions for doctors and enforces single-device
 /// vs. multi-device login policy based on Super Admin access permissions,
@@ -55,6 +57,92 @@ class DeviceSessionService {
     } catch (_) {}
   }
 
+  /// Closes the current device's active session doc in Firestore before sign out.
+  Future<void> endCurrentSession() async {
+    final uid = _monitoredDoctorId ?? FirebaseAuth.instance.currentUser?.uid;
+    final token = await getLocalSessionToken();
+    if (uid != null && token != null && token.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('active_sessions')
+            .doc(token)
+            .delete();
+      } catch (e) {
+        debugPrint('DeviceSessionService: Error ending current session: $e');
+      }
+    }
+    stopSessionMonitoring();
+    await clearSessionToken();
+  }
+
+  /// Evaluates whether multi-device access is permitted for this doctor based on:
+  /// - Demo session active (`DemoSessionService.isDemoMode`)
+  /// - Demo domain email (`@crudoc.com`)
+  /// - Demo account flag in Firestore (`isDemoAccount: true`)
+  /// - `allowMultiDevice: true` flag in Firestore
+  /// - `multi_device_access` module in `enabledModules` (feature catalog)
+  /// - Subscription expiry date
+  bool isMultiDeviceAllowed(Map<String, dynamic> userData) {
+    // 1. Demo sessions always permit multi-device testing
+    if (DemoSessionService.isDemoMode) return true;
+
+    if (userData['isDemoAccount'] == true) {
+      return true;
+    }
+
+    String? email = userData['email'] as String?;
+    if (email == null) {
+      try {
+        email = FirebaseAuth.instance.currentUser?.email;
+      } catch (_) {}
+    }
+    if (email != null && email.toLowerCase().endsWith('@crudoc.com')) {
+      return true;
+    }
+
+    bool allowMultiDevice = userData['allowMultiDevice'] as bool? ?? false;
+
+    // 2. Check if multi_device_access is enabled in modules
+    final modules = userData['enabledModules'];
+    if (modules is List) {
+      final hasMulti = modules.any(
+        (m) => m.toString().toLowerCase() == 'multi_device_access',
+      );
+      if (hasMulti) {
+        allowMultiDevice = true;
+      }
+    } else if (modules == null && !userData.containsKey('allowMultiDevice')) {
+      // If neither enabledModules nor allowMultiDevice is explicitly configured,
+      // fallback to DoctorFeatureGuard.defaultModules which includes multi_device_access
+      allowMultiDevice =
+          DoctorFeatureGuard.defaultModules.contains('multi_device_access');
+    }
+
+    // 3. Status check: expired status disables multi-device
+    final status = (userData['status'] as String? ?? 'active').toLowerCase();
+    if (status == 'expired') {
+      return false;
+    }
+
+    // 4. Check expiry date
+    if (allowMultiDevice) {
+      final rawExpires = userData['expiresDate'];
+      DateTime? expiresDate;
+      if (rawExpires is Timestamp) {
+        expiresDate = rawExpires.toDate();
+      } else if (rawExpires is String) {
+        expiresDate = DateTime.tryParse(rawExpires);
+      }
+      if (expiresDate != null && expiresDate.isBefore(DateTime.now())) {
+        allowMultiDevice = false; // Expired reverts to single-device
+      }
+    }
+
+    return allowMultiDevice;
+  }
+
   /// Registers a new active session upon doctor login.
   /// Handles both single-device eviction and multi-device registration.
   ///
@@ -84,10 +172,11 @@ class DeviceSessionService {
   }) async {
     _isRegistering = true;
     final newToken = _uuid.v4();
-    _localSessionToken = newToken;
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      final oldToken = _localSessionToken ?? prefs.getString(_sessionKey);
+      _localSessionToken = newToken;
       await prefs.setString(_sessionKey, newToken);
 
       final deviceName =
@@ -101,19 +190,7 @@ class DeviceSessionService {
       final userSnap = await userRef.get();
       final userData = userSnap.data() ?? {};
 
-      bool allowMultiDevice = userData['allowMultiDevice'] as bool? ?? false;
-      if (allowMultiDevice) {
-        final rawExpires = userData['expiresDate'];
-        DateTime? expiresDate;
-        if (rawExpires is Timestamp) {
-          expiresDate = rawExpires.toDate();
-        } else if (rawExpires is String) {
-          expiresDate = DateTime.tryParse(rawExpires);
-        }
-        if (expiresDate != null && expiresDate.isBefore(DateTime.now())) {
-          allowMultiDevice = false;
-        }
-      }
+      final allowMultiDevice = isMultiDeviceAllowed(userData);
 
       final sessionsCol = userRef.collection('active_sessions');
 
@@ -134,41 +211,42 @@ class DeviceSessionService {
           );
         }
       } else {
-        // Deduplicate: purge existing active sessions for this exact same physical device
-        try {
-          final sameDeviceDocs = await sessionsCol
-              .where('status', isEqualTo: 'active')
-              .where('deviceName', isEqualTo: deviceName)
-              .where('platform', isEqualTo: platform)
-              .get();
-          if (sameDeviceDocs.docs.isNotEmpty) {
-            final batch = FirebaseFirestore.instance.batch();
-            for (final doc in sameDeviceDocs.docs) {
-              batch.delete(doc.reference);
-            }
-            await batch.commit();
+        // Deduplicate: purge previous active session of THIS device instance
+        if (oldToken != null && oldToken.isNotEmpty && oldToken != newToken) {
+          try {
+            await sessionsCol.doc(oldToken).delete();
+          } catch (e) {
+            debugPrint(
+              'DeviceSessionService: Error removing previous session doc: $e',
+            );
           }
-        } catch (e) {
-          debugPrint(
-            'DeviceSessionService: Error deduplicating device sessions: $e',
-          );
         }
 
         // Check max device limit (0 or null means unlimited)
         final maxLimit = (userData['maxDeviceLimit'] as num?)?.toInt() ?? 0;
         if (maxLimit > 0) {
           try {
-            final activeDocs = await sessionsCol
+            final activeSnap = await sessionsCol
                 .where('status', isEqualTo: 'active')
-                .orderBy('lastActiveAt', descending: false)
                 .get();
 
-            if (activeDocs.docs.length >= maxLimit) {
+            final docs = activeSnap.docs.toList()
+              ..sort((a, b) {
+                final aTime =
+                    (a.data()['lastActiveAt'] as Timestamp?)?.toDate() ??
+                    DateTime(0);
+                final bTime =
+                    (b.data()['lastActiveAt'] as Timestamp?)?.toDate() ??
+                    DateTime(0);
+                return aTime.compareTo(bTime);
+              });
+
+            if (docs.length >= maxLimit) {
               // Revoke/delete oldest sessions to fit within limit
-              final toRemove = activeDocs.docs.length - maxLimit + 1;
+              final toRemove = docs.length - maxLimit + 1;
               final batch = FirebaseFirestore.instance.batch();
-              for (int i = 0; i < toRemove && i < activeDocs.docs.length; i++) {
-                batch.delete(activeDocs.docs[i].reference);
+              for (int i = 0; i < toRemove && i < docs.length; i++) {
+                batch.delete(docs[i].reference);
               }
               await batch.commit();
             }
@@ -241,19 +319,7 @@ class DeviceSessionService {
             final currentLocalToken = _localSessionToken;
             if (currentLocalToken == null || currentLocalToken.isEmpty) return;
 
-            bool allowMultiDevice = data['allowMultiDevice'] as bool? ?? false;
-            if (allowMultiDevice) {
-              final rawExpires = data['expiresDate'];
-              DateTime? expiresDate;
-              if (rawExpires is Timestamp) {
-                expiresDate = rawExpires.toDate();
-              } else if (rawExpires is String) {
-                expiresDate = DateTime.tryParse(rawExpires);
-              }
-              if (expiresDate != null && expiresDate.isBefore(DateTime.now())) {
-                allowMultiDevice = false; // Expired reverts to single-device
-              }
-            }
+            final allowMultiDevice = isMultiDeviceAllowed(data);
             final remoteToken = data['currentSessionToken'] as String?;
 
             // In single-device mode, a different session token means another device logged in

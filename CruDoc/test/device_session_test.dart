@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
+import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -135,6 +136,65 @@ void main() {
     test('getDeviceDisplayName returns meaningful name', () async {
       final name = await DeviceInfoHelper.getDeviceDisplayName();
       expect(name, isNotEmpty);
+    });
+  });
+
+  group('DeviceSessionService.isMultiDeviceAllowed Tests', () {
+    final service = DeviceSessionService.instance;
+
+    test('returns true for demo accounts via isDemoAccount flag', () {
+      expect(service.isMultiDeviceAllowed({'isDemoAccount': true}), isTrue);
+    });
+
+    test('returns true for demo accounts via crudoc.com domain', () {
+      expect(service.isMultiDeviceAllowed({'email': 'doctor@crudoc.com'}), isTrue);
+      expect(service.isMultiDeviceAllowed({'email': 'dental@crudoc.com'}), isTrue);
+      expect(service.isMultiDeviceAllowed({'email': 'anything@crudoc.com'}), isTrue);
+    });
+
+    test('returns true when allowMultiDevice is explicitly true in Firestore', () {
+      expect(service.isMultiDeviceAllowed({
+        'email': 'realdoctor@gmail.com',
+        'allowMultiDevice': true,
+      }), isTrue);
+    });
+
+    test('returns true when multi_device_access module is in enabledModules', () {
+      expect(service.isMultiDeviceAllowed({
+        'email': 'realdoctor@gmail.com',
+        'enabledModules': ['dashboard', 'patients', 'multi_device_access'],
+      }), isTrue);
+    });
+
+    test('returns true for new/unspecified accounts via default trial modules', () {
+      expect(service.isMultiDeviceAllowed({
+        'email': 'newdoctor@gmail.com',
+      }), isTrue);
+    });
+
+    test('returns false when account explicitly omits multi_device_access', () {
+      expect(service.isMultiDeviceAllowed({
+        'email': 'singledevice@gmail.com',
+        'enabledModules': ['dashboard', 'patients', 'inventory'],
+        'allowMultiDevice': false,
+      }), isFalse);
+    });
+
+    test('returns false when status is expired', () {
+      expect(service.isMultiDeviceAllowed({
+        'email': 'doctor@gmail.com',
+        'allowMultiDevice': true,
+        'status': 'expired',
+      }), isFalse);
+    });
+
+    test('returns false when subscription has passed expiresDate', () {
+      final pastDate = DateTime.now().subtract(const Duration(days: 2));
+      expect(service.isMultiDeviceAllowed({
+        'email': 'doctor@gmail.com',
+        'allowMultiDevice': true,
+        'expiresDate': Timestamp.fromDate(pastDate),
+      }), isFalse);
     });
   });
 }

@@ -205,6 +205,8 @@ class DoctorProfileHelper {
       'displayName': trimmedName,
       'doctorName': trimmedName,
       'name': encryptedName,
+      'role': 'doctor',
+      'isDeleted': false,
       'specialty': trimmedSpecialty,
       'specialization': encryptedSpec,
       'updatedAt': FieldValue.serverTimestamp(),

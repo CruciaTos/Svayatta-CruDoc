@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -15,6 +16,7 @@ import 'package:crudoc_j2k/crudoc_j2k.dart';
 import 'package:doctor_management_app/features/radiology/data/rad_progressive_flag.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_view_fetch.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
+import 'package:doctor_management_app/features/radiology/imaging/rad_preview.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_view_pixels.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -299,15 +301,43 @@ class RadiologyController {
     RadImageRef image,
   ) async {
     final original = await _repo.fileOf(doctorId, s.id, image.path);
-    if (kIsWeb || await original.exists() || image.previewPath.isEmpty) {
-      return (await fileOf(s, image.path), image.kind);
-    }
+    if (kIsWeb) return (await fileOf(s, image.path), image.kind);
     final dir = await _repo.studyDir(doctorId, s.id);
     final preview = File(p.join(dir.path, '.previews', '${image.id}.jpg'));
+    // A small JPEG opens in milliseconds; the original can take a second
+    // to decode, which left the viewer blank. Make the JPEG once and keep it.
+    if (await preview.exists()) return (preview, RadFileKind.raster);
+    if (await original.exists() || image.previewPath.isEmpty) {
+      if (!image.compressed &&
+          await original.exists() &&
+          await _writePreview(original, image.kind, preview)) {
+        return (preview, RadFileKind.raster);
+      }
+      return (await fileOf(s, image.path), image.kind);
+    }
     return (
       await RadCloudFetch.instance.fetch(image.previewPath, preview),
       RadFileKind.raster,
     );
+  }
+
+  static Future<bool> _writePreview(
+    File original,
+    RadFileKind kind,
+    File dest,
+  ) async {
+    try {
+      final path = original.path;
+      final jpeg = await Isolate.run(
+        () => renderRadPreviewJpeg(File(path).readAsBytesSync(), kind),
+      );
+      if (jpeg == null) return false;
+      await dest.parent.create(recursive: true);
+      await dest.writeAsBytes(jpeg, flush: true);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<int> storageBytes() => _repo.storageBytes(doctorId);

@@ -1726,6 +1726,8 @@ class LocalDatabaseService extends ChangeNotifier {
         isDeleted INTEGER NOT NULL DEFAULT 0,
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
+        thumb TEXT NOT NULL DEFAULT '',
+        viewPath TEXT NOT NULL DEFAULT '',
         syncStatus TEXT NOT NULL DEFAULT 'pending'
           CHECK (syncStatus IN ('synced', 'pending')),
         lastSyncedAt INTEGER
@@ -1776,6 +1778,8 @@ class LocalDatabaseService extends ChangeNotifier {
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'thumb': "thumb TEXT NOT NULL DEFAULT ''",
+    'viewPath': "viewPath TEXT NOT NULL DEFAULT ''",
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
     'lastSyncedAt': 'lastSyncedAt INTEGER',
   };

@@ -110,6 +110,10 @@ class DentalQuickActionsRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Keep the patient list loading while the row is shown: the picker only
+    // reads it, and a list nobody watched yet reads as empty ("add a
+    // patient first") even when there are patients.
+    ref.watch(patientsStreamProvider);
     final actions = [
       _DentalAction(
         label: 'Tooth Chart',

@@ -22,7 +22,8 @@ double _contrast(Color fg, Color bg) {
 void main() {
   group('CruColors', () {
     test('day and evening carry the spec values', () {
-      expect(CruColors.day.canvas, const Color(0xFFDBEAFE));
+      // DESIGN_SPEC §2.2: the neutral canvas, not the old blue one.
+      expect(CruColors.day.canvas, const Color(0xFFF1F4F9));
       expect(CruColors.day.ink, const Color(0xFF2542BD));
       expect(CruColors.evening.canvas, const Color(0xFF111214));
       expect(CruColors.evening.ink, const Color(0xFF1D3591));

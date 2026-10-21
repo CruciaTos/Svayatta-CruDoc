@@ -863,9 +863,10 @@ class _PlanLine extends StatelessWidget {
           ),
           CruLink(
             label: 'Upgrade',
-            style: c.isEvening
-                ? CruType.caption.w600
-                : CruType.caption.w600.copyWith(color: CruBrand.white),
+            style: CruType.caption.w600,
+            // CruLink colours itself from `color`, not the style: white on
+            // the day sidebar's blue, the accent on evening's dark one.
+            color: c.isEvening ? null : CruBrand.white,
             onPressed: onUpgrade,
           ),
         ],

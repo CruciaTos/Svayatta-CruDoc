@@ -254,7 +254,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
       // Auto-init trial via startDoctorTrial Cloud Function if not already set
       try {
-        final existingStatus = snap.exists ? snap.data()?['status'] : null;
+        final existingStatus = snap.exists ? (snap.data()?['status']) : null;
         if (existingStatus == null) {
           await FirebaseFunctions.instanceFor(region: 'asia-south1')
               .httpsCallable('startDoctorTrial')

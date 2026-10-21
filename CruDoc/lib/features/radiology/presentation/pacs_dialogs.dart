@@ -1,20 +1,62 @@
 import 'dart:io';
 
+import 'package:dicom_net/dicom_net.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/radiology/data/pacs_connection.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// What connecting PACS will do, said once for every PACS screen.
-const _pacsNotConnected =
-    'Servers you add are saved. Searching and downloading studies over DICOMweb '
-    '(QIDO-RS and WADO-RS) arrives with the connection update — until then, import '
-    'from a folder, CD or ZIP.';
+/// A one-line result: green check when it worked, otherwise a notice.
+class _Outcome extends StatelessWidget {
+  const _Outcome({required this.ok, required this.title, this.body = ''});
+
+  final bool ok;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    if (!ok) return RadNotConnected(title: title, body: body);
+    return Row(
+      children: [
+        CruIcon(CruIcons.check, size: 16, strokeWidth: 2, color: c.greenText),
+        const SizedBox(width: CruSpace.s8),
+        Expanded(
+          child: Text(title, style: CruType.subhead.w500.tint(c.greenText)),
+        ),
+      ],
+    );
+  }
+}
+
+class _Busy extends StatelessWidget {
+  const _Busy(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Row(
+      children: [
+        SizedBox(
+          width: CruSpace.s16,
+          height: CruSpace.s16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
+        ),
+        const SizedBox(width: CruSpace.s10),
+        Text(text, style: CruType.subhead.tint(c.label2)),
+      ],
+    );
+  }
+}
 
 // ============================================================ query
 
@@ -39,7 +81,14 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
   final Set<String> _modalities = {};
   DateTime? _from;
   DateTime? _to;
-  bool _searched = false;
+  bool _searching = false;
+  String? _error;
+  String _errorTitle = '';
+  List<DicomStudySummary>? _results;
+
+  /// The study being downloaded, and how far along.
+  String? _downloading;
+  String _progress = '';
 
   @override
   void dispose() {
@@ -47,6 +96,86 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
     _id.dispose();
     _accession.dispose();
     super.dispose();
+  }
+
+  Future<void> _search(RadPacsServer server) async {
+    setState(() {
+      _searching = true;
+      _error = null;
+    });
+    try {
+      final client = await radPacsClient(server);
+      final r = await client.searchStudies(
+        patientName: _name.text,
+        patientId: _id.text,
+        accession: _accession.text,
+        from: _from,
+        to: _to,
+        modalities: _modalities,
+      );
+      r.sort(
+        (a, b) => (b.studyDate ?? DateTime(0)).compareTo(
+          a.studyDate ?? DateTime(0),
+        ),
+      );
+      if (mounted) setState(() => _results = r);
+    } on DicomWebException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _errorTitle = 'Couldn\'t search the PACS';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _download(RadPacsServer server, DicomStudySummary s) async {
+    setState(() {
+      _downloading = s.studyUid;
+      _progress = '';
+      _error = null;
+    });
+    String? dir;
+    try {
+      dir = await radDownloadPacsStudy(
+        server,
+        s.studyUid,
+        onProgress: (got, total) {
+          if (!mounted) return;
+          setState(
+            () => _progress = total == null || total == 0
+                ? RadFormat.bytes(got)
+                : '${(got * 100 / total).round()}%',
+          );
+        },
+      );
+      await ref
+          .read(radiologyProvider)
+          .log(
+            'Downloaded from PACS',
+            detail: '${server.name} · ${s.displayName}',
+          );
+      if (!mounted) return;
+      setState(() => _downloading = null);
+      final added = await runRadImport(context, ref, paths: [dir]);
+      if (added > 0 && mounted) Navigator.of(context).pop();
+    } on DicomWebException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _errorTitle = 'Couldn\'t download the study';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = null);
+      if (dir != null) {
+        try {
+          await Directory(dir).delete(recursive: true);
+        } catch (_) {}
+      }
+    }
   }
 
   @override
@@ -58,6 +187,7 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
         servers.where((s) => s.id == _serverId).firstOrNull ??
         servers.where((s) => s.isDefault).firstOrNull ??
         servers.firstOrNull;
+    final results = _results;
 
     return DentalPanelDialog(
       title: 'Search PACS',
@@ -100,7 +230,11 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
                     options: servers,
                     label: (s) => s.name,
                     isSelected: (s) => s.id == server?.id,
-                    onTap: (s) => setState(() => _serverId = s.id),
+                    onTap: (s) => setState(() {
+                      _serverId = s.id;
+                      _results = null;
+                      _error = null;
+                    }),
                   ),
                 ),
               CruFieldRow(
@@ -109,16 +243,19 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
                     label: 'Patient name',
                     controller: _name,
                     optional: true,
+                    onSubmitted: (_) => _search(server!),
                   ),
                   CruTextField(
                     label: 'Patient ID',
                     controller: _id,
                     optional: true,
+                    onSubmitted: (_) => _search(server!),
                   ),
                   CruTextField(
                     label: 'Accession',
                     controller: _accession,
                     optional: true,
+                    onSubmitted: (_) => _search(server!),
                   ),
                 ],
               ),
@@ -179,17 +316,41 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
-              if (_searched)
-                const RadNotConnected(
-                  title: 'PACS isn\'t connected yet',
-                  body: _pacsNotConnected,
-                )
-              else
+              if (_error != null) ...[
+                RadNotConnected(title: _errorTitle, body: _error!),
+                const SizedBox(height: CruSpace.s12),
+              ],
+              if (_searching)
+                const _Busy('Searching…')
+              else if (results == null)
                 Text(
                   'Results appear here with each study\'s date, type and image count; '
                   'download one to add it to the worklist.',
                   style: CruType.caption.tint(c.label2),
+                )
+              else if (results.isEmpty)
+                Text(
+                  'No studies match. Try fewer filters.',
+                  style: CruType.subhead.tint(c.label2),
+                )
+              else ...[
+                DentalGroupLabel(
+                  'Results',
+                  trailing: results.length == 1
+                      ? '1 study'
+                      : '${results.length} studies',
                 ),
+                for (var i = 0; i < results.length; i++) ...[
+                  if (i > 0) const CruSeparator(),
+                  _ResultRow(
+                    study: results[i],
+                    downloading: _downloading == results[i].studyUid,
+                    progress: _progress,
+                    enabled: _downloading == null,
+                    onDownload: () => _download(server!, results[i]),
+                  ),
+                ],
+              ],
             ],
           ],
         ),
@@ -205,10 +366,81 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
           const Spacer(),
           if (servers.isNotEmpty)
             CruButton(
-              label: 'Search',
+              label: _searching ? 'Searching…' : 'Search',
               icon: CruIcons.search,
-              onPressed: () => setState(() => _searched = true),
+              onPressed: _searching || _downloading != null
+                  ? null
+                  : () => _search(server!),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultRow extends StatelessWidget {
+  const _ResultRow({
+    required this.study,
+    required this.downloading,
+    required this.progress,
+    required this.enabled,
+    required this.onDownload,
+  });
+
+  final DicomStudySummary study;
+  final bool downloading;
+  final String progress;
+  final bool enabled;
+  final VoidCallback onDownload;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final detail = [
+      if (study.studyDate != null) RadFormat.date(study.studyDate!),
+      if (study.modalities.isNotEmpty) study.modalities.join(', '),
+      if (study.description.isNotEmpty) study.description,
+      if (study.instanceCount > 0) RadFormat.images(study.instanceCount),
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s4,
+        vertical: CruSpace.s10,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  [
+                    study.displayName.isEmpty
+                        ? 'Unnamed patient'
+                        : study.displayName,
+                    if (study.patientId.isNotEmpty) study.patientId,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.callout.tint(c.label),
+                ),
+                Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: CruSpace.s12),
+          CruButton(
+            label: downloading
+                ? (progress.isEmpty ? 'Downloading…' : 'Downloading $progress')
+                : 'Download',
+            kind: CruButtonKind.inset,
+            onPressed: enabled ? onDownload : null,
+          ),
         ],
       ),
     );
@@ -274,34 +506,15 @@ class _PacsServersDialog extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (s.isDefault) ...[
+                  if (s.isDefault)
                     CruPill(
                       text: 'Default',
                       background: c.inset,
                       foreground: c.label2,
                     ),
-                    const SizedBox(width: CruSpace.s8),
-                  ],
-                  const RadNotConnected(
-                    title: 'Not connected yet',
-                    body: '',
-                    compact: true,
-                  ),
                 ],
               ),
             ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              CruSpace.s8,
-              CruSpace.s12,
-              CruSpace.s8,
-              CruSpace.s4,
-            ),
-            child: RadNotConnected(
-              title: 'PACS isn\'t connected yet',
-              body: _pacsNotConnected,
-            ),
-          ),
         ],
       ),
       footer: Row(
@@ -341,6 +554,8 @@ class _PacsServerDialog extends ConsumerStatefulWidget {
   ConsumerState<_PacsServerDialog> createState() => _PacsServerDialogState();
 }
 
+enum _Test { idle, testing, ok, failed }
+
 class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
@@ -348,36 +563,82 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
   late final _user = TextEditingController(
     text: widget.existing?.username ?? '',
   );
+  final _secret = TextEditingController();
+  late final String _id = widget.existing?.id ?? radId('pacs_');
   late String _auth = widget.existing?.auth ?? 'none';
   late bool _default = widget.existing?.isDefault ?? false;
-  bool _tested = false;
+  _Test _test = _Test.idle;
+  String _testMessage = '';
   bool _dirty = false;
   bool _submitted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existing != null) {
+      RadPacsSecrets.read(_id).then((s) {
+        if (mounted && _secret.text.isEmpty) _secret.text = s;
+      });
+    }
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _url.dispose();
     _user.dispose();
+    _secret.dispose();
     super.dispose();
   }
 
   void _edited() {
-    if (!_dirty) setState(() => _dirty = true);
+    setState(() {
+      _dirty = true;
+      _test = _Test.idle;
+    });
+  }
+
+  RadPacsServer _fromForm({bool? isDefault}) => RadPacsServer(
+    id: _id,
+    name: _name.text.trim(),
+    baseUrl: _url.text.trim(),
+    auth: _auth,
+    username: _auth == 'basic' ? _user.text.trim() : '',
+    isDefault: isDefault ?? _default,
+  );
+
+  Future<void> _runTest() async {
+    final u = Uri.tryParse(_url.text.trim());
+    if (u == null || !u.hasScheme || u.host.isEmpty) {
+      setState(() {
+        _test = _Test.failed;
+        _testMessage = 'Enter the full DICOMweb address first.';
+      });
+      return;
+    }
+    setState(() => _test = _Test.testing);
+    try {
+      final client = await radPacsClient(
+        _fromForm(),
+        secret: _auth == 'none' ? '' : _secret.text,
+      );
+      await client.ping();
+      if (mounted) setState(() => _test = _Test.ok);
+    } on DicomWebException catch (e) {
+      if (mounted) {
+        setState(() {
+          _test = _Test.failed;
+          _testMessage = e.message;
+        });
+      }
+    }
   }
 
   Future<void> _save() async {
     setState(() => _submitted = true);
     if (!(_form.currentState?.validate() ?? false)) return;
     final ctrl = ref.read(radiologyProvider);
-    final s = RadPacsServer(
-      id: widget.existing?.id ?? radId('pacs_'),
-      name: _name.text.trim(),
-      baseUrl: _url.text.trim(),
-      auth: _auth,
-      username: _user.text.trim(),
-      isDefault: _default,
-    );
+    final s = _fromForm();
     if (_default) {
       // Only one default.
       for (final o
@@ -396,6 +657,7 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
         }
       }
     }
+    await RadPacsSecrets.write(s.id, _auth == 'none' ? '' : _secret.text);
     await ctrl.savePacsServer(s);
     if (mounted) Navigator.of(context).pop();
   }
@@ -410,6 +672,7 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
       action: 'Remove',
     );
     if (!ok || !mounted) return;
+    await RadPacsSecrets.delete(e.id);
     await ref.read(radiologyProvider).deletePacsServer(e);
     if (mounted) Navigator.of(context).pop();
   }
@@ -477,7 +740,7 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
                           ],
                           selected: _auth,
                           onChanged: (a) {
-                            setState(() => _auth = a);
+                            _auth = a;
                             _edited();
                           },
                         ),
@@ -492,16 +755,20 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
                   ],
                 ),
                 if (_auth != 'none')
-                  Text(
-                    'The password or token is asked for when the connection is set up; '
-                    'CruDoc doesn\'t store it here.',
-                    style: CruType.caption.tint(context.cru.label2),
+                  CruTextField(
+                    label: _auth == 'basic' ? 'Password' : 'Token',
+                    controller: _secret,
+                    obscureText: true,
+                    help:
+                        'Kept in this device\'s secure storage and never synced; '
+                        'enter it again on each computer.',
+                    onChanged: (_) => _edited(),
                   ),
                 DentalChoiceChip(
                   label: 'Use as default',
                   selected: _default,
                   onTap: () {
-                    setState(() => _default = !_default);
+                    _default = !_default;
                     _edited();
                   },
                 ),
@@ -510,20 +777,27 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
             CruFormSection(
               title: 'Connection',
               children: [
-                if (_tested)
-                  const RadNotConnected(
-                    title: 'Not connected yet',
-                    body: _pacsNotConnected,
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: CruButton(
+                    label: _test == _Test.testing
+                        ? 'Testing…'
+                        : 'Test connection',
+                    kind: CruButtonKind.secondary,
+                    icon: RadIcons.server,
+                    onPressed: _test == _Test.testing ? null : _runTest,
+                  ),
+                ),
+                if (_test == _Test.ok)
+                  const _Outcome(
+                    ok: true,
+                    title: 'Connected — the PACS answered a search.',
                   )
-                else
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: CruButton(
-                      label: 'Test connection',
-                      kind: CruButtonKind.secondary,
-                      icon: RadIcons.server,
-                      onPressed: () => setState(() => _tested = true),
-                    ),
+                else if (_test == _Test.failed)
+                  _Outcome(
+                    ok: false,
+                    title: 'Couldn\'t connect',
+                    body: _testMessage,
                   ),
                 if (widget.existing != null)
                   Align(
@@ -542,7 +816,54 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
   }
 }
 
+// ============================================================ send
+
+/// Uploads [study] to the default PACS (or the only one).
+Future<void> sendRadStudyToPacs(
+  BuildContext context,
+  WidgetRef ref,
+  RadStudy study,
+) async {
+  final servers = await ref.read(radPacsServersProvider.future);
+  final server =
+      servers.where((s) => s.isDefault).firstOrNull ?? servers.firstOrNull;
+  if (server == null) {
+    if (context.mounted) await showRadPacsServerDialog(context);
+    return;
+  }
+  if (!context.mounted) return;
+  radToast(context, 'Sending to ${server.name}…');
+  try {
+    final r = await radSendStudyToPacs(
+      ref.read(radiologyProvider),
+      study,
+      server,
+    );
+    if (!context.mounted) return;
+    radToast(
+      context,
+      r.sent == 0 && r.failed == 0
+          ? 'Nothing to send: only DICOM images can go to a PACS.'
+          : [
+              'Sent ${RadFormat.images(r.sent)} to ${server.name}',
+              if (r.failed > 0) '${r.failed} refused',
+              if (r.skipped > 0) '${r.skipped} pictures skipped (not DICOM)',
+            ].join(' · '),
+    );
+  } on DicomWebException catch (e) {
+    if (context.mounted) radToast(context, 'Couldn\'t send: ${e.message}');
+  }
+}
+
 // ============================================================ receiver
+
+/// Adds the scans received from scanners to the worklist.
+Future<void> importRadReceived(BuildContext context, WidgetRef ref) async {
+  final paths = List.of(ref.read(radReceiverProvider).received);
+  if (paths.isEmpty) return;
+  final added = await runRadImport(context, ref, paths: paths);
+  if (added > 0) await ref.read(radReceiverProvider.notifier).clear(paths);
+}
 
 /// "Send to CruDoc" from a scanner: the DICOM receiver's name and port.
 Future<void> showRadDicomReceiverDialog(BuildContext context) =>
@@ -558,23 +879,15 @@ class _ReceiverDialog extends ConsumerStatefulWidget {
 class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
   TextEditingController? _ae;
   TextEditingController? _port;
+  bool? _on;
   List<String> _addresses = const [];
 
   @override
   void initState() {
     super.initState();
-    NetworkInterface.list(type: InternetAddressType.IPv4)
-        .then((list) {
-          if (!mounted) return;
-          setState(
-            () => _addresses = [
-              for (final i in list)
-                for (final a in i.addresses)
-                  if (!a.isLoopback) a.address,
-            ],
-          );
-        })
-        .catchError((_) {});
+    radLocalAddresses().then((a) {
+      if (mounted) setState(() => _addresses = a);
+    });
   }
 
   @override
@@ -593,6 +906,7 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
           s.copyWith(
             aeTitle: ae.isEmpty ? 'CRUDOC' : ae,
             dicomPort: port.clamp(1, 65535),
+            dicomReceiverOn: _on ?? s.dicomReceiverOn,
           ),
         );
     if (mounted) Navigator.of(context).pop();
@@ -602,10 +916,17 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final s = ref.watch(radSettingsProvider).value;
+    final rx = ref.watch(radReceiverProvider);
     if (s != null) {
       _ae ??= TextEditingController(text: s.aeTitle);
       _port ??= TextEditingController(text: '${s.dicomPort}');
+      _on ??= s.dicomReceiverOn;
     }
+    final changed =
+        s != null &&
+        (_on != s.dicomReceiverOn ||
+            _ae!.text.trim().toUpperCase() != s.aeTitle ||
+            _port!.text.trim() != '${s.dicomPort}');
     return DentalPanelDialog(
       title: 'Receive from scanners',
       subtitle: 'Scanners and PACS "Send to CruDoc" (DICOM C-STORE)',
@@ -620,12 +941,29 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  CruFieldFrame(
+                    label: 'Receiving',
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: CruSegmentedControl<bool>(
+                        semanticLabel: 'Receiving',
+                        segments: const [
+                          CruSegment(false, 'Off'),
+                          CruSegment(true, 'On'),
+                        ],
+                        selected: _on!,
+                        onChanged: (v) => setState(() => _on = v),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: CruSpace.s12),
                   CruFieldRow(
                     children: [
                       CruTextField(
                         label: 'AE title',
                         controller: _ae!,
                         help: 'Up to 16 letters, the name scanners send to.',
+                        onChanged: (_) => setState(() {}),
                         inputFormatters: [
                           LengthLimitingTextInputFormatter(16),
                           FilteringTextInputFormatter.allow(
@@ -638,6 +976,7 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
                         controller: _port!,
                         tabular: true,
                         keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
@@ -657,13 +996,48 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
                     style: CruType.subhead.tabular.tint(c.label2),
                   ),
                   const SizedBox(height: CruSpace.s16),
-                  const RadNotConnected(
-                    title: 'The receiver isn\'t connected yet',
-                    body:
-                        'These settings are saved. CruDoc starts listening for scans on '
-                        'this port with the connection update; until then, export from the '
-                        'scanner to a folder or USB drive and import it.',
-                  ),
+                  if (changed)
+                    Text(
+                      'Save to apply.',
+                      style: CruType.caption.tint(c.label2),
+                    )
+                  else if (!s.dicomReceiverOn)
+                    Text(
+                      'Switched off: scans sent here are refused.',
+                      style: CruType.caption.tint(c.label2),
+                    )
+                  else if (rx.error != null)
+                    RadNotConnected(
+                      title: 'Not listening',
+                      body: rx.error!,
+                    )
+                  else if (rx.listening)
+                    _Outcome(
+                      ok: true,
+                      title:
+                          'Listening on port ${s.dicomPort} while CruDoc is open.',
+                    )
+                  else
+                    const _Busy('Starting…'),
+                  if (rx.received.isNotEmpty) ...[
+                    const SizedBox(height: CruSpace.s12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${RadFormat.images(rx.received.length)} received'
+                            '${rx.lastFrom.isEmpty ? '' : ' from ${rx.lastFrom}'}',
+                            style: CruType.subhead.tabular.tint(c.label),
+                          ),
+                        ),
+                        CruButton(
+                          label: 'Add to worklist',
+                          kind: CruButtonKind.inset,
+                          onPressed: () => importRadReceived(context, ref),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

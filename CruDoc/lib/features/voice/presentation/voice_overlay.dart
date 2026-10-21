@@ -11,6 +11,8 @@ import 'package:doctor_management_app/core/theme/cru_tokens.dart';
 import 'package:doctor_management_app/core/theme/cru_type.dart';
 import 'package:doctor_management_app/features/mobile/mobile_island.dart';
 import 'package:doctor_management_app/features/shell/presentation/responsive_shell.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 import '../services/speech_engine.dart';
 import '../voice_controller.dart';
@@ -143,6 +145,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
   /// Hold Space (or F2): push-to-talk. Tap it: hands-free on or off. In a
   /// text field a tap still types a space; holding it switches to voice.
   bool _onKey(KeyEvent e) {
+    // The tour takes Enter, Space and the arrows while it is up.
+    if (TutorialController.isShowing) return false;
     final ask = _voice.asking.value;
 
     // Enter confirms an active form or answers an open question on the pill.
@@ -347,25 +351,29 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
                     _voice.hint,
                     _voice.asking,
                   ]),
-                  builder: (context, _) => _Strip(
-                    listening: _listening,
-                    loaded: _loaded,
-                    error: _error,
-                    understood: _showResult ? _voice.understood.value : null,
-                    ready: _voice.ready.value,
-                    need: _voice.hint.value,
-                    heard: _heard,
-                    ms: _ms,
-                    handsFree: _engine.handsFree,
-                    tapToTalk: SpeechEngine.onPhone,
-                    onMic: !_loaded
-                        ? null
-                        : SpeechEngine.onPhone
-                        ? _talkOnce
-                        : _toggleHandsFree,
-                    ask: _voice.asking.value,
-                    level: _engine.level,
-                    onPick: (i) => _voice.pickChoice(i),
+                  builder: (context, _) => TutorialAnchor(
+                    target: TutorialTarget.voicePill,
+                    shape: TutorialShape.stadium,
+                    child: _Strip(
+                      listening: _listening,
+                      loaded: _loaded,
+                      error: _error,
+                      understood: _showResult ? _voice.understood.value : null,
+                      ready: _voice.ready.value,
+                      need: _voice.hint.value,
+                      heard: _heard,
+                      ms: _ms,
+                      handsFree: _engine.handsFree,
+                      tapToTalk: SpeechEngine.onPhone,
+                      onMic: !_loaded
+                          ? null
+                          : SpeechEngine.onPhone
+                          ? _talkOnce
+                          : _toggleHandsFree,
+                      ask: _voice.asking.value,
+                      level: _engine.level,
+                      onPick: (i) => _voice.pickChoice(i),
+                    ),
                   ),
                 ),
               ),

@@ -20,6 +20,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_today_card.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 /// The Calm Clinical desktop dashboard: "Who's next, and what must I
 /// know before they walk in?"
@@ -95,7 +96,14 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     final upNext = !data.scheduleReady
         ? const SkeletonCard(rows: 2, rowHeight: 48)
         : data.upNext != null
-        ? UpNextCard(data: data.upNext!, navigate: widget.onNavigateToTab)
+        ? TutorialAnchor(
+            target: TutorialTarget.upNext,
+            radius: CruRadius.card,
+            child: UpNextCard(
+              data: data.upNext!,
+              navigate: widget.onNavigateToTab,
+            ),
+          )
         : NoOneWaitingCard(nextBooking: data.nextBooking);
 
     // Money is for people whose role includes revenue.

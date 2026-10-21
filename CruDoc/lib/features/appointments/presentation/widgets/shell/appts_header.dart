@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dashboard/domain/dashboard_format
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 /// Width of the header's one filled button, the same in every Schedule
 /// view ("New appointment", "Call next token", "Finish & call next") so
@@ -247,11 +248,15 @@ class ScheduleViewSwitcher extends ConsumerWidget {
           v,
     ];
     if (views.length < 2) return const SizedBox.shrink();
-    return CruSegmentedControl<ApptsView>(
-      semanticLabel: 'Schedule view',
-      segments: [for (final v in views) CruSegment(v, v.label)],
-      selected: ref.watch(effectiveApptsViewProvider),
-      onChanged: ref.read(apptsControllerProvider.notifier).setView,
+    return TutorialAnchor(
+      target: TutorialTarget.scheduleViews,
+      radius: CruRadius.segmentOuter,
+      child: CruSegmentedControl<ApptsView>(
+        semanticLabel: 'Schedule view',
+        segments: [for (final v in views) CruSegment(v, v.label)],
+        selected: ref.watch(effectiveApptsViewProvider),
+        onChanged: ref.read(apptsControllerProvider.notifier).setView,
+      ),
     );
   }
 }

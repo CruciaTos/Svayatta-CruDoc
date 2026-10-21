@@ -10,6 +10,7 @@ import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 /// The phone's floating mic, like Wispr Flow's bubble: it hovers at the
 /// screen's edge over every page. Hold it to talk, tap it to talk until a
@@ -187,32 +188,37 @@ class _VoiceBubbleState extends ConsumerState<VoiceBubble> {
                 child: Semantics(
                   button: true,
                   label: 'Voice: hold to talk, drag to move',
-                  child: AnimatedScale(
-                    scale: lit ? 1.12 : (_drag != null ? 1.06 : 1),
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedContainer(
+                  child: TutorialAnchor(
+                    target: TutorialTarget.voiceBubble,
+                    // The bubble's own corner.
+                    radius: 18,
+                    child: AnimatedScale(
+                      scale: lit ? 1.12 : (_drag != null ? 1.06 : 1),
                       duration: const Duration(milliseconds: 180),
-                      width: _size,
-                      height: _size,
-                      decoration: BoxDecoration(
-                        color: lit
-                            ? CruBrand.ink500
-                            : const Color(0xFF2C2C2E).withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.28),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
+                      curve: Curves.easeOutCubic,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: _size,
+                        height: _size,
+                        decoration: BoxDecoration(
+                          color: lit
+                              ? CruBrand.ink500
+                              : const Color(0xFF2C2C2E).withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.14),
                           ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: _Bars(level: widget.level, live: lit),
                       ),
-                      alignment: Alignment.center,
-                      child: _Bars(level: widget.level, live: lit),
                     ),
                   ),
                 ),

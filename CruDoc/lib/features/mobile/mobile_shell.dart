@@ -21,6 +21,7 @@ import 'package:doctor_management_app/shared/widgets/search_lift.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 /// The phone app: five tabs that swipe sideways, the floating ink-blue
 /// nav, and (from the app root) the island at the top.
@@ -42,11 +43,31 @@ class _MobileShellState extends ConsumerState<MobileShell> {
 
   static const _items = [
     // Same glyphs as the desktop sidebar, so both feel like one app.
-    MobileNavItem('Home', CruIcons.dashboard),
-    MobileNavItem('Schedule', CruIcons.calendar),
-    MobileNavItem('Patients', CruIcons.patients),
-    MobileNavItem('Tasks', RecIcons.checklist),
-    MobileNavItem('More', CruIcons.more),
+    MobileNavItem(
+      'Home',
+      CruIcons.dashboard,
+      tutorialTarget: TutorialTarget.navHome,
+    ),
+    MobileNavItem(
+      'Schedule',
+      CruIcons.calendar,
+      tutorialTarget: TutorialTarget.navSchedule,
+    ),
+    MobileNavItem(
+      'Patients',
+      CruIcons.patients,
+      tutorialTarget: TutorialTarget.navPatients,
+    ),
+    MobileNavItem(
+      'Tasks',
+      RecIcons.checklist,
+      tutorialTarget: TutorialTarget.navTasks,
+    ),
+    MobileNavItem(
+      'More',
+      CruIcons.more,
+      tutorialTarget: TutorialTarget.navMore,
+    ),
   ];
 
   @override

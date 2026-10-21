@@ -27,6 +27,7 @@ import 'package:doctor_management_app/features/queue/presentation/check_in_dialo
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 /// Home: who's next, how the day is going, and every common task one tap
 /// away. Not a report: anything deeper is a tab or a tap further.
@@ -57,7 +58,11 @@ class MobileHomeScreen extends ConsumerWidget {
         const SizedBox(height: CruSpace.s16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-          child: _NowCard(data: data),
+          child: TutorialAnchor(
+            target: TutorialTarget.mobileUpNext,
+            radius: CruRadius.card,
+            child: _NowCard(data: data),
+          ),
         ),
         if (data.attention?.isNotEmpty ?? false) ...[
           const SizedBox(height: CruSpace.s16),

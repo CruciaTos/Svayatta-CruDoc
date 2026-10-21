@@ -34,6 +34,7 @@ import 'features/scribe/presentation/consultation_scribe_launcher.dart';
 import 'core/theme/cru_theme.dart';
 import 'features/settings/data/appearance_provider.dart';
 import 'features/voice/presentation/voice_overlay.dart';
+import 'features/tutorial/presentation/tutorial_overlay.dart';
 import 'features/files/data/files_cloud_sync.dart';
 import 'features/files/data/files_repository.dart';
 
@@ -381,9 +382,12 @@ class MoodyDashboardApp extends ConsumerWidget {
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(systemScale * textSize.scale),
           ),
-          child: VoiceOverlay(
-            child: ConsultationScribeLauncher(
-              child: child ?? const SizedBox.shrink(),
+          // The first-run tour dims everything, the voice pill included.
+          child: TutorialHost(
+            child: VoiceOverlay(
+              child: ConsultationScribeLauncher(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         );

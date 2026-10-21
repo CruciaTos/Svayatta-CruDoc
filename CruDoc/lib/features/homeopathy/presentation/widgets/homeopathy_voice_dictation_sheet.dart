@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:doctor_management_app/features/chatbot/services/voice_transcription_service.dart';
+import 'package:doctor_management_app/core/services/voice_transcription_service.dart';
 
 /// Modal bottom sheet for hands-free voice dictation into a specific clinical field.
 class HomeopathyVoiceDictationSheet extends StatefulWidget {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/errors/queue_exceptions.dart';
-import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
@@ -169,11 +168,6 @@ abstract final class DashboardActions {
   /// Checks a patient or walk-in into today's queue.
   static Future<void> newVisit(BuildContext context) =>
       CheckInDialog.show(_root(context));
-
-  /// "Ask CruDoc": the assistant that used to sit behind the floating
-  /// chat button.
-  static Future<void> openAssistant(BuildContext context, [String? prompt]) =>
-      ChatbotScreen.show(_root(context), initialPrompt: prompt);
 
   /// Patient details. On the desktop they open in the Patients tab with
   /// the sidebar kept (Back returns to the screen they came from); on the

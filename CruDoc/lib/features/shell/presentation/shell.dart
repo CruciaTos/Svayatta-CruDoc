@@ -10,7 +10,6 @@ import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
-import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/mobile_campaigns_screen.dart';
 import 'package:doctor_management_app/features/queue/presentation/queue_screen.dart';
 
@@ -121,7 +120,7 @@ class _ShellState extends State<Shell> {
                     },
                   ),
                 ),
-                // ---- Floating navigation bar with embedded Chatbot (Mobile Only) ----
+                // ---- Floating navigation bar (Mobile Only) ----
                 if (!kIsWeb)
                   Positioned(
                     left: 16,
@@ -131,7 +130,6 @@ class _ShellState extends State<Shell> {
                       selectedIndex: _currentIndex,
                       onTap: _onNavTap,
                       enabledModules: enabledModules,
-                      onChatbotTap: () => ChatbotScreen.show(context),
                     ),
                   ),
               ],

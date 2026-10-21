@@ -16,7 +16,7 @@ import 'package:flutter/gestures.dart';
 
 /// The Schedule tab. Live is today's queue board (it has its own header);
 /// Day, Week, Month and Agenda share the calendar header. Pads itself
-/// with [CruSpace.mainPadding] (the shell doesn't). No chatbot button.
+/// with [CruSpace.mainPadding] (the shell doesn't).
 ///
 /// Keyboard (calendar views): ← and → step one day, week or month; T
 /// jumps to today (not while a text field has focus).

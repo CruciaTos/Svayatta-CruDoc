@@ -13,7 +13,6 @@ import 'package:doctor_management_app/features/shell/components/mobile_feature_d
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 import 'package:doctor_management_app/features/shell/data/desktop_shell_preferences.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
-import 'package:doctor_management_app/features/chatbot/widgets/draggable_floating_chatbot_button.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
@@ -65,7 +64,7 @@ class _NavigateToTabIntent extends Intent {
   final int index;
 }
 
-/// Ctrl/⌘ K: focus "Search patients or ask CruDoc".
+/// Ctrl/⌘ K: focus "Search patients".
 class _FocusSearchIntent extends Intent {
   const _FocusSearchIntent();
 }
@@ -525,8 +524,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                 DoctorFeatureGuard.isEnabled(enabledModules, 'queue'));
         final isDashboard = shown == DesktopTab.dashboard;
         final isPatients = shown == DesktopTab.patients;
-        // Screens built on the Calm Clinical tokens pad their own page and
-        // have no floating chatbot button.
+        // Screens built on the Calm Clinical tokens pad their own page.
         final isRedesigned =
             isPatients ||
             shown == DesktopTab.inventory ||
@@ -631,15 +629,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     callbacks: _sidebarCallbacks(context),
                   ),
                   content: content,
-                  // The dashboard reaches the assistant through "Ask
-                  // CruDoc" in its search; the redesigned screens have no
-                  // floating button either. Other screens keep it.
-                  overlay: isDashboard || isRedesigned
-                      ? null
-                      : const DraggableFloatingChatbotButton(
-                          initialBottom: 32,
-                          initialRight: 32,
-                        ),
                 ),
               ),
             ),

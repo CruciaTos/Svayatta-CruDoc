@@ -16,14 +16,12 @@ class BottomNavBar extends ConsumerWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
   final List<String>? enabledModules;
-  final VoidCallback? onChatbotTap;
 
   const BottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.onTap,
     this.enabledModules,
-    this.onChatbotTap,
   });
 
   static const _icons = [
@@ -161,32 +159,6 @@ class BottomNavBar extends ConsumerWidget {
                 );
               }),
 
-              // AI Chatbot button directly beside the Events button
-              if (onChatbotTap != null)
-                GestureDetector(
-                  onTap: onChatbotTap,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: const [],
-                    ),
-                    child: const Icon(
-                      Icons.smart_toy_rounded,
-                      size: 21,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),

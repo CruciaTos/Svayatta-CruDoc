@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:doctor_management_app/features/chatbot/services/voice_transcription_service.dart';
+import 'package:doctor_management_app/core/services/voice_transcription_service.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/services/homeopathy_voice_scribe_service.dart';
 

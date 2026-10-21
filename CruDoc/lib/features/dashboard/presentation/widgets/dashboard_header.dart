@@ -11,7 +11,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 
 /// Date line + greeting, then search, Add patient and New visit (these
-/// replace the old Quick Actions card and the floating chat button).
+/// replace the old Quick Actions card).
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({super.key, this.searchFocusNode});
 

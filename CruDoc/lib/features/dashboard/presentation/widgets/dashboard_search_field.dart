@@ -17,14 +17,8 @@ class _PatientOption extends _Option {
   final Patient patient;
 }
 
-class _AskOption extends _Option {
-  const _AskOption(this.query);
-  final String query;
-}
-
-/// "Search patients or ask CruDoc". Matching patients open their record;
-/// anything else (or Enter on an empty field) opens the assistant, which
-/// replaces the old floating chat button.
+/// "Search patients": matching patients, by name or phone, open their
+/// record.
 class DashboardSearchField extends ConsumerStatefulWidget {
   const DashboardSearchField({super.key, this.focusNode, this.width});
 
@@ -88,7 +82,7 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
         )
         .take(5)
         .map<_Option>(_PatientOption.new);
-    return [...matches, _AskOption(value.text.trim())];
+    return matches.toList();
   }
 
   void _select(_Option option) {
@@ -97,8 +91,6 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
     switch (option) {
       case _PatientOption(:final patient):
         DashboardActions.openPatient(context, patient);
-      case _AskOption(:final query):
-        DashboardActions.openAssistant(context, query);
     }
   }
 
@@ -154,7 +146,7 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                         // A widget hint so the placeholder is clipped at
                         // the edge rather than ellipsised.
                         hint: Text(
-                          'Search patients or ask CruDoc',
+                          'Search patients',
                           style: CruType.text.tint(c.label3),
                           maxLines: 1,
                           softWrap: false,
@@ -164,7 +156,6 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                       onSubmitted: (v) {
                         if (v.trim().isEmpty) {
                           focusNode.unfocus();
-                          DashboardActions.openAssistant(context);
                         } else {
                           onSubmitted();
                         }
@@ -273,27 +264,6 @@ class _OptionRow extends StatelessWidget {
               Text(
                 patient.phone,
                 style: CruType.caption.tabular.tint(c.label3),
-              ),
-            ],
-            _AskOption(:final query) => [
-              SizedBox(
-                width: 26,
-                child: CruIcon(CruIcons.sparkle, size: 18, color: c.ai),
-              ),
-              const SizedBox(width: CruSpace.s10),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'Ask CruDoc  ',
-                        style: CruType.callout.tint(c.ai),
-                      ),
-                      TextSpan(text: query, style: CruType.text.tint(c.label2)),
-                    ],
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
               ),
             ],
           },

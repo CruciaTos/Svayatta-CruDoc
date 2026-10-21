@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_cloud_fetch.dart';
@@ -217,7 +218,12 @@ class RadiologyController {
   /// it is downloaded into the study folder first, once.
   Future<File> fileOf(RadStudy s, String relativePath) async {
     final file = await _repo.fileOf(doctorId, s.id, relativePath);
-    if (kIsWeb || await file.exists()) return file;
+    if (kIsWeb) return file;
+    if (await file.exists()) {
+      // Opened: among the last to go when space is freed.
+      await LocalStorageManager.touch(file);
+      return file;
+    }
     final image = s.images.where((i) => i.path == relativePath).firstOrNull;
     if (image == null || image.storagePath.isEmpty) return file;
     return RadCloudFetch.instance.fetch(image.storagePath, file);

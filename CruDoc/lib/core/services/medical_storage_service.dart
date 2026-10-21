@@ -375,6 +375,19 @@ class MedicalStorageService {
     return destination;
   }
 
+  /// The size of the object at [storagePath], or null when there is none.
+  /// Throws when the cloud can't be asked (offline): the caller must treat
+  /// that as "not known to be safe", never as "missing".
+  Future<int?> cloudSize(String storagePath) async {
+    _requireOwnedPath(storagePath);
+    try {
+      return (await _storage.ref(storagePath).getMetadata()).size;
+    } on FirebaseException catch (e) {
+      if (e.code == 'object-not-found') return null;
+      rethrow;
+    }
+  }
+
   Future<void> delete(String storagePath) {
     _requireOwnedPath(storagePath);
     return _storage.ref(storagePath).delete();

@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
+import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/services/storage_sync_queue.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
@@ -106,6 +107,7 @@ class FilesRepository {
       linkHandler,
       (ctx) => instance._recordUpload(ctx),
     );
+    LocalStorageManager.instance.registerSource(_FilesLocalSource());
   }
 
   /// The clinic.
@@ -627,7 +629,10 @@ class FilesRepository {
     final dir = await _clinicDir();
     if (f.localPath.isNotEmpty) {
       final existing = File(p.join(dir.path, f.localPath));
-      if (await existing.exists()) return existing;
+      if (await existing.exists()) {
+        await LocalStorageManager.touch(existing);
+        return existing;
+      }
     }
     if (f.storagePath.isEmpty) {
       throw FilesException(
@@ -684,6 +689,85 @@ class FilesRepository {
       f.copyWith(storagePath: ctx.storagePath, updatedAt: DateTime.now()),
     );
     _changed();
+  }
+
+  // ─────────────────────── Space on this device ───────────────────────
+
+  /// This device's copies of files whose contents are in the cloud, for
+  /// [LocalStorageManager]. Removing one only forgets the local copy: the
+  /// record stays, and [localCopy] downloads it again when it is opened.
+  Future<List<LocalAsset>> localCopiesInCloud() async {
+    final clinic = doctorId;
+    if (clinic.isEmpty) return const [];
+    final dir = await _clinicDir();
+    final db = await _db.localDatabase;
+    final rows = await db.query(
+      _files,
+      columns: ['id', 'localPath', 'storagePath'],
+      where: "doctorId = ? AND isDeleted = 0 AND localPath != '' "
+          "AND storagePath != ''",
+      whereArgs: [clinic],
+    );
+    final out = <LocalAsset>[];
+    for (final r in rows) {
+      final id = r['id'] as String;
+      final rel = r['localPath'] as String;
+      final storagePath = r['storagePath'] as String;
+      final file = File(p.join(dir.path, rel));
+      if (!await file.exists()) continue;
+      out.add(
+        LocalAsset(
+          file: file,
+          bytes: await file.length(),
+          lastUsed: await LocalStorageManager.lastUsedOf(file),
+          storagePath: storagePath,
+          isStillSafe: () => _copyIsInCloud(id, rel, storagePath),
+          onRemoved: () => _forgetLocalCopy(id, rel, file),
+        ),
+      );
+    }
+    return out;
+  }
+
+  /// The record has reached the cloud with this path and nothing for the
+  /// file is still on its way up.
+  Future<bool> _copyIsInCloud(String id, String rel, String storagePath) async {
+    final db = await _db.localDatabase;
+    final rows = await db.query(
+      _files,
+      columns: ['syncStatus', 'storagePath', 'localPath', 'isDeleted'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return false;
+    final r = rows.first;
+    if (r['syncStatus'] != 'synced' ||
+        r['storagePath'] != storagePath ||
+        r['localPath'] != rel ||
+        r['isDeleted'] == 1) {
+      return false;
+    }
+    final open = await StorageSyncQueue.instance.openLinks(linkHandler);
+    return !open.any((l) => l.docId == id);
+  }
+
+  Future<void> _forgetLocalCopy(String id, String rel, File file) async {
+    // Device-only: not a change to sync.
+    final db = await _db.localDatabase;
+    await db.update(
+      _files,
+      {'localPath': ''},
+      where: 'id = ? AND localPath = ?',
+      whereArgs: [id, rel],
+    );
+    try {
+      final parent = file.parent;
+      if (await parent.exists() && await parent.list().isEmpty) {
+        await parent.delete();
+      }
+    } catch (_) {}
+    notifyChanged();
   }
 
   // ─────────────────────────── Sync support ───────────────────────────
@@ -774,4 +858,14 @@ class FilesRepository {
     }
     await db.delete(table, where: 'id = ?', whereArgs: [id]);
   }
+}
+
+/// The Files screen's copies, for [LocalStorageManager].
+class _FilesLocalSource implements LocalAssetSource {
+  @override
+  String get name => 'files';
+
+  @override
+  Future<List<LocalAsset>> assets() =>
+      FilesRepository.instance.localCopiesInCloud();
 }

@@ -36,3 +36,6 @@ target_include_directories(crudoc_j2k PRIVATE
 target_link_libraries(crudoc_j2k PRIVATE openjp2)
 target_compile_definitions(crudoc_j2k PRIVATE OPJ_STATIC DART_SHARED_LIB)
 set_target_properties(crudoc_j2k PROPERTIES OUTPUT_NAME "crudoc_j2k")
+if(ANDROID)
+  target_link_options(crudoc_j2k PRIVATE "-Wl,-z,max-page-size=16384")
+endif()

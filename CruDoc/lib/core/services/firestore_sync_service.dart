@@ -288,9 +288,11 @@ class FirestoreSyncService {
     required Iterable<Map<String, Object?>> localRows,
     required Set<String> serverIds,
   }) {
+    // Only rows the server once had: a row still waiting to go up (one the
+    // rules refused included) was never there to lose.
     return {
       for (final row in localRows)
-        if (!serverIds.contains(row['id']) && row['syncStatus'] != 'pending')
+        if (!serverIds.contains(row['id']) && row['syncStatus'] == 'synced')
           row['id']! as String,
     };
   }
@@ -334,11 +336,6 @@ class FirestoreSyncService {
       serverIds: serverIds,
     );
     if (drop.isEmpty) return;
-    // DEBUG (2026-10-22): rows taken off the device after a narrowed answer.
-    debugPrint(
-      '[SyncDebug] $collection: dropping ${drop.length} local rows not in '
-      'the server answer (${serverIds.length}): ${drop.take(8).join(', ')}',
-    );
     for (final id in drop) {
       await db.delete(table, where: 'id = ?', whereArgs: [id]);
     }
@@ -501,6 +498,7 @@ class FirestoreSyncService {
       // permanently.
       const int maxBatchSize = 400;
       final uploaded = <_UploadedRow>[];
+      final batchRows = <Map<String, Object?>>[];
       var currentBatch = _firestore.batch();
       var batchCount = 0;
 
@@ -508,16 +506,15 @@ class FirestoreSyncService {
         if (batchCount == 0) return;
         try {
           await currentBatch.commit();
-        } catch (e) {
-          // DEBUG (2026-10-22): which table and rows the rules refuse.
-          debugPrint(
-            '[SyncDebug] $collection: batch of $batchCount refused: $e · '
-            'ids ${uploaded.take(8).map((r) => r.id).join(', ')}',
-          );
-          rethrow;
+          await _markRowsSynced(collection, uploaded.toList());
+        } on FirebaseException catch (e) {
+          if (e.code != 'permission-denied') rethrow;
+          // One row the rules refuse fails the whole batch, and with it every
+          // other row of the table on every pass. Send them one at a time.
+          await _uploadRowsOneByOne(collection, batchRows.toList(), doctorId);
         }
-        await _markRowsSynced(collection, uploaded.toList());
         uploaded.clear();
+        batchRows.clear();
         currentBatch = _firestore.batch();
         batchCount = 0;
       }
@@ -530,6 +527,7 @@ class FirestoreSyncService {
         // wrong account.
         final rowDoctorId = row['doctorId'] as String?;
         if (rowDoctorId != null && rowDoctorId != doctorId) continue;
+        if (_refusedThisRun.contains('$collection/$id')) continue;
 
         final ref = _firestore.collection(collection).doc(id);
         final pendingDelete = row['pendingDelete'] == 1;
@@ -544,6 +542,7 @@ class FirestoreSyncService {
           );
         }
         uploaded.add(_UploadedRow.of(row));
+        batchRows.add(row);
         batchCount++;
 
         if (batchCount >= maxBatchSize) {
@@ -556,6 +555,48 @@ class FirestoreSyncService {
 
     // ── visits table → appointments / visitations Firestore collections ──────
     await _uploadPendingVisits(db, doctorId);
+  }
+
+  /// Rows the rules refused on their own this run, as "collection/id".
+  /// They stay pending on this device (so nothing drops them) and are tried
+  /// again, one by one, the next time the app starts.
+  final Set<String> _refusedThisRun = {};
+
+  /// Uploads [rows] of [collection] one by one after their batch was
+  /// refused. A row the rules refuse on its own (a clinic-wide radiology
+  /// phrase a scoped doctor may not write, a record whose patient they
+  /// cannot reach) is skipped for the rest of this run.
+  Future<void> _uploadRowsOneByOne(
+    String collection,
+    List<Map<String, Object?>> rows,
+    String doctorId,
+  ) async {
+    var refused = 0;
+    for (final row in rows) {
+      final id = row['id'] as String;
+      final ref = _firestore.collection(collection).doc(id);
+      try {
+        if (row['pendingDelete'] == 1) {
+          await ref.delete();
+        } else {
+          await ref.set(
+            _firestoreDataFor(collection, row, doctorId),
+            SetOptions(merge: true),
+          );
+        }
+        await _markRowsSynced(collection, [_UploadedRow.of(row)]);
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') rethrow;
+        refused++;
+        _refusedThisRun.add('$collection/$id');
+      }
+    }
+    if (refused > 0) {
+      debugPrint(
+        'Sync: $refused of ${rows.length} $collection rows refused by the '
+        'rules; kept on this device, tried again next start.',
+      );
+    }
   }
 
   /// Uploads pending rows from the `visits` SQLite table, routing each row

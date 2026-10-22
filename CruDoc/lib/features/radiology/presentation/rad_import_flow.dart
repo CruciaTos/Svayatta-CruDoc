@@ -353,14 +353,19 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       for (final p in patients) {
         if (p.id == e.patientId) _patient = p;
       }
-    } else if (_isImport) {
+    } else if (_isImport && mounted) {
+      // Redrawn, so the choice shown is the one that will be saved: before,
+      // the screen kept showing "Don't link" while the save linked the
+      // match, or quietly created a new patient.
       final matches = _matches(patients);
-      if (matches.isNotEmpty) {
-        _patient = matches.first;
-        _link = _PatientLink.existing;
-      } else if (_name.text.trim().isNotEmpty) {
-        _link = _PatientLink.create;
-      }
+      setState(() {
+        if (matches.isNotEmpty) {
+          _patient = matches.first;
+          _link = _PatientLink.existing;
+        } else if (_name.text.trim().isNotEmpty) {
+          _link = _PatientLink.create;
+        }
+      });
     }
     final referrers = await ref.read(radReferrersProvider.future);
     final byId = {for (final r in referrers) r.id: r};

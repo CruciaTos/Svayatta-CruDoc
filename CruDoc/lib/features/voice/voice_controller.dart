@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
 import 'package:doctor_management_app/features/appointments/presentation/reschedule_visit_dialog.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
@@ -18,6 +19,11 @@ import 'package:doctor_management_app/features/inventory/domain/inventory_models
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
+import 'package:doctor_management_app/features/files/data/files_providers.dart';
+import 'package:doctor_management_app/features/files/domain/files_models.dart';
+import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/post_campaign_modal.dart';
+import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_actions.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
@@ -30,6 +36,9 @@ import 'package:doctor_management_app/features/queue/data/provider/queue_provide
 import 'package:doctor_management_app/features/queue/data/repo/queue_repository.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_view_providers.dart';
 import 'package:doctor_management_app/features/revenue/domain/revenue_models.dart';
+import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
@@ -42,6 +51,8 @@ import 'forms/voice_form_filler.dart';
 import 'forms/voice_form_scan.dart';
 import 'presentation/voice_dialog_hook.dart';
 import 'services/speech_engine.dart';
+import 'services/voice_form_ai.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// One answer the pill offers: said or tapped.
@@ -219,6 +230,13 @@ class VoiceController {
   Future<void> onTranscript(VoiceTranscript t) async {
     // A consultation the scribe is writing down, not a command.
     if (t.dictation) return;
+    // An inventory item, payment or invoice form: everything said goes
+    // into it, read once the doctor stops.
+    final form = _fieldsForm;
+    if (form != null) {
+      await _onFieldsTranscript(form, t);
+      return;
+    }
     if (t.source == 'fast') {
       await _onFastTranscript(t);
     } else {
@@ -356,6 +374,7 @@ class VoiceController {
   /// High-precision field values (name, phone, date, time, reason) and final saving.
   Future<void> _onAccurateTranscript(VoiceTranscript t) async {
     final cmd = VoiceCommand.parse(t.text, DateTime.now());
+    _finalText = t.isFinal ? t.text : null;
 
     // "Stop listening" turns hands-free off.
     if (RegExp(
@@ -621,6 +640,233 @@ class VoiceController {
     if (_open != null) _confirm();
   }
 
+  // ── Careful reading ──────────────────────────────────────────────────
+
+  final _ai = VoiceFormAi.instance;
+
+  /// The careful reading of the last utterance, while it runs. Saving
+  /// waits for it, so "…and confirm" saves the corrected values.
+  Future<void>? _reading;
+  int _readingId = 0;
+
+  /// The accurate final words of the utterance being handled.
+  String? _finalText;
+
+  /// Reads [text] for the open patient or appointment form and sends the
+  /// result as a corrected fill. [rule] is what the keyword rules made of
+  /// it; Gemini's values win, the rules' fill the gaps, and if Gemini
+  /// can't answer the rules' fill is re-sent as final.
+  void _readCarefully(VoiceCommand rule, String text) {
+    final open = _open;
+    final form = switch (open) {
+      VoiceIntent.addPatient || VoiceIntent.editPatient => VoiceForm.patient,
+      VoiceIntent.addAppointment ||
+      VoiceIntent.reschedule => VoiceForm.appointment,
+      _ => null,
+    };
+    if (open == null || form == null || text.trim().isEmpty) return;
+    final id = ++_readingId;
+    final run = () async {
+      final ai = await _ai.read(
+        form,
+        text,
+        now: DateTime.now(),
+        current: VoiceBus.formValues?.call() ?? const {},
+      );
+      if (id != _readingId || _open != open) return;
+      final cmd = ai == null ? rule : _withAi(rule, ai, form);
+      _fill(cmd, isFinal: true, rawText: text, corrected: true);
+    }();
+    _reading = run.whenComplete(() {
+      if (id == _readingId) _reading = null;
+    });
+  }
+
+  /// [rule] with Gemini's reading laid over it.
+  VoiceCommand _withAi(
+    VoiceCommand rule,
+    Map<String, dynamic> ai,
+    VoiceForm form,
+  ) {
+    final patient = form == VoiceForm.patient;
+    final time = AiValue.time(ai['time']);
+    final first = AiValue.str(ai['firstName']);
+    final last = AiValue.str(ai['lastName']);
+    return VoiceCommand(
+      intent: rule.intent,
+      // Left-over words are only a name when Gemini found none: "her
+      // phone is…" mustn't rename anyone.
+      name: patient ? '' : rule.name,
+      corrected: rule.corrected,
+      confirmAtEnd: rule.confirmAtEnd,
+      otherNames: rule.otherNames,
+      firstName: patient ? first : rule.firstName,
+      lastName: patient ? last : rule.lastName,
+      date: AiValue.date(ai['date']) ?? rule.date,
+      time: time == null
+          ? rule.time
+          : TimeOfDay(hour: time.$1, minute: time.$2),
+      age: AiValue.integer(ai['age']) ?? rule.age,
+      dateOfBirth: AiValue.date(ai['dateOfBirth']) ?? rule.dateOfBirth,
+      gender: AiValue.str(ai['gender']) ?? rule.gender,
+      phone: _digits(AiValue.str(ai['phone'])) ?? rule.phone,
+      email: AiValue.str(ai['email']) ?? rule.email,
+      conditions: patient ? AiValue.strings(ai['conditions']) : const [],
+      notes: switch (AiValue.str(ai['notes'])) {
+        final n? => n.startsWith('•') ? n : '• $n',
+        null => rule.notes,
+      },
+      balance: AiValue.number(ai['balance']) ?? rule.balance,
+      reason:
+          AiValue.str(ai['reason']) ??
+          rule.reason ??
+          (patient || rule.conditions.isEmpty
+              ? null
+              : rule.conditions.join(', ')),
+      durationMinutes:
+          AiValue.integer(ai['durationMinutes']) ?? rule.durationMinutes,
+      homeVisit: AiValue.boolean(ai['homeVisit']) ?? rule.homeVisit,
+      address: AiValue.str(ai['address']) ?? rule.address,
+      sendWhatsApp: AiValue.boolean(ai['sendWhatsApp']) ?? rule.sendWhatsApp,
+      addToQueue: AiValue.boolean(ai['addToQueue']) ?? rule.addToQueue,
+      slot: time != null ? null : AiValue.str(ai['slot']) ?? rule.slot,
+      phoneEnding: rule.phoneEnding,
+      shiftMinutes: AiValue.integer(ai['shiftMinutes']) ?? rule.shiftMinutes,
+      payment: rule.payment,
+    );
+  }
+
+  static String? _digits(String? phone) {
+    if (phone == null) return null;
+    var d = phone.replaceAll(RegExp(r'\D'), '');
+    if (d.length == 12 && d.startsWith('91')) d = d.substring(2);
+    if (d.length == 11 && d.startsWith('0')) d = d.substring(1);
+    return d.length >= 10 ? d : null;
+  }
+
+  // ── Forms filled by reading: inventory item, payment, invoice ─────────
+
+  static const _fieldsKinds = {'item', 'transaction', 'invoice'};
+
+  VoiceForm? get _fieldsForm {
+    final kind = VoiceBus.openKind.value;
+    return _fieldsKinds.contains(kind) ? VoiceForm.ofKind(kind) : null;
+  }
+
+  Future<void> _onFieldsTranscript(VoiceForm form, VoiceTranscript t) async {
+    // Live words only show that it's listening; the form fills from the
+    // accurate final words.
+    if (!t.isFinal || t.source == 'fast') return;
+    final s = t.text.toLowerCase();
+    if (RegExp(
+      r'\b(stop listening|turn off hands ?free|hands ?free off|go to sleep|stop hands ?free)\b',
+    ).hasMatch(s)) {
+      await SpeechEngine.instance.setHandsFree(false);
+      understood.value = 'Hands-free off';
+      return;
+    }
+    final cmd = VoiceCommand.parse(t.text, DateTime.now());
+    switch (cmd.intent) {
+      case VoiceIntent.confirm:
+        _confirmFields();
+      case VoiceIntent.cancel:
+        VoiceBus.emit(const VoiceCancel());
+        understood.value = null;
+      default:
+        _fillFields(form, t.text, thenSave: cmd.confirmAtEnd);
+    }
+  }
+
+  /// Reads [text] into the [form] on screen (or about to open).
+  void _fillFields(VoiceForm form, String text, {bool thenSave = false}) {
+    final id = ++_readingId;
+    final label = _formLabel(form);
+    understood.value = '$label · reading…';
+    final run = () async {
+      // Opened by this utterance: let it come up, so its lists and
+      // values go along with the words.
+      for (var i = 0; i < 40 && _fieldsForm != form; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      }
+      final ai = await _ai.read(
+        form,
+        text,
+        now: DateTime.now(),
+        current: VoiceBus.formValues?.call() ?? const {},
+        choices: VoiceBus.formChoices?.call() ?? const {},
+      );
+      if (id != _readingId) return;
+      if (ai == null) {
+        understood.value = "$label · couldn't read that, try again or type it";
+        return;
+      }
+      final values = {
+        for (final e in ai.entries)
+          if (_isSaid(e.value)) e.key: e.value,
+      };
+      if (values.isEmpty) {
+        understood.value = '$label · no details heard';
+        return;
+      }
+      VoiceBus.emit(VoiceFields(values));
+      understood.value = [label, ..._summary(values)].join(' · ');
+      if (thenSave) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        _reading = null;
+        _confirmFields();
+      }
+    }();
+    _reading = run.whenComplete(() {
+      if (id == _readingId) _reading = null;
+    });
+  }
+
+  static bool _isSaid(Object? v) => switch (v) {
+    null => false,
+    String() => v.trim().isNotEmpty && v.trim().toLowerCase() != 'null',
+    List() => v.isNotEmpty,
+    _ => true,
+  };
+
+  void _confirmFields() {
+    final reading = _reading;
+    if (reading != null) {
+      understood.value = 'Saving after reading…';
+      unawaited(reading.then((_) => _confirmFields()));
+      return;
+    }
+    if (_fieldsForm == null) return;
+    if (VoiceBus.missing.value.isNotEmpty) {
+      understood.value =
+          "Can't save yet · say the ${VoiceBus.missing.value.join(', ')}";
+      return;
+    }
+    understood.value = 'Saving…';
+    VoiceBus.emit(const VoiceConfirm());
+  }
+
+  static String _formLabel(VoiceForm form) => switch (form) {
+    VoiceForm.item => 'Add item',
+    VoiceForm.transaction => 'Payment',
+    VoiceForm.invoice => 'Invoice',
+    VoiceForm.patient => 'Patient',
+    VoiceForm.appointment => 'Appointment',
+  };
+
+  static const _money = {'amount', 'unitPrice', 'discount'};
+
+  /// "Paracetamol 500mg · 100 · ₹2", for the strip.
+  static List<String> _summary(Map<String, dynamic> values) => [
+    for (final MapEntry(:key, :value) in values.entries)
+      switch (value) {
+        List() => '${value.length} $key',
+        num() when _money.contains(key) =>
+          '₹${value % 1 == 0 ? value.toInt() : value}',
+        num() => key == 'stock' ? '$value in stock' : '$key $value',
+        _ => '$value',
+      },
+  ];
+
   /// Returns whether a form was opened.
   Future<bool> _withPatient(
     VoiceCommand cmd,
@@ -682,6 +928,14 @@ class VoiceController {
       };
       if (focus != null && quick.contains(intent)) {
         return _actOn(cmd, intent, focus, isFinal);
+      }
+      // "New appointment", "book an appointment" with nobody named: the
+      // same booking as the New appointment button, starting with who.
+      if (intent == VoiceIntent.addAppointment && isFinal) {
+        _acted = true;
+        understood.value = 'New appointment';
+        unawaited(ApptActions.newAppointment(_context(), _ref, day: cmd.date));
+        return false;
       }
       understood.value = '$label…';
       return false;
@@ -1846,9 +2100,24 @@ class VoiceController {
     // "Open the last patient" is a patient, not the Patients screen.
     if (_patientRef(t.text) != null) return false;
     if (forms.contains(cmd.intent)) return false;
-    // A patient's name wins: "open Rahul Patel", "show Priya's file".
-    if (cmd.name.isNotEmpty && matchPatient(cmd.name, _patients).isSure) {
+    // "Paid 500", "record payment of 500 from Rahul": the quick payment.
+    if (cmd.intent == VoiceIntent.recordPayment &&
+        (cmd.name.isNotEmpty || _focus != null)) {
       return false;
+    }
+    final action = result is NavScreen
+        ? result.target.spots.where(isActionSpot).firstOrNull
+        : null;
+    // A patient's name wins: "open Rahul Patel", "show Priya's file". The
+    // forms that take a patient get them instead ("record payment for
+    // Rahul", "upload Priya's x-ray").
+    Patient? who;
+    if (cmd.name.isNotEmpty) {
+      final m = matchPatient(cmd.name, _patients);
+      if (m.isSure) {
+        if (!_patientActions.contains(action)) return false;
+        who = m.best;
+      }
     }
     switch (result) {
       case NavNone():
@@ -1870,6 +2139,7 @@ class VoiceController {
         understood.value =
             'Try: "book Rahul tomorrow at 5 and confirm" · "add patient…" · '
             '"move Priya to Friday" · "open Rahul" · "show low stock" · '
+            '"record payment" · "add item" · "new invoice" · '
             '"who owes me money?" · "dark mode" · "who\'s next?"';
         return true;
       case NavBack():
@@ -1879,15 +2149,87 @@ class VoiceController {
         if (t.isFinal) unawaited(_answer(result));
         return true;
       case NavScreen(:final target):
+        // A form waits for the last word: "record payment" may still go
+        // on "…for Rahul".
+        if (action != null && !t.isFinal) {
+          understood.value = '${_spotLabel(action)}…';
+          return true;
+        }
         if (!target.sameAs(_navNow)) {
           _navNow = target;
-          _navigate(target);
+          _navigate(target, who: who, amount: cmd.payment);
+          // "Add Paracetamol 500mg, 100 tablets": the details go into the
+          // form that just opened.
+          final form = _actionForms[action];
+          if (form != null && _hasDetails(t.text, action!)) {
+            _fillFields(form, t.text, thenSave: cmd.confirmAtEnd);
+          }
         }
         return true;
     }
   }
 
-  void _navigate(NavTarget target) {
+  static const _actionForms = {
+    'action.addItem': VoiceForm.item,
+    'action.recordPayment': VoiceForm.transaction,
+    'action.recordExpense': VoiceForm.transaction,
+    'action.newInvoice': VoiceForm.invoice,
+  };
+
+  /// Whether [text] says more than the command that opens [spot]'s form.
+  static bool _hasDetails(String text, String spot) {
+    final command = {
+      for (final s in voiceSpots)
+        if (s.id == spot)
+          for (final p in s.phrases) ...p.split(' '),
+    };
+    const glue = {
+      'a',
+      'an',
+      'the',
+      'new',
+      'to',
+      'in',
+      'into',
+      'for',
+      'my',
+      'please',
+      'and',
+      'now',
+      'inventory',
+      'stock',
+      'open',
+      'show',
+      'can',
+      'you',
+      'i',
+      'want',
+      'need',
+      'let',
+      'us',
+      'lets',
+      'one',
+      'some',
+    };
+    return tokenize(text).any(
+      (w) =>
+          !command.contains(w) &&
+          !command.contains('${w}s') &&
+          !glue.contains(w),
+    );
+  }
+
+  /// Action spots whose form takes the patient said.
+  static const _patientActions = {
+    'action.recordPayment',
+    'action.newInvoice',
+    'action.addFiles',
+  };
+
+  static String? _spotLabel(String id) =>
+      voiceSpots.where((s) => s.id == id).firstOrNull?.label;
+
+  void _navigate(NavTarget target, {Patient? who, double? amount}) {
     final tab = target.tab;
     String? name;
     if (tab != null) {
@@ -1912,7 +2254,10 @@ class VoiceController {
       if (target.date != null) appts.goTo(target.date!);
       name = tab == DesktopTab.queue ? 'Queue' : DesktopTab.label(tab);
     }
-    final spots = [for (final id in target.spots) ?_applySpot(id)];
+    final spots = [
+      for (final id in target.spots) ?_applySpot(id, who: who, amount: amount),
+    ];
+    if (who != null) spots.add(who.fullName);
 
     understood.value = [
       ?name,
@@ -1951,7 +2296,7 @@ class VoiceController {
   }
 
   /// Opens one in-screen spot; returns its name for the pill.
-  String? _applySpot(String id) {
+  String? _applySpot(String id, {Patient? who, double? amount}) {
     void section(SettingsSection s) =>
         _ref.read(settingsSectionProvider.notifier).state = s;
     void theme(AppearanceMode m) =>
@@ -2037,8 +2382,50 @@ class VoiceController {
         patientFilter(PatientFilter.all);
       case 'action.newVisit':
         unawaited(DashboardActions.newVisit(_context()));
+      case 'action.recordPayment':
+        unawaited(
+          showDesktopAddTransactionDialog(
+            _context(),
+            initialKind: TransactionKind.income,
+            initialPayer: who?.fullName,
+            initialAmount: amount,
+          ),
+        );
+      case 'action.recordExpense':
+        unawaited(
+          showDesktopAddTransactionDialog(
+            _context(),
+            initialKind: TransactionKind.expense,
+            initialAmount: amount,
+          ),
+        );
+      case 'action.newInvoice':
+        revenue.setTab(RevenueTab.invoices);
+        unawaited(
+          showDesktopCreateInvoiceDialog(_context(), initialPatient: who),
+        );
+      case 'action.addItem':
+        inventory.setTab(InventoryTab.items);
+        unawaited(InventoryActions.addItem(_context(), _ref));
+      case 'action.newCampaign':
+        unawaited(PostCampaignModal.show(_context()));
+      case 'action.addFiles' || 'action.newFolder':
+        if (!_ref.read(clinicCanProvider(ClinicPermission.clinicalEdit))) {
+          return "You can't add files";
+        }
+        final files = _ref.read(filesControllerProvider);
+        final folder = files.tab == FilesTab.folders ? files.folderId : '';
+        unawaited(
+          id == 'action.newFolder'
+              ? FilesActions.newFolder(_context(), parentId: folder)
+              : FilesActions.pickAndAdd(
+                  _context(),
+                  patientId: who?.id ?? files.patientId,
+                  folderId: folder,
+                ),
+        );
     }
-    return voiceSpots.where((s) => s.id == id).firstOrNull?.label;
+    return _spotLabel(id);
   }
 
   /// "Find Sharma" with several Sharmas: the Patients list, searched.
@@ -2395,7 +2782,12 @@ class VoiceController {
   }
 
   /// Sends what was heard to the open form and updates the strip.
-  void _fill(VoiceCommand cmd, {bool isFinal = false, String? rawText}) {
+  void _fill(
+    VoiceCommand cmd, {
+    bool isFinal = false,
+    String? rawText,
+    bool corrected = false,
+  }) {
     final open = _open!;
     var date = cmd.date;
     var time = cmd.time;
@@ -2512,8 +2904,12 @@ class VoiceController {
         sendWhatsApp: cmd.sendWhatsApp,
         addToQueue: cmd.addToQueue,
         others: others,
+        corrected: corrected,
       ),
     );
+    // Once the doctor stops, read the whole sentence again, carefully.
+    final words = rawText ?? _finalText;
+    if (isFinal && !corrected && words != null) _readCarefully(cmd, words);
 
     // The strip: who, when, then what this utterance just added.
     final dupes = open == VoiceIntent.addPatient && _newName != null
@@ -2566,6 +2962,10 @@ class VoiceController {
   /// Confirms the active form or action (called when doctor says "confirm"
   /// or presses the Enter key).
   void confirm() {
+    if (_fieldsForm != null) {
+      _confirmFields();
+      return;
+    }
     final kind = VoiceBus.openKind.value;
     if (_open == null && kind != null) _adopt(kind);
     if (_open != null) {
@@ -2574,6 +2974,16 @@ class VoiceController {
   }
 
   void _confirm() {
+    final reading = _reading;
+    if (reading != null) {
+      understood.value = 'Checking what was said…';
+      unawaited(
+        reading.then((_) {
+          if (_open != null) _confirm();
+        }),
+      );
+      return;
+    }
     if (VoiceBus.missing.value.isNotEmpty) {
       _onRefused();
       return;
@@ -2591,7 +3001,7 @@ class VoiceController {
 
   void _onMissing() {
     final missing = VoiceBus.missing.value;
-    hint.value = _open == null || missing.isEmpty
+    hint.value = (_open == null && _fieldsForm == null) || missing.isEmpty
         ? null
         : 'Still need: ${missing.join(', ')}';
     _updateReady();

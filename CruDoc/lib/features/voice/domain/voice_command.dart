@@ -1564,11 +1564,30 @@ class _Parser {
     for (final c in detected) {
       _addCondition(c);
     }
+    // "Sneha Kulkarni, she has migraine": the condition isn't part of the
+    // name.
+    final words = {
+      for (final c in detected) ...c.toLowerCase().split(RegExp(r'[^a-z]+')),
+    }..remove('');
+    for (var i = 0; i < t.length; i++) {
+      if (!_used.contains(i) && words.contains(t[i])) _used.add(i);
+    }
   }
 
   /// A known procedure ("…for a root canal") when no reason was cued.
   void _procedureReason() {
     if (_reason != null) return;
+    // "…for follow up": the reason, not the end of the name.
+    for (var k = 0; k + 1 < t.length; k++) {
+      if (t[k] == 'follow' &&
+          t[k + 1] == 'up' &&
+          !_used.contains(k) &&
+          !_used.contains(k + 1)) {
+        _reason = 'Follow-up';
+        _used.addAll([k, k + 1]);
+        return;
+      }
+    }
     for (var k = 0; k < t.length; k++) {
       if (_used.contains(k) || !_procedures.contains(t[k])) continue;
       var s = k, e = k;

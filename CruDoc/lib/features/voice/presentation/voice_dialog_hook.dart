@@ -33,10 +33,15 @@ class VoiceFill extends VoiceEvent {
     this.addToQueue,
     this.others = const [],
     this.isFinal = false,
+    this.corrected = false,
   });
 
   final String? rawText;
   final bool isFinal;
+
+  /// The careful reading of the whole utterance, sent after the live
+  /// ones: its [conditions] replace the ones this utterance added.
+  final bool corrected;
 
   final DateTime? date;
   final TimeOfDay? time;
@@ -68,6 +73,15 @@ class VoiceFill extends VoiceEvent {
   final List<Patient> others;
 }
 
+/// Field values for the forms keyword rules don't know (inventory item,
+/// payment, invoice), keyed by the names in [VoiceFormAi]'s schemas.
+/// Missing keys and nulls mean "not said".
+class VoiceFields extends VoiceEvent {
+  const VoiceFields(this.values);
+
+  final Map<String, dynamic> values;
+}
+
 class VoiceConfirm extends VoiceEvent {
   const VoiceConfirm();
 }
@@ -84,13 +98,21 @@ abstract final class VoiceBus {
   /// heard still gets it. Cleared when the voice-opened form closes.
   static VoiceFill? last;
 
+  /// The same for [VoiceFields].
+  static VoiceFields? lastFields;
+
+  /// The open form's current values and its preset lists, so a reading
+  /// of "make it 50" knows what "it" is.
+  static Map<String, Object?> Function()? formValues;
+  static Map<String, List<String>> Function()? formChoices;
+
   /// Required fields the open form is still missing, as the form sees
   /// them (including anything typed by hand).
   static final missing = ValueNotifier<List<String>>(const []);
 
   /// The voice-ready form on screen, however it was opened: 'addPatient',
-  /// 'editPatient', 'appointment' or 'reschedule'. Lets voice fill forms
-  /// the doctor opened by hand.
+  /// 'editPatient', 'appointment', 'reschedule', 'item', 'transaction' or
+  /// 'invoice'. Lets voice fill forms the doctor opened by hand.
   static final openKind = ValueNotifier<String?>(null);
 
   /// A voice-driven form is on screen and has taken the pending fill.
@@ -105,6 +127,7 @@ abstract final class VoiceBus {
 
   static void emit(VoiceEvent e) {
     if (e is VoiceFill && e.isFinal) last = e;
+    if (e is VoiceFields) lastFields = e;
     _events.add(e);
   }
 }
@@ -125,8 +148,18 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
   StreamSubscription<VoiceEvent>? _voiceSub;
   final Object _voiceToken = Object();
 
-  void onVoiceFill(VoiceFill fill);
+  void onVoiceFill(VoiceFill fill) {}
+
+  /// For forms filled by [VoiceFields] rather than [VoiceFill].
+  void onVoiceFields(Map<String, dynamic> values) {}
   void onVoiceConfirm();
+
+  /// What the form holds now, by [VoiceFields] key.
+  Map<String, Object?> voiceValues() => const {};
+
+  /// The form's preset lists ("categories": [...]), so a reading picks
+  /// one of them.
+  Map<String, List<String>> voiceChoices() => const {};
 
   /// Closes without the "Discard changes?" question: the doctor already
   /// said "cancel".
@@ -140,6 +173,17 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
 
   void _publishMissing() => VoiceBus.missing.value = voiceMissing();
 
+  /// The pending fields replayed on open and the same event arriving
+  /// live are one reading: apply it once (an invoice would get its
+  /// treatments twice).
+  VoiceFields? _appliedFields;
+
+  void _applyFields(VoiceFields e) {
+    if (identical(e, _appliedFields)) return;
+    _appliedFields = e;
+    onVoiceFields(e.values);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -149,6 +193,9 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
       switch (e) {
         case VoiceFill():
           onVoiceFill(e);
+          _publishMissing();
+        case VoiceFields():
+          _applyFields(e);
           _publishMissing();
         case VoiceConfirm():
           _publishMissing();
@@ -161,10 +208,14 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
           onVoiceCancel();
       }
     });
+    VoiceBus.formValues = voiceValues;
+    VoiceBus.formChoices = voiceChoices;
     final pending = VoiceBus.last;
+    final pendingFields = VoiceBus.lastFields;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (pending != null) onVoiceFill(pending);
+      if (pendingFields != null) _applyFields(pendingFields);
       _publishMissing();
       VoiceBus.formReady.value = true;
       VoiceBus.openKind.value = voiceKind;
@@ -177,6 +228,9 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!identical(VoiceBus._activeFormToken, _voiceToken)) return;
       VoiceBus._activeFormToken = null;
+      VoiceBus.lastFields = null;
+      VoiceBus.formValues = null;
+      VoiceBus.formChoices = null;
       VoiceBus.missing.value = const [];
       VoiceBus.formReady.value = false;
       VoiceBus.openKind.value = null;

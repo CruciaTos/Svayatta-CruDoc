@@ -26,6 +26,7 @@ class _FakeGemini extends GeminiJsonClient {
     String mimeType = 'audio/mp4',
     int maxOutputTokens = 8192,
     Duration timeout = const Duration(seconds: 60),
+    bool quick = false,
   }) async {
     calls++;
     lastPrompt = prompt;

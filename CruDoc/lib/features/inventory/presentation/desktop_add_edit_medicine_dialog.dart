@@ -19,6 +19,8 @@ import 'package:doctor_management_app/features/inventory/presentation/widgets/in
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
+import 'package:doctor_management_app/features/voice/services/voice_form_ai.dart';
 
 /// Opens the desktop Add/Edit Medicine form.
 ///
@@ -60,7 +62,8 @@ class DesktopAddEditMedicineDialog extends StatefulWidget {
 }
 
 class _DesktopAddEditMedicineDialogState
-    extends State<DesktopAddEditMedicineDialog> {
+    extends State<DesktopAddEditMedicineDialog>
+    with VoiceDialogHook<DesktopAddEditMedicineDialog> {
   static const _categoryPresets = [
     'Antibiotic',
     'Analgesic',
@@ -335,6 +338,73 @@ class _DesktopAddEditMedicineDialogState
       }
     }
   }
+
+  // ── Voice ─────────────────────────────────────────────────────────────
+
+  @override
+  String get voiceKind => 'item';
+
+  @override
+  Map<String, Object?> voiceValues() => {
+    'name': _name.text.trim(),
+    'category': _category.text.trim(),
+    'unit': _unit.text.trim(),
+    'stock': int.tryParse(_stock.text.trim()),
+    'reorderLevel': int.tryParse(_threshold.text.trim()),
+    'goodStockLevel': int.tryParse(_good.text.trim()),
+    'unitPrice': double.tryParse(_price.text.trim()),
+    'supplier': _supplier.text.trim(),
+    'batch': _batch.text.trim(),
+    'expiryDate': _expiryDate,
+  };
+
+  @override
+  Map<String, List<String>> voiceChoices() => {
+    'categories': _categories,
+    'units': _units,
+  };
+
+  @override
+  void onVoiceFields(Map<String, dynamic> v) {
+    String count(int n) => '${n < 0 ? 0 : n}';
+    setState(() {
+      if (AiValue.str(v['name']) case final name?) _name.text = name;
+      if (AiValue.str(v['category']) case final c?) {
+        _category.text = AiValue.pick(c, _categoryPresets);
+      }
+      if (AiValue.str(v['unit']) case final u?) {
+        _unit.text = AiValue.pick(u, _unitPresets);
+      }
+      if (AiValue.integer(v['stock']) case final n?) _stock.text = count(n);
+      if (AiValue.integer(v['reorderLevel']) case final n?) {
+        _threshold.text = count(n);
+      }
+      if (AiValue.integer(v['goodStockLevel']) case final n?) {
+        _good.text = count(n);
+      }
+      if (AiValue.number(v['unitPrice']) case final p? when p >= 0) {
+        _price.text = p == p.roundToDouble()
+            ? p.toStringAsFixed(0)
+            : p.toStringAsFixed(2);
+      }
+      if (AiValue.str(v['supplier']) case final s?) _supplier.text = s;
+      if (AiValue.str(v['batch']) case final b?) {
+        _batch.text = b.toUpperCase();
+      }
+      if (AiValue.date(v['expiryDate']) case final d?) _expiryDate = d;
+      _dirty = true;
+      _notice = null;
+    });
+  }
+
+  @override
+  List<String> voiceMissing() => [
+    if (_name.text.trim().isEmpty) 'name',
+    if (_unit.text.trim().isEmpty) 'unit',
+  ];
+
+  @override
+  void onVoiceConfirm() => _save();
 
   String? _required(String? v, String message) =>
       (v == null || v.trim().isEmpty) ? message : null;

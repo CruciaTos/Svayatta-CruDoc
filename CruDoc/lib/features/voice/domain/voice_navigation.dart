@@ -101,10 +101,15 @@ const voiceSpots = <VoiceSpot>[
     'all items',
     'item list',
   ]),
+  // Inventory's "New order" button opens this tab: the reorder queue.
   VoiceSpot('inventory.orders', DesktopTab.inventory, 'Orders', [
     'orders',
     'purchase orders',
     'reorders',
+    'new order',
+    'create order',
+    'place order',
+    'make order',
   ]),
   VoiceSpot('inventory.vendors', DesktopTab.inventory, 'Vendors', [
     'vendors',
@@ -187,7 +192,78 @@ const voiceSpots = <VoiceSpot>[
     'walk in',
     'check in a patient',
   ]),
+  // The buttons in screen headers: they open the same forms.
+  VoiceSpot('action.recordPayment', DesktopTab.revenue, 'Record payment', [
+    'record payment',
+    'add payment',
+    'new payment',
+    'log payment',
+    'enter payment',
+    'take payment',
+    'receive payment',
+    'record income',
+    'add income',
+  ]),
+  VoiceSpot('action.recordExpense', DesktopTab.revenue, 'Record expense', [
+    'record expense',
+    'add expense',
+    'new expense',
+    'log expense',
+    'enter expense',
+    'record spending',
+  ]),
+  VoiceSpot('action.newInvoice', DesktopTab.revenue, 'New invoice', [
+    'new invoice',
+    'create invoice',
+    'make invoice',
+    'add invoice',
+    'generate invoice',
+    'raise invoice',
+    'new bill',
+    'create bill',
+    'make bill',
+    'generate bill',
+  ]),
+  VoiceSpot('action.addItem', DesktopTab.inventory, 'Add item', [
+    'add item',
+    'new item',
+    'create item',
+    'add inventory item',
+    'add to inventory',
+    'add medicine',
+    'new medicine',
+    'add product',
+    'new product',
+  ]),
+  VoiceSpot('action.newCampaign', DesktopTab.campaigns, 'New campaign', [
+    'new campaign',
+    'create campaign',
+    'start campaign',
+    'post campaign',
+    'launch campaign',
+    'new broadcast',
+  ]),
+  VoiceSpot('action.addFiles', DesktopTab.files, 'Add files', [
+    'add file',
+    'upload',
+    'upload file',
+    'attach file',
+    'add document',
+    'upload document',
+    'add x ray',
+    'upload x ray',
+    'upload report',
+  ]),
+  VoiceSpot('action.newFolder', DesktopTab.files, 'New folder', [
+    'new folder',
+    'create folder',
+    'make folder',
+    'add folder',
+  ]),
 ];
+
+/// Spots that open a form rather than show a place.
+bool isActionSpot(String id) => id.startsWith('action.');
 
 /// Everyday descriptions, only for the meaning-matcher: what a doctor
 /// might say instead of a screen's name.
@@ -328,7 +404,21 @@ const _synonyms = <int, List<String>>{
     'waiting patients',
   ],
   DesktopTab.patients: ['patients', 'patient list', 'all patients'],
-  DesktopTab.inventory: ['inventory', 'stock', 'supplies', 'store'],
+  DesktopTab.files: [
+    'files',
+    'documents',
+    'attachments',
+    'folders',
+    'x rays',
+    'xrays',
+  ],
+  DesktopTab.inventory: [
+    'inventory',
+    'stock',
+    'supplies',
+    'store',
+    'medicines',
+  ],
   DesktopTab.revenue: [
     'revenue',
     'payments',
@@ -413,6 +503,25 @@ const _actionWords = {
   'cancel',
 };
 
+/// Small words a spot's phrase may have between its words.
+const _fillers = {
+  'a',
+  'an',
+  'the',
+  'new',
+  'one',
+  'some',
+  'my',
+  'this',
+  'that',
+  'another',
+  'please',
+};
+
+/// "2000", "₹500" spoken as digits: an amount between a command's words.
+bool _isNumber(String w) =>
+    RegExp(r'^\d+$').hasMatch(w) || w == 'rupee' || w == 'rs';
+
 String _singular(String w) =>
     w.length > 3 && w.endsWith('s') && !w.endsWith('ss')
     ? w.substring(0, w.length - 1)
@@ -457,15 +566,18 @@ List<({String id, List<String> phrases})> semanticOptions(
         id: 'tab:${DesktopTab.queue}',
         phrases: [..._synonyms[DesktopTab.queue]!, ...extra('tab:7')],
       ),
+    // A near-guess shouldn't open a form; only the check-in is that
+    // familiar.
     for (final s in visibleSpots(visible))
-      (
-        id: 'spot:${s.id}',
-        phrases: [
-          s.label.toLowerCase(),
-          ...s.phrases,
-          ...extra('spot:${s.id}'),
-        ],
-      ),
+      if (!isActionSpot(s.id) || s.id == 'action.newVisit')
+        (
+          id: 'spot:${s.id}',
+          phrases: [
+            s.label.toLowerCase(),
+            ...s.phrases,
+            ...extra('spot:${s.id}'),
+          ],
+        ),
   ];
 }
 
@@ -593,14 +705,49 @@ NavResult resolveNavigation(
     }
   }
 
+  // "Add a new item", "record the payment": [ws] in order, with only
+  // small words between.
+  bool loose(List<String> ws) {
+    for (var i = 0; i < t.length; i++) {
+      if (t[i] != ws.first) continue;
+      var j = i + 1;
+      var k = 1;
+      while (k < ws.length && j < t.length) {
+        if (t[j] == ws[k]) {
+          k++;
+        } else if (!_fillers.contains(t[j]) && !_isNumber(t[j])) {
+          break;
+        }
+        j++;
+      }
+      if (k == ws.length) return true;
+    }
+    return false;
+  }
+
   // In-screen spots: sections, tabs, filters, the theme.
   final spots = visibleSpots(visible);
   final spotHits = <(VoiceSpot, int)>[];
   for (final s in spots) {
     for (final p in s.phrases) {
       final w = _words(p);
-      if (seq(w)) {
+      if (loose(w)) {
         spotHits.add((s, w.length));
+        break;
+      }
+    }
+  }
+  // "Add Paracetamol 500mg to the inventory", "put gloves in stock": a new
+  // item, whatever it's called.
+  final addItem = spots.where((s) => s.id == 'action.addItem').firstOrNull;
+  if (addItem != null &&
+      !spotHits.any((h) => isActionSpot(h.$1.id)) &&
+      t.any(const {'add', 'put', 'enter', 'new'}.contains)) {
+    for (var i = 1; i < t.length; i++) {
+      if (t[i] != 'inventory' && t[i] != 'stock') continue;
+      final before = {t[i - 1], if (i > 1) t[i - 2]};
+      if (before.any(const {'to', 'in', 'into'}.contains)) {
+        spotHits.add((addItem, 3));
         break;
       }
     }
@@ -655,7 +802,11 @@ NavResult resolveNavigation(
   if (has('live')) view = ApptsView.live;
   final whatsOn = (has('what') || has('whats')) && cmd.date != null;
 
-  final verb = t.any(_navVerbs.contains);
+  // "Record a payment", "add item": the action's own verb counts.
+  final action = topSpot != null && isActionSpot(topSpot.$1.id)
+      ? topSpot.$1
+      : null;
+  final verb = action != null || t.any(_navVerbs.contains);
   if (tab == null && !themeOnly && (whatsOn || (view != null && verb))) {
     tab = DesktopTab.appointments;
   }
@@ -673,9 +824,15 @@ NavResult resolveNavigation(
   // Without "go to / open / show", only a bare place name counts.
   if (!verb && !whatsOn && t.length > bestLen + 2) return const NavNone();
 
+  // An action opens its form on its screen, and nothing else ("new
+  // invoice" isn't also the Invoices list).
+  if (action != null && action.tab == tab) {
+    return NavScreen(NavTarget(tab: tab, spots: {action.id}));
+  }
+
   final chosen = <String>{
     for (final (s, _) in spotHits)
-      if (s.tab == null || s.tab == tab) s.id,
+      if ((s.tab == null || s.tab == tab) && !isActionSpot(s.id)) s.id,
   };
 
   DateTime? date;

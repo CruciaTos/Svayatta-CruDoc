@@ -343,6 +343,31 @@ class _DesktopAddEditPatientDialogState
         _pendingAge = false;
         _revealAge++;
       }
+      // The careful reading replaces what this utterance's live passes
+      // added ("Sneha, migraine" read as a condition and a name).
+      if (f.corrected) {
+        final keep = {for (final c in f.conditions) c.toLowerCase()};
+        final kept = _conditions
+            .where(
+              (c) =>
+                  !_utteranceConditions.contains(c.toLowerCase()) ||
+                  keep.contains(c.toLowerCase()),
+            )
+            .toList();
+        if (kept.length != _conditions.length) {
+          _conditions = kept;
+          _revealConditions++;
+        }
+        _baseConditions = List.of(_conditions);
+        _utteranceConditions.clear();
+      } else {
+        final had = {for (final c in _conditions) c.toLowerCase()};
+        _utteranceConditions.addAll(
+          f.conditions
+              .map((c) => c.toLowerCase())
+              .where((c) => !had.contains(c)),
+        );
+      }
       if (f.conditions.isNotEmpty) {
         final seen = <String>{};
         final newConds = [..._baseConditions, ...f.conditions]
@@ -395,6 +420,9 @@ class _DesktopAddEditPatientDialogState
 
   /// Notes typed before voice started adding to them.
   String? _voiceNotesBase;
+
+  /// Conditions the current utterance's live passes added, lower case.
+  final _utteranceConditions = <String>{};
 
   @override
   List<String> voiceMissing() => [
@@ -542,10 +570,7 @@ class _DesktopAddEditPatientDialogState
               icon: CruIcons.userPlus,
               tone: CruTileTone.neutral,
             )
-          : CruMonogram(
-              name: name,
-              size: CruSize.iconTile,
-            ),
+          : CruMonogram(name: name, size: CruSize.iconTile),
       submitLabel: _isEditing ? 'Save changes' : 'Add patient',
       onSubmit: _save,
       busy: _saving,

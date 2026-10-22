@@ -216,6 +216,8 @@ def _echoes_prompt(text: str, prompt: str) -> bool:
 COMMAND_TERMS = [
     "add patient", "appointment", "reschedule", "start consultation",
     "call next patient", "mark done", "date of birth", "allergic to",
+    "inventory", "record payment", "expense", "invoice", "tablets",
+    "capsules", "expiry", "batch number",
 ]
 DICTATION_TERMS = [
     "pain score", "range of motion", "physiotherapy", "diagnosis",
@@ -226,6 +228,8 @@ DICTATION_TERMS = [
 def _keyterms(hints: str, mode: str) -> list:
     names = [n.strip()[:64] for n in hints.split(",") if n.strip()]
     terms = DICTATION_TERMS if mode == "dictation" else COMMAND_TERMS
+    # Names first, but never so many that the command words drop off.
+    names = list(dict.fromkeys(names))[: 50 - len(terms)]
     return list(dict.fromkeys(names + terms))[:50]
 
 
@@ -297,7 +301,9 @@ def _prompt(hints: str, mode: str, context: str) -> str:
         "Doctor's voice commands in a clinic app: add patient, book an "
         "appointment, reschedule, move, open, go to schedule, confirm, "
         "cancel, start session, start consultation, call next patient, "
-        "mark done, paid. Date of birth, mobile, email, allergic to."
+        "mark done, paid, record payment, record expense, new invoice, "
+        "add item to inventory, tablets, capsules, expiry, batch. Date of "
+        "birth, mobile, email, allergic to."
         + names
     )
 

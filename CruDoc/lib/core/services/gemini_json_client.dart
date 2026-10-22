@@ -92,7 +92,11 @@ class GeminiJsonClient {
   static const remoteConfigModelKey = 'scribe_gemini_model';
 
   /// GA Flash model for clinical transcription and reasoning.
-  static const fallbackModel = 'gemini-2.5-flash';
+  static const fallbackModel = 'gemini-3.5-flash';
+
+  /// Tried in order when the chosen model is retired or busy.
+  /// (gemini-2.5-flash and 1.5-flash are gone for new keys.)
+  static const _fallbackModels = ['gemini-3.8-flash', 'gemini-3.5-flash'];
 
   static const _restBase =
       'https://generativelanguage.googleapis.com/v1beta/models';
@@ -126,7 +130,8 @@ class GeminiJsonClient {
   /// or non-JSON reply, [GeminiHttpException] for a REST error status, and
   /// passes through Firebase AI, timeout and network exceptions.
   ///
-  /// Without [audioBytes] the request is the [prompt] text alone.
+  /// [audioBytes] null: the prompt alone. [quick]: no thinking on models
+  /// that allow it, for short replies someone is waiting on.
   Future<Map<String, dynamic>> generateJson({
     required String systemPrompt,
     required String prompt,
@@ -135,6 +140,7 @@ class GeminiJsonClient {
     String mimeType = 'audio/mp4',
     int maxOutputTokens = 8192,
     Duration timeout = const Duration(seconds: 60),
+    bool quick = false,
   }) async {
     final model = await modelName();
     final text = usesApiKey
@@ -147,6 +153,7 @@ class GeminiJsonClient {
             schema,
             maxOutputTokens,
             timeout,
+            quick,
           )
         : await _viaFirebase(
             model,
@@ -157,6 +164,7 @@ class GeminiJsonClient {
             schema,
             maxOutputTokens,
             timeout,
+            quick,
           );
 
     if (text.trim().isEmpty) {
@@ -169,6 +177,11 @@ class GeminiJsonClient {
     return decoded;
   }
 
+  /// Flash models (2.5 and later) take a zero thinking budget; Pro models
+  /// can't switch thinking off.
+  static bool _canSkipThinking(String model) =>
+      model.startsWith('gemini-') && model.contains('flash');
+
   Future<String> _viaFirebase(
     String model,
     String systemPrompt,
@@ -178,6 +191,7 @@ class GeminiJsonClient {
     Schema schema,
     int maxOutputTokens,
     Duration timeout,
+    bool quick,
   ) async {
     final generative = FirebaseAI.googleAI().generativeModel(
       model: model,
@@ -187,6 +201,9 @@ class GeminiJsonClient {
         maxOutputTokens: maxOutputTokens,
         responseMimeType: 'application/json',
         responseSchema: schema,
+        thinkingConfig: quick && _canSkipThinking(model)
+            ? ThinkingConfig.withThinkingBudget(0)
+            : null,
       ),
     );
     final response = await generative
@@ -209,14 +226,10 @@ class GeminiJsonClient {
     Schema schema,
     int maxOutputTokens,
     Duration timeout,
+    bool quick,
   ) async {
-    // If the primary model produces a 404, fall back to known alternatives
-    final candidateModels = [
-      model,
-      if (model != 'gemini-2.5-flash') 'gemini-2.5-flash',
-      if (model != 'gemini-1.5-flash') 'gemini-1.5-flash',
-      if (model != 'gemini-3.5-flash') 'gemini-3.5-flash',
-    ];
+    // A retired (404) or busy (429/5xx) model: try the next one.
+    final candidateModels = {model, ..._fallbackModels}.toList();
 
     GeminiHttpException? lastHttpException;
     for (final candidate in candidateModels) {
@@ -253,15 +266,19 @@ class GeminiJsonClient {
                 'maxOutputTokens': maxOutputTokens,
                 'responseMimeType': 'application/json',
                 'responseSchema': schema.toJson(),
+                if (quick && _canSkipThinking(candidate))
+                  'thinkingConfig': {'thinkingBudget': 0},
               },
             }),
           )
           .timeout(timeout);
 
       final raw = utf8.decode(response.bodyBytes, allowMalformed: true);
-      if (response.statusCode == 404 && candidate != candidateModels.last) {
+      final code = response.statusCode;
+      final tryNext = code == 404 || code == 429 || code >= 500;
+      if (tryNext && candidate != candidateModels.last) {
         debugPrint(
-          '[GeminiJsonClient] Model $candidate returned 404, trying fallback...',
+          '[GeminiJsonClient] Model $candidate returned $code, trying fallback...',
         );
         lastHttpException = GeminiHttpException(response.statusCode, raw);
         continue;

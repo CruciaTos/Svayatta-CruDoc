@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +13,9 @@ import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_icons.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/voice/domain/name_matcher.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
+import 'package:doctor_management_app/features/voice/services/voice_form_ai.dart';
 
 /// Opens the desktop Create invoice form.
 Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
@@ -111,8 +116,8 @@ String _rupees(double v) => v == v.roundToDouble()
         decimalDigits: 2,
       ).format(v);
 
-class _DesktopCreateInvoiceDialogState
-    extends State<DesktopCreateInvoiceDialog> {
+class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
+    with VoiceDialogHook<DesktopCreateInvoiceDialog> {
   static const _statuses = ['Paid', 'Pending', 'Overdue'];
 
   final _formKey = GlobalKey<FormState>();
@@ -374,6 +379,118 @@ class _DesktopCreateInvoiceDialogState
     });
     _medicineNameFocus.requestFocus();
   }
+
+  // ── Voice ─────────────────────────────────────────────────────────────
+
+  @override
+  String get voiceKind => 'invoice';
+
+  @override
+  Map<String, Object?> voiceValues() => {
+    'patientName': _patientNameController.text.trim(),
+    'treatments': [
+      for (final t in _treatments) {'name': t.name, 'price': t.price},
+    ],
+    'medicines': [
+      for (final m in _medicines)
+        {'name': m.name, 'dosage': m.dosage, 'price': m.price},
+    ],
+    'discount': _discount == 0 ? null : _discount,
+    'status': _selectedStatus,
+    'dueDate': _dueDate,
+    'notes': _clinicalNotesController.text.trim(),
+  };
+
+  @override
+  void onVoiceFields(Map<String, dynamic> v) {
+    String money(double p) =>
+        p == p.roundToDouble() ? p.toStringAsFixed(0) : p.toStringAsFixed(2);
+    bool listed(
+      Iterable<({String name, double price})> items,
+      String n,
+      double p,
+    ) => items.any(
+      (i) => i.name.toLowerCase() == n.toLowerCase() && i.price == p,
+    );
+    final name = AiValue.str(v['patientName']);
+    setState(() {
+      if (name != null && name != _patientNameController.text.trim()) {
+        _patientNameController.text = name;
+        _selectedPatient = null;
+        _showPatientSuggestions = false;
+      }
+      for (final t in AiValue.objects(v['treatments'])) {
+        final n = AiValue.str(t['name']);
+        final p = AiValue.number(t['price']);
+        if (n == null || p == null || p <= 0) continue;
+        if (listed(
+          _treatments.map((e) => (name: e.name, price: e.price)),
+          n,
+          p,
+        )) {
+          continue;
+        }
+        _treatments.add(_TreatmentItem(name: n, price: p));
+      }
+      for (final m in AiValue.objects(v['medicines'])) {
+        final n = AiValue.str(m['name']);
+        final p = AiValue.number(m['price']);
+        if (n == null || p == null || p <= 0) continue;
+        if (listed(
+          _medicines.map((e) => (name: e.name, price: e.price)),
+          n,
+          p,
+        )) {
+          continue;
+        }
+        _medicines.add(
+          _MedicineItem(
+            name: n,
+            dosage: AiValue.str(m['dosage']) ?? '1 unit',
+            price: p,
+          ),
+        );
+      }
+      if (AiValue.number(v['discount']) case final d? when d >= 0) {
+        _discountController.text = money(d);
+      }
+      if (AiValue.str(v['status']) case final st? when _statuses.contains(st)) {
+        _selectedStatus = st;
+      }
+      if (AiValue.date(v['dueDate']) case final d?) _dueDate = d;
+      if (AiValue.str(v['notes']) case final n?) {
+        _clinicalNotesController.text = n;
+      }
+      _treatmentError = null;
+      _medicineError = null;
+      _dirty = true;
+      _notice = null;
+    });
+    if (name != null) unawaited(_matchSpokenPatient(name));
+  }
+
+  /// "Invoice for Rahul": links the patient when the name is clear.
+  Future<void> _matchSpokenPatient(String name) async {
+    try {
+      final patients = await (_patients ??= _patientRepository
+          .watchPatients()
+          .first);
+      if (!mounted) return;
+      final m = matchPatient(name, patients);
+      if (m.isSure && _patientNameController.text.trim() == name) {
+        _pickPatient(m.best!);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  List<String> voiceMissing() => [
+    if (_patientNameController.text.trim().isEmpty) 'patient',
+    if (_noItems) 'a treatment or medicine with its price',
+  ];
+
+  @override
+  void onVoiceConfirm() => _handleSave();
 
   Future<void> _handleSave() async {
     if (_isSubmitting) return;

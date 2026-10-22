@@ -8,6 +8,8 @@ import 'package:doctor_management_app/features/revenue/domain/revenue_builder.da
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_icons.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
+import 'package:doctor_management_app/features/voice/services/voice_form_ai.dart';
 
 /// Opens the desktop Add Transaction dialog (Record payment, Record
 /// expense or Add pending payment). The optional `initial…` values
@@ -61,7 +63,8 @@ class DesktopAddTransactionDialog extends StatefulWidget {
 }
 
 class _DesktopAddTransactionDialogState
-    extends State<DesktopAddTransactionDialog> {
+    extends State<DesktopAddTransactionDialog>
+    with VoiceDialogHook<DesktopAddTransactionDialog> {
   // Saved as written into the description; shown in sentence case.
   static const List<String> _incomeCategories = [
     'Consultation Fee',
@@ -195,6 +198,78 @@ class _DesktopAddTransactionDialogState
       _notice = null;
     });
   }
+
+  // ── Voice ─────────────────────────────────────────────────────────────
+
+  @override
+  String get voiceKind => 'transaction';
+
+  @override
+  Map<String, Object?> voiceValues() => {
+    'kind': switch (_formType) {
+      _TransactionFormType.income => 'payment',
+      _TransactionFormType.expense => 'expense',
+      _TransactionFormType.pending => 'pending',
+    },
+    'amount': double.tryParse(_amountController.text.trim()),
+    'category': _selectedCategory,
+    'description': _descriptionController.text.trim(),
+    'payer': _payerController.text.trim(),
+    'notes': _notesController.text.trim(),
+    'date': _selectedDate,
+  };
+
+  @override
+  Map<String, List<String>> voiceChoices() => {
+    'payment categories': _incomeCategories,
+    'expense categories': _expenseCategories,
+    'pending categories': _pendingCategories,
+  };
+
+  @override
+  void onVoiceFields(Map<String, dynamic> v) {
+    setState(() {
+      final kind = switch (AiValue.str(v['kind'])) {
+        'payment' => _TransactionFormType.income,
+        'expense' => _TransactionFormType.expense,
+        'pending' => _TransactionFormType.pending,
+        _ => null,
+      };
+      if (kind != null && kind != _formType) {
+        _formType = kind;
+        _selectedCategory = null;
+      }
+      if (AiValue.number(v['amount']) case final a? when a > 0) {
+        _amountController.text = a == a.roundToDouble()
+            ? a.toStringAsFixed(0)
+            : a.toStringAsFixed(2);
+      }
+      if (AiValue.str(v['category']) case final c?) {
+        final picked = AiValue.pick(c, _currentCategories);
+        if (_currentCategories.contains(picked)) _selectedCategory = picked;
+      }
+      final description =
+          AiValue.str(v['description']) ??
+          (_descriptionController.text.trim().isEmpty
+              ? _selectedCategory
+              : null);
+      if (description != null) _descriptionController.text = description;
+      if (AiValue.str(v['payer']) case final p?) _payerController.text = p;
+      if (AiValue.str(v['notes']) case final n?) _notesController.text = n;
+      if (AiValue.date(v['date']) case final d?) _selectedDate = d;
+      _dirty = true;
+      _notice = null;
+    });
+  }
+
+  @override
+  List<String> voiceMissing() => [
+    if ((double.tryParse(_amountController.text.trim()) ?? 0) <= 0) 'amount',
+    if (_descriptionController.text.trim().isEmpty) 'what it was for',
+  ];
+
+  @override
+  void onVoiceConfirm() => _save();
 
   String? _validateAmount(String? v) {
     final t = (v ?? '').trim();

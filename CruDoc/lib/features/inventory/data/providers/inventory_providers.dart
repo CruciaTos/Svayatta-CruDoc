@@ -94,6 +94,16 @@ final expiringMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>((
   );
 });
 
+/// Every batch received from suppliers' bills (purchases), oldest first.
+/// Read again whenever the medicines change: a restock changes stock.
+final stockPurchasesProvider = FutureProvider<List<StockTransactionModel>>((
+  ref,
+) async {
+  final medicines = ref.watch(medicinesStreamProvider);
+  if (!medicines.hasValue) return const <StockTransactionModel>[];
+  return ref.watch(inventoryRepositoryProvider).getPurchases();
+});
+
 /// Family provider for a single medicine's transaction history, newest
 /// first.
 final medicineTransactionsProvider =

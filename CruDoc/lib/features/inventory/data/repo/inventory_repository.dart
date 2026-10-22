@@ -190,12 +190,20 @@ class InventoryRepository {
 
   /// Records a restock/dispense/adjustment/write-off transaction and
   /// applies it to the medicine's current stock atomically.
+  ///
+  /// A restock from a supplier's bill also records the purchase: the
+  /// batch, its expiry, cost per unit, supplier and bill ([billKey]).
   Future<StockTransactionModel> recordTransaction({
     required String medicineId,
     required StockTransactionType type,
     required int quantity,
     String? note,
     String? linkedVisitId,
+    String? batchNumber,
+    DateTime? expiryDate,
+    double? unitCost,
+    String? supplierName,
+    String? billKey,
   }) async {
     if (quantity <= 0) {
       throw const MedicineValidationException('Quantity must be positive.');
@@ -255,6 +263,11 @@ class InventoryRepository {
           note: note,
           linkedVisitId: linkedVisitId,
           createdAt: now,
+          batchNumber: batchNumber,
+          expiryDate: expiryDate,
+          unitCost: unitCost,
+          supplierName: supplierName,
+          billKey: billKey,
         );
 
         final txRef = FirebaseFirestore.instance
@@ -280,11 +293,46 @@ class InventoryRepository {
       note: note,
       linkedVisitId: linkedVisitId,
       createdAt: DateTime.now(),
+      batchNumber: batchNumber,
+      expiryDate: expiryDate,
+      unitCost: unitCost,
+      supplierName: supplierName,
+      billKey: billKey,
     );
 
     final recorded = await _localService.recordTransaction(transaction);
     unawaited(_syncService.triggerPostWriteSync());
     return recorded;
+  }
+
+  /// Purchases of the active medicines (restocks carrying a bill, batch or
+  /// cost), oldest first: the batches received. Only [billKey]'s when
+  /// given, to tell whether a bill is already in the inventory.
+  Future<List<StockTransactionModel>> getPurchases({String? billKey}) async {
+    if (kIsWeb) {
+      var query = FirebaseFirestore.instance
+          .collection('stock_transactions')
+          .where('doctorId', isEqualTo: _currentDoctorId)
+          .where('type', isEqualTo: StockTransactionType.restock.stored);
+      if (billKey != null) query = query.where('billKey', isEqualTo: billKey);
+      final snapshot = await query.get();
+      final medicines = await watchMedicines().first;
+      final active = {for (final m in medicines) m.id};
+      final purchases =
+          snapshot.docs
+              .where((doc) => doc.data()['isActive'] as bool? ?? true)
+              .map(
+                (doc) => StockTransactionModel.fromJson({
+                  ...doc.data(),
+                  'id': doc.id,
+                }),
+              )
+              .where((t) => t.isPurchase && active.contains(t.medicineId))
+              .toList()
+            ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      return purchases;
+    }
+    return _localService.getPurchases(billKey: billKey);
   }
 
   /// Streams the full transaction history for a single medicine, newest

@@ -65,6 +65,15 @@ class StockTransactionModel {
   final String? linkedVisitId;
   final DateTime createdAt;
 
+  /// For a restock from a supplier's bill (a purchase): the batch it
+  /// brought, that batch's expiry, what one unit cost, who supplied it
+  /// and which bill it was ([billKey], see `billKeyOf`). Null otherwise.
+  final String? batchNumber;
+  final DateTime? expiryDate;
+  final double? unitCost;
+  final String? supplierName;
+  final String? billKey;
+
   const StockTransactionModel({
     required this.id,
     required this.medicineId,
@@ -75,7 +84,17 @@ class StockTransactionModel {
     this.note,
     this.linkedVisitId,
     required this.createdAt,
+    this.batchNumber,
+    this.expiryDate,
+    this.unitCost,
+    this.supplierName,
+    this.billKey,
   });
+
+  /// A restock carrying where it came from: a batch received.
+  bool get isPurchase =>
+      type == StockTransactionType.restock &&
+      (billKey != null || unitCost != null || expiryDate != null);
 
   factory StockTransactionModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -98,6 +117,11 @@ class StockTransactionModel {
       note: map['note'] as String?,
       linkedVisitId: map['linkedVisitId'] as String?,
       createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
+      batchNumber: map['batchNumber'] as String?,
+      expiryDate: _toDate(map['expiryDate']),
+      unitCost: (map['unitCost'] as num?)?.toDouble(),
+      supplierName: map['supplierName'] as String?,
+      billKey: map['billKey'] as String?,
     );
   }
 
@@ -111,6 +135,11 @@ class StockTransactionModel {
       'note': note,
       'linkedVisitId': linkedVisitId,
       'createdAt': Timestamp.fromDate(createdAt),
+      'batchNumber': batchNumber,
+      'expiryDate': expiryDate == null ? null : Timestamp.fromDate(expiryDate!),
+      'unitCost': unitCost,
+      'supplierName': supplierName,
+      'billKey': billKey,
     };
   }
 

@@ -495,15 +495,15 @@ class FirestoreSyncService {
       // so very large pending queues still make progress instead of failing
       // permanently.
       const int maxBatchSize = 400;
-      final uploadedIds = <String>[];
+      final uploaded = <_UploadedRow>[];
       var currentBatch = _firestore.batch();
       var batchCount = 0;
 
       Future<void> commitCurrentBatch() async {
         if (batchCount == 0) return;
         await currentBatch.commit();
-        await _markRowsSynced(collection, uploadedIds.toList());
-        uploadedIds.clear();
+        await _markRowsSynced(collection, uploaded.toList());
+        uploaded.clear();
         currentBatch = _firestore.batch();
         batchCount = 0;
       }
@@ -529,7 +529,7 @@ class FirestoreSyncService {
             SetOptions(merge: true),
           );
         }
-        uploadedIds.add(id);
+        uploaded.add(_UploadedRow.of(row));
         batchCount++;
 
         if (batchCount >= maxBatchSize) {
@@ -566,15 +566,15 @@ class FirestoreSyncService {
     // collections, each operation may count as 2 writes but Firestore's batch
     // limit is per operation, so keep chunk sizes conservative.
     const int maxBatchSize = 400;
-    final uploadedIds = <String>[];
+    final uploaded = <_UploadedRow>[];
     var currentBatch = _firestore.batch();
     var batchCount = 0;
 
     Future<void> commitCurrentBatch() async {
       if (batchCount == 0) return;
       await currentBatch.commit();
-      await _markRowsSynced('visits', uploadedIds.toList());
-      uploadedIds.clear();
+      await _markRowsSynced('visits', uploaded.toList());
+      uploaded.clear();
       currentBatch = _firestore.batch();
       batchCount = 0;
     }
@@ -605,7 +605,7 @@ class FirestoreSyncService {
         );
         batchCount++;
       }
-      uploadedIds.add(id);
+      uploaded.add(_UploadedRow.of(row));
 
       if (batchCount >= maxBatchSize) {
         await commitCurrentBatch();
@@ -822,6 +822,13 @@ class FirestoreSyncService {
           'resultingStock': (row['resultingStock'] as num?)?.toInt() ?? 0,
           'note': row['note'] as String?,
           'linkedVisitId': row['linkedVisitId'] as String?,
+          'batchNumber': row['batchNumber'] as String?,
+          'expiryDate': row['expiryDate'] == null
+              ? null
+              : _timestampFromMillis(row['expiryDate']),
+          'unitCost': (row['unitCost'] as num?)?.toDouble(),
+          'supplierName': row['supplierName'] as String?,
+          'billKey': row['billKey'] as String?,
           'groupId': row['groupId'] as String?,
           'isActive': row['isActive'] == 1,
           'createdAt': _timestampFromMillis(row['createdAt']),
@@ -1228,6 +1235,13 @@ class FirestoreSyncService {
           'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,
           'note': data['note'] as String?,
           'linkedVisitId': data['linkedVisitId'] as String?,
+          'batchNumber': data['batchNumber'] as String?,
+          'expiryDate': data['expiryDate'] == null
+              ? null
+              : _timestampToMillis(data['expiryDate'], fallback: now),
+          'unitCost': (data['unitCost'] as num?)?.toDouble(),
+          'supplierName': data['supplierName'] as String?,
+          'billKey': data['billKey'] as String?,
           'groupId': data['groupId'] as String?,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
@@ -1306,17 +1320,24 @@ class FirestoreSyncService {
     }
   }
 
-  Future<void> _markRowsSynced(String collection, List<String> ids) async {
-    if (ids.isEmpty) return;
+  /// Marks the uploaded [rows] synced, except any changed while they were
+  /// uploading: those stay pending and go up on the next pass. Otherwise
+  /// the change would never be uploaded, and the server's copy (stamped
+  /// later) would come back and overwrite it.
+  Future<void> _markRowsSynced(
+    String collection,
+    List<_UploadedRow> rows,
+  ) async {
+    if (rows.isEmpty) return;
 
     final db = await _databaseService.localDatabase;
     final now = DateTime.now().millisecondsSinceEpoch;
-    for (final id in ids) {
+    for (final row in rows) {
       await db.update(
         collection,
         {'syncStatus': 'synced', 'pendingDelete': 0, 'lastSyncedAt': now},
-        where: 'id = ?',
-        whereArgs: [id],
+        where: row.stamped ? 'id = ? AND updatedAt IS ?' : 'id = ?',
+        whereArgs: [row.id, if (row.stamped) row.updatedAt],
       );
     }
   }
@@ -1442,19 +1463,25 @@ class FirestoreSyncService {
     }
 
     if (hasIsActive) {
-      final updatedIsArchived = await db.update(
-        table,
-        {
-          'isArchived': 1,
-          'isActive': 0,
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        },
-        where: 'id = ? AND doctorId = ?',
-        whereArgs: [id, doctorId],
-      );
-      if (updatedIsArchived > 0) {
+      const synced = {'syncStatus': 'synced', 'pendingDelete': 0};
+      var updated = 0;
+      try {
+        updated = await db.update(
+          table,
+          {'isArchived': 1, 'isActive': 0, ...synced, 'lastSyncedAt': now},
+          where: 'id = ? AND doctorId = ?',
+          whereArgs: [id, doctorId],
+        );
+      } catch (_) {
+        // No isArchived column either (medicines): isActive alone hides it.
+        updated = await db.update(
+          table,
+          {'isActive': 0, ...synced, 'lastSyncedAt': now},
+          where: 'id = ? AND doctorId = ?',
+          whereArgs: [id, doctorId],
+        );
+      }
+      if (updated > 0) {
         _notifyTableChanged(table);
         return;
       }
@@ -1504,4 +1531,17 @@ class FirestoreSyncService {
         break;
     }
   }
+}
+
+/// A row as it was uploaded: its id and, when its table has one, its
+/// `updatedAt` then, to tell whether it changed while uploading.
+class _UploadedRow {
+  _UploadedRow.of(Map<String, Object?> row)
+    : id = row['id'] as String,
+      stamped = row.containsKey('updatedAt'),
+      updatedAt = row['updatedAt'];
+
+  final String id;
+  final bool stamped;
+  final Object? updatedAt;
 }

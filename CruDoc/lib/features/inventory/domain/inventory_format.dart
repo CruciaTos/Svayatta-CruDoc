@@ -7,10 +7,21 @@ abstract final class InventoryFormat {
     symbol: '₹',
     decimalDigits: 0,
   );
+  static final NumberFormat _rupeesAndPaise = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 2,
+  );
   static final NumberFormat _count = NumberFormat.decimalPattern('en_IN');
 
-  /// "₹1,50,000" (Indian grouping, no paise).
-  static String rupees(double amount) => _rupees.format(amount.round());
+  /// "₹1,50,000", or "₹7,021.84" when there are paise: amounts are never
+  /// rounded to the rupee, so they match the bills they came from.
+  static String rupees(double amount) {
+    final paise = (amount * 100).round();
+    return paise % 100 == 0
+        ? _rupees.format(paise ~/ 100)
+        : _rupeesAndPaise.format(paise / 100);
+  }
 
   static String count(int n) => _count.format(n);
 

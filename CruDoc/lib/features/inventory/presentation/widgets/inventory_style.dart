@@ -81,6 +81,9 @@ abstract final class InventorySize {
   /// Below this width the grid drops to two columns.
   static const double gridThreeColumns = 600;
 
+  /// Add from bill: wide enough for a bill line's seven fields in one row.
+  static const double billReviewDialog = 1200;
+
   /// Item panel vial.
   static const double panelVialWidth = 20;
   static const double panelVialHeight = 76;

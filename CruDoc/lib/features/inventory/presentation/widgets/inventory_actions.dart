@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/inventory/presentation/desktop_add_edit_medicine_dialog.dart';
+import 'package:doctor_management_app/features/inventory/presentation/desktop_bill_review_dialog.dart';
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
@@ -52,7 +53,7 @@ abstract final class InventoryActions {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
-                    'Scan or Photograph Item',
+                    "Scan a supplier's bill",
                     style: CruType.headline.tint(c.label),
                   ),
                 ),
@@ -60,14 +61,16 @@ abstract final class InventoryActions {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Text(
-                    'Capture medicine strip, packaging, or bill to auto-fill details.',
+                    'Every medicine on it is read and listed for you to check '
+                    'before it goes into the inventory.',
                     style: CruType.caption.tint(c.label2),
                   ),
                 ),
                 const SizedBox(height: CruSpace.s16),
                 ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: CruSpace.s8,
+                  ),
                   leading: const CruSquareButton(
                     icon: InventoryIcons.camera,
                     secondary: true,
@@ -86,8 +89,9 @@ abstract final class InventoryActions {
                 ),
                 const SizedBox(height: CruSpace.s8),
                 ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: CruSpace.s8,
+                  ),
                   leading: const CruSquareButton(
                     icon: CruIcons.box,
                     secondary: true,
@@ -99,7 +103,7 @@ abstract final class InventoryActions {
                     style: CruType.row.tint(c.label),
                   ),
                   subtitle: Text(
-                    'Pick an existing photo or bill',
+                    'Pick a photo or scan of the bill',
                     style: CruType.caption.tint(c.label2),
                   ),
                   shape: RoundedRectangleBorder(
@@ -123,17 +127,39 @@ abstract final class InventoryActions {
       );
       if (image == null || !context.mounted) return;
 
-      await showDesktopAddEditMedicineDialog(
+      // A supplier's bill: every medicine on it, reviewed, then added.
+      final repository = ref.read(inventoryRepositoryProvider);
+      final outcome = await showDesktopBillReviewDialog(
         context,
-        repository: ref.read(inventoryRepositoryProvider),
-        initialReceiptImage: image,
+        image: image,
+        repository: repository,
       );
+      if (outcome == null || !context.mounted) return;
+      if (outcome.addByHand) {
+        await showDesktopAddEditMedicineDialog(context, repository: repository);
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_billSummary(outcome))));
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open camera or image: $e')),
       );
     }
+  }
+
+  /// "Added 4 new items and restocked 2 from the bill."
+  static String _billSummary(BillReviewOutcome o) {
+    String items(int n, String one) => '$n ${n == 1 ? one : '${one}s'}';
+    final parts = [
+      if (o.added > 0) 'added ${items(o.added, 'new item')}',
+      if (o.restocked > 0) 'restocked ${items(o.restocked, 'item')}',
+    ];
+    if (parts.isEmpty) return 'Nothing added from the bill.';
+    final text = '${parts.join(' and ')} from the bill.';
+    return text[0].toUpperCase() + text.substring(1);
   }
 
   static Future<void> editItem(

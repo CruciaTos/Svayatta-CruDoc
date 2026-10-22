@@ -616,6 +616,11 @@ class LocalDatabaseService extends ChangeNotifier {
         resultingStock INTEGER NOT NULL DEFAULT 0,
         note TEXT,
         linkedVisitId TEXT,
+        batchNumber TEXT,
+        expiryDate INTEGER,
+        unitCost REAL,
+        supplierName TEXT,
+        billKey TEXT,
         groupId TEXT,
         isActive INTEGER NOT NULL DEFAULT 1,
         createdAt INTEGER NOT NULL,
@@ -1136,6 +1141,13 @@ class LocalDatabaseService extends ChangeNotifier {
     'resultingStock': 'resultingStock INTEGER NOT NULL DEFAULT 0',
     'note': 'note TEXT',
     'linkedVisitId': 'linkedVisitId TEXT',
+    // A purchase from a supplier's bill: the batch received, its expiry
+    // (millis), cost per unit, supplier and bill (inventory bill scan).
+    'batchNumber': 'batchNumber TEXT',
+    'expiryDate': 'expiryDate INTEGER',
+    'unitCost': 'unitCost REAL',
+    'supplierName': 'supplierName TEXT',
+    'billKey': 'billKey TEXT',
     // Written and read by the Firestore sync (firestore_sync_service.dart).
     'groupId': 'groupId TEXT',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',

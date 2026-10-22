@@ -203,6 +203,9 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
         if (result.category != null && _categoryController.text.isEmpty) {
           _categoryController.text = result.category!;
         }
+        if (result.unit != null && _unitController.text.isEmpty) {
+          _unitController.text = result.unit!;
+        }
         if (result.unitPrice != null && _priceController.text.isEmpty) {
           _priceController.text = result.unitPrice!.toStringAsFixed(2);
         }

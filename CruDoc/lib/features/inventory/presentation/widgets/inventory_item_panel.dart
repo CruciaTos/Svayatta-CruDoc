@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
+import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
+import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
+import 'package:doctor_management_app/features/inventory/domain/stock_batches.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_builder.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_format.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
@@ -61,7 +64,7 @@ class InventoryItemPanel extends ConsumerWidget {
         switchOutCurve: CruMotion.curve,
         layoutBuilder: (current, previous) => Stack(
           alignment: Alignment.topCenter,
-          children: [...previous, ?current],
+          children: [..._onePerItem(previous, current), ?current],
         ),
         child: Column(
           key: ValueKey(item.id),
@@ -76,6 +79,19 @@ class InventoryItemPanel extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// The panels still fading out, at most one per item and none for the
+  /// item now shown. The selection can leave an item and come back to it
+  /// within the fade (the list re-sorts as a bill's lines are saved), and
+  /// two panels for one item would share a key.
+  static List<Widget> _onePerItem(List<Widget> fading, Widget? current) {
+    final seen = <Key?>{current?.key};
+    // The latest of each is kept: walk from the end.
+    return [
+      for (final w in fading.reversed)
+        if (seen.add(w.key)) w,
+    ].reversed.toList();
   }
 }
 
@@ -444,17 +460,32 @@ class _UsageBlock extends StatelessWidget {
   }
 }
 
-/// One batch row from the item's batch code and expiry. Several batches,
-/// per-batch quantity and "Use first" are a GAP.
-class _BatchBlock extends StatelessWidget {
+/// The batches in stock, the one to use first first: code, expiry, how
+/// many and, for batches from a bill, the supplier. Bought from bills,
+/// an item can hold several (see [remainingBatches]); entered by hand,
+/// it's the item's own batch and expiry.
+class _BatchBlock extends ConsumerWidget {
   const _BatchBlock({required this.item});
 
   final InventoryItem item;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final expiry = item.medicine.expiryDate;
+    final purchases =
+        ref.watch(stockPurchasesProvider).value ??
+        const <StockTransactionModel>[];
+    final batches = remainingBatches(item.medicine, purchases);
+    final rows = batches.isEmpty
+        ? [
+            StockBatch(
+              quantity: 0,
+              batch: item.batch,
+              expiry: item.medicine.expiryDate,
+            ),
+          ]
+        : batches;
+    final suppliers = {for (final b in rows) b.supplier?.trim()}..remove(null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -463,6 +494,45 @@ class _BatchBlock extends StatelessWidget {
           child: Text('Batches', style: CruType.row.tint(c.label)),
         ),
         const SizedBox(height: CruSpace.s2),
+        for (final (i, b) in rows.indexed)
+          _BatchRow(
+            batch: b,
+            unit: item.unit,
+            // One batch is all the stock, shown above already.
+            showQuantity: batches.length > 1,
+            // Two or more suppliers: say which batch came from whom.
+            supplier: suppliers.length > 1 ? b.supplier : null,
+            useFirst: i == 0 && rows.length > 1,
+          ),
+      ],
+    );
+  }
+}
+
+class _BatchRow extends StatelessWidget {
+  const _BatchRow({
+    required this.batch,
+    required this.unit,
+    required this.showQuantity,
+    required this.supplier,
+    required this.useFirst,
+  });
+
+  final StockBatch batch;
+  final String unit;
+  final bool showQuantity;
+  final String? supplier;
+  final bool useFirst;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final expiry = batch.expiry;
+    final soon =
+        expiry != null && expiry.difference(DateTime.now()).inDays <= 30;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         SizedBox(
           height: CruSize.collapsedRow,
           child: Row(
@@ -470,9 +540,9 @@ class _BatchBlock extends StatelessWidget {
               SizedBox(
                 width: InventorySize.batchCodeColumn,
                 child: Text(
-                  item.batch ?? '—',
+                  batch.batch ?? '—',
                   style: CruType.profileName.tabular.tint(
-                    item.batch == null ? c.label3 : c.label,
+                    batch.batch == null ? c.label3 : c.label,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -485,7 +555,7 @@ class _BatchBlock extends StatelessWidget {
                       ? 'No expiry date'
                       : 'Expires ${InventoryFormat.monthYear(expiry)}',
                   style:
-                      (item.expiringSoon
+                      (soon
                               ? CruType.chip.w600.tint(c.amberText)
                               : CruType.chip.tint(c.label2))
                           .tabular,
@@ -493,9 +563,32 @@ class _BatchBlock extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (useFirst) ...[
+                CruPill(
+                  text: 'Use first',
+                  background: c.inset,
+                  foreground: c.label2,
+                ),
+                const SizedBox(width: CruSpace.s8),
+              ],
+              if (showQuantity)
+                Text(
+                  InventoryFormat.quantity(batch.quantity, unit),
+                  style: CruType.chip.tabular.tint(c.label2),
+                ),
             ],
           ),
         ),
+        if (supplier != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: CruSpace.s4),
+            child: Text(
+              'From $supplier',
+              style: CruType.caption.tint(c.label3),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
       ],
     );
   }

@@ -4,11 +4,12 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
+import 'package:doctor_management_app/features/inventory/domain/inventory_format.dart';
+import 'package:doctor_management_app/features/inventory/domain/stock_batches.dart';
 import 'package:doctor_management_app/features/inventory/presentation/desktop_add_edit_medicine_dialog.dart';
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
@@ -67,14 +68,8 @@ const _clrFilterBorder = Color(0xFFCBD5E1);
 
 // =============================================================================
 
-/// Rupee currency formatter
-final _currencyFormatter = NumberFormat.currency(
-  locale: 'en_IN',
-  symbol: '₹',
-  decimalDigits: 0,
-);
-
-String _formatCurrency(double value) => _currencyFormatter.format(value);
+/// "₹2,450", or "₹7,021.84" with paise: never rounded to the rupee.
+String _formatCurrency(double value) => InventoryFormat.rupees(value);
 
 final _desktopInventoryViewProvider =
     Provider<AsyncValue<_DesktopInventoryViewData>>((ref) {
@@ -2725,44 +2720,64 @@ class _VendorSummary {
   });
 }
 
-List<_VendorSummary> _buildVendorSummaries(List<MedicationData> medications) {
-  final grouped = <String, List<MedicationData>>{};
-  for (final med in medications) {
-    final supplier = med.originalMedicine?.supplierName?.trim();
-    final key = (supplier == null || supplier.isEmpty)
-        ? 'Unassigned'
-        : supplier;
-    grouped.putIfAbsent(key, () => []).add(med);
-  }
+/// Each supplier's stock, from the batches in stock: an item bought from
+/// two suppliers is under both, each for what's left of its own batches
+/// (see [stockBySupplier]). Items never bought from a bill count under
+/// their supplier field.
+List<_VendorSummary> _buildVendorSummaries(
+  List<MedicationData> medications, [
+  List<StockTransactionModel> purchases = const [],
+]) {
+  final byId = <String, MedicationData>{
+    for (final med in medications)
+      if (med.originalMedicine != null) med.originalMedicine!.id: med,
+  };
+  final stock = stockBySupplier(
+    [for (final med in byId.values) med.originalMedicine!],
+    purchases,
+  );
+  final unassigned = [
+    for (final med in medications)
+      if (med.originalMedicine == null) med,
+  ];
 
   final summaries = <_VendorSummary>[];
-  grouped.forEach((name, meds) {
+  for (final s in stock.values) {
+    final meds = [for (final id in s.itemIds) ?byId[id]];
+    if (s.name.isEmpty) meds.addAll(unassigned);
     int lowStock = 0;
     int expiring = 0;
-    double value = 0;
-    bool hasKnownValue = false;
     for (final med in meds) {
       final original = med.originalMedicine;
       if (original == null) continue;
       if (original.isLowStock) lowStock += 1;
       if (original.isExpiringSoon) expiring += 1;
-      if (original.unitPrice != null) {
-        hasKnownValue = true;
-        value += original.unitPrice! * original.currentStock;
-      }
     }
     summaries.add(
       _VendorSummary(
-        name: name,
+        name: s.name.isEmpty ? 'Unassigned' : s.name,
         itemCount: meds.length,
         lowStockCount: lowStock,
         expiringCount: expiring,
-        stockValue: value,
-        hasKnownValue: hasKnownValue,
+        stockValue: s.value,
+        hasKnownValue: s.hasValue,
         medications: meds,
       ),
     );
-  });
+  }
+  if (unassigned.isNotEmpty && !stock.containsKey('')) {
+    summaries.add(
+      _VendorSummary(
+        name: 'Unassigned',
+        itemCount: unassigned.length,
+        lowStockCount: 0,
+        expiringCount: 0,
+        stockValue: 0,
+        hasKnownValue: false,
+        medications: unassigned,
+      ),
+    );
+  }
 
   summaries.sort((a, b) {
     if (a.name == 'Unassigned') return 1;
@@ -2775,11 +2790,15 @@ List<_VendorSummary> _buildVendorSummaries(List<MedicationData> medications) {
 
 class _VendorsTab extends StatefulWidget {
   final List<MedicationData> medications;
+
+  /// The batches bought from bills, so each supplier counts its own.
+  final List<StockTransactionModel> purchases;
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
 
   const _VendorsTab({
     required this.medications,
+    this.purchases = const [],
     required this.onEditMedicine,
     required this.onOpenMedicineDetail,
   });
@@ -2795,7 +2814,10 @@ class _VendorsTabState extends State<_VendorsTab> {
   @override
   Widget build(BuildContext context) {
     // 1. Vendor Dashboard Header
-    final vendors = _buildVendorSummaries(widget.medications);
+    final vendors = _buildVendorSummaries(
+      widget.medications,
+      widget.purchases,
+    );
     final totalValue = vendors.fold<double>(0, (sum, v) => sum + v.stockValue);
     final totalItems = vendors.fold<int>(0, (sum, v) => sum + v.itemCount);
 
@@ -4339,6 +4361,9 @@ class InventoryVendorsTab extends ConsumerWidget {
     final repository = ref.watch(inventoryRepositoryProvider);
     return _VendorsTab(
       medications: _watchMedications(ref),
+      purchases:
+          ref.watch(stockPurchasesProvider).value ??
+          const <StockTransactionModel>[],
       onEditMedicine: (m) => showDesktopAddEditMedicineDialog(
         context,
         medicine: m,

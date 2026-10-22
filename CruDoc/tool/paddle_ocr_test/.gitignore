@@ -1,0 +1,6 @@
+# Prescriptions are patient data: keep test images and their text out of git.
+prescription_images/
+paddle_output.txt
+# The PaddleOCR venv (a link to D:\crudoc_paddle\venv on Omkar's PC).
+.venv
+__pycache__/

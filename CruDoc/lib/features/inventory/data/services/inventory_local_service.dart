@@ -204,6 +204,11 @@ class InventoryLocalService {
         note: transaction.note,
         linkedVisitId: transaction.linkedVisitId,
         createdAt: transaction.createdAt,
+        batchNumber: transaction.batchNumber,
+        expiryDate: transaction.expiryDate,
+        unitCost: transaction.unitCost,
+        supplierName: transaction.supplierName,
+        billKey: transaction.billKey,
       );
 
       await txn.insert(
@@ -238,6 +243,26 @@ class InventoryLocalService {
       where: 'medicineId = ? AND doctorId = ? AND isActive = 1',
       whereArgs: [medicineId, _currentDoctorId()],
       orderBy: 'createdAt DESC',
+    );
+    return rows.map(_transactionFromRow).toList();
+  }
+
+  /// Purchases (restocks with a supplier's bill, batch or cost) of the
+  /// active medicines, oldest first; only [billKey]'s when given.
+  Future<List<StockTransactionModel>> getPurchases({String? billKey}) async {
+    final db = await _databaseService.localDatabase;
+    final rows = await db.rawQuery(
+      '''
+      SELECT t.* FROM stock_transactions t
+      JOIN medicines m ON m.id = t.medicineId
+      WHERE t.doctorId = ? AND t.isActive = 1 AND t.pendingDelete = 0
+        AND t.type = 'restock' AND m.isActive = 1
+        AND (t.billKey IS NOT NULL OR t.unitCost IS NOT NULL
+          OR t.expiryDate IS NOT NULL)
+        ${billKey == null ? '' : 'AND t.billKey = ?'}
+      ORDER BY t.createdAt ASC
+      ''',
+      [_currentDoctorId(), ?billKey],
     );
     return rows.map(_transactionFromRow).toList();
   }
@@ -417,6 +442,13 @@ class InventoryLocalService {
       'resultingStock': transaction.resultingStock,
       'note': transaction.note,
       'linkedVisitId': transaction.linkedVisitId,
+      'batchNumber': transaction.batchNumber,
+      'expiryDate': transaction.expiryDate == null
+          ? null
+          : _dateTimeToMillis(transaction.expiryDate!),
+      'unitCost': transaction.unitCost,
+      'supplierName': transaction.supplierName,
+      'billKey': transaction.billKey,
       'isActive': 1,
       'createdAt': _dateTimeToMillis(transaction.createdAt),
       'updatedAt': _dateTimeToMillis(transaction.createdAt),
@@ -437,6 +469,11 @@ class InventoryLocalService {
       note: row['note'] as String?,
       linkedVisitId: row['linkedVisitId'] as String?,
       createdAt: _millisToDateTime(row['createdAt']),
+      batchNumber: row['batchNumber'] as String?,
+      expiryDate: _millisToDateTimeOrNull(row['expiryDate']),
+      unitCost: (row['unitCost'] as num?)?.toDouble(),
+      supplierName: row['supplierName'] as String?,
+      billKey: row['billKey'] as String?,
     );
   }
 

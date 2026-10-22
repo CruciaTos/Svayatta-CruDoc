@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/inventory/data/models/medicine_mo
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_receipt_sync.dart';
 import 'package:doctor_management_app/features/inventory/data/services/ocr_service.dart';
+import 'package:doctor_management_app/features/inventory/data/services/bill_scan_tool.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_builder.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_format.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
@@ -155,6 +156,9 @@ class _DesktopAddEditMedicineDialogState
   late final TextEditingController _supplier;
   late final TextEditingController _batch;
 
+  /// The price field's text when the form opened.
+  String _priceShown = '';
+
   DateTime? _expiryDate;
   String? _imageUrl;
   XFile? _receiptImage;
@@ -192,6 +196,7 @@ class _DesktopAddEditMedicineDialogState
           ? m.unitPrice!.toStringAsFixed(0)
           : m.unitPrice!.toStringAsFixed(2),
     );
+    _priceShown = _price.text;
     _supplier = TextEditingController(text: m?.supplierName ?? '');
     _batch = TextEditingController(text: m?.batchNumber ?? '');
     _expiryDate = m?.expiryDate;
@@ -291,8 +296,13 @@ class _DesktopAddEditMedicineDialogState
         if (result.category != null && result.category!.isNotEmpty) {
           _category.text = result.category!;
         }
-        if (result.unitPrice != null) {
-          _price.text = result.unitPrice!.toStringAsFixed(2);
+        if (result.unit case final unit? when _units.contains(unit)) {
+          _unit.text = unit;
+        }
+        if (result.unitPrice case final p?) {
+          _price.text = p == p.roundToDouble()
+              ? p.toStringAsFixed(0)
+              : p.toStringAsFixed(2);
         }
         if (result.supplierName != null && result.supplierName!.isNotEmpty) {
           _supplier.text = result.supplierName!;
@@ -307,7 +317,14 @@ class _DesktopAddEditMedicineDialogState
           _stock.text = '${result.quantity}';
         }
       });
-    } catch (_) {
+    } on OcrSetupException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _scanning = false;
+        _attachError = '${e.message} Fill in the details by hand.';
+      });
+    } catch (e) {
+      debugPrint('[Inventory scan] $e');
       if (!mounted) return;
       setState(() {
         _scanning = false;
@@ -442,8 +459,12 @@ class _DesktopAddEditMedicineDialogState
     final threshold = int.tryParse(_threshold.text.trim()) ?? 10;
     // Empty: the good level follows the alert level (twice it).
     final good = int.tryParse(_good.text.trim());
+    // Untouched, the price keeps its paise beyond the two shown (₹241 for
+    // 165 tablets is ₹1.4606…), so the stock's value still matches the bill.
     final price = _price.text.trim().isEmpty
         ? null
+        : _price.text == _priceShown && widget.medicine?.unitPrice != null
+        ? widget.medicine!.unitPrice
         : double.tryParse(_price.text.trim());
     final supplier = _supplier.text.trim();
     final batch = _batch.text.trim();

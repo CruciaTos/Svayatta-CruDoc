@@ -336,9 +336,13 @@ class DicomFile {
         .where((s) => s.isNotEmpty)
         .toList();
     if (parts.isEmpty) return null;
-    String cap(String s) => s.length <= 1
-        ? s.toUpperCase()
-        : s[0].toUpperCase() + s.substring(1).toLowerCase();
+    // Word by word; IDs inside names ("PATIENT B7888") keep their letters.
+    String word(String w) => w.length <= 1
+        ? w.toUpperCase()
+        : w.contains(RegExp(r'\d'))
+        ? w
+        : w[0].toUpperCase() + w.substring(1).toLowerCase();
+    String cap(String s) => s.split(RegExp(r'\s+')).map(word).join(' ');
     final family = cap(parts.first);
     final given = parts.skip(1).map(cap).join(' ');
     return given.isEmpty ? family : '$given $family';

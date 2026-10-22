@@ -8,6 +8,9 @@ import 'package:doctor_management_app/features/inventory/data/models/medicine_mo
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_receipt_sync.dart';
+import 'package:doctor_management_app/features/inventory/domain/bill_import.dart'
+    as inv;
+import 'package:doctor_management_app/features/inventory/domain/stock_batches.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
@@ -60,6 +63,9 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
   bool _saving = false;
   bool _expense = false;
 
+  /// This bill's purchases are already in stock (same supplier and number).
+  bool _already = false;
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +89,16 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
       ]);
       final bill = results[0] as ScannedBill;
       final stock = results[1] as List<MedicineModel>;
+      final key = _billKey(bill);
+      var already = false;
+      if (key != null) {
+        try {
+          already = (await ref
+                  .read(inventoryRepositoryProvider)
+                  .getPurchases(billKey: key))
+              .isNotEmpty;
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         _bill = bill;
@@ -92,11 +108,26 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
             _Line(item, StockMatching.match(item.name, stock)),
         ];
         _expense = widget.revenue && bill.total != null;
+        _already = already;
       });
     } on ScanReadException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
+
+  /// The same key the desktop bill import gives a bill, so a bill added
+  /// either way is recognised the other way too.
+  static String? _billKey(ScannedBill bill) => inv.billKeyOf(
+    inv.ScannedBill(
+      source: 'gemini',
+      supplier: bill.supplierName.isEmpty ? null : bill.supplierName,
+      invoiceNumber: bill.invoiceNumber.isEmpty ? null : bill.invoiceNumber,
+      invoiceDate: bill.invoiceDate == null
+          ? null
+          : DateFormat('yyyy-MM-dd').format(bill.invoiceDate!),
+      grandTotal: bill.total,
+    ),
+  );
 
   String _details(BillItem it) {
     final unit = it.quantity == 1 ? it.unit : '${it.unit}s';
@@ -137,36 +168,17 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
       if (bill.invoiceNumber.isNotEmpty) 'No. ${bill.invoiceNumber}',
       if (supplier.isNotEmpty) '· $supplier',
     ].join(' ');
+    final key = _billKey(bill);
     var added = 0;
     final failed = <String>[];
     for (final line in lines) {
       final it = line.item;
       try {
-        final String id;
         final m = line.match;
+        final batch = it.batchNumber.trim().toUpperCase();
+        final String id;
         if (m != null) {
           id = m.id;
-          // Keep the batch that expires first while older stock is left.
-          final newBatch =
-              m.currentStock <= 0 ||
-              m.expiryDate == null ||
-              (it.expiryDate != null && it.expiryDate!.isBefore(m.expiryDate!));
-          final updates = <String, dynamic>{
-            if (newBatch && it.batchNumber.isNotEmpty)
-              'batchNumber': it.batchNumber,
-            if (newBatch && it.expiryDate != null) 'expiryDate': it.expiryDate,
-            if (it.unitPrice != null) 'unitPrice': it.unitPrice,
-            if (supplier.isNotEmpty) 'supplierName': supplier,
-          };
-          if (updates.isNotEmpty) await repo.updateMedicine(id, updates);
-          if (it.stockAdded > 0) {
-            await repo.recordTransaction(
-              medicineId: id,
-              type: StockTransactionType.restock,
-              quantity: it.stockAdded,
-              note: note,
-            );
-          }
         } else {
           final now = DateTime.now();
           id = await repo.createMedicine(
@@ -175,15 +187,48 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
               name: it.name,
               category: it.category,
               unit: it.unit,
-              currentStock: it.stockAdded,
               unitPrice: it.unitPrice,
               supplierName: supplier.isEmpty ? null : supplier,
-              batchNumber: it.batchNumber.isEmpty ? null : it.batchNumber,
+              batchNumber: batch.isEmpty ? null : batch,
               expiryDate: it.expiryDate,
               createdAt: now,
               updatedAt: now,
             ),
           );
+        }
+        // Every purchase is a batch (stock_batches.dart), like the
+        // desktop bill import.
+        if (it.stockAdded > 0) {
+          await repo.recordTransaction(
+            medicineId: id,
+            type: StockTransactionType.restock,
+            quantity: it.stockAdded,
+            note: note,
+            batchNumber: batch.isEmpty ? null : batch,
+            expiryDate: it.expiryDate,
+            unitCost: it.unitPrice,
+            supplierName: supplier.isEmpty ? null : supplier,
+            billKey: key,
+          );
+        }
+        // The item shows the batch to use first and what its stock cost.
+        final item = await repo.getMedicine(id);
+        if (item != null) {
+          List<StockTransactionModel> purchases;
+          try {
+            purchases = await repo.getTransactionsForMedicine(id);
+          } catch (_) {
+            purchases = const [];
+          }
+          final batches = remainingBatches(item, purchases);
+          final first = batches.isEmpty ? null : batches.first;
+          final changes = <String, dynamic>{
+            'unitPrice': ?(averageCost(batches) ?? it.unitPrice),
+            if (supplier.isNotEmpty) 'supplierName': supplier,
+            'expiryDate': ?first?.expiry,
+            'batchNumber': ?first?.batch,
+          };
+          if (changes.isNotEmpty) await repo.updateMedicine(id, changes);
         }
         // The bill page the line is on stays with the item as its receipt.
         unawaited(
@@ -259,7 +304,12 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
             text:
                 'Read by AI from the bill. Check quantities, batches and '
                 'expiry dates before adding.',
-            unclear: bill.unclear,
+            unclear: [
+              if (_already)
+                'this bill is already in stock — adding it again doubles '
+                    'the quantities',
+              if (bill.unclear.isNotEmpty) bill.unclear,
+            ].join(' · '),
           ),
           MobileRowGroup(
             indent: CruSpace.s16,

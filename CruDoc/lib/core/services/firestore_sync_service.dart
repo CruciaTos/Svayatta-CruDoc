@@ -334,6 +334,11 @@ class FirestoreSyncService {
       serverIds: serverIds,
     );
     if (drop.isEmpty) return;
+    // DEBUG (2026-10-22): rows taken off the device after a narrowed answer.
+    debugPrint(
+      '[SyncDebug] $collection: dropping ${drop.length} local rows not in '
+      'the server answer (${serverIds.length}): ${drop.take(8).join(', ')}',
+    );
     for (final id in drop) {
       await db.delete(table, where: 'id = ?', whereArgs: [id]);
     }
@@ -501,7 +506,16 @@ class FirestoreSyncService {
 
       Future<void> commitCurrentBatch() async {
         if (batchCount == 0) return;
-        await currentBatch.commit();
+        try {
+          await currentBatch.commit();
+        } catch (e) {
+          // DEBUG (2026-10-22): which table and rows the rules refuse.
+          debugPrint(
+            '[SyncDebug] $collection: batch of $batchCount refused: $e · '
+            'ids ${uploaded.take(8).map((r) => r.id).join(', ')}',
+          );
+          rethrow;
+        }
         await _markRowsSynced(collection, uploaded.toList());
         uploaded.clear();
         currentBatch = _firestore.batch();

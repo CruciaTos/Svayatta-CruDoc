@@ -23,6 +23,7 @@ import 'package:doctor_management_app/features/scribe/presentation/scribe_sessio
 import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_recorder_widgets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 class DesktopScribeScreen extends ConsumerStatefulWidget {
   const DesktopScribeScreen({super.key});
@@ -144,7 +145,14 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             children: [
               Expanded(child: _visitList(scrollable: true)),
               const SizedBox(width: CruSpace.cardGap),
-              SizedBox(width: 420, child: _sessionPanel(expand: true)),
+              SizedBox(
+                width: 420,
+                child: TutorialAnchor(
+                  target: TutorialTarget.scribePanel,
+                  radius: CruRadius.card,
+                  child: _sessionPanel(expand: true),
+                ),
+              ),
             ],
           );
         }
@@ -153,7 +161,11 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _sessionPanel(expand: false),
+              TutorialAnchor(
+                target: TutorialTarget.scribePanel,
+                radius: CruRadius.card,
+                child: _sessionPanel(expand: false),
+              ),
               const SizedBox(height: CruSpace.cardGap),
               _visitList(scrollable: false),
             ],

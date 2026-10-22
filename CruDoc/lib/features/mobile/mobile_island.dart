@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/dashboard/domain/dashboard_models
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/features/voice/voice_controller.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -253,7 +254,14 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
           left: 0,
           right: 0,
           child: Center(
-            child: Material(type: MaterialType.transparency, child: island),
+            child: Material(
+              type: MaterialType.transparency,
+              child: TutorialAnchor(
+                target: TutorialTarget.island,
+                shape: TutorialShape.stadium,
+                child: island,
+              ),
+            ),
           ),
         ),
       ],

@@ -405,6 +405,16 @@ extension CruChartColors on CruColors {
   Color get homeVisit => isEvening ? CruBrand.ink400 : CruBrand.ink500;
 }
 
+/// The dim laid over the app (the guided tour's scrim). An extension, like
+/// [CruChartColors], so apps building [CruColors] themselves don't change.
+extension CruOverlayColors on CruColors {
+  /// Label ink at 60% in Day, black at 70% in Evening: dark enough that the
+  /// spotlit element is the only thing that reads, light enough to keep the
+  /// screen recognisable behind it.
+  Color get scrim =>
+      isEvening ? const Color(0xB3000000) : const Color(0x990F172A);
+}
+
 /// Material colours for the dental tooth chart (2D and 3D): enamel, the
 /// root, gums and implant metal. Evening keeps them a step darker so the
 /// chart doesn't glare on the dark canvas.

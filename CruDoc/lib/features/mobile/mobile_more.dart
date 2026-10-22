@@ -42,6 +42,8 @@ import 'package:doctor_management_app/features/files/presentation/files_screen.d
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
 
 /// A patient's record over the phone screen (swipe back to return).
 void openMobilePatient(BuildContext context, Patient patient) => pushMobile(
@@ -588,6 +590,40 @@ class _MobileSettingsList extends ConsumerWidget {
               titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
               chevron: true,
               onTap: () => showMobileGestureGuide(context),
+            ),
+            MobileRow(
+              leading: const MobileIconTile(
+                icon: CruIcons.help,
+                tone: MobileTone.slate,
+              ),
+              title: 'Take the tour again',
+              titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
+              chevron: true,
+              // Back to the tabs; the tour starts from Home.
+              onTap: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                ref
+                    .read(tutorialControllerProvider.notifier)
+                    .requestReplay(TutorialPlatform.mobile);
+              },
+            ),
+            MobileRow(
+              leading: const MobileIconTile(
+                icon: CruIcons.mic,
+                tone: MobileTone.slate,
+              ),
+              title: 'Voice tour',
+              titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
+              chevron: true,
+              onTap: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                ref
+                    .read(tutorialControllerProvider.notifier)
+                    .requestReplay(
+                      TutorialPlatform.mobile,
+                      tour: TutorialTour.voice,
+                    );
+              },
             ),
             MobileRow(
               leading: const MobileIconTile(

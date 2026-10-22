@@ -188,6 +188,8 @@ class PatientFile {
     this.storagePath = '',
     this.cloudStatus = FileCloudStatus.none,
     this.isDeleted = false,
+    this.thumb = '',
+    this.viewPath = '',
   });
 
   final String id;
@@ -220,6 +222,15 @@ class PatientFile {
   final String cloudStatus;
   final bool isDeleted;
 
+  /// A small JPEG of it (base64), for lists and the first frame of the
+  /// viewer; '' when there is none. Synced with the record, so every device
+  /// has it without downloading anything.
+  final String thumb;
+
+  /// The progressive JPEG a picture is viewed from (see
+  /// `encodeProgressiveJpeg`); '' until uploaded, or for other kinds.
+  final String viewPath;
+
   FileKind get kind => PatientFileTypes.kindOf(contentType);
 
   PatientFile copyWith({
@@ -233,6 +244,8 @@ class PatientFile {
     String? storagePath,
     String? cloudStatus,
     bool? isDeleted,
+    String? thumb,
+    String? viewPath,
   }) => PatientFile(
     id: id,
     doctorId: doctorId,
@@ -250,6 +263,8 @@ class PatientFile {
     storagePath: storagePath ?? this.storagePath,
     cloudStatus: cloudStatus ?? this.cloudStatus,
     isDeleted: isDeleted ?? this.isDeleted,
+    thumb: thumb ?? this.thumb,
+    viewPath: viewPath ?? this.viewPath,
   );
 
   Map<String, Object?> toLocalMap() => {
@@ -269,6 +284,8 @@ class PatientFile {
     'isDeleted': isDeleted ? 1 : 0,
     'createdAt': createdAt.millisecondsSinceEpoch,
     'updatedAt': updatedAt.millisecondsSinceEpoch,
+    'thumb': thumb,
+    'viewPath': viewPath,
   };
 
   factory PatientFile.fromLocalMap(Map<String, Object?> m) => PatientFile(
@@ -286,6 +303,8 @@ class PatientFile {
     storagePath: m['storagePath'] as String? ?? '',
     cloudStatus: m['cloudStatus'] as String? ?? '',
     isDeleted: (m['isDeleted'] as int? ?? 0) == 1,
+    thumb: m['thumb'] as String? ?? '',
+    viewPath: m['viewPath'] as String? ?? '',
     createdAt: DateTime.fromMillisecondsSinceEpoch(m['createdAt'] as int? ?? 0),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(m['updatedAt'] as int? ?? 0),
   );

@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/patients/domain/patients_builder.
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Patients: search, the same filters as the desktop, and one row per
@@ -393,10 +394,14 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                     ),
                     const SizedBox(width: CruSpace.s8),
                   ],
-                  MobileCircleButton(
-                    icon: CruIcons.userPlus,
-                    semanticLabel: 'Add patient',
-                    onPressed: () => DashboardActions.addPatient(context),
+                  TutorialAnchor(
+                    target: TutorialTarget.mobileAddPatient,
+                    shape: TutorialShape.circle,
+                    child: MobileCircleButton(
+                      icon: CruIcons.userPlus,
+                      semanticLabel: 'Add patient',
+                      onPressed: () => DashboardActions.addPatient(context),
+                    ),
                   ),
                 ],
               ),

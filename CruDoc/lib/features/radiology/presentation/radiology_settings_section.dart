@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/features/radiology/data/pacs_connection.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_prefs.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
@@ -24,6 +25,7 @@ class RadSettingsSection extends ConsumerWidget {
     final fees = ref.watch(radFeesProvider).value ?? const <RadFee>[];
     final servers =
         ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
+    final receiver = ref.watch(radReceiverProvider);
     if (settings == null) return const SizedBox(height: 200);
 
     final gap = const SizedBox(height: CruSpace.cardGap);
@@ -51,8 +53,8 @@ class RadSettingsSection extends ConsumerWidget {
               _ActionRow(
                 title: 'PACS',
                 detail: servers.isEmpty
-                    ? 'None added · not connected yet'
-                    : '${servers.map((s) => s.name).join(', ')} · not connected yet',
+                    ? 'None added'
+                    : servers.map((s) => s.name).join(', '),
                 action: 'Manage',
                 onTap: () => showRadPacsServersDialog(context),
               ),
@@ -60,7 +62,8 @@ class RadSettingsSection extends ConsumerWidget {
               _ActionRow(
                 title: 'Receive from scanners',
                 detail:
-                    'AE title ${settings.aeTitle} · port ${settings.dicomPort} · not connected yet',
+                    'AE title ${settings.aeTitle} · port ${settings.dicomPort} · '
+                    '${!settings.dicomReceiverOn ? 'off' : receiver.error != null ? 'not listening' : receiver.listening ? 'listening' : 'starting'}',
                 action: 'Set up',
                 onTap: () => showRadDicomReceiverDialog(context),
               ),

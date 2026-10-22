@@ -77,6 +77,16 @@ abstract final class FilesActions {
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final navigator = Navigator.of(context, rootNavigator: true);
+    // Pictures and PDFs open at once on their thumbnail and load inside.
+    if (PatientFileTypes.isViewableImage(file.contentType) ||
+        file.contentType == 'application/pdf') {
+      await navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => FileViewerPage(file: file, patientName: patientName),
+        ),
+      );
+      return;
+    }
     if (file.localPath.isEmpty && file.storagePath.isNotEmpty) {
       messenger?.showSnackBar(
         SnackBar(
@@ -99,21 +109,6 @@ abstract final class FilesActions {
           patientName: patientName,
         );
         if (shown) return;
-      }
-      final inApp =
-          PatientFileTypes.isViewableImage(file.contentType) ||
-          file.contentType == 'application/pdf';
-      if (inApp) {
-        await navigator.push(
-          MaterialPageRoute<void>(
-            builder: (_) => FileViewerPage(
-              file: file,
-              local: local,
-              patientName: patientName,
-            ),
-          ),
-        );
-        return;
       }
       final opened = await launchUrl(Uri.file(local.path));
       if (!opened) {
@@ -212,8 +207,7 @@ abstract final class FilesActions {
     );
   }
 
-  static bool get _onPhone =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  static bool get _onPhone => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
   /// True for the camera, false for files, null when dismissed.
   static Future<bool?> _askTakePhoto(BuildContext context) =>

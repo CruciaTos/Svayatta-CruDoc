@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class MobileNavItem {
-  const MobileNavItem(this.label, this.icon);
+  const MobileNavItem(this.label, this.icon, {this.tutorialTarget});
   final String label;
   final CruIconData icon;
+
+  /// Marks the tab for the first-run tour.
+  final TutorialTarget? tutorialTarget;
 }
 
 /// The phone's floating tab bar: the Up next card's ink-blue gradient
@@ -208,11 +212,18 @@ class _MobileNavBarState extends State<MobileNavBar> {
                             for (var i = 0; i < _count; i++)
                               SizedBox(
                                 width: slot,
-                                child: _Item(
-                                  item: widget.items[i],
-                                  // 1 on the tab, 0 one tab away or more.
-                                  focus: (1 - (page - i).abs()).clamp(0.0, 1.0),
-                                  badge: widget.badges[i] ?? 0,
+                                child: TutorialAnchor.maybe(
+                                  target: widget.items[i].tutorialTarget,
+                                  shape: TutorialShape.circle,
+                                  child: _Item(
+                                    item: widget.items[i],
+                                    // 1 on the tab, 0 one tab away or more.
+                                    focus: (1 - (page - i).abs()).clamp(
+                                      0.0,
+                                      1.0,
+                                    ),
+                                    badge: widget.badges[i] ?? 0,
+                                  ),
                                 ),
                               ),
                           ],

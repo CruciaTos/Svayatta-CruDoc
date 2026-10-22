@@ -218,6 +218,9 @@ class FilesCloudSync {
       'contentType': row['contentType'] as String? ?? '',
       'sizeBytes': (row['sizeBytes'] as num?)?.toInt() ?? 0,
       'storagePath': row['storagePath'] as String? ?? '',
+      // A picture of the file is patient data: encrypted like the name.
+      'thumb': FieldCipher.encrypt(row['thumb'] as String?),
+      'viewPath': row['viewPath'] as String? ?? '',
     };
   }
 
@@ -256,6 +259,8 @@ class FilesCloudSync {
       'contentType': d['contentType'] as String? ?? '',
       'sizeBytes': (d['sizeBytes'] as num?)?.toInt() ?? 0,
       'storagePath': d['storagePath'] as String? ?? '',
+      'thumb': FieldCipher.decrypt(d['thumb'] as String?),
+      'viewPath': d['viewPath'] as String? ?? '',
     }).copyWith(visibleTo: visibleTo).toLocalMap();
   }
 }

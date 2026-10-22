@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -98,7 +99,77 @@ class RadViewport extends StatefulWidget {
   State<RadViewport> createState() => _RadViewportState();
 }
 
-class _RadViewportState extends State<RadViewport> {
+class _RadViewportState extends State<RadViewport>
+    with TickerProviderStateMixin {
+  // Loading: a newly opened image fades in from blurred to sharp over what
+  // was there, and a soft light drifts over its frame until pixels arrive.
+  static const _thumbIn = Duration(milliseconds: 250);
+  static const _imageIn = Duration(milliseconds: 600);
+
+  late final AnimationController _reveal =
+      AnimationController(vsync: this, duration: _imageIn, value: 1)
+        ..addStatusListener((s) {
+          if (s == AnimationStatus.completed) widget.pane.endReveal();
+        });
+  late final AnimationController _sweep = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+  int _seenReveal = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.pane.addListener(_onPane);
+    _seenReveal = widget.pane.revealGen;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _onPane();
+    });
+  }
+
+  @override
+  void didUpdateWidget(RadViewport old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.pane, widget.pane)) {
+      old.pane.removeListener(_onPane);
+      widget.pane.addListener(_onPane);
+      _seenReveal = widget.pane.revealGen;
+      _reveal.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.pane.removeListener(_onPane);
+    _reveal.dispose();
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  void _onPane() {
+    if (!mounted) return;
+    final p = widget.pane;
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (p.revealGen != _seenReveal) {
+      _seenReveal = p.revealGen;
+      if (reduced) {
+        _reveal.value = 1;
+        p.endReveal();
+      } else {
+        // The blurred thumbnail comes in quickly; the image itself slowly.
+        _reveal.duration = p.image == null ? _thumbIn : _imageIn;
+        _reveal.forward(from: 0);
+      }
+    }
+    final waiting =
+        p.loading && p.image == null && p.error == null && p.imageId.isNotEmpty;
+    if (waiting && !reduced) {
+      if (!_sweep.isAnimating) _sweep.repeat();
+    } else if (_sweep.isAnimating) {
+      _sweep.stop();
+    }
+  }
+
   _Drag _drag = _Drag.none;
   Offset _downPos = Offset.zero;
   Offset _lastPos = Offset.zero;
@@ -561,7 +632,12 @@ class _RadViewportState extends State<RadViewport> {
                 children: [
                   RepaintBoundary(
                     child: CustomPaint(
-                      painter: _ImagePainter(pane, loupe: widget.loupe),
+                      painter: _ImagePainter(
+                        pane,
+                        loupe: widget.loupe,
+                        reveal: _reveal,
+                        sweep: _sweep,
+                      ),
                     ),
                   ),
                   RepaintBoundary(
@@ -606,39 +682,108 @@ class _RadViewportState extends State<RadViewport> {
 // ───────────────────────────── Painters ─────────────────────────────
 
 class _ImagePainter extends CustomPainter {
-  _ImagePainter(this.pane, {required this.loupe}) : super(repaint: pane);
+  _ImagePainter(
+    this.pane, {
+    required this.loupe,
+    required this.reveal,
+    required this.sweep,
+  }) : super(repaint: Listenable.merge([pane, reveal, sweep]));
 
   final RadPane pane;
   final bool loupe;
+  final Animation<double> reveal;
+  final Animation<double> sweep;
 
   static const _loupeRadius = 90.0;
   static const _loupeZoom = 3.0;
 
   void _drawImage(Canvas canvas) {
     final img = pane.image ?? pane.placeholder;
-    if (img == null) return;
     final w =
         (pane.px?.width ??
-                (pane.nominalWidth > 0 ? pane.nominalWidth : img.width))
-            .toDouble();
+                (pane.nominalWidth > 0 ? pane.nominalWidth : img?.width))
+            ?.toDouble();
     final h =
         (pane.px?.height ??
-                (pane.nominalHeight > 0 ? pane.nominalHeight : img.height))
-            .toDouble();
-    if (w <= 0 || h <= 0) return;
+                (pane.nominalHeight > 0 ? pane.nominalHeight : img?.height))
+            ?.toDouble();
+    if (w == null || h == null || w <= 0 || h <= 0) return;
+    if (img == null && !pane.loading) return;
+    final dst = Rect.fromLTWH(0, 0, w, h);
     canvas.save();
     pane.applyTransform(canvas);
-    canvas.drawImageRect(
-      img,
-      Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
-      Rect.fromLTWH(0, 0, w, h),
-      Paint()
-        ..filterQuality = pane.zoom >= 2.5
-            ? FilterQuality.none
-            : FilterQuality.medium,
-    );
+    final t = CruMotion.curve.transform(reveal.value.clamp(0.0, 1.0));
+    // Blur in image pixels, so it looks the same at any zoom.
+    final soft = ((w > h ? w : h) / 90).clamp(3.0, 40.0);
+    final revealing = img != null && t < 1;
+    final from = revealing ? pane.revealFrom : null;
+    // Nothing yet, or a thumbnail coming in: the image's frame underneath.
+    if (img == null || (revealing && from == null)) {
+      canvas.drawRect(dst, Paint()..color = RadInk.loadingFrame);
+    }
+    // The thumbnail is always soft; the image sharpens as it fades in.
+    if (from != null) {
+      _fit(
+        canvas,
+        from,
+        dst,
+        blur: identical(from, pane.placeholder) ? soft : 0,
+      );
+    }
+    if (img != null) {
+      final thumb = identical(img, pane.placeholder);
+      _fit(
+        canvas,
+        img,
+        dst,
+        blur: thumb ? soft : (revealing ? (1 - t) * soft : 0),
+        opacity: revealing ? t : 1,
+      );
+    }
+    if (pane.loading && pane.image == null) {
+      // A soft band of light drifting down: loading, without a spinner.
+      final y = (-0.4 + 1.8 * CruMotion.curve.transform(sweep.value)) * h;
+      canvas.drawRect(
+        dst,
+        Paint()
+          ..shader = ui.Gradient.linear(
+            Offset(0, y - 0.3 * h),
+            Offset(0, y + 0.3 * h),
+            [
+              RadInk.loadingGlow.withAlpha(0),
+              RadInk.loadingGlow,
+              RadInk.loadingGlow.withAlpha(0),
+            ],
+            const [0, 0.5, 1],
+          ),
+      );
+    }
     canvas.restore();
   }
+
+  void _fit(
+    Canvas canvas,
+    ui.Image img,
+    Rect dst, {
+    double blur = 0,
+    double opacity = 1,
+  }) => canvas.drawImageRect(
+    img,
+    Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+    dst,
+    Paint()
+      ..color = Color.fromRGBO(0, 0, 0, opacity)
+      ..imageFilter = blur < 0.5
+          ? null
+          : ui.ImageFilter.blur(
+              sigmaX: blur,
+              sigmaY: blur,
+              tileMode: TileMode.decal,
+            )
+      ..filterQuality = pane.zoom >= 2.5
+          ? FilterQuality.none
+          : FilterQuality.medium,
+  );
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -835,14 +980,6 @@ class _Corners extends StatelessWidget {
           return Center(
             child: Text(
               'Drag an image here',
-              style: CruType.subhead.tint(RadInk.overlayQuiet),
-            ),
-          );
-        }
-        if (pane.loading && px == null && pane.placeholder == null) {
-          return Center(
-            child: Text(
-              'Opening image…',
               style: CruType.subhead.tint(RadInk.overlayQuiet),
             ),
           );

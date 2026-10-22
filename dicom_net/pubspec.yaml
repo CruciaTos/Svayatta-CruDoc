@@ -1,0 +1,10 @@
+name: dicom_net
+description: DICOM networking shared by CruDoc and the PACS simulator — DICOMweb (QIDO-RS, WADO-RS, STOW-RS) client and server, and DICOM C-ECHO / C-STORE send and receive. Pure Dart.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ^3.11.4
+
+dev_dependencies:
+  lints: ^6.0.0

@@ -29,7 +29,7 @@ import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Rebuilt Tasks tab for the mobile shell: one unified to-do list with
-/// source pill filter, 4 glance boxes, search with filter icon, and flat list.
+/// source pill filter, a recently-done strip, search with filter icon, and flat list.
 class MobileTasksScreen extends ConsumerStatefulWidget {
   const MobileTasksScreen({super.key, required this.enabledModules});
 
@@ -674,48 +674,6 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     );
   }
 
-  Widget _buildGlanceSection(BuildContext context, List<_GlanceData> tiles) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isNarrow = width < 360;
-
-    if (isNarrow) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(child: _GlanceTile(data: tiles[0])),
-                const SizedBox(width: CruSpace.s8),
-                Expanded(child: _GlanceTile(data: tiles[1])),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s8),
-            Row(
-              children: [
-                Expanded(child: _GlanceTile(data: tiles[2])),
-                const SizedBox(width: CruSpace.s8),
-                Expanded(child: _GlanceTile(data: tiles[3])),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-      child: Row(
-        children: [
-          for (int i = 0; i < tiles.length; i++) ...[
-            if (i > 0) const SizedBox(width: CruSpace.s6),
-            Expanded(child: _GlanceTile(data: tiles[i])),
-          ],
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -756,8 +714,6 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     final referrers = radiologyOn
         ? ref.watch(radReferrerByIdProvider)
         : const <String, RadReferrer>{};
-
-    final reportsAsync = reportsOn ? ref.watch(radReportsProvider) : null;
 
     final planItemsAsync =
         dentalOn ? ref.watch(clinicTreatmentPlansProvider) : null;
@@ -821,217 +777,14 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
               .length,
         };
 
-    // Glance boxes computation
-    final c = context.cru;
-    final studies = studiesAsync?.value ?? const <RadStudy>[];
-    final reports = reportsAsync?.value ?? const <RadReport>[];
-    final planItems =
-        planItemsAsync?.value?.where((i) => !i.isDeleted).toList() ??
-            const <TreatmentPlanLineItemModel>[];
-
-    final weekStart = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: now.weekday - 1));
-
-    bool isSameDay(DateTime a, DateTime b) =>
-        a.year == b.year && a.month == b.month && a.day == b.day;
-
-    final List<_GlanceData> glanceTiles;
-    switch (effectiveSource) {
-      case TaskSourceFilter.worklist:
-        final toRead = studies
-            .where((s) =>
-                s.status == RadStudyStatus.newStudy ||
-                s.status == RadStudyStatus.reading)
-            .toList();
-        final urgent =
-            studies.where((s) => s.status.isOpen && s.priority != RadPriority.routine).length;
-        final overdue =
-            studies.where((s) => s.status.isOpen && s.isOverdue(now)).length;
-        final signedToday = studies
-            .where((s) => !s.status.isOpen && isSameDay(s.updatedAt, now))
-            .length;
-
-        glanceTiles = [
-          _GlanceData(
-            label: 'To read',
-            value: '${toRead.length}',
-            caption: toRead.isEmpty
-                ? 'All caught up'
-                : 'Oldest ${RadFormat.ago(toRead.map((s) => s.receivedAt).reduce((a, b) => a.isBefore(b) ? a : b), now).toLowerCase()}',
-            onTap: () => setState(() => _statusFilter = TaskStatusFilter.toRead),
-          ),
-          _GlanceData(
-            label: 'Urgent & STAT',
-            value: '$urgent',
-            caption: urgent == 0 ? 'None waiting' : 'Waiting for a report',
-            onTap: () => setState(() => _statusFilter = TaskStatusFilter.urgent),
-          ),
-          _GlanceData(
-            label: 'Overdue',
-            value: '$overdue',
-            caption: overdue == 0 ? 'On time' : 'Past due time',
-            valueColor:
-                overdue > 0 ? mobileTone(c, MobileTone.amber).$2 : null,
-            onTap: () => setState(() => _timeFilter = TaskTimeFilter.overdue),
-          ),
-          _GlanceData(
-            label: 'Signed today',
-            value: '$signedToday',
-            caption: 'Reports signed',
-          ),
-        ];
-
-      case TaskSourceFilter.reports:
-        final drafts =
-            studies.where((s) => s.status == RadStudyStatus.draft).length;
-        final prelim =
-            studies.where((s) => s.status == RadStudyStatus.preliminary).length;
-        final signedWeek = reports
-            .where((r) => r.signedAt != null && !r.signedAt!.isBefore(weekStart))
-            .length;
-        final sentWeek = reports
-            .where((r) => r.sharedAt != null && !r.sharedAt!.isBefore(weekStart))
-            .length;
-
-        glanceTiles = [
-          _GlanceData(
-            label: 'Drafts',
-            value: '$drafts',
-            caption: drafts == 0 ? 'None half-written' : '$drafts writing',
-            onTap: () =>
-                setState(() => _statusFilter = TaskStatusFilter.drafting),
-          ),
-          _GlanceData(
-            label: 'Awaiting signature',
-            value: '$prelim',
-            caption: prelim == 0 ? 'None waiting' : 'Preliminary, not signed',
-            onTap: () =>
-                setState(() => _statusFilter = TaskStatusFilter.toSign),
-          ),
-          _GlanceData(
-            label: 'Signed this week',
-            value: '$signedWeek',
-            caption: 'Since Monday',
-          ),
-          _GlanceData(
-            label: 'Sent this week',
-            value: '$sentWeek',
-            caption: sentWeek == 0 ? 'None sent yet' : '$sentWeek sent in all',
-            onTap: () => setState(() => _statusFilter = TaskStatusFilter.sent),
-          ),
-        ];
-
-      case TaskSourceFilter.plans:
-        final proposed = planItems
-            .where((i) =>
-                TreatmentPlanItemStatus.fromString(i.status) ==
-                TreatmentPlanItemStatus.proposed)
-            .toList();
-        final accepted = planItems
-            .where((i) =>
-                TreatmentPlanItemStatus.fromString(i.status) ==
-                TreatmentPlanItemStatus.accepted)
-            .toList();
-        final invoiced = planItems
-            .where((i) =>
-                TreatmentPlanItemStatus.fromString(i.status) ==
-                TreatmentPlanItemStatus.invoiced)
-            .toList();
-        final declined = planItems
-            .where((i) =>
-                TreatmentPlanItemStatus.fromString(i.status) ==
-                TreatmentPlanItemStatus.declined)
-            .toList();
-
-        final proposedSum =
-            proposed.fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
-        final acceptedSum =
-            accepted.fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
-        final invoicedSum =
-            invoiced.fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
-
-        final decided = accepted.length + invoiced.length + declined.length;
-        final acceptance = decided == 0
-            ? '—'
-            : '${((accepted.length + invoiced.length) * 100 / decided).round()}%';
-
-        glanceTiles = [
-          _GlanceData(
-            label: 'Awaiting a yes',
-            value: DashFormat.rupees(proposedSum),
-            caption: proposed.isEmpty
-                ? 'Nothing waiting'
-                : '${DashFormat.plural(proposed.length, 'procedure')} proposed',
-            valueColor:
-                proposed.isNotEmpty ? mobileTone(c, MobileTone.amber).$2 : null,
-            onTap: () =>
-                setState(() => _statusFilter = TaskStatusFilter.awaiting),
-          ),
-          _GlanceData(
-            label: 'Accepted',
-            value: DashFormat.rupees(acceptedSum),
-            caption: accepted.isEmpty
-                ? 'Nothing to do yet'
-                : '${DashFormat.plural(accepted.length, 'procedure')} to do',
-            onTap: () =>
-                setState(() => _statusFilter = TaskStatusFilter.accepted),
-          ),
-          _GlanceData(
-            label: 'Invoiced',
-            value: DashFormat.rupees(invoicedSum),
-            caption: '${DashFormat.plural(invoiced.length, 'procedure')} done',
-            onTap: () =>
-                setState(() => _statusFilter = TaskStatusFilter.invoiced),
-          ),
-          _GlanceData(
-            label: 'Acceptance',
-            value: acceptance,
-            caption: decided == 0 ? 'No decisions yet' : 'of $decided decided',
-          ),
-        ];
-
-      case TaskSourceFilter.all:
-        final openCount = board.items.length;
-        final overdueCount =
-            board.items.where((t) => t.isOverdue(now)).length;
-        final urgentCount = board.items
-            .where((t) =>
-                t.critical ||
-                t.priority == RadPriority.stat ||
-                t.priority == RadPriority.urgent)
-            .length;
-        final doneCount = board.doneToday;
-
-        glanceTiles = [
-          _GlanceData(
-            label: 'To do',
-            value: '$openCount',
-            caption: 'Open tasks',
-            onTap: () => setState(() => _statusFilter = TaskStatusFilter.open),
-          ),
-          _GlanceData(
-            label: 'Overdue',
-            value: '$overdueCount',
-            caption: overdueCount == 0 ? 'On time' : 'Past due time',
-            valueColor:
-                overdueCount > 0 ? mobileTone(c, MobileTone.amber).$2 : null,
-            onTap: () => setState(() => _timeFilter = TaskTimeFilter.overdue),
-          ),
-          _GlanceData(
-            label: 'Urgent',
-            value: '$urgentCount',
-            caption: urgentCount == 0 ? 'None waiting' : 'Needs attention',
-            onTap: () => setState(() => _statusFilter = TaskStatusFilter.urgent),
-          ),
-          _GlanceData(
-            label: 'Done today',
-            value: '$doneCount',
-            caption: 'Finished today',
-          ),
-        ];
+    // Recent activity for the sliding strip above search: every task,
+    // open or finished, newest change first.
+    final recentActivity = [...board.items, ...board.finished]
+        .where((t) => matchesSource(t, effectiveSource))
+        .toList()
+      ..sort((a, b) => b.since.compareTo(a.since));
+    if (recentActivity.length > 10) {
+      recentActivity.removeRange(10, recentActivity.length);
     }
 
     final hasActiveFilter =
@@ -1096,8 +849,13 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
             const SizedBox(height: CruSpace.s12),
           ],
 
-          // 2. 4 Glance boxes
-          _buildGlanceSection(context, glanceTiles),
+          // 2. Recent activity, as a sliding strip
+          _RecentActivityStrip(
+            items: recentActivity,
+            now: now,
+            onTap: (t) => _handleTaskTap(context, t),
+            onLongPress: (t) => _openTaskActions(context, t),
+          ),
           const SizedBox(height: CruSpace.s16),
 
           // 3. Search bar with filter icon
@@ -1201,67 +959,345 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
   }
 }
 
-class _GlanceData {
-  final String label;
-  final String value;
-  final String caption;
-  final Color? valueColor;
-  final VoidCallback? onTap;
-
-  const _GlanceData({
-    required this.label,
-    required this.value,
-    required this.caption,
-    this.valueColor,
-    this.onTap,
+/// A swipeable strip of the most recently changed tasks, laid out like the
+/// Material 3 "multi-browse" carousel (Google Files / Photos "Recent"): a
+/// large card, a medium one and a narrow sliver that grow and shrink as
+/// they slide. Card content keeps its full size and is revealed through
+/// the card like a window, so nothing squashes while it moves.
+class _RecentActivityStrip extends StatelessWidget {
+  const _RecentActivityStrip({
+    required this.items,
+    required this.now,
+    required this.onTap,
+    required this.onLongPress,
   });
-}
 
-class _GlanceTile extends StatelessWidget {
-  const _GlanceTile({required this.data});
-  final _GlanceData data;
+  final List<TaskItem> items;
+  final DateTime now;
+  final ValueChanged<TaskItem> onTap;
+  final ValueChanged<TaskItem> onLongPress;
+
+  static const double _height = 184;
+  static const double _gap = 4;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return MobileCard(
-      onTap: data.onTap,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            data.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: MobileType.caption.w500.tint(c.label2),
+
+    // Fewer weights when there are only one or two tasks, so a lone card
+    // isn't left half-width next to empty space.
+    final weights = switch (items.length) {
+      1 => const [1],
+      2 => const [3, 2],
+      _ => const [3, 2, 1],
+    };
+    final totalWeight = weights.fold<int>(0, (a, b) => a + b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            MobileMetrics.gutter + 2,
+            0,
+            MobileMetrics.gutter,
+            CruSpace.s8,
           ),
-          const SizedBox(height: CruSpace.s4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              data.value,
-              style: MobileType.metric.copyWith(
-                color: data.valueColor ?? c.label,
+          child: Text(
+            'Recent activity',
+            style: MobileType.groupLabel.tint(mobileInk(context)),
+          ),
+        ),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MobileMetrics.gutter,
+            ),
+            child: MobileCard(
+              padding: const EdgeInsets.all(CruSpace.s12),
+              child: Row(
+                children: [
+                  const MobileIconTile(
+                    icon: CruIcons.check,
+                    tone: MobileTone.green,
+                  ),
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(
+                    child: Text(
+                      'New and updated tasks will show up here.',
+                      style: MobileType.subhead.tint(c.label2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: _height,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MobileMetrics.gutter - _gap,
+              ),
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  // Width of the largest card: the size content is laid
+                  // out at, whatever width the card has at the moment.
+                  final fullWidth =
+                      box.maxWidth * weights.first / totalWeight - _gap * 2;
+                  return CarouselView.weighted(
+                    flexWeights: weights,
+                    itemSnapping: true,
+                    enableSplash: false,
+                    padding: const EdgeInsets.symmetric(horizontal: _gap),
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    itemClipBehavior: Clip.antiAlias,
+                    shape: RoundedSuperellipseBorder(
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                    children: [
+                      for (final t in items)
+                        _RecentActivityCard(
+                          task: t,
+                          now: now,
+                          fullWidth: fullWidth,
+                          onTap: () => onTap(t),
+                          onLongPress: () => onLongPress(t),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
-          const SizedBox(height: CruSpace.s2),
-          SizedBox(
-            height: 14,
-            child: Text(
-              data.caption,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: MobileType.micro.tabular.tint(c.label3),
+      ],
+    );
+  }
+}
+
+class _RecentActivityCard extends StatelessWidget {
+  const _RecentActivityCard({
+    required this.task,
+    required this.now,
+    required this.fullWidth,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  final TaskItem task;
+  final DateTime now;
+  final double fullWidth;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  static String _ago(DateTime since, DateTime now) {
+    final diff = now.difference(since);
+    if (diff.inMinutes < 60) return '${diff.inMinutes.clamp(1, 59)}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 30) return '${diff.inDays}d ago';
+    return '${(diff.inDays / 30).floor()}mo ago';
+  }
+
+  /// Bright status dot, readable on the blue card in both appearances.
+  static Color _statusDot(TaskItem t) {
+    if (t.critical) return const Color(0xFFFF6B6B);
+    return switch (t.stage) {
+      TaskStage.toRead ||
+      TaskStage.toSign ||
+      TaskStage.awaitingOk =>
+        const Color(0xFFFFB340),
+      TaskStage.reading || TaskStage.toTreat => const Color(0xFF93C5FD),
+      TaskStage.toSend ||
+      TaskStage.delivered ||
+      TaskStage.invoiced =>
+        const Color(0xFF4ADE80),
+      TaskStage.drafting || TaskStage.declined => const Color(0xFFCBD5E1),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = task;
+
+    final (icon, top, bottom) = switch (t.source) {
+      TaskSource.scan => (
+          RadIcons.worklist,
+          const Color(0xFF3960FB),
+          const Color(0xFF1E3A8A),
+        ),
+      TaskSource.report => (
+          RadIcons.report,
+          const Color(0xFF4F46E5),
+          const Color(0xFF1E1B4B),
+        ),
+      TaskSource.plan => (
+          DentalIcons.plan,
+          const Color(0xFF2563EB),
+          const Color(0xFF0C4A6E),
+        ),
+    };
+
+    final subtitle = [
+      t.title,
+      if (t.detail != null && t.detail!.isNotEmpty) t.detail!,
+    ].join(' · ');
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        MobileHaptics.tap();
+        onTap();
+      },
+      onLongPress: () {
+        MobileHaptics.tap();
+        onLongPress();
+      },
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Text fades out as the card narrows into the sliver at the edge.
+          final reveal =
+              ((box.maxWidth - 80) / (fullWidth * 0.7 - 80)).clamp(0.0, 1.0);
+
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [top, bottom],
+              ),
             ),
-          ),
-        ],
+            child: OverflowBox(
+              minWidth: fullWidth,
+              maxWidth: fullWidth,
+              alignment: Alignment.center,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Large faint glyph behind everything, like a thumbnail.
+                  Positioned(
+                    right: -18,
+                    top: 28,
+                    child: CruIcon(
+                      icon,
+                      size: 120,
+                      strokeWidth: 1.4,
+                      color: Colors.white.withValues(alpha: 0.10),
+                    ),
+                  ),
+                  // Scrim so the bottom text stays readable.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.center,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x00000000), Color(0x59000000)],
+                      ),
+                    ),
+                  ),
+                  // Centred glyph for the narrow sliver; fades as text appears.
+                  Align(
+                    alignment: const Alignment(0, -0.2),
+                    child: Opacity(
+                      opacity: 1 - reveal,
+                      child: _glyph(icon),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: reveal,
+                    child: Padding(
+                      padding: const EdgeInsets.all(CruSpace.s12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              _glyph(icon, size: 32),
+                              const Spacer(),
+                              Text(
+                                _ago(t.since, now),
+                                style: MobileType.micro.w600.tabular
+                                    .tint(Colors.white.withValues(alpha: 0.8)),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          Text(
+                            t.patientName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: MobileType.row.w600.tint(Colors.white),
+                          ),
+                          const SizedBox(height: CruSpace.s2),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: MobileType.caption
+                                .tint(Colors.white.withValues(alpha: 0.75)),
+                          ),
+                          const SizedBox(height: CruSpace.s8),
+                          _statusPill(t),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+
+  Widget _glyph(CruIconData icon, {double size = 44}) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
+        ),
+        child: CruIcon(
+          icon,
+          size: size * 0.48,
+          strokeWidth: 1.9,
+          color: Colors.white,
+        ),
+      );
+
+  Widget _statusPill(TaskItem t) => Container(
+        height: 24,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+        decoration: ShapeDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          shape: const StadiumBorder(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: _statusDot(t),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: CruSpace.s6),
+            Flexible(
+              child: Text(
+                t.critical ? 'Critical · ${t.stage.label}' : t.stage.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: MobileType.micro.w600.tint(Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
 }
 
 class _FilterIconButton extends StatelessWidget {

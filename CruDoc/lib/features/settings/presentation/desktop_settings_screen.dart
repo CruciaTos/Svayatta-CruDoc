@@ -41,6 +41,9 @@ import 'package:doctor_management_app/features/shell/components/specialty_switch
 import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
 import 'package:doctor_management_app/features/team/presentation/team_section.dart';
+import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -201,14 +204,18 @@ class DesktopSettingsScreen extends ConsumerWidget {
               children: [
                 SizedBox(
                   width: _kNavWidth,
-                  child: _SectionList(
-                    sections: [
-                      for (final s in SettingsSection.values)
-                        if (showSettingsSection(ref, s)) s,
-                    ],
-                    selected: section,
-                    onSelect: (s) =>
-                        ref.read(settingsSectionProvider.notifier).state = s,
+                  child: TutorialAnchor(
+                    target: TutorialTarget.settingsSections,
+                    radius: CruRadius.card,
+                    child: _SectionList(
+                      sections: [
+                        for (final s in SettingsSection.values)
+                          if (showSettingsSection(ref, s)) s,
+                      ],
+                      selected: section,
+                      onSelect: (s) =>
+                          ref.read(settingsSectionProvider.notifier).state = s,
+                    ),
                   ),
                 ),
                 const SizedBox(width: CruSpace.cardGap),
@@ -1990,6 +1997,46 @@ class _AboutSectionState extends ConsumerState<_AboutSection> {
             label: _checking ? 'Checking…' : 'Check for updates',
             kind: CruButtonKind.secondary,
             onPressed: _checking ? null : _check,
+          ),
+        ),
+      ),
+      _SettingsCard(
+        title: 'Guided tour',
+        child: _ActionRow(
+          leading: const CruIconTile(
+            icon: CruIcons.help,
+            tone: CruTileTone.neutral,
+          ),
+          title: 'Take the tour again',
+          detail: 'A 1-minute look at the essentials, from the Dashboard.',
+          action: CruButton(
+            label: 'Start tour',
+            kind: CruButtonKind.secondary,
+            // Opens the Dashboard and starts from the first card.
+            onPressed: () => ref
+                .read(tutorialControllerProvider.notifier)
+                .requestReplay(TutorialPlatform.desktop),
+          ),
+        ),
+      ),
+      _SettingsCard(
+        title: 'Voice tour',
+        child: _ActionRow(
+          leading: const CruIconTile(
+            icon: CruIcons.mic,
+            tone: CruTileTone.neutral,
+          ),
+          title: 'Learn to use voice',
+          detail: 'Hold Space to talk, hands-free, and filling forms by voice.',
+          action: CruButton(
+            label: 'Start tour',
+            kind: CruButtonKind.secondary,
+            onPressed: () => ref
+                .read(tutorialControllerProvider.notifier)
+                .requestReplay(
+                  TutorialPlatform.desktop,
+                  tour: TutorialTour.voice,
+                ),
           ),
         ),
       ),

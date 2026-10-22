@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/dashboard_search_field.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 /// Date line + greeting, then search, Add patient and New visit (these
 /// replace the old Quick Actions card).
@@ -52,25 +53,39 @@ class DashboardHeader extends ConsumerWidget {
       mainAxisSize: stretchSearch ? MainAxisSize.max : MainAxisSize.min,
       children: [
         if (stretchSearch)
-          Expanded(child: DashboardSearchField(focusNode: searchFocusNode))
+          Expanded(
+            child: TutorialAnchor(
+              target: TutorialTarget.search,
+              child: DashboardSearchField(focusNode: searchFocusNode),
+            ),
+          )
         else
-          DashboardSearchField(
-            focusNode: searchFocusNode,
-            width: CruSize.searchWidth,
+          TutorialAnchor(
+            target: TutorialTarget.search,
+            child: DashboardSearchField(
+              focusNode: searchFocusNode,
+              width: CruSize.searchWidth,
+            ),
           ),
         const SizedBox(width: CruSpace.s10),
-        CruButton(
-          label: 'Add patient',
-          kind: CruButtonKind.secondary,
-          icon: CruIcons.userPlus,
-          onPressed: () => DashboardActions.addPatient(context),
+        TutorialAnchor(
+          target: TutorialTarget.addPatient,
+          child: CruButton(
+            label: 'Add patient',
+            kind: CruButtonKind.secondary,
+            icon: CruIcons.userPlus,
+            onPressed: () => DashboardActions.addPatient(context),
+          ),
         ),
         const SizedBox(width: CruSpace.s10),
         // The same booking flow as Schedule's "New appointment".
-        CruButton(
-          label: 'New appointment',
-          icon: CruIcons.plus,
-          onPressed: () => ApptActions.newAppointment(context, ref),
+        TutorialAnchor(
+          target: TutorialTarget.newAppointment,
+          child: CruButton(
+            label: 'New appointment',
+            icon: CruIcons.plus,
+            onPressed: () => ApptActions.newAppointment(context, ref),
+          ),
         ),
       ],
     );

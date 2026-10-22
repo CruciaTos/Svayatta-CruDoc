@@ -180,6 +180,10 @@ abstract final class CruSize {
   /// On-token dialogs (Record payment, Delete patient).
   static const double dialog = 420;
 
+  /// The first-run tour's card on desktop (the phone's spans the screen
+  /// less its gutters).
+  static const double tourCard = 360;
+
   /// Desktop form dialogs (Add patient, …): section label column, the
   /// minimum width of a tag input and a tag's remove button.
   static const double formDialog = 760;

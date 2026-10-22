@@ -98,6 +98,7 @@ final Map<UploadKind, Set<String>> _allowedTypes = {
   UploadKind.imagingOriginal: {'application/dicom', 'image/tiff'},
   UploadKind.imagingPreview: {'image/jpeg'},
   UploadKind.patientFile: PatientFileTypes.contentTypes,
+  UploadKind.patientFileView: {'image/jpeg'},
 };
 
 /// What a link handler is told once its file is in the bucket.
@@ -889,6 +890,12 @@ class StorageSyncQueue {
         fileId: item.link?.docId ?? '',
         bytes: bytes,
         contentType: type,
+      ),
+      UploadKind.patientFileView => service.uploadPatientFileView(
+        doctorId: doctorId,
+        patientId: patientId,
+        fileId: item.link?.docId ?? '',
+        bytes: bytes,
       ),
     };
   }

@@ -10,6 +10,8 @@ import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart
 import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
+import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_gate.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Width (logical pixels) above which [DesktopShell] is shown instead of
@@ -96,10 +98,20 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       key: ValueKey(access?.clinicId),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          // The first-run tour, separately per layout. Crossing the
+          // breakpoint swaps the gate too, which ends the other tour.
           if (constraints.maxWidth >= kDesktopBreakpoint) {
-            return const DesktopShell();
+            return const TutorialGate(
+              key: ValueKey(TutorialPlatform.desktop),
+              platform: TutorialPlatform.desktop,
+              child: DesktopShell(),
+            );
           }
-          return const MobileShell();
+          return const TutorialGate(
+            key: ValueKey(TutorialPlatform.mobile),
+            platform: TutorialPlatform.mobile,
+            child: MobileShell(),
+          );
         },
       ),
     );

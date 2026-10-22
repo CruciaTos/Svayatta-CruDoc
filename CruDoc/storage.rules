@@ -159,6 +159,11 @@ service firebase.storage {
         && fileRecord().doctorId == doctorId
         && (request.auth.uid in fileRecord().visibleTo
           || 'team' in fileRecord().visibleTo);
+      // 'view' is the progressive JPEG a picture is viewed from.
+      allow create: if can(doctorId, 'clinical.edit')
+        && name == 'view'
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size <= 50 * 1024 * 1024;
       allow create: if can(doctorId, 'clinical.edit')
         && name == 'original'
         && request.resource.contentType in [

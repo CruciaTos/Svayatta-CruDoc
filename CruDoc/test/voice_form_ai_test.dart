@@ -21,6 +21,7 @@ class _FakeGemini extends GeminiJsonClient {
     required String systemPrompt,
     required String prompt,
     Uint8List? audioBytes,
+    List<Uint8List> images = const [],
     required Schema schema,
     String mimeType = 'audio/mp4',
     int maxOutputTokens = 8192,

@@ -130,12 +130,14 @@ class GeminiJsonClient {
   /// or non-JSON reply, [GeminiHttpException] for a REST error status, and
   /// passes through Firebase AI, timeout and network exceptions.
   ///
-  /// [audioBytes] null: the prompt alone. [quick]: no thinking on models
+  /// [audioBytes] null: the prompt alone. [images]: JPEG pages read along
+  /// with the prompt (scanned documents). [quick]: no thinking on models
   /// that allow it, for short replies someone is waiting on.
   Future<Map<String, dynamic>> generateJson({
     required String systemPrompt,
     required String prompt,
     Uint8List? audioBytes,
+    List<Uint8List> images = const [],
     required Schema schema,
     String mimeType = 'audio/mp4',
     int maxOutputTokens = 8192,
@@ -150,6 +152,7 @@ class GeminiJsonClient {
             prompt,
             audioBytes,
             mimeType,
+            images,
             schema,
             maxOutputTokens,
             timeout,
@@ -161,6 +164,7 @@ class GeminiJsonClient {
             prompt,
             audioBytes,
             mimeType,
+            images,
             schema,
             maxOutputTokens,
             timeout,
@@ -188,6 +192,7 @@ class GeminiJsonClient {
     String prompt,
     Uint8List? audioBytes,
     String mimeType,
+    List<Uint8List> images,
     Schema schema,
     int maxOutputTokens,
     Duration timeout,
@@ -211,6 +216,7 @@ class GeminiJsonClient {
           Content.multi([
             TextPart(prompt),
             if (audioBytes != null) InlineDataPart(mimeType, audioBytes),
+            for (final page in images) InlineDataPart('image/jpeg', page),
           ]),
         ])
         .timeout(timeout);
@@ -223,6 +229,7 @@ class GeminiJsonClient {
     String prompt,
     Uint8List? audioBytes,
     String mimeType,
+    List<Uint8List> images,
     Schema schema,
     int maxOutputTokens,
     Duration timeout,
@@ -256,6 +263,13 @@ class GeminiJsonClient {
                         'inlineData': {
                           'mimeType': mimeType,
                           'data': base64Encode(audioBytes),
+                        },
+                      },
+                    for (final page in images)
+                      {
+                        'inlineData': {
+                          'mimeType': 'image/jpeg',
+                          'data': base64Encode(page),
                         },
                       },
                   ],

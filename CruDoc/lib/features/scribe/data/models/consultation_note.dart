@@ -159,6 +159,10 @@ class ConsultationNote {
   /// audio has been deleted per the retention policy (after confirm/discard).
   final String? audioStoragePath;
 
+  /// Patient files holding the handwritten pages this note was read from
+  /// (the Scan quick action), in page order. Empty for spoken sessions.
+  final List<String> scanFileIds;
+
   final ConsultationNoteStatus status;
   final DateTime createdAt;
   final DateTime? confirmedAt;
@@ -188,6 +192,7 @@ class ConsultationNote {
     this.consentGiven = true,
     this.consentAt,
     this.audioStoragePath,
+    this.scanFileIds = const [],
     this.status = ConsultationNoteStatus.draft,
     required this.createdAt,
     this.confirmedAt,
@@ -223,6 +228,7 @@ class ConsultationNote {
       'consentGiven': consentGiven,
       'consentAt': consentAt != null ? Timestamp.fromDate(consentAt!) : null,
       'audioStoragePath': audioStoragePath,
+      'scanFileIds': jsonEncode(scanFileIds),
       'status': status.value,
       'createdAt': Timestamp.fromDate(createdAt),
       'confirmedAt': confirmedAt != null
@@ -259,6 +265,7 @@ class ConsultationNote {
       'consentGiven': consentGiven ? 1 : 0,
       'consentAt': consentAt?.millisecondsSinceEpoch,
       'audioStoragePath': audioStoragePath,
+      'scanFileIds': jsonEncode(scanFileIds),
       'status': status.value,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'confirmedAt': confirmedAt?.millisecondsSinceEpoch,
@@ -296,6 +303,7 @@ class ConsultationNote {
           : (map['consentGiven'] as int? ?? 0) == 1,
       consentAt: _parseNullableDate(map['consentAt']),
       audioStoragePath: map['audioStoragePath'] as String?,
+      scanFileIds: _parseStringList(map['scanFileIds']),
       status: ConsultationNoteStatus.fromValue(map['status'] as String?),
       createdAt: _parseDate(map['createdAt']),
       confirmedAt: _parseNullableDate(map['confirmedAt']),
@@ -334,6 +342,7 @@ class ConsultationNote {
     String? confidenceNote,
     String? audioStoragePath,
     bool clearAudioStoragePath = false,
+    List<String>? scanFileIds,
     ConsultationNoteStatus? status,
     DateTime? confirmedAt,
     DateTime? updatedAt,
@@ -366,6 +375,7 @@ class ConsultationNote {
       audioStoragePath: clearAudioStoragePath
           ? null
           : (audioStoragePath ?? this.audioStoragePath),
+      scanFileIds: scanFileIds ?? this.scanFileIds,
       status: status ?? this.status,
       createdAt: createdAt,
       confirmedAt: confirmedAt ?? this.confirmedAt,

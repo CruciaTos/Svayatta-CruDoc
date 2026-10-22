@@ -1175,6 +1175,7 @@ class LocalDatabaseService extends ChangeNotifier {
         consentGiven INTEGER NOT NULL DEFAULT 1,
         consentAt INTEGER,
         audioStoragePath TEXT,
+        scanFileIds TEXT NOT NULL DEFAULT '[]',
         status TEXT NOT NULL DEFAULT 'draft'
           CHECK (status IN ('draft', 'confirmed', 'discarded')),
         createdAt INTEGER NOT NULL,
@@ -1209,6 +1210,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'consentGiven': 'consentGiven INTEGER NOT NULL DEFAULT 1',
     'consentAt': 'consentAt INTEGER',
     'audioStoragePath': 'audioStoragePath TEXT',
+    'scanFileIds': "scanFileIds TEXT NOT NULL DEFAULT '[]'",
     'status': "status TEXT NOT NULL DEFAULT 'draft'",
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'confirmedAt': 'confirmedAt INTEGER',

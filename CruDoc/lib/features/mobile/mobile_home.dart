@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/inventory/presentation/desktop_ad
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
+import 'package:doctor_management_app/features/scan/presentation/scan_flow.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
@@ -23,7 +24,6 @@ import 'package:doctor_management_app/features/mobile/mobile_notifications.dart'
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
-import 'package:doctor_management_app/features/queue/presentation/check_in_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -960,11 +960,21 @@ class _QuickActions extends ConsumerWidget {
         MobileTone.amber,
         (ctx, _) => DashboardActions.newVisit(ctx),
       ),
+      // Paper in: handwritten notes, reports, supplier bills.
       _Action(
-        'Walk-in',
-        CruIcons.userPlus,
-        MobileTone.amber,
-        (ctx, _) => CheckInDialog.show(mobileRoot(ctx), walkIn: true),
+        'Scan',
+        CruIcons.scan,
+        MobileTone.sky,
+        (ctx, r) => startScanFlow(
+          ctx,
+          clinical: r.read(clinicCanProvider(ClinicPermission.clinicalEdit)),
+          inventory:
+              on('inventory') &&
+              r.read(clinicCanProvider(ClinicPermission.inventory)),
+          revenue:
+              on('revenue') &&
+              r.read(clinicCanProvider(ClinicPermission.revenue)),
+        ),
       ),
       _Action('Book visit', CruIcons.calendar, MobileTone.blue, _bookVisit),
       _Action(

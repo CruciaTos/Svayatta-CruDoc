@@ -72,7 +72,7 @@
 	<key>NSContactsUsageDescription</key>
 	<string>CruDoc checks your contacts' phone numbers to show colleagues already on CruDoc, so you can invite them to your clinic. Your contacts aren't stored.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Allow camera access to photograph medicine receipts.</string>
+	<string>CruDoc uses the camera to scan notes, reports and supplier bills.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -92,6 +92,9 @@ dependencies:
   flutter_local_notifications: ^22.3.2
   share_plus: ^12.0.2
   speech_to_text: ^7.4.0
+  # Scan quick action: live page-edge detection and auto-crop (ML Kit on
+  # Android, Vision on iOS).
+  cunning_document_scanner: 3.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -273,7 +273,9 @@ Future<List<String>> radLocalAddresses() async {
     return [
       for (final i in list)
         for (final a in i.addresses)
-          if (!a.isLoopback) a.address,
+          // 192.0.0.x is Android's internal IPv4-over-IPv6 link, not
+          // an address a scanner can reach.
+          if (!a.isLoopback && !a.address.startsWith('192.0.0.')) a.address,
     ];
   } catch (_) {
     return const [];

@@ -18,7 +18,9 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/data/pacs_connection.dart';
 import 'package:doctor_management_app/features/radiology/open_study.dart';
+import 'package:doctor_management_app/features/radiology/presentation/pacs_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
@@ -428,6 +430,16 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
             onTap: () => openRadReport(context, study),
           ),
         );
+        if (ref.read(radPacsServersProvider).value?.isNotEmpty ?? false) {
+          actions.add(
+            MobileSheetAction(
+              label: 'Send to PACS',
+              icon: CruIcons.arrowUp,
+              tone: MobileTone.sky,
+              onTap: () => sendRadStudyToPacs(context, ref, study),
+            ),
+          );
+        }
         actions.add(
           MobileSheetAction(
             label: 'Set priority',
@@ -691,6 +703,13 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
 
     final radiologyOn = worklistOn || reportsOn;
     final dentalOn = plansOn;
+    // Watching keeps the scanner receiver listening while Tasks is open,
+    // and has the PACS list ready for "Send to PACS".
+    final received = worklistOn
+        ? ref.watch(radReceiverProvider).received
+        : const <String>[];
+    final lastFrom = worklistOn ? ref.watch(radReceiverProvider).lastFrom : '';
+    if (worklistOn) ref.watch(radPacsServersProvider);
 
     final none = !radiologyOn && !dentalOn;
 
@@ -808,6 +827,25 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
               : null,
         ),
         const SizedBox(height: CruSpace.s16),
+        if (received.isNotEmpty) ...[
+          MobileRowGroup(
+            children: [
+              MobileRow(
+                leading: const MobileIconTile(
+                  icon: RadIcons.import,
+                  tone: MobileTone.blue,
+                ),
+                title: '${RadFormat.images(received.length)} received',
+                subtitle: lastFrom.isEmpty
+                    ? 'From scanners'
+                    : 'From $lastFrom',
+                trailing: MobilePill('Add to worklist', tone: MobileTone.blue),
+                onTap: () => importRadReceived(context, ref),
+              ),
+            ],
+          ),
+          const SizedBox(height: CruSpace.s12),
+        ],
         if (none)
           const MobileEmpty(
             icon: CruIcons.check,

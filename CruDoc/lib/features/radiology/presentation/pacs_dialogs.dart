@@ -991,7 +991,7 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
                   const SizedBox(height: CruSpace.s6),
                   Text(
                     'Add a DICOM destination with AE title ${_ae?.text ?? s.aeTitle}, port '
-                    '${_port?.text ?? s.dicomPort} and this computer\'s address'
+                    '${_port?.text ?? s.dicomPort} and this device\'s address'
                     '${_addresses.isEmpty ? '' : ' (${_addresses.join(', ')})'}.',
                     style: CruType.subhead.tabular.tint(c.label2),
                   ),

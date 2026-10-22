@@ -339,13 +339,20 @@ class _PdfViewState extends State<_PdfView>
   static const double _maxPageWidth = 720;
   static const EdgeInsets _pageMargin = EdgeInsets.all(CruSpace.s16);
 
+  /// The first page sharpens over a full second; on a slow phone the
+  /// loading light simply runs longer before it starts.
   late final AnimationController _dissolve =
       AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 600),
+        duration: const Duration(milliseconds: 1000),
       )..addStatusListener((s) {
         if (s == AnimationStatus.completed && mounted) setState(() {});
       });
+
+  /// The reveal never starts sooner than this after opening, so even a
+  /// fast phone shows the whole entrance.
+  static const _leastLoading = Duration(milliseconds: 400);
+  final DateTime _openedAt = DateTime.now();
 
   _PdfPages? _pages;
   Object? _error;
@@ -410,7 +417,8 @@ class _PdfViewState extends State<_PdfView>
       if (reduced) {
         _dissolve.value = 1;
       } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+        final wait = _leastLoading - DateTime.now().difference(_openedAt);
+        Future<void>.delayed(wait.isNegative ? Duration.zero : wait, () {
           if (mounted) _dissolve.forward(from: 0);
         });
       }
@@ -971,7 +979,7 @@ class _PageIn extends StatefulWidget {
 class _PageInState extends State<_PageIn> with SingleTickerProviderStateMixin {
   late final AnimationController _t = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 520),
+    duration: const Duration(milliseconds: 800),
     value: widget.play ? 0 : 1,
   );
 

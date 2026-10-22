@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -150,20 +148,8 @@ class RadiologyRepository {
     return d == null ? null : RadStudy.fromJson(d);
   }
 
-  Future<void> saveStudy(String doctorId, RadStudy s) {
-    // DEBUG (2026-10-22): a study added from the receiver disappears.
-    debugPrint(
-      '[SyncDebug] radiology study saved ${s.id} doctor=$doctorId '
-      'patient=${s.patientId.isEmpty ? '-' : s.patientId} ${s.modality.short}',
-    );
-    return _put(
-      doctorId,
-      RadKind.study,
-      s.id,
-      s.toJson(),
-      patientId: s.patientId,
-    );
-  }
+  Future<void> saveStudy(String doctorId, RadStudy s) =>
+      _put(doctorId, RadKind.study, s.id, s.toJson(), patientId: s.patientId);
 
   /// True once the record's latest version has reached the cloud; false
   /// while it is saved on this device only; null when there is no record.

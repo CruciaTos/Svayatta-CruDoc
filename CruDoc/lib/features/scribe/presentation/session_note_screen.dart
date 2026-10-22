@@ -8,6 +8,7 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
+import 'package:doctor_management_app/features/scribe/presentation/widgets/session_scan_card.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -167,9 +168,21 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
                         const SizedBox(height: CruSpace.s16),
                         if (edit == null) ...[
                           SessionNoteBody(note: _note),
+                          if (_note.scanFileIds.isNotEmpty) ...[
+                            const SizedBox(height: CruSpace.s16),
+                            SessionScanCard(
+                              fileIds: _note.scanFileIds,
+                              patientName: widget.patient?.fullName ?? '',
+                            ),
+                          ],
                           if (_showsTranscript(_note)) ...[
                             const SizedBox(height: CruSpace.s16),
-                            SessionTranscriptCard(transcript: _note.transcript),
+                            SessionTranscriptCard(
+                              transcript: _note.transcript,
+                              title: _note.scanFileIds.isEmpty
+                                  ? 'CONVERSATION TRANSCRIPT'
+                                  : 'AS WRITTEN',
+                            ),
                           ],
                         ] else
                           _NoteEditor(edit: edit, enabled: !_saving),
@@ -486,11 +499,17 @@ class SessionNoteBody extends StatelessWidget {
   }
 }
 
-/// The conversation the notes were written from, folded away by default.
+/// What the notes were written from — the conversation, or the handwriting
+/// as written — folded away by default.
 class SessionTranscriptCard extends StatefulWidget {
-  const SessionTranscriptCard({super.key, required this.transcript});
+  const SessionTranscriptCard({
+    super.key,
+    required this.transcript,
+    this.title = 'CONVERSATION TRANSCRIPT',
+  });
 
   final String transcript;
+  final String title;
 
   @override
   State<SessionTranscriptCard> createState() => _SessionTranscriptCardState();
@@ -512,7 +531,7 @@ class _SessionTranscriptCardState extends State<SessionTranscriptCard> {
             children: [
               Expanded(
                 child: Text(
-                  'CONVERSATION TRANSCRIPT',
+                  widget.title,
                   style: CruType.groupLabel.tint(c.label2),
                 ),
               ),

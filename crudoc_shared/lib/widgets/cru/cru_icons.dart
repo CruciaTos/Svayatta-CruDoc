@@ -171,6 +171,13 @@ abstract final class CruIcons {
     'M3.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6M15 11l2.5 2.5 4.5-4.5',
     circles: [(10, 8, 3.5)],
   );
+
+  /// A page caught between four corner brackets: the document scanner.
+  static const scan = CruIconData(
+    'M3.5 8V6a2.5 2.5 0 0 1 2.5-2.5h2M16 3.5h2A2.5 2.5 0 0 1 20.5 6v2'
+    'M20.5 16v2a2.5 2.5 0 0 1-2.5 2.5h-2M8 20.5H6A2.5 2.5 0 0 1 3.5 18v-2'
+    'M8.5 9h7M8.5 12h7M8.5 15h4.5',
+  );
 }
 
 /// Makes every [CruIcon] below it [scale] times larger (the dental

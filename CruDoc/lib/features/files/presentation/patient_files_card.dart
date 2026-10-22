@@ -12,6 +12,8 @@ import 'package:doctor_management_app/features/files/presentation/widgets/file_t
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
+import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
+import 'package:doctor_management_app/features/scan/presentation/scan_flow.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// How many files the card lists before "See all".
@@ -144,11 +146,30 @@ class PatientFilesCard extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: CruCapsuleButton(
-                  label: 'Add files',
-                  icon: FileIcons.upload,
-                  onPressed: () =>
-                      FilesActions.pickAndAdd(context, patientId: patient.id),
+                child: Wrap(
+                  spacing: CruSpace.s8,
+                  children: [
+                    CruCapsuleButton(
+                      label: 'Add files',
+                      icon: FileIcons.upload,
+                      onPressed: () =>
+                          FilesActions.pickAndAdd(context, patientId: patient.id),
+                    ),
+                    if (ScanCapture.hasCamera)
+                      CruCapsuleButton(
+                        label: 'Scan',
+                        icon: CruIcons.scan,
+                        onPressed: () => startScanFlow(
+                          context,
+                          patient: patient,
+                          clinical: ref.read(
+                            clinicCanProvider(ClinicPermission.clinicalEdit),
+                          ),
+                          inventory: false,
+                          revenue: false,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),

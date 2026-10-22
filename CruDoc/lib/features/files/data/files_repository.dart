@@ -473,6 +473,17 @@ class FilesRepository {
     List<FileSource> sources, {
     required String patientId,
     String folderId = '',
+  }) async => (await addFilesWithIds(
+    sources,
+    patientId: patientId,
+    folderId: folderId,
+  )).length;
+
+  /// [addFiles], returning the new files' ids in the order added.
+  Future<List<String>> addFilesWithIds(
+    List<FileSource> sources, {
+    required String patientId,
+    String folderId = '',
   }) async {
     if (patientId.trim().isEmpty) {
       throw const FilesException('Choose the patient these files are for.');
@@ -483,7 +494,7 @@ class FilesRepository {
       throw const FilesException('That folder no longer exists.');
     }
     final me = uid;
-    var added = 0;
+    final added = <String>[];
     for (final s in sources) {
       final type = s.contentType;
       if (type == null || s.problem != null) continue;
@@ -532,7 +543,7 @@ class FilesRepository {
       } else if (FilePreviews.canPreview(type)) {
         unawaited(_makePreviews(id, bytes));
       }
-      added++;
+      added.add(id);
     }
     _changed();
     return added;

@@ -94,6 +94,7 @@ class SessionRow extends StatelessWidget {
     final t = note.createdAt;
     final sub = [
       DashFormat.time(t),
+      if (note.scanFileIds.isNotEmpty) 'Scanned',
       if (note.isEdited) 'Edited',
     ].join(' · ');
     return CruPressable(

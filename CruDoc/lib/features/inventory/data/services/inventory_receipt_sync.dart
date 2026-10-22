@@ -26,15 +26,36 @@ abstract final class InventoryReceiptSync {
     if (medicineId.isEmpty) return;
     try {
       final type = image.mimeType ?? contentTypeForPath(image.name);
-      if (type == null ||
-          !acceptsContentType(UploadKind.inventoryReceipt, type)) {
+      if (type == null) return;
+      await enqueueReceiptBytes(
+        medicineId: medicineId,
+        bytes: await image.readAsBytes(),
+        contentType: type,
+        replacePath: replacePath,
+      );
+    } catch (e) {
+      debugPrint('[InventoryReceiptSync] could not queue receipt: $e');
+    }
+  }
+
+  /// [enqueueReceipt] for a receipt already in memory (a scanned bill
+  /// page). Never throws.
+  static Future<void> enqueueReceiptBytes({
+    required String medicineId,
+    required Uint8List bytes,
+    String contentType = 'image/jpeg',
+    String? replacePath,
+  }) async {
+    if (medicineId.isEmpty) return;
+    try {
+      if (!acceptsContentType(UploadKind.inventoryReceipt, contentType)) {
         return;
       }
       await StorageSyncQueue.instance.cancelByLink(linkHandler, medicineId);
       await StorageSyncQueue.instance.enqueue(
         kind: UploadKind.inventoryReceipt,
-        bytes: await image.readAsBytes(),
-        contentType: type,
+        bytes: bytes,
+        contentType: contentType,
         // Photos are compressed by the service; a PDF is stored as it is.
         compress: true,
         replacePath: replacePath,

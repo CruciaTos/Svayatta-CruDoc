@@ -52,6 +52,9 @@ import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
 import 'package:doctor_management_app/features/files/presentation/files_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
+import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -684,95 +687,125 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 }
 
 // ------------------------------------------------------------------------------
-// HELP & SUPPORT DIALOG
+// HELP & SHORTCUTS
 // ------------------------------------------------------------------------------
 
-/// Lightweight, self-contained help dialog for the desktop shell.
+/// Help & shortcuts, from the account menu: the keys, voice, and both tours.
 void showDesktopShellHelpDialog(BuildContext context) {
+  final mac = defaultTargetPlatform == TargetPlatform.macOS;
   showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Help & Support'),
-      content: SizedBox(
-        width: 380,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Stuck on something? The chat bubble in the bottom-right '
-              'corner can answer questions about any screen or feature.',
-              style: TextStyle(fontSize: 13.5, height: 1.4),
-            ),
-            SizedBox(height: 18),
-            Text(
-              'KEYBOARD SHORTCUTS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.0,
-                color: Color(0xFF8E9BAB),
+    builder: (dialogContext) {
+      final c = dialogContext.cru;
+      void tour(TutorialTour which) {
+        Navigator.of(dialogContext).pop();
+        ProviderScope.containerOf(context, listen: false)
+            .read(tutorialControllerProvider.notifier)
+            .requestReplay(TutorialPlatform.desktop, tour: which);
+      }
+
+      return DentalPanelDialog(
+        title: 'Help & shortcuts',
+        width: CruSize.dialog + 60,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            CruSpace.s8,
+            CruSpace.s16,
+            CruSpace.s8,
+            CruSpace.s4,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Keyboard', style: CruType.groupLabel.tint(c.label3)),
+              const SizedBox(height: CruSpace.s8),
+              _ShortcutRow(
+                keys: [mac ? '⌘ K' : 'Ctrl K'],
+                description: 'Search patients',
               ),
+              const _ShortcutRow(
+                keys: ['Ctrl B'],
+                description: 'Show or hide the sidebar',
+              ),
+              const _ShortcutRow(
+                keys: ['Ctrl 1 – 8'],
+                description:
+                    'Jump to Dashboard, Patients, Inventory, Revenue, '
+                    'Schedule, Campaigns, Scribe or the queue',
+              ),
+              const _ShortcutRow(
+                keys: ['Enter'],
+                description: 'On the Dashboard: start the Up next consultation',
+              ),
+              const SizedBox(height: CruSpace.s16),
+              Text('Voice', style: CruType.groupLabel.tint(c.label3)),
+              const SizedBox(height: CruSpace.s8),
+              const _ShortcutRow(
+                keys: ['Hold Space', 'F2'],
+                description: 'Talk to CruDoc; let go when you are done',
+              ),
+              const _ShortcutRow(
+                keys: ['Tap Space'],
+                description: 'Hands-free on or off',
+              ),
+              const _ShortcutRow(
+                keys: ['Enter'],
+                description: 'Save a form voice filled (or say "confirm")',
+              ),
+            ],
+          ),
+        ),
+        footer: Row(
+          children: [
+            CruButton(
+              label: 'Take the tour',
+              kind: CruButtonKind.inset,
+              onPressed: () => tour(TutorialTour.app),
             ),
-            SizedBox(height: 10),
-            _ShortcutRow(
-              keys: 'Ctrl + B',
-              description: 'Show or hide the sidebar',
+            const SizedBox(width: CruSpace.s8),
+            CruButton(
+              label: 'Voice tour',
+              kind: CruButtonKind.inset,
+              onPressed: () => tour(TutorialTour.voice),
             ),
-            _ShortcutRow(
-              keys: 'Ctrl + 1 – 7',
-              description: 'Jump straight to a tab',
+            const Spacer(),
+            CruButton(
+              label: 'Done',
+              onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('Got it'),
-        ),
-      ],
-    ),
+      );
+    },
   );
 }
 
+/// Keys on the left, what they do on the right.
 class _ShortcutRow extends StatelessWidget {
-  final String keys;
-  final String description;
-
   const _ShortcutRow({required this.keys, required this.description});
+
+  final List<String> keys;
+  final String description;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: CruSpace.s8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              keys,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'monospace',
-                color: Color(0xFF334A5E),
-              ),
+          SizedBox(
+            width: 132,
+            child: Wrap(
+              spacing: CruSpace.s4,
+              runSpacing: CruSpace.s4,
+              children: [for (final k in keys) CruKeycap(k)],
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              description,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF334A5E)),
-            ),
-          ),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(child: Text(description, style: CruType.text.tint(c.label))),
         ],
       ),
     );

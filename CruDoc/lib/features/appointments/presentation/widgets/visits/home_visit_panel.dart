@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/appointments/presentation/widgets/visits/home_visit_links.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/services/maps_key.dart';
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 
 /// A one-stop map is wider than the route map: 2 : 1.
 const double _kMapAspect = 2;
@@ -24,6 +25,9 @@ class HomeVisitPanel extends ConsumerWidget {
     ref.watch(mapsKeyProvider); // draws the map once the key arrives
     final address = item.homeAddress;
     final map = homeVisitMapUrl([item]);
+    if (map != null) {
+      ApiUsage.recordOnce(ApiService.maps, map, feature: 'home_visit');
+    }
     final directions = homeVisitDirections(item.visit);
 
     return Container(

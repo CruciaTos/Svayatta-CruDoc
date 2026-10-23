@@ -9,6 +9,7 @@ import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 
 /// Exception thrown when audio recording or transcription fails.
 class VoiceTranscriptionException implements Exception {
@@ -253,6 +254,11 @@ class VoiceTranscriptionService {
               }),
             )
             .timeout(const Duration(seconds: 8));
+        ApiUsage.recordGeminiRest(
+          response.statusCode,
+          response.body,
+          feature: 'voice_transcription',
+        );
 
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body) as Map<String, dynamic>;

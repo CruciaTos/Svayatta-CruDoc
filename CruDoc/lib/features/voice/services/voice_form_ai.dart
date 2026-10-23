@@ -73,6 +73,7 @@ class VoiceFormAi {
               maxOutputTokens: 1024,
               timeout: left,
               quick: true,
+              feature: 'voice_form_ai',
             )
             .timeout(left);
         _offUntil = null;

@@ -13,6 +13,8 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
+
 /// One transcript update. [isFinal] is true once the doctor lets go of the
 /// talk key; partials arrive while they are still speaking.
 class VoiceTranscript {
@@ -498,9 +500,19 @@ class SpeechEngine {
     // Taken now: a new utterance may reset the buffer while this one waits.
     final clip = _snapshot(maxSamples: _maxWindow);
     final pass = short && !dictation ? 'short' : 'accurate';
+    final seconds = _samples / _sampleRate;
     final (text, ms) =
         await _streamedFinal(ready, done) ??
         await _transcribe(clip, pass: pass, dictation: dictation);
+    // Sarvam bills by audio: one utterance's length (the live passes while
+    // it was spoken are not counted separately).
+    if (_cloud && model == 'server') {
+      ApiUsage.record(
+        ApiService.sarvam,
+        feature: dictation ? 'scribe' : 'voice_command',
+        seconds: seconds,
+      );
+    }
     if (utterance != _utterance) return;
     if (dictation && text.isNotEmpty) {
       final all = '$_dictationContext $text'.trim();

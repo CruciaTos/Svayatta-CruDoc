@@ -285,6 +285,7 @@ RULES:
       schema: responseSchema,
       maxOutputTokens: 2048,
       timeout: const Duration(seconds: 45),
+      feature: 'patient_voice',
     );
     final fill = PatientVoiceFill.fromJson(json, today);
     if (fill.isEmpty) {

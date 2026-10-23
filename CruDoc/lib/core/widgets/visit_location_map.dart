@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
     show staticMapUrlFor;
@@ -164,6 +165,7 @@ class VisitLocationMap extends StatelessWidget {
   Widget _staticMapFallback() {
     final url = staticMapUrlFor(latitude: latitude, longitude: longitude);
     if (url == null) return _placeholder();
+    ApiUsage.recordOnce(ApiService.maps, url, feature: 'visit_map');
 
     return GestureDetector(
       onTap: onOpenMaps,

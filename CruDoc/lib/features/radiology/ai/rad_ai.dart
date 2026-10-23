@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 
 // Regulatory note: AI findings shown to clinicians may fall under India's
 // CDSCO Software-as-a-Medical-Device rules. Keep them clearly labelled as
@@ -250,6 +251,11 @@ Note: Coordinates in "box" must be normalised floats from 0.0 to 1.0 representin
         .timeout(const Duration(seconds: 45));
 
     final raw = utf8.decode(response.bodyBytes, allowMalformed: true);
+    ApiUsage.recordGeminiRest(
+      response.statusCode,
+      raw,
+      feature: 'radiology_ai',
+    );
     if (response.statusCode != 200) {
       throw GeminiHttpException(response.statusCode, raw);
     }

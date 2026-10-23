@@ -564,6 +564,7 @@ be printed or handwritten.
         schema: schema,
         maxOutputTokens: 16384,
         timeout: _timeout,
+        feature: 'document_scan',
       );
     } on FormatException {
       // A truncated or chatty reply: once more, firmly.
@@ -575,6 +576,7 @@ be printed or handwritten.
           schema: schema,
           maxOutputTokens: 16384,
           timeout: _timeout,
+          feature: 'document_scan',
         );
       } catch (e) {
         throw _explain(e);

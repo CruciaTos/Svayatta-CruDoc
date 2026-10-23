@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_context_region.dart';
 import 'package:doctor_management_app/core/services/maps_key.dart';
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 
 /// Share of the width the stop list takes; the map takes the rest.
 const int _kListFlex = 5;
@@ -270,6 +271,9 @@ class _RouteCard extends ConsumerWidget {
     ref.watch(mapsKeyProvider); // draws the map once the key arrives
     final route = homeVisitRoute(stops);
     final mapUrl = homeVisitMapUrl(stops);
+    if (mapUrl != null) {
+      ApiUsage.recordOnce(ApiService.maps, mapUrl, feature: 'home_visit_route');
+    }
     final pinned = stops
         .where((s) => s.visit.latitude != null && s.visit.longitude != null)
         .length;

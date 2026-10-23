@@ -7,6 +7,8 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
+
 /// Sends a prompt (with optional audio) to Gemini and returns the model's
 /// JSON reply, constrained by a response [Schema]. Shared by the AI Scribe
 /// and voice form filling.
@@ -132,7 +134,9 @@ class GeminiJsonClient {
   ///
   /// [audioBytes] null: the prompt alone. [images]: JPEG pages read along
   /// with the prompt (scanned documents). [quick]: no thinking on models
-  /// that allow it, for short replies someone is waiting on.
+  /// that allow it, for short replies someone is waiting on. [feature]
+  /// names the caller in the usage Super Admin sees (`scribe`,
+  /// `voice_form`...).
   Future<Map<String, dynamic>> generateJson({
     required String systemPrompt,
     required String prompt,
@@ -143,33 +147,47 @@ class GeminiJsonClient {
     int maxOutputTokens = 8192,
     Duration timeout = const Duration(seconds: 60),
     bool quick = false,
+    String feature = 'other',
   }) async {
     final model = await modelName();
-    final text = usesApiKey
-        ? await _viaRest(
-            model,
-            systemPrompt,
-            prompt,
-            audioBytes,
-            mimeType,
-            images,
-            schema,
-            maxOutputTokens,
-            timeout,
-            quick,
-          )
-        : await _viaFirebase(
-            model,
-            systemPrompt,
-            prompt,
-            audioBytes,
-            mimeType,
-            images,
-            schema,
-            maxOutputTokens,
-            timeout,
-            quick,
-          );
+    final _GeminiReply reply;
+    try {
+      reply = usesApiKey
+          ? await _viaRest(
+              model,
+              systemPrompt,
+              prompt,
+              audioBytes,
+              mimeType,
+              images,
+              schema,
+              maxOutputTokens,
+              timeout,
+              quick,
+            )
+          : await _viaFirebase(
+              model,
+              systemPrompt,
+              prompt,
+              audioBytes,
+              mimeType,
+              images,
+              schema,
+              maxOutputTokens,
+              timeout,
+              quick,
+            );
+    } catch (_) {
+      ApiUsage.record(ApiService.gemini, feature: feature, error: true);
+      rethrow;
+    }
+    ApiUsage.record(
+      ApiService.gemini,
+      feature: feature,
+      inputTokens: reply.inputTokens,
+      outputTokens: reply.outputTokens,
+    );
+    final text = reply.text;
 
     if (text.trim().isEmpty) {
       throw const FormatException('Empty response from the model.');
@@ -186,7 +204,7 @@ class GeminiJsonClient {
   static bool _canSkipThinking(String model) =>
       model.startsWith('gemini-') && model.contains('flash');
 
-  Future<String> _viaFirebase(
+  Future<_GeminiReply> _viaFirebase(
     String model,
     String systemPrompt,
     String prompt,
@@ -220,10 +238,17 @@ class GeminiJsonClient {
           ]),
         ])
         .timeout(timeout);
-    return response.text ?? '';
+    final usage = response.usageMetadata;
+    return _GeminiReply(
+      response.text ?? '',
+      inputTokens: usage?.promptTokenCount ?? 0,
+      // Thinking is billed as output.
+      outputTokens:
+          (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
+    );
   }
 
-  Future<String> _viaRest(
+  Future<_GeminiReply> _viaRest(
     String model,
     String systemPrompt,
     String prompt,
@@ -301,21 +326,32 @@ class GeminiJsonClient {
         throw GeminiHttpException(response.statusCode, raw);
       }
       final body = jsonDecode(raw);
+      final usage = body is Map ? body['usageMetadata'] : null;
+      int tokens(String key) =>
+          usage is Map ? (usage[key] as num?)?.toInt() ?? 0 : 0;
       final parts = (body is Map ? body['candidates'] : null) is List
           ? ((body['candidates'] as List).firstOrNull
                 as Map?)?['content']?['parts']
           : null;
-      if (parts is! List) return '';
       // Thinking models may return thought parts first; join the text parts.
-      return parts
-          .whereType<Map>()
-          .where((p) => p['thought'] != true)
-          .map((p) => p['text'])
-          .whereType<String>()
-          .join();
+      final text = parts is! List
+          ? ''
+          : parts
+                .whereType<Map>()
+                .where((p) => p['thought'] != true)
+                .map((p) => p['text'])
+                .whereType<String>()
+                .join();
+      return _GeminiReply(
+        text,
+        inputTokens: tokens('promptTokenCount'),
+        // Thinking is billed as output.
+        outputTokens:
+            tokens('candidatesTokenCount') + tokens('thoughtsTokenCount'),
+      );
     }
     if (lastHttpException != null) throw lastHttpException;
-    return '';
+    return const _GeminiReply('');
   }
 
   /// Strips any surrounding markdown code fences or prose the model might
@@ -328,6 +364,15 @@ class GeminiJsonClient {
     if (start != -1 && end > start) return trimmed.substring(start, end + 1);
     return trimmed;
   }
+}
+
+/// The model's text and the tokens it was billed for.
+class _GeminiReply {
+  const _GeminiReply(this.text, {this.inputTokens = 0, this.outputTokens = 0});
+
+  final String text;
+  final int inputTokens;
+  final int outputTokens;
 }
 
 /// A non-200 reply from the Gemini REST API.

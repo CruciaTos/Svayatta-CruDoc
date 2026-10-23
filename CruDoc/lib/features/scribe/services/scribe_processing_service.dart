@@ -177,6 +177,7 @@ RULES:
       schema: responseSchema,
       maxOutputTokens: 16384,
       timeout: _requestTimeout,
+      feature: 'scribe',
     );
   }
 

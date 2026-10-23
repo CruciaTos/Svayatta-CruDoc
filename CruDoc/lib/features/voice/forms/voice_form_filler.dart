@@ -238,6 +238,7 @@ RULES:
       schema: responseSchema,
       maxOutputTokens: 2048,
       timeout: _timeout,
+      feature: 'voice_form',
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 
 /// Service that leverages Gemini 2.0 Flash to extract structured homeopathic case
 /// data (Chief complaint, Modalities, Generals, Physicals, Mind, Totality, Remedy)
@@ -333,6 +334,11 @@ JSON SCHEMA STRUCTURE:
                 }),
               )
               .timeout(const Duration(seconds: 15));
+          ApiUsage.recordGeminiRest(
+            response.statusCode,
+            response.body,
+            feature: 'homeopathy_voice',
+          );
 
           if (response.statusCode == 200) {
             final body = jsonDecode(response.body) as Map<String, dynamic>;

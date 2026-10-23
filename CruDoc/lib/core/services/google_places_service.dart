@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:http/http.dart' as http;
 
+import 'package:doctor_management_app/core/services/api_usage_service.dart';
 import 'package:doctor_management_app/core/services/maps_key.dart';
 
 import 'places_service_stub.dart'
@@ -120,6 +121,11 @@ class GooglePlacesService {
           },
         }),
       );
+      ApiUsage.record(
+        ApiService.places,
+        feature: 'autocomplete',
+        error: response.statusCode != 200,
+      );
       if (response.statusCode != 200) {
         debugPrint(
           'Places autocomplete ${response.statusCode}: ${response.body}',
@@ -197,6 +203,11 @@ class GooglePlacesService {
           'key': apiKey,
         }),
       );
+      ApiUsage.record(
+        ApiService.places,
+        feature: 'geocode',
+        error: response.statusCode != 200,
+      );
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         final results = body['results'] as List<dynamic>? ?? const [];
@@ -243,6 +254,11 @@ class GooglePlacesService {
           'X-Goog-Api-Key': apiKey,
           'X-Goog-FieldMask': 'id,formattedAddress,location',
         },
+      );
+      ApiUsage.record(
+        ApiService.places,
+        feature: 'place_details',
+        error: response.statusCode != 200,
       );
       if (response.statusCode != 200) return null;
 

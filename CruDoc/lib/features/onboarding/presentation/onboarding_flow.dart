@@ -277,6 +277,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         _step = _questionSteps;
       });
     } catch (e) {
+      debugPrint('Onboarding save failed: $e');
       if (mounted) setState(() => _error = 'Could not save. Check the connection and try again.');
     } finally {
       if (mounted) setState(() => _saving = false);

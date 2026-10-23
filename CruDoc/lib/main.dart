@@ -259,14 +259,18 @@ void _followClinic({
     });
   });
 
+  String? signedInUid;
   FirebaseAuth.instance.authStateChanges().listen((user) async {
     try {
       if (user == null) {
         DeviceSessionService.instance.stopSessionMonitoring();
         await DeviceSessionService.instance.clearSessionToken();
         ClinicSession.instance.clear();
+        if (signedInUid != null) await _freshFirestoreOnWindows();
+        signedInUid = null;
         return;
       }
+      signedInUid = user.uid;
 
       DeviceSessionService.instance.startSessionMonitoring(
         user.uid,
@@ -282,6 +286,22 @@ void _followClinic({
       debugPrint(stackTrace.toString());
     }
   });
+}
+
+/// On Windows, Firestore froze for good when a second account signed in
+/// without restarting the app: every read, even from the device cache,
+/// never returned, and the app sat on its loading screen. Shutting it down
+/// after sign-out makes the next sign-in start a fresh instance, the same
+/// as a cold start, which works. Pending writes stay saved on the device.
+Future<void> _freshFirestoreOnWindows() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) return;
+  try {
+    await FirebaseFirestore.instance.terminate().timeout(
+      const Duration(seconds: 10),
+    );
+  } catch (error) {
+    debugPrint('Could not restart Firestore after sign-out: $error');
+  }
 }
 
 /// Clears what this device kept for a clinic the person no longer works

@@ -61,6 +61,10 @@ class DeviceSessionService {
   Future<void> endCurrentSession() async {
     final uid = _monitoredDoctorId ?? FirebaseAuth.instance.currentUser?.uid;
     final token = await getLocalSessionToken();
+    // Stop watching first. Otherwise the watcher sees our own delete as
+    // "ended remotely" and starts a second sign-out alongside this one,
+    // which on Windows froze Firestore for the next account signed in.
+    stopSessionMonitoring();
     if (uid != null && token != null && token.isNotEmpty) {
       try {
         await FirebaseFirestore.instance
@@ -73,7 +77,6 @@ class DeviceSessionService {
         debugPrint('DeviceSessionService: Error ending current session: $e');
       }
     }
-    stopSessionMonitoring();
     await clearSessionToken();
   }
 

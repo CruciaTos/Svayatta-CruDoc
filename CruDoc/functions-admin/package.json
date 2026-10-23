@@ -1,11 +1,12 @@
 {
   "name": "crudoc-functions-admin",
-  "description": "Super Admin access (claimSuperAdmin). Kept apart from the main functions codebase so it deploys without that codebase's secrets.",
+  "description": "Super Admin access (claimSuperAdmin) and keeping doctor profiles complete for the console. Kept apart from the main functions codebase so it deploys without that codebase's secrets.",
   "private": true,
   "main": "lib/index.js",
   "engines": { "node": "22" },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "npm run build && node test/profile-defaults.test.js"
   },
   "dependencies": {
     "firebase-admin": "^13.6.0",

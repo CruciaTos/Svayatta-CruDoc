@@ -5,6 +5,8 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 setGlobalOptions({region: "asia-south1", maxInstances: 10});
 
+export {fillProfileDefaults} from "./profile-defaults";
+
 /**
  * Super Admin access is for Svayatta staff only: anyone who signs in to the
  * console with a verified @svayatta.in address. The console signs people in

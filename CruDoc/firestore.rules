@@ -724,6 +724,11 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
+    // Every person's daily API usage at once, for the Super Admin console.
+    match /{path=**}/api_usage/{day} {
+      allow read: if isSuperAdmin();
+    }
+
     // ============================================================
     // USERS COLLECTION
     // ============================================================
@@ -787,6 +792,12 @@ service cloud.firestore {
 
       // Super Admin sees which features each doctor uses (trial tracking).
       match /feature_usage/{moduleKey} {
+        allow read: if isSuperAdmin();
+      }
+
+      // Super Admin adds up the paid-API calls each person's app records
+      // (Gemini, Sarvam, WhatsApp, Google Places and Maps). Counters only.
+      match /api_usage/{day} {
         allow read: if isSuperAdmin();
       }
     }

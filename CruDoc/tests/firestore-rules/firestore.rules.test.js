@@ -343,6 +343,27 @@ describe('users', () => {
     await assertFails(updateDoc(doc(doctor(B), `users/${A}`), { discoverable: true }));
   });
 
+  it("lets a person record their own API usage and Super Admin read everyone's", async () => {
+    const day = '2026-10-23';
+    const usage = { date: day, clinicId: A, gemini: { calls: 2, inputTokens: 900 } };
+    await assertSucceeds(setDoc(doc(doctor(A), `users/${A}/api_usage/${day}`), usage));
+    await assertSucceeds(
+      updateDoc(doc(doctor(A), `users/${A}/api_usage/${day}`), { 'gemini.calls': 3 }),
+    );
+    // Nobody else writes or reads it.
+    await assertFails(setDoc(doc(doctor(B), `users/${A}/api_usage/${day}`), usage));
+    await assertFails(getDoc(doc(doctor(B), `users/${A}/api_usage/${day}`)));
+    // Super Admin reads one person's days and every person's at once.
+    await seed(`users/${B}/api_usage/${day}`, { date: day, clinicId: B });
+    await assertSucceeds(getDocs(collection(admin(), `users/${A}/api_usage`)));
+    await assertSucceeds(
+      getDocs(query(collectionGroup(admin(), 'api_usage'), where('date', '>=', '2026-10-01'))),
+    );
+    await assertFails(getDocs(collectionGroup(doctor(A), 'api_usage')));
+    // Super Admin reads, never writes, the counters.
+    await assertFails(setDoc(doc(admin(), `users/${A}/api_usage/${day}`), usage));
+  });
+
   it('keeps the contact-check rate counter away from everyone', async () => {
     await seed(`rate_limits/${A}`, { matchContacts: { count: 1 } });
     await assertFails(getDoc(doc(doctor(A), `rate_limits/${A}`)));

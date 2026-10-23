@@ -8,7 +8,8 @@ import 'package:doctor_management_app/features/appointments/data/providers/visit
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 
 /// Opens the desktop-specific Session Details modal popup dialog.
@@ -19,14 +20,7 @@ Future<void> showDesktopSessionDetailsDialog(
   return showDialog<void>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 840, maxHeight: 740),
-        child: DesktopSessionDetailsDialog(initial: item),
-      ),
-    ),
+    builder: (_) => DesktopSessionDetailsDialog(initial: item),
   );
 }
 
@@ -82,9 +76,9 @@ class _DesktopSessionDetailsDialogState
       });
       ref.invalidate(visitsWithPatientsProvider);
       ref.invalidate(allVisitsWithPatientsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notes updated successfully.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Note saved')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -109,7 +103,12 @@ class _DesktopSessionDetailsDialogState
       ref.invalidate(allVisitsWithPatientsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Status updated to ${newStatus.name.toUpperCase()}'),
+          content: Text(switch (newStatus) {
+            VisitStatus.completed => 'Marked as done',
+            VisitStatus.cancelled => 'Visit cancelled',
+            VisitStatus.missed => 'Marked as missed',
+            VisitStatus.scheduled => 'Marked as booked',
+          }),
         ),
       );
     } catch (e) {
@@ -130,11 +129,7 @@ class _DesktopSessionDetailsDialogState
       if (!mounted) return;
       ref.invalidate(todaysQueueWithPatientsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Appointment checked into queue as Token #${created.tokenNumber}!',
-          ),
-        ),
+        SnackBar(content: Text('Checked in as token ${created.tokenNumber}')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -147,45 +142,14 @@ class _DesktopSessionDetailsDialogState
   }
 
   Future<void> _deleteVisit() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(
-              Icons.delete_outline_rounded,
-              color: Color(0xFFDC2626),
-              size: 22,
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Cancel / Delete Appointment',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to remove this appointment? It will be cancelled from the schedule.',
-          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep Appointment'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirm = await confirmDental(
+      context,
+      title: 'Remove this visit?',
+      body: 'It is cancelled and taken off the schedule.',
+      action: 'Remove',
     );
 
-    if (confirm != true) return;
+    if (!confirm) return;
 
     try {
       final repo = ref.read(visitRepositoryProvider);
@@ -248,17 +212,17 @@ class _DesktopSessionDetailsDialogState
     }
   }
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
-  @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
+  // ===========================================================================
+  // UI (Calm Clinical; follows Day and Evening)
+  // ===========================================================================
 
-  Widget _buildOnDay(BuildContext context) {
+  static final _date = DateFormat('EEEE, d MMMM yyyy');
+  static final _time = DateFormat('h:mm a');
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
     final patient = _patient;
-    final patientName = patient?.fullName ?? 'Unknown Patient';
     final isQueueEnabled = ref.watch(isQueueFeatureEnabledProvider);
     final queueEntries = isQueueEnabled
         ? (ref.watch(todaysQueueWithPatientsProvider).value ?? const [])
@@ -266,895 +230,336 @@ class _DesktopSessionDetailsDialogState
     final queueEntry = queueEntries
         .where((e) => e.entry.linkedVisitId == _visit.id)
         .firstOrNull;
+    final showQueue = isQueueEnabled && _visit.visitType == VisitType.clinic;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-        boxShadow: const [],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeader(
-              patientName,
-              queueEntry: queueEntry,
-              isQueueEnabled: isQueueEnabled,
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left Column: Patient Overview & Visit Schedule
-                    Expanded(flex: 10, child: _buildLeftColumn(patient)),
-                    const SizedBox(width: 24),
-                    // Vertical separator
-                    Container(
-                      width: 1,
-                      height: 480,
-                      color: const Color(0xFFF1F5F9),
-                    ),
-                    const SizedBox(width: 24),
-                    // Right Column: Treatment Details, Clinical Notes & Actions
-                    Expanded(
-                      flex: 11,
-                      child: _buildRightColumn(
-                        queueEntry: queueEntry,
-                        isQueueEnabled: isQueueEnabled,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            _buildFooter(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // HEADER
-  // ===========================================================================
-  Widget _buildHeader(
-    String patientName, {
-    required QueueEntryWithPatient? queueEntry,
-    required bool isQueueEnabled,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-      color: const Color(0xFFF8FAFC),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1F2937),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.event_note_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      patientName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    _buildStatusBadge(_visit.status),
-                    const SizedBox(width: 6),
-                    _buildTypeBadge(_visit.visitType),
-                    if (isQueueEnabled &&
-                        _visit.visitType == VisitType.clinic) ...[
-                      const SizedBox(width: 6),
-                      if (queueEntry != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF6366F1,
-                            ).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: const Color(
-                                0xFF6366F1,
-                              ).withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.groups_rounded,
-                                size: 12,
-                                color: Color(0xFF6366F1),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                queueEntry.entry.tokenNumber > 0
-                                    ? 'Queue #${queueEntry.entry.tokenNumber}'
-                                    : 'In Queue',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF6366F1),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${DateFormat('EEEE, dd MMMM yyyy').format(_visit.scheduledStart)} at ${DateFormat('hh:mm a').format(_visit.scheduledStart)} (${_visit.durationMinutes} min)',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            tooltip: 'Close',
-            splashRadius: 20,
-            icon: const Icon(
-              Icons.close_rounded,
-              color: Color(0xFF64748B),
-              size: 22,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(VisitStatus status) {
-    late final Color bg;
-    late final Color text;
-    switch (status) {
-      case VisitStatus.scheduled:
-        bg = const Color(0xFFEDE9FE);
-        text = const Color(0xFF6D28D9);
-        break;
-      case VisitStatus.completed:
-        bg = const Color(0xFFDCFCE7);
-        text = const Color(0xFF15803D);
-        break;
-      case VisitStatus.cancelled:
-      case VisitStatus.missed:
-        bg = const Color(0xFFFEE2E2);
-        text = const Color(0xFFB91C1C);
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        status.name.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: text,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTypeBadge(VisitType type) {
-    final isHome = type == VisitType.home;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: isHome ? const Color(0xFFFEF3C7) : const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        isHome ? 'HOME VISIT' : 'CLINIC',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: isHome ? const Color(0xFFB45309) : const Color(0xFF1D4ED8),
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // LEFT COLUMN: Patient Details & Schedule Info
-  // ===========================================================================
-  Widget _buildLeftColumn(Patient? patient) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final left = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _buildSectionHeader(
-          icon: Icons.person_outline_rounded,
-          title: 'PATIENT PROFILE',
-        ),
-        const SizedBox(height: 12),
-
-        // Patient Card
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: const Color(0xFF1F2937),
-                    child: Text(
-                      patient?.firstName.isNotEmpty == true
-                          ? patient!.firstName[0].toUpperCase()
-                          : 'P',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patient?.fullName ?? 'Unknown',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1F2937),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${patient?.gender ?? 'Unknown'} • DOB: ${patient?.dateOfBirth != null ? DateFormat('dd MMM yyyy').format(patient!.dateOfBirth) : 'N/A'}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Divider(height: 1),
-              const SizedBox(height: 10),
-
-              // Phone & WhatsApp Action
-              Row(
-                children: [
-                  const Icon(
-                    Icons.phone_outlined,
-                    size: 16,
-                    color: Color(0xFF64748B),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    patient?.phone ?? 'No phone',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF334155),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (patient != null &&
-                      WhatsAppTemplateService.isValidWhatsAppPhone(
-                        patient.phone,
-                      ))
-                    InkWell(
-                      onTap: _openWhatsApp,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 14,
-                              color: Color(0xFF15803D),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'WhatsApp',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF15803D),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        _buildSectionHeader(
-          icon: Icons.access_time_rounded,
-          title: 'TIMING & LOCATION',
-        ),
-        const SizedBox(height: 12),
-
-        // Timing Details
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            children: [
-              _buildInfoRow(
-                icon: Icons.calendar_today_rounded,
-                label: 'Date',
-                value: DateFormat(
-                  'EEEE, dd MMMM yyyy',
-                ).format(_visit.scheduledStart),
-              ),
-              const SizedBox(height: 10),
-              _buildInfoRow(
-                icon: Icons.schedule_rounded,
-                label: 'Time Slot',
-                value:
-                    '${DateFormat('hh:mm a').format(_visit.scheduledStart)} - ${DateFormat('hh:mm a').format(_visit.scheduledEnd)} (${_visit.durationMinutes} min)',
-              ),
-              const SizedBox(height: 10),
-              _buildInfoRow(
-                icon: _isHomeVisit
-                    ? Icons.home_rounded
-                    : Icons.apartment_rounded,
-                label: 'Location',
-                value: _isHomeVisit
-                    ? (_visit.address.isNotEmpty
-                          ? _visit.address
-                          : "Patient's Home")
-                    : 'Clinic Consultation Center',
-              ),
-              if (_isHomeVisit &&
-                  (_visit.mapsLink != null || _visit.latitude != null)) ...[
-                const SizedBox(height: 10),
-                InkWell(
-                  onTap: _openMaps,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFBFDBFE)),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.directions_rounded,
-                          size: 16,
-                          color: Color(0xFF2563EB),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Open Directions in Google Maps',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF2563EB),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+        _label('Patient'),
+        _panel(_patientPanel(patient)),
+        const SizedBox(height: CruSpace.s20),
+        _label('When and where'),
+        _panel(_whenPanel()),
       ],
     );
-  }
-
-  // ===========================================================================
-  // RIGHT COLUMN: Treatment Details, Clinical Notes & Actions
-  // ===========================================================================
-  Widget _buildRightColumn({
-    required QueueEntryWithPatient? queueEntry,
-    required bool isQueueEnabled,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final right = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (isQueueEnabled && _visit.visitType == VisitType.clinic) ...[
-          _buildSectionHeader(
-            icon: Icons.groups_rounded,
-            title: 'OPD WALK-IN QUEUE',
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFBFDBFE)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.confirmation_number_outlined,
-                    color: Color(0xFF2563EB),
-                    size: 18,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        queueEntry != null
-                            ? (queueEntry.entry.tokenNumber > 0
-                                  ? 'Token #${queueEntry.entry.tokenNumber} (${queueEntry.entry.status.name.toUpperCase()})'
-                                  : 'Checked In — Pending Token')
-                            : 'Not Checked into Queue',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E40AF),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        queueEntry != null
-                            ? 'Patient is registered in the clinic walk-in triage flow'
-                            : 'Generate a token and send patient to live waiting queue',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF3B82F6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (queueEntry == null &&
-                    _visit.status != VisitStatus.cancelled)
-                  ElevatedButton.icon(
-                    onPressed: _checkingIntoQueue ? null : _checkIntoQueue,
-                    icon: _checkingIntoQueue
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.add_rounded, size: 16),
-                    label: const Text(
-                      'Check In',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+        if (showQueue) ...[
+          _label('Queue'),
+          _panel(_queuePanel(queueEntry)),
+          const SizedBox(height: CruSpace.s20),
         ],
-
-        // Treatment Type
-        _buildSectionHeader(
-          icon: Icons.assignment_outlined,
-          title: 'SERVICE / TREATMENT',
-        ),
-        const SizedBox(height: 12),
-
-        // Treatment Type
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Treatment / Purpose',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _visit.treatmentType?.isNotEmpty == true
-                    ? _visit.treatmentType!
-                    : 'Standard Consultation',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-            ],
+        _label('Treatment'),
+        _panel(
+          Text(
+            _visit.treatmentType?.isNotEmpty == true
+                ? _visit.treatmentType!
+                : 'Consultation',
+            style: CruType.callout.tint(c.label),
           ),
         ),
-        const SizedBox(height: 18),
-
-        // Clinical Notes Editor
+        const SizedBox(height: CruSpace.s20),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader(
-              icon: Icons.edit_note_rounded,
-              title: 'CLINICAL NOTES',
-            ),
+            Expanded(child: _label('Notes')),
             if (_isNoteDirty)
-              TextButton(
-                onPressed: _savingNote ? null : _saveNote,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              Padding(
+                padding: const EdgeInsets.only(bottom: CruSpace.s8),
+                child: CruLink(
+                  label: _savingNote ? 'Saving…' : 'Save note',
+                  onPressed: _savingNote ? null : _saveNote,
                 ),
-                child: _savingNote
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        'Save Note',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
               ),
           ],
         ),
-        const SizedBox(height: 8),
-        TextFormField(
+        TextField(
           controller: _notesController,
-          maxLines: 4,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
-          decoration: InputDecoration(
-            hintText:
-                'Enter clinical observations, prescription advice, or visit notes...',
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.all(12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(
-                color: Color(0xFF2563EB),
-                width: 1.5,
-              ),
-            ),
+          minLines: 3,
+          maxLines: 5,
+          style: CruType.text.tint(c.label),
+          decoration: const InputDecoration(
+            hintText: 'Observations, advice or anything to remember',
           ),
           onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: 20),
-
-        // Quick Status Actions
-        _buildSectionHeader(
-          icon: Icons.checklist_rounded,
-          title: 'UPDATE STATUS',
+        const SizedBox(height: CruSpace.s20),
+        _label('Status'),
+        CruSegmentedControl<VisitStatus>(
+          semanticLabel: 'Visit status',
+          segments: [
+            const CruSegment(VisitStatus.scheduled, 'Booked'),
+            const CruSegment(VisitStatus.completed, 'Done'),
+            const CruSegment(VisitStatus.cancelled, 'Cancelled'),
+            if (_visit.status == VisitStatus.missed)
+              const CruSegment(VisitStatus.missed, 'Missed'),
+          ],
+          selected: _visit.status,
+          onChanged: (s) {
+            if (_updatingStatus || s == _visit.status) return;
+            _changeStatus(s);
+          },
         ),
-        const SizedBox(height: 10),
-        Row(
+      ],
+    );
+
+    return DentalPanelDialog(
+      title: patient?.fullName ?? 'Unknown patient',
+      subtitle:
+          '${_date.format(_visit.scheduledStart)} · '
+          '${_time.format(_visit.scheduledStart)} · ${_visit.durationMinutes} min',
+      // Patient avatars are grey monograms, never coloured.
+      leading: CruMonogram(
+        name: patient?.fullName ?? '?',
+        background: c.track,
+        foreground: c.label2,
+      ),
+      width: CruSize.formDialog,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s8,
+          CruSpace.s16,
+          CruSpace.s8,
+          CruSpace.s8,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    _updatingStatus || _visit.status == VisitStatus.completed
-                    ? null
-                    : () => _changeStatus(VisitStatus.completed),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  side: BorderSide(
-                    color: _visit.status == VisitStatus.completed
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFCBD5E1),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+            Wrap(
+              spacing: CruSpace.s6,
+              runSpacing: CruSpace.s6,
+              children: [
+                _statusPill(_visit.status),
+                CruPill(
+                  text: _isHomeVisit ? 'Home visit' : 'In clinic',
+                  icon: _isHomeVisit ? CruIcons.home : null,
+                  background: c.inset,
+                  foreground: c.label2,
                 ),
-                icon: const Icon(
-                  Icons.check_circle_outline,
-                  size: 16,
-                  color: Color(0xFF16A34A),
-                ),
-                label: const Text(
-                  'Completed',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF16A34A),
+                if (showQueue && queueEntry != null)
+                  CruPill(
+                    text: queueEntry.entry.tokenNumber > 0
+                        ? 'Token ${queueEntry.entry.tokenNumber}'
+                        : 'In the queue',
+                    icon: CruIcons.queue,
+                    background: c.accentTint,
+                    foreground: c.accentText,
                   ),
-                ),
-              ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    _updatingStatus || _visit.status == VisitStatus.cancelled
-                    ? null
-                    : () => _changeStatus(VisitStatus.cancelled),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  side: BorderSide(
-                    color: _visit.status == VisitStatus.cancelled
-                        ? const Color(0xFFDC2626)
-                        : const Color(0xFFCBD5E1),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.cancel_outlined,
-                  size: 16,
-                  color: Color(0xFFDC2626),
-                ),
-                label: const Text(
-                  'Cancelled',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFDC2626),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    _updatingStatus || _visit.status == VisitStatus.scheduled
-                    ? null
-                    : () => _changeStatus(VisitStatus.scheduled),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  side: const BorderSide(color: Colors.transparent),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.schedule,
-                  size: 16,
-                  color: Color(0xFF6B7280),
-                ),
-                label: const Text(
-                  'Scheduled',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF4B5563),
-                  ),
-                ),
-              ),
+            const SizedBox(height: CruSpace.s20),
+            LayoutBuilder(
+              builder: (context, box) => box.maxWidth >= 640
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: left),
+                        const SizedBox(width: CruSpace.s24),
+                        Expanded(child: right),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        left,
+                        const SizedBox(height: CruSpace.s20),
+                        right,
+                      ],
+                    ),
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  Widget _buildInfoRow({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 16, color: const Color(0xFF64748B)),
-        const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSectionHeader({required IconData icon, required String title}) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: const Color(0xFF64748B)),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ===========================================================================
-  // FOOTER
-  // ===========================================================================
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: const Color(0xFFF8FAFC),
-      child: Row(
+      ),
+      footer: Row(
         children: [
-          TextButton.icon(
+          CruButton(
+            label: 'Remove visit',
+            kind: CruButtonKind.inset,
             onPressed: _deleteVisit,
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFDC2626),
-            ),
-            icon: const Icon(Icons.delete_outline_rounded, size: 16),
-            label: const Text(
-              'Cancel & Remove',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            ),
           ),
           const Spacer(),
-          if (_patient != null) ...[
-            OutlinedButton.icon(
-              onPressed: () {
-                showDialog<void>(
-                  context: context,
-                  builder: (_) => PhysioPhotosDialog(
-                    patient: _patient!,
-                    initialVisitId: _visit.id,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.camera_alt_outlined, size: 16),
-              label: const Text(
-                'Session Photos',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF1F2937),
-                side: const BorderSide(color: Colors.transparent),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          if (patient != null) ...[
+            CruButton(
+              label: 'Session photos',
+              kind: CruButtonKind.secondary,
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => PhysioPhotosDialog(
+                  patient: patient,
+                  initialVisitId: _visit.id,
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: CruSpace.s8),
           ],
-          ElevatedButton(
+          CruButton(
+            label: 'Done',
             onPressed: () => Navigator.of(context).pop(),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1F2937),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              'Close',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Booked is neutral, done is green; cancelled and missed stay neutral
+  /// (red is only for allergies).
+  Widget _statusPill(VisitStatus status) {
+    final c = context.cru;
+    final (String text, Color bg, Color fg) = switch (status) {
+      VisitStatus.scheduled => ('Booked', c.inset, c.label2),
+      VisitStatus.completed => ('Done', c.greenTint, c.greenText),
+      VisitStatus.cancelled => ('Cancelled', c.inset, c.label2),
+      VisitStatus.missed => ('Missed', c.amberTint, c.amberText),
+    };
+    return CruPill(text: text, background: bg, foreground: fg);
+  }
+
+  Widget _label(String text) {
+    final c = context.cru;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s8),
+      child: Text(text, style: CruType.groupLabel.tint(c.label3)),
+    );
+  }
+
+  /// An inset panel inside the card (radius 12).
+  Widget _panel(Widget child) {
+    final c = context.cru;
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s14),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _patientPanel(Patient? patient) {
+    final c = context.cru;
+    final hasWhatsApp =
+        patient != null &&
+        WhatsAppTemplateService.isValidWhatsAppPhone(patient.phone);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          patient?.fullName ?? 'Unknown',
+          style: CruType.callout.tint(c.label),
+        ),
+        const SizedBox(height: CruSpace.s2),
+        Text(
+          patient == null
+              ? '—'
+              : '${patient.gender} · born ${DateFormat('d MMM yyyy').format(patient.dateOfBirth)}',
+          style: CruType.subhead.tabular.tint(c.label2),
+        ),
+        const SizedBox(height: CruSpace.s12),
+        Row(
+          children: [
+            CruIcon(CruIcons.phone, size: 16, color: c.label2),
+            const SizedBox(width: CruSpace.s8),
+            Expanded(
+              child: Text(
+                patient?.phone ?? 'No phone',
+                style: CruType.subhead.tabular.tint(c.label),
+              ),
+            ),
+            if (hasWhatsApp)
+              CruCapsuleButton(
+                label: 'WhatsApp',
+                icon: CruIcons.whatsapp,
+                kind: CruCapsuleKind.surface,
+                onPressed: _openWhatsApp,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _whenPanel() {
+    final c = context.cru;
+    final start = _visit.scheduledStart;
+    final place = _isHomeVisit
+        ? (_visit.address.isNotEmpty ? _visit.address : "Patient's home")
+        : 'At the clinic';
+    final hasMap =
+        _isHomeVisit && (_visit.mapsLink != null || _visit.latitude != null);
+    Widget fact(CruIconData icon, String text) => Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CruIcon(icon, size: 16, color: c.label2),
+          const SizedBox(width: CruSpace.s8),
+          Expanded(
+            child: Text(text, style: CruType.subhead.tabular.tint(c.label)),
+          ),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        fact(CruIcons.calendar, _date.format(start)),
+        fact(
+          CruIcons.clock,
+          '${_time.format(start)} – ${_time.format(_visit.scheduledEnd)} '
+          '(${_visit.durationMinutes} min)',
+        ),
+        fact(_isHomeVisit ? CruIcons.home : CruIcons.dashboard, place),
+        if (hasMap)
+          CruLink(
+            label: 'Directions in Google Maps',
+            trailing: CruIcon(
+              CruIcons.arrowUpRight,
+              size: 14,
+              color: c.accentText,
+            ),
+            onPressed: _openMaps,
+          ),
+      ],
+    );
+  }
+
+  Widget _queuePanel(QueueEntryWithPatient? entry) {
+    final c = context.cru;
+    final String title;
+    final String detail;
+    if (entry == null) {
+      title = 'Not checked in';
+      detail = 'Check in to give a token and add them to the waiting list.';
+    } else {
+      title = entry.entry.tokenNumber > 0
+          ? 'Token ${entry.entry.tokenNumber}'
+          : 'Checked in';
+      detail = 'In today’s queue.';
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: CruType.callout.tabular.tint(c.label)),
+              const SizedBox(height: CruSpace.s2),
+              Text(detail, style: CruType.subhead.tint(c.label2)),
+            ],
+          ),
+        ),
+        if (entry == null && _visit.status != VisitStatus.cancelled) ...[
+          const SizedBox(width: CruSpace.s12),
+          CruCapsuleButton(
+            label: _checkingIntoQueue ? 'Checking in…' : 'Check in',
+            icon: CruIcons.userCheck,
+            kind: CruCapsuleKind.surface,
+            onPressed: _checkingIntoQueue ? null : _checkIntoQueue,
+          ),
+        ],
+      ],
     );
   }
 }

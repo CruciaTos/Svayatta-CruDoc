@@ -815,7 +815,6 @@ class _HomeopathyCaseTakingSheetState
   }
 
   Future<void> _saveCase({required bool markComplete}) async {
-    final c = context.cru;
     setState(() => _isSaving = true);
     try {
       final updated = _buildSheetFromForm(isCompleted: markComplete);
@@ -825,12 +824,10 @@ class _HomeopathyCaseTakingSheetState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: c.green,
           content: Text(
             markComplete
-                ? 'Case Sheet completed & saved successfully'
-                : 'Case Sheet draft saved',
-            style: CruType.subhead.w600.tint(Colors.white),
+                ? 'Case sheet completed and saved'
+                : 'Case sheet draft saved',
           ),
         ),
       );
@@ -838,13 +835,7 @@ class _HomeopathyCaseTakingSheetState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: c.redText,
-          content: Text(
-            'Failed to save case sheet: $e',
-            style: CruType.subhead.tint(Colors.white),
-          ),
-        ),
+        SnackBar(content: Text('Could not save the case sheet: $e')),
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -864,28 +855,10 @@ class _HomeopathyCaseTakingSheetState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: _accentEmerald,
-          duration: const Duration(seconds: 4),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(CruRadius.control),
-          ),
-          content: Row(
-            children: [
-              const Icon(
-                Icons.auto_awesome_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: CruSpace.s10),
-              Expanded(
-                child: Text(
-                  'Case sheet populated from consultation voice recording! Review sections below.',
-                  style: CruType.subhead.w600.tint(Colors.white),
-                ),
-              ),
-            ],
+        const SnackBar(
+          duration: Duration(seconds: 4),
+          content: Text(
+            'Case sheet filled from the consultation recording. Review it below.',
           ),
         ),
       );

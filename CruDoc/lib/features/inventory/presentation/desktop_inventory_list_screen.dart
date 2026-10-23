@@ -1631,7 +1631,6 @@ Future<void> _pickImageForMedicine({
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Updated image for ${medicine.name}'),
-            backgroundColor: _clrBlue,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -1643,7 +1642,6 @@ Future<void> _pickImageForMedicine({
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to pick image: $e'),
-          backgroundColor: _clrRed,
         ),
       );
     }

@@ -126,30 +126,8 @@ void _showForcedLogoutSnackBar(String reason) {
     if (messenger != null && messenger.mounted) {
       try {
         messenger.showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    reason,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFFDC2626),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 5),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+          // The app's toast (see CruTheme): never red, red is for allergies.
+          SnackBar(content: Text(reason), duration: const Duration(seconds: 5)),
         );
       } catch (e) {
         debugPrint('Could not show forced logout snackbar: $e');

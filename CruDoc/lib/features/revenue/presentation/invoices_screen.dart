@@ -75,7 +75,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Real invoices populated in Firebase database!'),
-            backgroundColor: Color(0xFF16A34A),
           ),
         );
       }
@@ -1010,14 +1009,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
           content: Text(
             'OCR Completed! Added ${result.treatments.length} treatments and ${result.medicines.length} medicines.',
           ),
-          backgroundColor: const Color(0xFF16A34A),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isOcrLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('OCR Failed: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('OCR Failed: $e')),
       );
     }
   }

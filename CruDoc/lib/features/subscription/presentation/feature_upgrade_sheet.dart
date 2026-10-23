@@ -103,25 +103,9 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     if (result == true && mounted) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '🎉 Selected clinical features unlocked and active for 30 days!',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          duration: const Duration(seconds: 4),
+        const SnackBar(
+          content: Text('Features unlocked and active for 30 days.'),
+          duration: Duration(seconds: 4),
         ),
       );
     }

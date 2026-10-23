@@ -151,7 +151,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      SnackBar(content: Text(message)),
     );
   }
 

@@ -105,9 +105,18 @@ abstract final class CruTheme {
           shadowColor: const WidgetStatePropertyAll(Colors.transparent),
         ),
       ),
-      dialogTheme: const DialogThemeData(
+      // Plain Material dialogs still in the app take the card look.
+      dialogTheme: DialogThemeData(
         elevation: 0,
         shadowColor: Colors.transparent,
+        backgroundColor: c.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(CruRadius.card),
+          side: BorderSide(color: c.cardBorder),
+        ),
+        titleTextStyle: CruType.headline.copyWith(color: c.label),
+        contentTextStyle: CruType.text.copyWith(color: c.label2),
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         elevation: 0,
@@ -132,7 +141,19 @@ abstract final class CruTheme {
         shadowColor: Colors.transparent,
       ),
       drawerTheme: const DrawerThemeData(elevation: 0),
-      snackBarTheme: const SnackBarThemeData(elevation: 0),
+      // One toast for the whole app: label ink with surface text, floating,
+      // control radius. Red is never used (it means allergies).
+      snackBarTheme: SnackBarThemeData(
+        elevation: 0,
+        backgroundColor: c.label,
+        contentTextStyle: CruType.text.copyWith(color: c.surface),
+        actionTextColor: c.isEvening ? CruBrand.ink600 : CruBrand.ink300,
+        closeIconColor: c.surface,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(CruRadius.control),
+        ),
+      ),
       extensions: [c],
     );
   }

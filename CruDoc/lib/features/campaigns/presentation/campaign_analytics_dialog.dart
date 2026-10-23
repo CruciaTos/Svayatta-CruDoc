@@ -79,7 +79,6 @@ class _CampaignAnalyticsDialogState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Retry process completed for failed recipients.'),
-            backgroundColor: Color(0xFF16A34A),
           ),
         );
       }
@@ -89,7 +88,6 @@ class _CampaignAnalyticsDialogState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Retry failed: $e'),
-            backgroundColor: Colors.red,
           ),
         );
       }

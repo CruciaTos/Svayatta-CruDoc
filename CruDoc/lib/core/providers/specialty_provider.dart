@@ -104,67 +104,17 @@ Future<void> switchDoctorSpecialty(
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: newSpecialty.accentColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(newSpecialty.icon, color: Colors.white, size: 16),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Specialty switched to ${newSpecialty.label}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      newSpecialty.tagline,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF0F172A),
-          behavior: SnackBarBehavior.floating,
+          content: Text('Specialty switched to ${newSpecialty.label}'),
           duration: const Duration(seconds: 3),
-          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(
-              color: newSpecialty.accentColor.withValues(alpha: 0.5),
-              width: 1.2,
-            ),
-          ),
         ),
       );
     }
   } catch (e) {
     debugPrint('Failed to switch specialty: $e');
     if (context.mounted && showFeedback) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to switch specialty: $e'),
-          backgroundColor: Colors.red.shade800,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to switch specialty: $e')));
     }
   }
 }

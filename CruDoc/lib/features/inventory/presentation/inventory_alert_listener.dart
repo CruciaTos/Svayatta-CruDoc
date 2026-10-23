@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 
@@ -109,16 +108,7 @@ class _InventoryAlertListenerState
 
     for (final medicine in newlyEntered) {
       final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            message(medicine),
-            style: const TextStyle(fontFamily: AppColors.bodyFontFamily),
-          ),
-          backgroundColor: AppColors.charcoalGray,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      messenger?.showSnackBar(SnackBar(content: Text(message(medicine))));
       markNotified(medicine);
     }
   }

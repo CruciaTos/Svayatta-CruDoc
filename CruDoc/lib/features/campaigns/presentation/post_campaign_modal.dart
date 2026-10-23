@@ -201,7 +201,6 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           content: Text(
             'No eligible patients found for the selected audience.',
           ),
-          backgroundColor: Colors.red,
         ),
       );
       return;

@@ -242,7 +242,6 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
               '✓ Auto-filled ${result.filledFieldCount} field'
               '${result.filledFieldCount == 1 ? '' : 's'} — review before saving.',
             ),
-            backgroundColor: AppColors.slateBlue,
             duration: const Duration(seconds: 4),
           ),
         );

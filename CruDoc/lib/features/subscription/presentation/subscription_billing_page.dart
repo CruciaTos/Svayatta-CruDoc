@@ -96,10 +96,8 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     );
     if (ok == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Features unlocked and active for 30 days.'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: context.cru.green,
+        const SnackBar(
+          content: Text('Features unlocked and active for 30 days.'),
         ),
       );
     }

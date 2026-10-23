@@ -33,6 +33,7 @@ import {
   isAuthError,
   markReauthRequired,
 } from "./whatsapp/tenants";
+import {recordApiUsage} from "./api-usage";
 
 /**
  * The per-clinic WhatsApp campaign path: a callable the app invokes to queue a
@@ -226,9 +227,13 @@ async function processRow(row: OutboxRow): Promise<void> {
       config,
     });
     await markSent(row.id, messageId);
+    await recordApiUsage(row.doctorId, "whatsapp", row.templateKey || "outbox");
   } catch (err) {
     const meta = err instanceof MetaSendError ? err : null;
     const reason = (err as Error)?.message || "send failed";
+    await recordApiUsage(
+      row.doctorId, "whatsapp", row.templateKey || "outbox", {error: true},
+    );
 
     if (meta && isAuthError(meta.code)) {
       // The token is dead; stop retrying against it and prompt reconnection.

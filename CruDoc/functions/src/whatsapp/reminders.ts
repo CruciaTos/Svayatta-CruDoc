@@ -11,6 +11,7 @@ import {MetaSendError, sendTemplateMessage} from "./send";
 import {APPOINTMENT_REMINDER} from "./templates";
 import {decryptField, PatientKeyring} from "../crypto/patientCipher";
 import {decryptProfileField} from "../crypto/profileCipher";
+import {recordApiUsage} from "../api-usage";
 
 /**
  * The evening sweep that sends tomorrow's reminders.
@@ -395,6 +396,7 @@ async function sendReminders(
       });
 
       await markSent(r.candidate.appointmentId, messageId);
+      await recordApiUsage(r.candidate.doctorId, "whatsapp", "reminder");
       summary.sent++;
     } catch (err) {
       const meta = err instanceof MetaSendError ? err : null;
@@ -403,6 +405,9 @@ async function sendReminders(
       // Only the status is written, never a success. A failed send that read
       // as sent was what made the old delivery badges untrustworthy.
       await markFailed(r.candidate.appointmentId, reason, meta?.code);
+      await recordApiUsage(
+        r.candidate.doctorId, "whatsapp", "reminder", {error: true},
+      );
       summary.failed++;
 
       console.error(

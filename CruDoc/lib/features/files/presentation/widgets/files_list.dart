@@ -512,7 +512,7 @@ class _FileRow extends ConsumerWidget {
           child: _twoLines(
             context,
             f.name,
-            phone ? '${entry.patientName} · $date' : FilesBuilder.typeLabel(f),
+            phone ? entry.patientName : FilesBuilder.typeLabel(f),
           ),
         ),
       ],
@@ -814,7 +814,7 @@ class _FileTile extends ConsumerWidget {
                       child: _twoLines(
                         context,
                         f.name,
-                        '${entry.patientName} · $date',
+                        entry.patientName,
                         topStyle: CruType.callout.tint(context.cru.label),
                       ),
                     ),

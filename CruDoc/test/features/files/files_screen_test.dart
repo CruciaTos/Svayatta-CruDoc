@@ -205,7 +205,9 @@ void main() {
     setSize(tester, const Size(390, 844));
     await tester.pumpWidget(app(const FilesScreen()));
     await settle(tester);
-    expect(find.text('Vikram Shah · Yesterday'), findsOneWidget);
+    // The phone row names the patient only; the date is no longer joined on.
+    expect(find.text('Vikram Shah'), findsWidgets);
+    expect(find.text('Vikram Shah · Yesterday'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

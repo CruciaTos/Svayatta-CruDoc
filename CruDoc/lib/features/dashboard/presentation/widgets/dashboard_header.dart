@@ -6,14 +6,18 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/dashboard_search_field.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/notifications_panel.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
-/// Date line + greeting, then search and New appointment (these
-/// replace the old Quick Actions card).
+/// Date line + greeting, then search, the Notifications bell and New
+/// appointment (these replace the old Quick Actions card).
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({super.key, this.searchFocusNode});
+
+  /// Shorter than the shared search width, to make room for the bell.
+  static const double _searchWidth = 220;
 
   final FocusNode? searchFocusNode;
 
@@ -63,9 +67,12 @@ class DashboardHeader extends ConsumerWidget {
             target: TutorialTarget.search,
             child: DashboardSearchField(
               focusNode: searchFocusNode,
-              width: CruSize.searchWidth,
+              width: _searchWidth,
             ),
           ),
+        const SizedBox(width: CruSpace.s10),
+        // Notifications, as on the phone's home.
+        const NotificationsBellButton(),
         const SizedBox(width: CruSpace.s10),
         // The same booking flow as Schedule's "New appointment".
         TutorialAnchor(

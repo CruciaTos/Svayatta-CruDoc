@@ -205,7 +205,7 @@ void main() {
     setSize(tester, const Size(390, 844));
     await tester.pumpWidget(app(const FilesScreen()));
     await settle(tester);
-    expect(find.text('Asha Rao · Today'), findsOneWidget);
+    expect(find.text('Vikram Shah · Yesterday'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

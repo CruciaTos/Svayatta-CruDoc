@@ -7,8 +7,8 @@ import 'package:doctor_management_app/features/radiology/viewer/save_status.dart
 import 'package:doctor_management_app/features/radiology/viewer/viewer_icons.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Height of the tool row under the top bar.
-const radToolbarHeight = 52.0;
+/// Height of the two-row viewer toolbar under the top bar.
+const radToolbarHeight = 90.0;
 
 enum RadBarButtonStyle {
   /// A tool: filled dark when it's the active tool.
@@ -21,7 +21,8 @@ enum RadBarButtonStyle {
   action,
 }
 
-/// A 36 px square icon button for the viewer toolbar.
+/// A 36 px viewer toolbar button: an icon, and its name beside it when
+/// [label] is given.
 class RadBarButton extends StatelessWidget {
   const RadBarButton({
     super.key,
@@ -30,6 +31,7 @@ class RadBarButton extends StatelessWidget {
     required this.onPressed,
     this.selected = false,
     this.style = RadBarButtonStyle.action,
+    this.label,
   });
 
   final CruIconData icon;
@@ -37,6 +39,9 @@ class RadBarButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool selected;
   final RadBarButtonStyle style;
+
+  /// Shown beside the icon, so the button says what it does.
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -60,28 +65,46 @@ class RadBarButton extends StatelessWidget {
               : hovered
               ? c.hoverFill
               : c.hoverFill.withValues(alpha: 0);
+          final ink = !enabled
+              ? c.label3
+              : toolOn
+              ? c.surface
+              : toggleOn || hovered
+              ? c.label
+              : c.label2;
+          final glyph = CruIcon(icon, size: 18, strokeWidth: 1.8, color: ink);
+          final text = label;
           return AnimatedContainer(
             duration: CruMotion.of(context, CruMotion.fast),
             curve: CruMotion.curve,
-            width: CruSize.squareButton,
+            width: text == null ? CruSize.squareButton : null,
             height: CruSize.squareButton,
+            padding: text == null
+                ? null
+                : const EdgeInsets.fromLTRB(CruSpace.s10, 0, CruSpace.s12, 0),
             alignment: Alignment.center,
             decoration: ShapeDecoration(
               color: fill,
               shape: cruShape(CruRadius.iconTile),
             ),
-            child: CruIcon(
-              icon,
-              size: 18,
-              strokeWidth: 1.8,
-              color: !enabled
-                  ? c.label3
-                  : toolOn
-                  ? c.surface
-                  : toggleOn || hovered
-                  ? c.label
-                  : c.label2,
-            ),
+            child: text == null
+                ? glyph
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      glyph,
+                      const SizedBox(width: CruSpace.s6),
+                      Text(
+                        text,
+                        maxLines: 1,
+                        style:
+                            (toolOn
+                                    ? CruType.subhead.w600
+                                    : CruType.subhead.w500)
+                                .tint(ink),
+                      ),
+                    ],
+                  ),
           );
         },
       ),
@@ -99,10 +122,14 @@ class RadMenuButton<T> extends StatelessWidget {
     required this.onSelected,
     this.selected = false,
     this.enabled = true,
+    this.label,
   });
 
   final CruIconData icon;
   final String tooltip;
+
+  /// Shown beside the icon.
+  final String? label;
   final List<PopupMenuEntry<T>> Function() items;
   final ValueChanged<T> onSelected;
   final bool selected;
@@ -135,6 +162,7 @@ class RadMenuButton<T> extends StatelessWidget {
     builder: (context) => RadBarButton(
       icon: icon,
       tooltip: tooltip,
+      label: label,
       selected: selected,
       style: RadBarButtonStyle.toggle,
       onPressed: enabled ? () => _open(context) : null,

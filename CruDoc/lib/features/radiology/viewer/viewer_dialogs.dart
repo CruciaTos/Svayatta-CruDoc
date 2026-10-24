@@ -202,6 +202,26 @@ class _CalibrationDialogState extends State<_CalibrationDialog> {
   }
 }
 
+/// The tooth beside [last] on its arch, one step in [direction] (+1 is to
+/// the right on the image, as the dentist faces the patient; −1 to the
+/// left). Null at the end of the arch or when [last] isn't an FDI number.
+/// Lets tooth numbers follow on from one click to the next.
+String? radNextTooth(String last, int direction) {
+  if (direction == 0) return null;
+  for (final row in const [
+    _permanentUpper,
+    _permanentLower,
+    _primaryUpper,
+    _primaryLower,
+  ]) {
+    final i = row.indexOf(last.trim());
+    if (i < 0) continue;
+    final j = i + direction.sign;
+    return j >= 0 && j < row.length ? row[j] : null;
+  }
+  return null;
+}
+
 /// FDI tooth numbers, as the dentist sees them facing the patient:
 /// upper right → upper left, lower right → lower left.
 const _permanentUpper = [

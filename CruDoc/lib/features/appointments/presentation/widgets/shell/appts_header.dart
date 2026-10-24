@@ -161,7 +161,7 @@ class ScheduleTitle extends StatelessWidget {
               ? const SizedBox.shrink()
               : Text.rich(
                   summary!,
-                  style: CruType.dateLine.tabular.tint(c.label2),
+                  style: CruType.dateLine.tabular.tint(c.accentText),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -321,7 +321,7 @@ class _TitleBlock extends ConsumerWidget {
       }
     }
 
-    final summaryStyle = CruType.dateLine.tabular.tint(c.label2);
+    final summaryStyle = CruType.dateLine.tabular.tint(c.accentText);
     return ScheduleTitle(
       title: title,
       shortTitle: switch (state.view) {

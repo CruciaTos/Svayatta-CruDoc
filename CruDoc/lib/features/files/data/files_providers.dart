@@ -85,7 +85,7 @@ abstract final class _FilesViewPreferences {
 @immutable
 class FilesState {
   const FilesState({
-    this.tab = FilesTab.recent,
+    this.tab = FilesTab.folders,
     this.folderId = '',
     this.filter,
     this.sort = FilesSort.newest,
@@ -199,7 +199,8 @@ class FilesController extends Notifier<FilesState> {
   /// "See all" from a patient: their files, newest first.
   void showPatient(String patientId) => state = _reset(
     state.copyWith(
-      tab: FilesTab.recent,
+      tab: FilesTab.folders,
+      folderId: '',
       patientId: patientId,
       query: '',
       clearFilter: true,

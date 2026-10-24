@@ -62,7 +62,7 @@ class PatientsHeader extends ConsumerWidget {
                           total == null
                               ? ''
                               : DashFormat.plural(total!, 'patient'),
-                          style: CruType.text.tabular.tint(c.label2),
+                          style: CruType.text.tabular.tint(c.accentText),
                           maxLines: 1,
                         ),
                         if (newThisMonth > 0) ...[
@@ -77,12 +77,12 @@ class PatientsHeader extends ConsumerWidget {
                           const SizedBox(width: CruSpace.s6),
                           Text(
                             '$newThisMonth',
-                            style: CruType.text.tabular.tint(c.label2),
+                            style: CruType.text.tabular.tint(c.accentText),
                           ),
                           const SizedBox(width: CruSpace.s4),
                           Text(
                             'new this month',
-                            style: CruType.text.tabular.tint(c.label2),
+                            style: CruType.text.tabular.tint(c.accentText),
                           ),
                         ],
                       ],

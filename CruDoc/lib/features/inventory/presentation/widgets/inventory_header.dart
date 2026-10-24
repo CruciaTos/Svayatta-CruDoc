@@ -45,10 +45,13 @@ class InventoryHeader extends StatelessWidget {
                   style: CruType.text.tabular.tint(c.accentText),
                 ),
                 if (v.hasPrices) ...[
-                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text: ' · ',
+                    style: CruType.text.tabular.tint(c.accentText),
+                  ),
                   TextSpan(
                     text: '${InventoryFormat.rupees(v.stockValue)} in stock',
-                    style: CruType.text.tabular.tint(c.greenText),
+                    style: CruType.text.tabular.tint(c.accentText),
                   ),
                 ],
               ],

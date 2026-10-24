@@ -36,7 +36,7 @@ class RevenueHeader extends StatelessWidget {
               const SizedBox(height: CruSpace.s2),
               Text(
                 subtitle ?? '',
-                style: CruType.text.tabular.tint(c.label2),
+                style: CruType.text.tabular.tint(c.accentText),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

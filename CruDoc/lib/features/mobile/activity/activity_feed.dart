@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
+import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
@@ -71,6 +72,7 @@ class ActivityItem {
     this.actorUid = '',
     this.patient,
     this.desktopTab,
+    this.homeVisit = false,
   });
 
   final String id;
@@ -87,6 +89,21 @@ class ActivityItem {
 
   /// When there's no patient: the screen a tap opens (a [DesktopTab]).
   final int? desktopTab;
+
+  /// A home visit rather than an appointment at the clinic.
+  final bool homeVisit;
+
+  /// An appointment or home visit of one patient (booked, cancelled,
+  /// missed, seen): its row shows that patient's monogram, not an icon.
+  bool get showsPatient =>
+      patient != null &&
+      const {
+        ActivityKind.booked,
+        ActivityKind.cancelled,
+        ActivityKind.missed,
+        ActivityKind.consultDone,
+        ActivityKind.homeVisitDone,
+      }.contains(kind);
 }
 
 enum AttentionKind { lowStock, expiring, unpaid, invites, overdueStudies }
@@ -149,8 +166,7 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
 
   final me = ref.watch(currentUserProvider)?.uid ?? '';
 
-  final patients =
-      ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+  final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
   final byId = {for (final p in patients) p.id: p};
   String nameOf(String? id, [String fallback = 'A patient']) {
     final n = byId[id]?.fullName.trim() ?? '';
@@ -251,6 +267,7 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
               '${DashFormat.time(v.scheduledStart)}',
           actorUid: v.createdByUid,
           patient: p,
+          homeVisit: home,
         ),
       );
     }
@@ -276,6 +293,7 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
           _ => 'Home visit with $who finished',
         },
         patient: p,
+        homeVisit: home,
       ),
     );
   }
@@ -341,7 +359,8 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
         id: 's_${t.id}',
         at: t.createdAt,
         kind: ActivityKind.restocked,
-        title: 'Added ${t.quantity} ${medName[t.medicineId] ?? 'items'} to stock',
+        title:
+            'Added ${t.quantity} ${medName[t.medicineId] ?? 'items'} to stock',
         desktopTab: DesktopTab.inventory,
       ),
     );
@@ -498,7 +517,10 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
       ),
     );
   }
-  final unpaid = [for (final b in pending) if (!b.isPaid) b];
+  final unpaid = [
+    for (final b in pending)
+      if (!b.isPaid) b,
+  ];
   if (unpaid.isNotEmpty) {
     final total = unpaid.fold<double>(0, (s, b) => s + b.amount);
     attention.add(
@@ -542,8 +564,11 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
     attention.add(
       AttentionItem(
         kind: AttentionKind.overdueStudies,
-        title: '${DashFormat.plural(overdue.length, 'study', 'studies')} overdue',
-        detail: DashFormat.names([for (final s in overdue) studyName(s)], max: 3),
+        title:
+            '${DashFormat.plural(overdue.length, 'study', 'studies')} overdue',
+        detail: DashFormat.names([
+          for (final s in overdue) studyName(s),
+        ], max: 3),
       ),
     );
   }
@@ -592,4 +617,61 @@ String _fileWord(PatientFile f) {
   if (type == 'application/pdf') return 'PDF';
   if (type.startsWith('image/')) return 'Photo';
   return 'File';
+}
+
+/// CruDoc's storage on this device, only when it's past 90% of its limit.
+final storageNearlyFullProvider =
+    FutureProvider.autoDispose<LocalStorageReport?>((ref) async {
+      final r = await LocalStorageManager.instance.report();
+      if (r.limitBytes <= 0 || r.totalBytes < r.limitBytes * 0.9) return null;
+      return r;
+    });
+
+/// Today, Yesterday, This week, Earlier — only the ones with rows.
+List<(String, List<ActivityItem>)> activityGroups(
+  List<ActivityItem> items,
+  DateTime now,
+) {
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final week = today.subtract(const Duration(days: 6));
+  final out = <String, List<ActivityItem>>{
+    'Today': [],
+    'Yesterday': [],
+    'This week': [],
+    'Earlier': [],
+  };
+  for (final i in items) {
+    final key = !i.at.isBefore(today)
+        ? 'Today'
+        : !i.at.isBefore(yesterday)
+        ? 'Yesterday'
+        : !i.at.isBefore(week)
+        ? 'This week'
+        : 'Earlier';
+    out[key]!.add(i);
+  }
+  return [
+    for (final e in out.entries)
+      if (e.value.isNotEmpty) (e.key, e.value),
+  ];
+}
+
+/// "Just now", "5m ago", "3h ago", "2d ago", then "12 Oct".
+String activityAgo(DateTime t, DateTime now) {
+  final d = now.difference(t);
+  if (d.inMinutes < 1) return 'Just now';
+  if (d.inMinutes < 60) return '${d.inMinutes}m ago';
+  if (d.inHours < 24) return '${d.inHours}h ago';
+  if (d.inDays < 7) return '${d.inDays}d ago';
+  return DashFormat.shortDate(t);
+}
+
+/// "920 MB", "1.5 GB".
+String storageSize(int bytes) {
+  const mb = 1024 * 1024;
+  const gb = 1024 * mb;
+  return bytes >= gb
+      ? '${(bytes / gb).toStringAsFixed(1)} GB'
+      : '${(bytes / mb).round()} MB';
 }

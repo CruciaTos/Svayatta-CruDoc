@@ -20,7 +20,6 @@ import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
-import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/post_campaign_modal.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_actions.dart';
@@ -2414,7 +2413,7 @@ class VoiceController {
           return "You can't add files";
         }
         final files = _ref.read(filesControllerProvider);
-        final folder = files.tab == FilesTab.folders ? files.folderId : '';
+        final folder = files.folderId;
         unawaited(
           id == 'action.newFolder'
               ? FilesActions.newFolder(_context(), parentId: folder)

@@ -44,6 +44,27 @@ extension RadToolText on RadTool {
     RadTool.tooth => 'Tap a tooth to number it',
     RadTool.calibrate => 'Drag along something of known length',
   };
+
+  /// The same hints for a mouse, shown at the foot of the image on the
+  /// desktop.
+  String get mouseHint => switch (this) {
+    RadTool.select =>
+      'Drag to move · click a mark to select it · double-click to fit',
+    RadTool.pan => 'Drag to move the image',
+    RadTool.zoom => 'Drag up to zoom in, down to zoom out',
+    RadTool.window => 'Drag up or down for brightness, sideways for contrast',
+    RadTool.length => 'Drag from one end to the other',
+    RadTool.angle => 'Drag the first arm, then click where the second ends',
+    RadTool.polygon => 'Click around the area · click the first point to close',
+    RadTool.ellipse => 'Drag across the area',
+    RadTool.rect => 'Drag across the area',
+    RadTool.polyline => 'Click each point · double-click to finish',
+    RadTool.arrow => 'Drag from the tail to the tip',
+    RadTool.text => 'Click where the note goes',
+    RadTool.freehand => 'Hold the button down and draw',
+    RadTool.tooth => 'Click a tooth to number it',
+    RadTool.calibrate => 'Drag along something of known length',
+  };
 }
 
 /// One button on the phone bar: an icon with its name under it.

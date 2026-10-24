@@ -16,7 +16,6 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/dental/dental_features.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_today_card.dart';
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_today_card.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -85,8 +84,6 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
       data.schedule == null
           ? const SkeletonCard(rows: 5)
           : ScheduleCard(items: data.schedule!, now: data.now),
-      if (features.contains(DentalFeature.chairside))
-        DentalTodayCard(onNavigate: widget.onNavigateToTab),
       if (features.contains(DentalFeature.perio))
         PerioTodayCard(onNavigate: widget.onNavigateToTab),
       if (features.contains(DentalFeature.radiology))

@@ -623,7 +623,7 @@ class _StudyRow extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '${RadFormat.ago(study.receivedAt, now)} · ${RadFormat.images(study.imageCount)}',
+                    RadFormat.ago(study.receivedAt, now),
                     maxLines: 1,
                     style: CruType.caption.tabular.tint(c.label2),
                   ),

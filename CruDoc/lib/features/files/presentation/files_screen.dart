@@ -18,10 +18,10 @@ import 'package:doctor_management_app/features/files/presentation/widgets/files_
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// The Files tab, laid out like Inventory: header, Recent / Folders,
-/// search and filters, then the list or grid with the 384 px panel (a
-/// sheet below 1200 px). Tapping a file opens it. Files dragged in from
-/// the computer are added after choosing their patient. Pads itself with
+/// The Files tab, laid out like Inventory: header, folders, search and
+/// filters, then the list or grid with the 384 px panel (a sheet below
+/// 1200 px). Tapping a file opens it. Files dragged in from the
+/// computer are added after choosing their patient. Pads itself with
 /// [CruSpace.mainPadding]. State lives in [filesControllerProvider].
 class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key});
@@ -228,10 +228,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     return !_wide && s.panelOpen && (view?.selectedExplicit ?? false);
   }
 
-  /// Folders tab inside a folder: Esc goes up one.
+  /// Inside a folder: Esc goes up one.
   bool _canGoUp() {
     final s = ref.read(filesControllerProvider);
-    return s.tab == FilesTab.folders && s.folderId.isNotEmpty;
+    return s.folderId.isNotEmpty;
   }
 
   void _goUp() {
@@ -287,10 +287,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   // ---- Adding ------------------------------------------------------------
 
-  /// Where new files go: the open folder on the Folders tab.
+  /// Where new files go: the open folder.
   String get _targetFolder {
     final s = ref.read(filesControllerProvider);
-    return s.tab == FilesTab.folders ? s.folderId : '';
+    return s.folderId;
   }
 
   void _addFiles() => FilesActions.pickAndAdd(
@@ -342,7 +342,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         const SizedBox(height: CruSpace.s20),
         FilesChips(view: view),
       ],
-      if (view != null && state.tab == FilesTab.folders) ...[
+      if (view != null) ...[
         const SizedBox(height: CruSpace.s16),
         FilesBreadcrumbs(view: view),
       ],
@@ -373,9 +373,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               Positioned.fill(
                 child: IgnorePointer(
                   child: _DropOverlay(
-                    folderName: state.tab == FilesTab.folders
-                        ? view?.current?.folder.name
-                        : null,
+                    folderName: view?.current?.folder.name,
                   ),
                 ),
               ),
@@ -556,7 +554,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
     final empty = _NoMatches(
       query: state.query,
-      inFolder: state.tab == FilesTab.folders && view.current != null,
+      inFolder: view.current != null,
       filtered: view.filter != null || view.patientFilterName != null,
       onClear: () => _controller.setQuery(''),
     );

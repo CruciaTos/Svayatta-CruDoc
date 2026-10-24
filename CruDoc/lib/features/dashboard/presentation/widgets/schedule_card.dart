@@ -3,14 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum ScheduleFilter { all, waiting, done }
 
+/// The patient's monogram in a row: 40 px in the 60 px row, 10 px above
+/// and below (room for its badge too).
+const double _rowAvatar = 40;
+
 /// Where schedule separators start past dot and monogram:
-/// row padding 12 + dot 12 + gap 14 + monogram 34 + gap 14 = 86.
+/// row padding 12 + dot 12 + gap 14 + monogram 40 + gap 14 = 92.
 const double _scheduleTextInset =
-    CruSpace.s12 + 12 + CruSpace.s14 + 34 + CruSpace.s14;
+    CruSpace.s12 + 12 + CruSpace.s14 + _rowAvatar + CruSpace.s14;
 
 /// Today's schedule: every booked visit and queue token, in time order.
 class ScheduleCard extends StatefulWidget {
@@ -40,8 +45,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
 
     final subtitle = items.isEmpty
         ? 'Nothing booked yet'
-        : '${DashFormat.plural(items.length, 'appointment')} · '
-              '${DashFormat.timeRange(items.first.time, items.last.time)}';
+        : DashFormat.timeRange(items.first.time, items.last.time);
 
     return CruCard(
       semanticLabel: "Today's schedule",
@@ -81,9 +85,30 @@ class _ScheduleCardState extends State<ScheduleCard> {
                       children: [
                         Semantics(
                           header: true,
-                          child: Text(
-                            "Today's schedule",
-                            style: CruType.headline.tint(c.label),
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: "Today's schedule",
+                                  style: CruType.headline.tint(c.label),
+                                ),
+                                if (items.isNotEmpty) ...[
+                                  TextSpan(
+                                    text: ' · ',
+                                    style: CruType.subhead.tint(c.label3),
+                                  ),
+                                  TextSpan(
+                                    text: DashFormat.plural(
+                                      items.length,
+                                      'appointment',
+                                    ),
+                                    style: CruType.subhead.tabular.tint(
+                                      c.label2,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: CruSpace.s2),
@@ -273,82 +298,99 @@ class ScheduleRow extends StatelessWidget {
           '${item.name}, ${DashFormat.time(item.time)}, '
           '${_statusText(item)}',
       scaleOnPress: false,
-      builder: (context, hovered) => AnimatedContainer(
-        duration: CruMotion.of(context, CruMotion.fast),
-        height: CruSize.scheduleRow,
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-        decoration: ShapeDecoration(
-          color: isNow
-              ? (c.isEvening
-                    ? const Color(0x2E4973F8)
-                    : const Color(0xFFEFF6FF))
-              : (hovered ? c.inset : c.inset.withValues(alpha: 0)),
-          shape: cruShape(
-            CruRadius.control,
-            side: isNow
-                ? BorderSide(color: c.accent, width: 1.5)
-                : BorderSide.none,
+      builder: (context, hovered) {
+        final fill = isNow
+            ? (c.isEvening ? const Color(0x2E4973F8) : const Color(0xFFEFF6FF))
+            : (hovered ? c.inset : c.inset.withValues(alpha: 0));
+        return AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          height: CruSize.scheduleRow,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+          decoration: ShapeDecoration(
+            color: fill,
+            shape: cruShape(
+              CruRadius.control,
+              side: isNow
+                  ? BorderSide(color: c.accent, width: 1.5)
+                  : BorderSide.none,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            CruStatusDot(_dotKind(item.status), size: 12),
-            const SizedBox(width: CruSpace.s14),
-            CruMonogram(name: item.name, vibrant: true),
-            const SizedBox(width: CruSpace.s14),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: CruType.row.tint(c.label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (_secondLine(item) != null)
+          child: Row(
+            children: [
+              CruStatusDot(_dotKind(item.status), size: 12),
+              const SizedBox(width: CruSpace.s14),
+              // Instagram-style badge: appointment or home visit.
+              VisitBadged(
+                avatar: CruMonogram(
+                  name: item.name,
+                  size: _rowAvatar,
+                  vibrant: true,
+                ),
+                avatarSize: _rowAvatar,
+                homeVisit: item.kindLabel == 'Home visit',
+                ringColor: Color.alphaBlend(fill, c.surface),
+              ),
+              const SizedBox(width: CruSpace.s14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      _secondLine(item)!,
-                      style: CruType.subhead.tint(c.label2),
+                      item.name,
+                      style: CruType.row.tint(c.label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                ],
-              ),
-            ),
-            const SizedBox(width: CruSpace.s12),
-            _StatusLabel(item: item),
-            const SizedBox(width: CruSpace.s12),
-            SizedBox(
-              width: CruSize.timeColumn,
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: hm,
-                      style: CruType.row.w600.tabular.tint(c.accentText),
-                    ),
-                    TextSpan(
-                      text: ' $ampm',
-                      style: CruType.micro.w600.tint(c.accentText),
-                    ),
+                    if (_secondLine(item) != null)
+                      Text(
+                        _secondLine(item)!,
+                        style: CruType.subhead.tint(c.label2),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   ],
                 ),
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.visible,
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(width: CruSpace.s12),
+              _StatusLabel(item: item),
+              const SizedBox(width: CruSpace.s12),
+              SizedBox(
+                width: CruSize.timeColumn,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: hm,
+                        style: CruType.row.w600.tabular.tint(c.accentText),
+                      ),
+                      TextSpan(
+                        text: ' $ampm',
+                        style: CruType.micro.w600.tint(c.accentText),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
+  /// The reason, plus "New patient" or "Walk-in". "Home visit" and
+  /// "Returning" are left out: the badge on the monogram says home visit or
+  /// appointment.
   static String? _secondLine(ScheduleItem i) {
-    final parts = [?i.reason, ?i.kindLabel];
+    final kind = i.kindLabel == 'Home visit' || i.kindLabel == 'Returning'
+        ? null
+        : i.kindLabel;
+    final parts = [?i.reason, ?kind];
     return parts.isEmpty ? null : parts.join(' · ');
   }
 
@@ -535,17 +577,9 @@ class _LastBooking extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const CruSeparator(
-          indent: _scheduleTextInset,
-          endIndent: CruSpace.s12,
-        ),
+        const CruSeparator(indent: _scheduleTextInset, endIndent: CruSpace.s12),
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            _scheduleTextInset,
-            16,
-            12,
-            8,
-          ),
+          padding: const EdgeInsets.fromLTRB(_scheduleTextInset, 16, 12, 8),
           child: Row(
             children: [
               Expanded(

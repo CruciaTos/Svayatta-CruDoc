@@ -213,7 +213,7 @@ Use continuous (Apple-style) corners: `RoundedSuperellipseBorder` if the project
 ## 5. Behaviour
 
 - **Appearance:** Auto (default) switches to Evening from the clinic's evening-session start (default 17:00) until closing, otherwise Day. Settings offers Auto / Day / Evening.
-- **Motion:** 200–250 ms, `Curves.easeOutCubic`, for expand/collapse and hover. Press feedback scale 0.98. No bounce. Respect reduced-motion settings.
+- **Motion:** 200–250 ms, `Curves.easeOutCubic`, for expand/collapse and hover. Press feedback scale 0.98. No bounce. Respect reduced-motion settings. When a "same box" transition is asked for an element, see `design/motion-transitions.md` (opt-in; reference: Schedule Week ⇄ Day).
 - **Hover (desktop):** rows get an inset fill; buttons darken ~6%.
 - **Keyboard:** Ctrl/⌘ K focuses search; Enter on Up next starts consultation.
 - **Live updates:** waiting times and counts update without layout shift (fixed row heights, skeletons while loading).

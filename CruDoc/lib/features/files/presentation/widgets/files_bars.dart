@@ -45,10 +45,13 @@ class FilesHeader extends StatelessWidget {
                   style: CruType.text.tabular.tint(c.accentText),
                 ),
                 if (v.totalFolders > 0) ...[
-                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text: ' · ',
+                    style: CruType.text.tabular.tint(c.accentText),
+                  ),
                   TextSpan(
                     text: _count(v.totalFolders, 'folder'),
-                    style: CruType.text.tabular.tint(c.label2),
+                    style: CruType.text.tabular.tint(c.accentText),
                   ),
                 ],
               ],
@@ -146,7 +149,7 @@ class FilesHeader extends StatelessWidget {
   }
 }
 
-/// Recent / Folders, then search, patient, list/grid and sort.
+/// Search, patient, list/grid and sort.
 class FilesToolbar extends ConsumerWidget {
   const FilesToolbar({
     super.key,
@@ -163,21 +166,15 @@ class FilesToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tabs = CruSegmentedControl<FilesTab>(
-      semanticLabel: 'Files sections',
-      segments: [for (final t in FilesTab.values) CruSegment(t, t.label)],
-      selected: state.tab,
-      onChanged: ref.read(filesControllerProvider.notifier).setTab,
-    );
     if (cruIsPhone(context)) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              tabs,
+              _PatientButton(patientId: state.patientId),
               const Spacer(),
-              _PatientButton(patientId: state.patientId, compact: true),
+              _FilesViewToggle(mode: state.viewMode),
             ],
           ),
           const SizedBox(height: CruSpace.s10),
@@ -193,8 +190,6 @@ class FilesToolbar extends ConsumerWidget {
     }
     return Row(
       children: [
-        tabs,
-        const SizedBox(width: CruSpace.s12),
         Expanded(child: _FilesSearchField(focusNode: searchFocus)),
         const SizedBox(width: CruSpace.s12),
         _PatientButton(patientId: state.patientId),
@@ -322,10 +317,9 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
 
 /// "Patient  All ⌄": picks one patient to show files for.
 class _PatientButton extends ConsumerWidget {
-  const _PatientButton({required this.patientId, this.compact = false});
+  const _PatientButton({required this.patientId});
 
   final String? patientId;
-  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -360,20 +354,16 @@ class _PatientButton extends ConsumerWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (compact)
-              CruIcon(CruIcons.user, size: 18, strokeWidth: 2, color: c.label2)
-            else ...[
-              Text('Patient', style: CruType.text.w500.tint(c.label2)),
-              const SizedBox(width: CruSpace.s6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: CruType.text.w500.tint(c.label),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+            Text('Patient', style: CruType.text.w500.tint(c.label2)),
+            const SizedBox(width: CruSpace.s6),
+            Flexible(
+              child: Text(
+                label,
+                style: CruType.text.w500.tint(c.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
+            ),
             const SizedBox(width: CruSpace.s6),
             CruIcon(
               CruIcons.chevronDown,

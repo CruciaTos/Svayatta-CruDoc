@@ -196,7 +196,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
           const SizedBox(height: CruSpace.s2),
           Text(
             [name, if (email != null && email.isNotEmpty) email].join(' · '),
-            style: CruType.text.tint(c.label2),
+            style: CruType.text.tint(c.accentText),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

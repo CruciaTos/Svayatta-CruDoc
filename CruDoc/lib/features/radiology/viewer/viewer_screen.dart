@@ -54,19 +54,45 @@ class _Snapshot {
   final Map<String, double> cal;
 }
 
-const _toolGroups = [
-  [RadTool.select, RadTool.pan, RadTool.zoom, RadTool.window],
-  [
-    RadTool.length,
-    RadTool.angle,
-    RadTool.polygon,
-    RadTool.ellipse,
-    RadTool.rect,
-    RadTool.polyline,
-  ],
-  [RadTool.arrow, RadTool.text, RadTool.freehand, RadTool.tooth],
-  [RadTool.calibrate],
-];
+/// The desktop toolbar's groups: the active group's tools show on the row
+/// below the group tabs, each with its name.
+enum _DeskGroup {
+  move('Move'),
+  adjust('Adjust'),
+  measure('Measure'),
+  draw('Draw'),
+  tooth('Tooth'),
+  view('View');
+
+  const _DeskGroup(this.label);
+  final String label;
+
+  /// Its drag tools; the first is picked when the group opens the first
+  /// time. View holds actions only.
+  List<RadTool> get tools => switch (this) {
+    move => const [RadTool.select, RadTool.pan, RadTool.zoom],
+    adjust => const [RadTool.window],
+    measure => const [
+      RadTool.length,
+      RadTool.angle,
+      RadTool.polygon,
+      RadTool.calibrate,
+    ],
+    draw => const [
+      RadTool.arrow,
+      RadTool.freehand,
+      RadTool.text,
+      RadTool.rect,
+      RadTool.ellipse,
+      RadTool.polyline,
+    ],
+    tooth => const [RadTool.tooth],
+    view => const [],
+  };
+
+  static _DeskGroup of(RadTool t) =>
+      values.firstWhere((g) => g.tools.contains(t), orElse: () => move);
+}
 
 /// The 2D reading page: thumbnails on the left, one to four dark image
 /// panes, and a side panel with measurements, key images, image info,
@@ -153,6 +179,11 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   /// The phone bar's open group, if any.
   _PhoneGroup? _phoneGroup;
+
+  /// The desktop toolbar's open group, and the tool last used in each, so
+  /// opening a group picks up where the doctor left it.
+  _DeskGroup _deskGroup = _DeskGroup.move;
+  final Map<_DeskGroup, RadTool> _lastTool = {};
   LogicalKeyboardKey? _loupeKey;
   DateTime? _loupeDownAt;
   bool _reading = false;
@@ -271,7 +302,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   static Map<String, List<RadAnnotation>> _copyOf(
     Map<String, List<RadAnnotation>> m,
-  ) => {for (final e in m.entries) e.key: [...e.value]};
+  ) => {
+    for (final e in m.entries) e.key: [...e.value],
+  };
 
   // ───────────────────────────── Images and stacks ─────────────────────────────
 
@@ -372,7 +405,11 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       } else if (!mapEquals(p.filters.toJson(), p.baseFilters.toJson())) {
         // The last image's filters stay with it; this one opens plain.
         await p.applyLook(
-          RadImageLook(center: p.center, width: p.width, filters: p.baseFilters),
+          RadImageLook(
+            center: p.center,
+            width: p.width,
+            filters: p.baseFilters,
+          ),
         );
       }
       if (!mounted) return;
@@ -656,8 +693,95 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         p.touch();
       }
     }
-    setState(() => _tool = t);
+    final group = _DeskGroup.of(t);
+    if (t != RadTool.calibrate) _lastTool[group] = t;
+    setState(() {
+      _tool = t;
+      if (t != RadTool.select) _deskGroup = group;
+    });
     _rememberState();
+  }
+
+  /// Opens [g] on the desktop bar and picks its tool: the one last used
+  /// there, else its first.
+  void _openGroup(_DeskGroup g) {
+    setState(() => _deskGroup = g);
+    final tools = g.tools;
+    // View has no drawing tools: a drag there moves the image rather than
+    // drawing with whatever was picked before.
+    if (tools.isEmpty) return _setTool(RadTool.select);
+    if (tools.contains(_tool)) return;
+    final last = _lastTool[g];
+    _setTool(last != null && last != RadTool.calibrate ? last : tools.first);
+  }
+
+  /// The side panel on [t], opening it if it's closed.
+  void _showPanelTab(RadPanelTab t) {
+    if (!_prefs.panelOpen) _togglePanel();
+    _setTab(t);
+  }
+
+  /// The last tooth number on [imageId], newest first.
+  RadAnnotation? _lastTooth(String imageId) {
+    final list = _annos[imageId] ?? const <RadAnnotation>[];
+    for (final a in list.reversed) {
+      if (a.kind == RadAnnoKind.toothLabel &&
+          a.text.isNotEmpty &&
+          a.points.isNotEmpty) {
+        return a;
+      }
+    }
+    return null;
+  }
+
+  /// Tooth numbers follow on: clicked beside the last numbered tooth on the
+  /// same arch (mostly sideways), the new label takes the neighbouring
+  /// number in that direction. Null when it can't tell (first tooth, a jump
+  /// to the other arch, the end of the arch): then the picker opens.
+  String? _followOnTooth(String imageId, RadAnnotation a) {
+    final last = _lastTooth(imageId);
+    if (last == null || a.points.isEmpty) return null;
+    final dx = a.points.first.x - last.points.first.x;
+    final dy = a.points.first.y - last.points.first.y;
+    if (dx.abs() < 8 || dy.abs() > dx.abs()) return null;
+    return radNextTooth(last.text, dx.sign.toInt());
+  }
+
+  /// What the hint at the foot of the image says for the current tool;
+  /// null when there's nothing to say (just looking).
+  ({String text, String? action, VoidCallback? onAction})? _toolHint() {
+    final t = _tool;
+    if (t == RadTool.select || !_pane.hasImage) return null;
+    if (t == RadTool.tooth) {
+      final last = _lastTooth(_pane.imageId);
+      if (last != null) {
+        return (
+          text:
+              'Click the next tooth: numbers follow on from ${last.text} · '
+              'Shift-click to choose',
+          action: null,
+          onAction: null,
+        );
+      }
+    }
+    const scaled = {
+      RadTool.length,
+      RadTool.polygon,
+      RadTool.ellipse,
+      RadTool.rect,
+      RadTool.polyline,
+    };
+    final own = _pane.studyId == _study?.id;
+    // The side panel's Measure tab already says so, with its own button.
+    final panelSays = _prefs.panelOpen && _tab == RadPanelTab.measure;
+    if (scaled.contains(t) && own && !panelSays && _mmPerPxFor(_pane) == null) {
+      return (
+        text: '${t.mouseHint} · reads in pixels until you calibrate',
+        action: 'Calibrate',
+        onAction: startCalibration,
+      );
+    }
+    return (text: t.mouseHint, action: null, onAction: null);
   }
 
   void _setTab(RadPanelTab t) {
@@ -802,7 +926,11 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
             local: _copyAnnos(),
             remote: annos,
           );
-          _cal = radMergeCalibration(base: cal, local: {..._cal}, remote: mergedCal);
+          _cal = radMergeCalibration(
+            base: cal,
+            local: {..._cal},
+            remote: mergedCal,
+          );
           _undo.clear();
           _redo.clear();
         });
@@ -977,7 +1105,13 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       if (t == null || !mounted) return;
       a = a.copyWith(text: t);
     } else if (a.kind == RadAnnoKind.toothLabel) {
-      final t = await pickRadTooth(context);
+      // Beside the last one: number it straight away. Shift-click asks.
+      final follow = HardwareKeyboard.instance.isShiftPressed
+          ? null
+          : _followOnTooth(imageId, a);
+      final t =
+          follow ??
+          await pickRadTooth(context, initial: _lastTooth(imageId)?.text ?? '');
       if (t == null || !mounted) return;
       a = a.copyWith(text: t);
     }
@@ -1766,148 +1900,246 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     return ColoredBox(color: RadInk.gutter, child: grid);
   }
 
+  /// The desktop toolbar: the group tabs on top (Move · Adjust · Measure ·
+  /// Draw · Tooth · View) with global utilities, and the active group's
+  /// tools on the row directly below.
   Widget _toolbar(RadStudy s, List<RadStudy> others) {
     final c = context.cru;
     final p = _pane;
     final has = p.hasImage;
     final own = p.studyId == s.id;
     final image = _imageRef(p);
-    final isCeph =
-        s.modality == RadModality.ceph ||
-        (image?.seriesDescription.toLowerCase().contains('ceph') ?? false);
-    RadBarButton action(
+
+    Widget tool(RadTool t) => RadBarButton(
+      icon: t.icon,
+      label: t.short,
+      tooltip: _tip(t.label, RadViewerAction.values.byName(t.name)),
+      selected: _tool == t,
+      style: RadBarButtonStyle.tool,
+      onPressed: t == RadTool.calibrate
+          ? (has && own ? startCalibration : null)
+          : () => _toggleTool(t),
+    );
+    Widget act(
       CruIconData icon,
       String label,
+      String tip,
       RadViewerAction a, {
       bool enabled = true,
     }) => RadBarButton(
       icon: icon,
-      tooltip: _tip(label, a),
+      label: label,
+      tooltip: _tip(tip, a),
       onPressed: enabled ? () => _run(a) : null,
     );
+    Widget toggle(
+      CruIconData icon,
+      String label,
+      String tip,
+      bool on,
+      VoidCallback? onPressed,
+    ) => RadBarButton(
+      icon: icon,
+      label: label,
+      tooltip: tip,
+      selected: on,
+      style: RadBarButtonStyle.toggle,
+      onPressed: onPressed,
+    );
+    Widget push(CruIconData icon, String label, String tip, Widget? page) =>
+        RadBarButton(
+          icon: icon,
+          label: label,
+          tooltip: tip,
+          onPressed: page == null ? null : () => _push(page),
+        );
+    final magnifier = toggle(
+      RadViewerIcons.loupe,
+      'Magnifier',
+      _tip('Magnifier', RadViewerAction.magnifier),
+      _loupe,
+      () => setState(() => _loupe = !_loupe),
+    );
+
+    final List<Widget> groupTools = switch (_deskGroup) {
+      _DeskGroup.move => [
+        for (final t in _DeskGroup.move.tools) tool(t),
+        const RadBarDivider(),
+        act(
+          RadViewerIcons.fit,
+          'Fit',
+          'Fit to pane',
+          RadViewerAction.fit,
+          enabled: has,
+        ),
+        magnifier,
+        act(
+          RadViewerIcons.reset,
+          'Reset view',
+          'Reset view',
+          RadViewerAction.reset,
+          enabled: has,
+        ),
+      ],
+      _DeskGroup.adjust => [
+        tool(RadTool.window),
+        toggle(
+          RadViewerIcons.invert,
+          'Invert',
+          _tip('Invert', RadViewerAction.invert),
+          p.userInvert,
+          has ? toggleInvert : null,
+        ),
+        RadMenuButton<RadWindowPreset?>(
+          icon: RadViewerIcons.window,
+          label: 'Presets',
+          tooltip: 'Brightness and contrast presets',
+          enabled: has,
+          items: () => [
+            radMenuItem<RadWindowPreset?>(context, null, 'Default'),
+            for (final pr in [...radBuiltInPresets, ..._prefs.presets])
+              radMenuItem<RadWindowPreset?>(context, pr, pr.name),
+          ],
+          onSelected: applyPreset,
+        ),
+        magnifier,
+        RadBarButton(
+          icon: RadViewerIcons.reset,
+          label: 'Reset',
+          tooltip: 'Undo every adjustment on this image',
+          onPressed: has ? () => unawaited(resetAdjustments()) : null,
+        ),
+        const RadBarDivider(),
+        RadBarButton(
+          icon: RadViewerIcons.panel,
+          label: 'Sharpen & more',
+          tooltip: 'Sharpening, contrast boost and your own presets',
+          onPressed: () => _showPanelTab(RadPanelTab.adjust),
+        ),
+      ],
+      _DeskGroup.measure => [
+        for (final t in _DeskGroup.measure.tools) tool(t),
+        const RadBarDivider(),
+        RadBarButton(
+          icon: RadViewerIcons.panel,
+          label: 'All measurements',
+          tooltip: 'The list of measurements on this image',
+          onPressed: () => _showPanelTab(RadPanelTab.measure),
+        ),
+      ],
+      _DeskGroup.draw => [for (final t in _DeskGroup.draw.tools) tool(t)],
+      _DeskGroup.tooth => [tool(RadTool.tooth)],
+      _DeskGroup.view => [
+        act(
+          RadViewerIcons.rotate,
+          'Rotate',
+          'Rotate 90°',
+          RadViewerAction.rotate,
+          enabled: has,
+        ),
+        act(
+          RadViewerIcons.flipH,
+          'Mirror',
+          'Flip left–right',
+          RadViewerAction.flipH,
+          enabled: has,
+        ),
+        act(
+          RadViewerIcons.flipV,
+          'Flip',
+          'Flip up–down',
+          RadViewerAction.flipV,
+          enabled: has,
+        ),
+        const RadBarDivider(),
+        RadMenuButton<RadLayout>(
+          icon: _layout.icon,
+          label: 'Layout',
+          tooltip: 'How many images side by side',
+          items: () => [
+            for (final l in RadLayout.values)
+              radMenuItem(
+                context,
+                l,
+                l.label,
+                icon: l.icon,
+                checked: l == _layout,
+              ),
+          ],
+          onSelected: _setLayout,
+        ),
+        if (others.isNotEmpty)
+          RadMenuButton<String>(
+            icon: RadViewerIcons.compare,
+            label: 'Compare',
+            tooltip: 'Compare with another study of this patient',
+            selected: _compare != null,
+            items: () => [
+              for (final o in others)
+                radMenuItem(
+                  context,
+                  o.id,
+                  '${o.modality.short} · ${RadFormat.date(o.studyDate)}',
+                  hint: RadFormat.images(o.images.length),
+                  checked: o.id == _compare?.id,
+                ),
+              if (_compare != null) radMenuItem(context, '', 'Stop comparing'),
+            ],
+            onSelected: (id) => _setCompare(
+              id.isEmpty ? null : others.where((o) => o.id == id).firstOrNull,
+            ),
+          ),
+        if (_panes.length > 1)
+          toggle(
+            RadViewerIcons.link,
+            'Link',
+            _link ? 'Zoom and pan are linked' : 'Link zoom and pan',
+            _link,
+            _toggleLink,
+          ),
+        push(
+          RadViewerIcons.subtract,
+          'Subtract',
+          'Compare two images and show what changed',
+          has && own
+              ? RadSubtractionScreen(studyId: s.id, imageIdA: p.imageId)
+              : null,
+        ),
+        if (_isCeph(s))
+          push(
+            RadViewerIcons.ceph,
+            'Ceph tracing',
+            'Trace landmarks and angles',
+            has && own
+                ? RadCephScreen(studyId: s.id, imageId: p.imageId)
+                : null,
+          ),
+      ],
+    };
+
     return Container(
       height: radToolbarHeight,
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
       decoration: BoxDecoration(
         color: c.surface,
         border: Border(bottom: BorderSide(color: c.separator)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+          SizedBox(
+            height: 44,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
               child: Row(
                 children: [
-                  for (final group in _toolGroups) ...[
-                    for (final t in group)
-                      RadBarButton(
-                        icon: t.icon,
-                        tooltip: _tip(
-                          t.label,
-                          RadViewerAction.values.byName(t.name),
-                        ),
-                        selected: _tool == t,
-                        style: RadBarButtonStyle.tool,
-                        onPressed: t == RadTool.calibrate
-                            ? (has && own ? startCalibration : null)
-                            : () => _toggleTool(t),
-                      ),
-                    const RadBarDivider(),
-                  ],
-                  action(
-                    RadViewerIcons.fit,
-                    'Fit to pane',
-                    RadViewerAction.fit,
-                    enabled: has,
-                  ),
-                  action(
-                    RadViewerIcons.rotate,
-                    'Rotate 90°',
-                    RadViewerAction.rotate,
-                    enabled: has,
-                  ),
-                  action(
-                    RadViewerIcons.flipH,
-                    'Flip left–right',
-                    RadViewerAction.flipH,
-                    enabled: has,
-                  ),
-                  action(
-                    RadViewerIcons.flipV,
-                    'Flip up–down',
-                    RadViewerAction.flipV,
-                    enabled: has,
-                  ),
-                  RadBarButton(
-                    icon: RadViewerIcons.invert,
-                    tooltip: _tip('Invert', RadViewerAction.invert),
-                    selected: p.userInvert,
-                    style: RadBarButtonStyle.toggle,
-                    onPressed: has ? toggleInvert : null,
-                  ),
-                  RadBarButton(
-                    icon: RadViewerIcons.loupe,
-                    tooltip: _tip('Magnifier', RadViewerAction.magnifier),
-                    selected: _loupe,
-                    style: RadBarButtonStyle.toggle,
-                    onPressed: () => setState(() => _loupe = !_loupe),
-                  ),
-                  action(
-                    RadViewerIcons.reset,
-                    'Reset view',
-                    RadViewerAction.reset,
-                    enabled: has,
-                  ),
-                  const RadBarDivider(),
-                  RadMenuButton<RadLayout>(
-                    icon: _layout.icon,
-                    tooltip: 'Layout',
-                    items: () => [
-                      for (final l in RadLayout.values)
-                        radMenuItem(
-                          context,
-                          l,
-                          l.label,
-                          icon: l.icon,
-                          checked: l == _layout,
-                        ),
+                  CruSegmentedControl<_DeskGroup>(
+                    semanticLabel: 'Tool groups',
+                    segments: [
+                      for (final g in _DeskGroup.values) CruSegment(g, g.label),
                     ],
-                    onSelected: _setLayout,
+                    selected: _deskGroup,
+                    onChanged: _openGroup,
                   ),
-                  if (others.isNotEmpty)
-                    RadMenuButton<String>(
-                      icon: RadViewerIcons.compare,
-                      tooltip: 'Compare with another study of this patient',
-                      selected: _compare != null,
-                      items: () => [
-                        for (final o in others)
-                          radMenuItem(
-                            context,
-                            o.id,
-                            '${o.modality.short} · ${RadFormat.date(o.studyDate)}',
-                            hint: RadFormat.images(o.images.length),
-                            checked: o.id == _compare?.id,
-                          ),
-                        if (_compare != null)
-                          radMenuItem(context, '', 'Stop comparing'),
-                      ],
-                      onSelected: (id) => _setCompare(
-                        id.isEmpty
-                            ? null
-                            : others.where((o) => o.id == id).firstOrNull,
-                      ),
-                    ),
-                  if (_panes.length > 1)
-                    RadBarButton(
-                      icon: RadViewerIcons.link,
-                      tooltip: _link
-                          ? 'Zoom and pan are linked'
-                          : 'Link zoom and pan',
-                      selected: _link,
-                      style: RadBarButtonStyle.toggle,
-                      onPressed: _toggleLink,
-                    ),
                   const RadBarDivider(),
                   RadBarButton(
                     icon: RadViewerIcons.undo,
@@ -1920,11 +2152,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                     onPressed: _redo.isEmpty ? null : _redoStep,
                   ),
                   const RadBarDivider(),
-                  action(
-                    RadViewerIcons.keyImage,
-                    'Mark key image',
-                    RadViewerAction.keyImage,
-                    enabled: has && own && !_busy,
+                  RadBarButton(
+                    icon: RadViewerIcons.keyImage,
+                    tooltip: _tip('Mark key image', RadViewerAction.keyImage),
+                    onPressed: has && own && !_busy
+                        ? () => _run(RadViewerAction.keyImage)
+                        : null,
                   ),
                   RadMenuButton<_ExportKind>(
                     icon: RadViewerIcons.export,
@@ -1978,58 +2211,63 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                     ],
                     onSelected: _export,
                   ),
-                  if (isCeph) ...[
-                    const SizedBox(width: CruSpace.s8),
-                    CruButton(
-                      label: 'Ceph tracing',
-                      icon: RadViewerIcons.ceph,
-                      kind: CruButtonKind.inset,
-                      onPressed: has && own
-                          ? () => _push(
-                              RadCephScreen(studyId: s.id, imageId: p.imageId),
-                            )
-                          : null,
-                    ),
-                  ],
-                  const SizedBox(width: CruSpace.s8),
-                  CruButton(
-                    label: 'Compare / subtract',
-                    icon: RadViewerIcons.subtract,
-                    kind: CruButtonKind.inset,
-                    onPressed: has && own
-                        ? () => _push(
-                            RadSubtractionScreen(
-                              studyId: s.id,
-                              imageIdA: p.imageId,
-                            ),
-                          )
-                        : null,
+                  const RadBarDivider(),
+                  RadBarButton(
+                    icon: RadViewerIcons.thumbnails,
+                    tooltip: _tip('Thumbnails', RadViewerAction.thumbnails),
+                    selected: _prefs.thumbs,
+                    style: RadBarButtonStyle.toggle,
+                    onPressed: _toggleThumbs,
+                  ),
+                  RadBarButton(
+                    icon: RadViewerIcons.panel,
+                    tooltip: _tip('Side panel', RadViewerAction.panel),
+                    selected: _prefs.panelOpen,
+                    style: RadBarButtonStyle.toggle,
+                    onPressed: _togglePanel,
+                  ),
+                  RadBarButton(
+                    icon: RadViewerIcons.readingMode,
+                    tooltip: _tip('Reading mode', RadViewerAction.readingMode),
+                    onPressed: () => setState(() => _reading = true),
                   ),
                 ],
               ),
             ),
           ),
-          const RadBarDivider(),
-          // No thumbnail strip on a phone, so no button for it.
-          if (!cruIsPhone(context))
-            RadBarButton(
-              icon: RadViewerIcons.thumbnails,
-              tooltip: _tip('Thumbnails', RadViewerAction.thumbnails),
-              selected: _prefs.thumbs,
-              style: RadBarButtonStyle.toggle,
-              onPressed: _toggleThumbs,
+          Divider(height: 1, thickness: 1, color: c.separator),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+                child: AnimatedSwitcher(
+                  duration: CruMotion.of(context, CruMotion.fast),
+                  switchInCurve: CruMotion.curve,
+                  switchOutCurve: CruMotion.curve,
+                  layoutBuilder: (current, previous) => Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [...previous, ?current],
+                  ),
+                  child: SingleChildScrollView(
+                    key: ValueKey(_deskGroup),
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < groupTools.length; i++) ...[
+                          if (i > 0 &&
+                              groupTools[i] is! RadBarDivider &&
+                              groupTools[i - 1] is! RadBarDivider)
+                            const SizedBox(width: CruSpace.s4),
+                          groupTools[i],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-          RadBarButton(
-            icon: RadViewerIcons.panel,
-            tooltip: _tip('Side panel', RadViewerAction.panel),
-            selected: cruIsPhone(context) ? _phonePanel : _prefs.panelOpen,
-            style: RadBarButtonStyle.toggle,
-            onPressed: _togglePanel,
-          ),
-          RadBarButton(
-            icon: RadViewerIcons.readingMode,
-            tooltip: _tip('Reading mode', RadViewerAction.readingMode),
-            onPressed: () => setState(() => _reading = true),
           ),
         ],
       ),
@@ -2573,6 +2811,15 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                               child: Center(
                                 child: _OverlayPill(label: 'Working…'),
                               ),
+                            )
+                          else if (!phone && !_reading)
+                            Positioned(
+                              left: CruSpace.s16,
+                              right: CruSpace.s16,
+                              bottom: CruSpace.s16,
+                              child: Center(
+                                child: _ToolHint(hint: _toolHint()),
+                              ),
                             ),
                           if (phone && _phonePanel && !_reading)
                             Positioned.fill(
@@ -2632,6 +2879,75 @@ class _OverlayPill extends StatelessWidget {
       onTap: tap,
       semanticLabel: label,
       builder: (context, _) => pill,
+    );
+  }
+}
+
+/// How to use the current tool, at the foot of the image; with an action
+/// when a step is missing (Calibrate). Fades between tools.
+class _ToolHint extends StatelessWidget {
+  const _ToolHint({required this.hint});
+
+  final ({String text, String? action, VoidCallback? onAction})? hint;
+
+  @override
+  Widget build(BuildContext context) {
+    final h = hint;
+    return AnimatedSwitcher(
+      duration: CruMotion.of(context, CruMotion.fast),
+      switchInCurve: CruMotion.curve,
+      switchOutCurve: CruMotion.curve,
+      child: h == null
+          ? const SizedBox.shrink()
+          : Container(
+              key: ValueKey(h.text),
+              height: CruSize.capsule,
+              padding: EdgeInsets.only(
+                left: CruSpace.s12,
+                right: h.action == null ? CruSpace.s12 : CruSpace.s4,
+              ),
+              decoration: const ShapeDecoration(
+                color: RadInk.overlayFill,
+                shape: StadiumBorder(),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      h.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CruType.caption.w500.tint(RadInk.overlay),
+                    ),
+                  ),
+                  if (h.action != null) ...[
+                    const SizedBox(width: CruSpace.s8),
+                    CruPressable(
+                      onTap: h.onAction,
+                      semanticLabel: h.action,
+                      builder: (context, hovered) => Container(
+                        height: CruSize.capsule - CruSpace.s8,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CruSpace.s10,
+                        ),
+                        alignment: Alignment.center,
+                        decoration: ShapeDecoration(
+                          color: context.cru.accent,
+                          shape: const StadiumBorder(),
+                        ),
+                        child: Text(
+                          h.action!,
+                          style: CruType.caption.w600.tint(
+                            context.cru.onAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
     );
   }
 }

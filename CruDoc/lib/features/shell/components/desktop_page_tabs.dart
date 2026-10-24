@@ -49,11 +49,7 @@ class DesktopPageTabs extends ConsumerWidget {
     ];
     if (shown.length < 2) {
       if (title == null) return child;
-      return PageTabsScope(
-        title: title,
-        tabs: null,
-        child: child,
-      );
+      return PageTabsScope(title: title, tabs: null, child: child);
     }
 
     return PageTabsScope(
@@ -68,9 +64,7 @@ class DesktopPageTabs extends ConsumerWidget {
   }
 }
 
-/// The pages' names as large titles, the open one dark with an accent bar
-/// under it and the others grey: it reads as "these are pages", not as a
-/// filter.
+/// Switches between the pages that share a sidebar item.
 class _PageSwitcher extends StatelessWidget {
   const _PageSwitcher({
     required this.pages,
@@ -84,64 +78,14 @@ class _PageSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
-    final style = CruType.title2;
-    return Semantics(
-      container: true,
-      label: 'Pages',
-      child: Wrap(
-        spacing: CruSpace.s20,
-        runSpacing: CruSpace.s8,
-        children: [
-          for (final (tab, label) in pages)
-            CruPressable(
-              onTap: tab == current ? () {} : () => onSelect(tab),
-              semanticLabel: label,
-              scaleOnPress: false,
-              builder: (context, hovered) {
-                final selected = tab == current;
-                return Semantics(
-                  selected: selected,
-                  button: true,
-                  child: IntrinsicWidth(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedDefaultTextStyle(
-                          duration: CruMotion.of(context, CruMotion.fast),
-                          curve: CruMotion.curve,
-                          style: style.tint(
-                            selected
-                                ? c.label
-                                : hovered
-                                ? c.label2
-                                : c.label3,
-                          ),
-                          child: Text(label),
-                        ),
-                        const SizedBox(height: CruSpace.s4),
-                        AnimatedContainer(
-                          duration: CruMotion.of(context, CruMotion.fast),
-                          curve: CruMotion.curve,
-                          height: 3,
-                          decoration: ShapeDecoration(
-                            color: selected
-                                ? c.accent
-                                : hovered
-                                ? c.hairline
-                                : c.accent.withValues(alpha: 0),
-                            shape: const StadiumBorder(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
+    // The same segmented switch as Inventory's Items · Orders · Vendors.
+    return CruSegmentedControl<int>(
+      semanticLabel: 'Pages',
+      segments: [for (final (tab, label) in pages) CruSegment(tab, label)],
+      selected: current,
+      onChanged: (tab) {
+        if (tab != current) onSelect(tab);
+      },
     );
   }
 }

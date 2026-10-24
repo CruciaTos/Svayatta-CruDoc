@@ -18,3 +18,4 @@ Full spec: design/dashboard-redesign/DESIGN_SPEC.md
 - Never show sample or fabricated data in app code. If data is missing, hide the element.
 - Patient avatars are grey monograms, never coloured.
 - Motion: 200–250 ms, easeOutCubic, no bounce.
+- "Same box" transitions are opt-in: use them only when asked for a particular element, never by default. When asked (full guide: design/motion-transitions.md; reference: Schedule Week ⇄ Day): the tapped element is one box that grows on all four sides into the next view's card, and its contents transform in place into the next view's contents (positions, sizes, styles, scale lerp; differing looks cross-fade inside the same moving rect). The last frame must equal the destination, so the hand-over is invisible; scroll and selection carry across both ways; reverse is the same motion backwards. No end-of-motion swaps, clip-window reveals or slide-ins. Verify with rendered frames and a pixel diff of last frame vs destination.

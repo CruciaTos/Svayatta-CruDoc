@@ -75,12 +75,9 @@ class _RevenueOverviewScreenState extends ConsumerState<RevenueOverviewScreen> {
               ),
               child: tab == RevenueTab.overview
                   ? const RevenueOverviewBody(key: ValueKey('overview'))
-                  // The Invoices list predates the tokens: Day in both
-                  // appearances until it is redesigned.
-                  : Theme(
-                      key: const ValueKey('invoices'),
-                      data: CruTheme.day(),
-                      child: const DesktopInvoicesScreen(isSubScreen: true),
+                  : const DesktopInvoicesScreen(
+                      key: ValueKey('invoices'),
+                      isSubScreen: true,
                     ),
             ),
           ),

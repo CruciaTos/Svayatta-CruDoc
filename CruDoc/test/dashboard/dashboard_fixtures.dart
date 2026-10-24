@@ -8,6 +8,8 @@ import 'package:doctor_management_app/core/clinic/clinic_access.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart'
+    show activityUnreadProvider;
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/wrap_up_providers.dart';
@@ -284,6 +286,8 @@ List<Override> dashboardOverrides({
     clinicAccessProvider.overrideWith(
       (ref) => Stream.value(ClinicAccess.owner('dr-deshpande')),
     ),
+    // The header bell: nothing new (the feed reads device storage).
+    activityUnreadProvider.overrideWithValue(false),
   ];
 }
 

@@ -334,6 +334,15 @@ class DentalPageHeader extends StatelessWidget {
                 style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
               ),
             ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: CruSpace.s2),
+              Text(
+                subtitle,
+                style: CruType.subhead.tabular.tint(c.accentText),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
             const SizedBox(height: CruSpace.s12),
           ],
           pageTabs ??
@@ -417,7 +426,20 @@ class DentalPageHeader extends StatelessWidget {
             header: true,
             child: Text(pageHeading, style: CruType.largeTitle.tint(c.label)),
           ),
-          const SizedBox(height: CruSpace.s16),
+          // The open page's summary under the heading ("3 files · 1
+          // folder" on Files), since the switch takes the title's line.
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: CruSpace.s2),
+            Text(
+              subtitle,
+              style: CruType.text.tabular.tint(c.accentText),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          // The page switch sits as far below the heading as the content
+          // sits below the switch: one rhythm down the page.
+          const SizedBox(height: CruSpace.cardGap),
           headerRow,
         ],
       );

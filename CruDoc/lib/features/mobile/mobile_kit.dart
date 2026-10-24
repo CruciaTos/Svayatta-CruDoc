@@ -403,7 +403,11 @@ class MobileHeader extends StatelessWidget {
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: CruSpace.s2),
-                  Text(subtitle!, style: MobileType.subhead.tint(soft)),
+                  // Blue, like every page's summary line.
+                  Text(
+                    subtitle!,
+                    style: MobileType.subhead.tint(context.cru.accentText),
+                  ),
                 ],
               ],
             ),

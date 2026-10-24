@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
-import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_seen.dart';
+import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -26,15 +25,6 @@ void openMobileNotifications(BuildContext context) => pushMobile(
   context,
   const MobileHostPage(backLabel: 'Home', child: MobileNotificationsScreen()),
 );
-
-/// CruDoc's storage on this phone, only when it's past 90% of its limit.
-final _storageFullProvider = FutureProvider.autoDispose<LocalStorageReport?>((
-  ref,
-) async {
-  final r = await LocalStorageManager.instance.report();
-  if (r.limitBytes <= 0 || r.totalBytes < r.limitBytes * 0.9) return null;
-  return r;
-});
 
 /// The small blue "new" dot (rows and the home bell).
 class MobileUnreadDot extends StatelessWidget {
@@ -82,9 +72,9 @@ class _MobileNotificationsScreenState
   Widget build(BuildContext context) {
     final feed = ref.watch(activityFeedProvider);
     final now = ref.watch(dashboardNowProvider);
-    final storage = ref.watch(_storageFullProvider).value;
+    final storage = ref.watch(storageNearlyFullProvider).value;
     final last = feed.lastPatient;
-    final groups = _groups(feed.items, now);
+    final groups = activityGroups(feed.items, now);
     final empty =
         feed.items.isEmpty &&
         feed.attention.isEmpty &&
@@ -115,7 +105,7 @@ class _MobileNotificationsScreenState
                 title: last.fullName,
                 subtitle: feed.lastPatientAt == null
                     ? null
-                    : 'Last seen ${_ago(feed.lastPatientAt!, now)}',
+                    : 'Last seen ${activityAgo(feed.lastPatientAt!, now)}',
                 chevron: true,
                 onTap: () => openMobilePatient(context, last),
               ),
@@ -146,8 +136,8 @@ class _MobileNotificationsScreenState
                   ),
                   title: 'Phone storage almost full',
                   subtitle:
-                      'CruDoc is using ${_size(storage.totalBytes)} of its '
-                      '${_size(storage.limitBytes)} limit',
+                      'CruDoc is using ${storageSize(storage.totalBytes)} of its '
+                      '${storageSize(storage.limitBytes)} limit',
                   chevron: true,
                   onTap: () => openMobileSettings(
                     context,
@@ -192,18 +182,21 @@ class _MobileNotificationsScreenState
     final p = i.patient;
     final tab = i.desktopTab;
     return MobileRow(
-      leading: MobileIconTile(icon: icon, tone: tone),
+      leading: i.showsPatient
+          ? VisitBadged(
+              avatar: MobileAvatar(name: p!.fullName, size: 38),
+              avatarSize: 38,
+              homeVisit: i.homeVisit,
+            )
+          : MobileIconTile(icon: icon, tone: tone),
       title: i.title,
-      subtitle: [?i.detail, ?actor, _ago(i.at, now)].join(' · '),
+      subtitle: [?i.detail, ?actor, activityAgo(i.at, now)].join(' · '),
       trailing: unread ? const MobileUnreadDot() : null,
       onTap: p != null
           ? () => openMobilePatient(context, p)
           : tab != null
-          ? () => openMobileDestination(
-              context,
-              tab,
-              backLabel: 'Notifications',
-            )
+          ? () =>
+                openMobileDestination(context, tab, backLabel: 'Notifications')
           : null,
     );
   }
@@ -240,55 +233,6 @@ class _MobileNotificationsScreenState
       case AttentionKind.invites:
         break;
     }
-  }
-
-  /// Today, Yesterday, This week, Earlier — only the ones with rows.
-  static List<(String, List<ActivityItem>)> _groups(
-    List<ActivityItem> items,
-    DateTime now,
-  ) {
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final week = today.subtract(const Duration(days: 6));
-    final out = <String, List<ActivityItem>>{
-      'Today': [],
-      'Yesterday': [],
-      'This week': [],
-      'Earlier': [],
-    };
-    for (final i in items) {
-      final key = !i.at.isBefore(today)
-          ? 'Today'
-          : !i.at.isBefore(yesterday)
-          ? 'Yesterday'
-          : !i.at.isBefore(week)
-          ? 'This week'
-          : 'Earlier';
-      out[key]!.add(i);
-    }
-    return [
-      for (final e in out.entries)
-        if (e.value.isNotEmpty) (e.key, e.value),
-    ];
-  }
-
-  /// "Just now", "5m ago", "3h ago", "2d ago", then "12 Oct".
-  static String _ago(DateTime t, DateTime now) {
-    final d = now.difference(t);
-    if (d.inMinutes < 1) return 'Just now';
-    if (d.inMinutes < 60) return '${d.inMinutes}m ago';
-    if (d.inHours < 24) return '${d.inHours}h ago';
-    if (d.inDays < 7) return '${d.inDays}d ago';
-    return DashFormat.shortDate(t);
-  }
-
-  /// "920 MB", "1.5 GB".
-  static String _size(int bytes) {
-    const mb = 1024 * 1024;
-    const gb = 1024 * mb;
-    return bytes >= gb
-        ? '${(bytes / gb).toStringAsFixed(1)} GB'
-        : '${(bytes / mb).round()} MB';
   }
 
   static CruIconData _attentionIcon(AttentionKind k) => switch (k) {

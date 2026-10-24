@@ -36,6 +36,7 @@ class _DoctorLoyaltyCardState extends ConsumerState<DoctorLoyaltyCard> {
       useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: context.cru.surface,
+      constraints: const BoxConstraints(maxWidth: 480),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(CruRadius.card),
@@ -56,6 +57,29 @@ class _DoctorLoyaltyCardState extends ConsumerState<DoctorLoyaltyCard> {
         ),
       ),
     );
+  }
+
+  bool _claiming = false;
+
+  Future<void> _claim() async {
+    if (_claiming) return;
+    setState(() => _claiming = true);
+    try {
+      await LoyaltyService.claimFreeMonth();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Free month added to your plan.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not claim. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
   }
 
   @override
@@ -83,6 +107,7 @@ class _DoctorLoyaltyCardState extends ConsumerState<DoctorLoyaltyCard> {
       photoUrl: user?.photoURL,
       shine: true,
       onEditName: editable ? () => _editName(name) : null,
+      onClaim: _claiming ? null : _claim,
     );
   }
 }
@@ -171,8 +196,10 @@ class _NameSheetState extends State<_NameSheet> {
             CruTextField(
               label: 'Full name',
               controller: _name,
+              hint: 'Dr. Ananya Deshpande',
               autofocus: a.allowed,
               textCapitalization: TextCapitalization.words,
+              onSubmitted: (_) => _saving || !a.allowed ? null : _save(),
             ),
             if (_error != null) ...[
               const SizedBox(height: CruSpace.s8),

@@ -25,15 +25,11 @@ import 'package:doctor_management_app/core/services/device_session_service.dart'
 import 'package:doctor_management_app/core/update/models/update_check_result.dart';
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
-import 'package:doctor_management_app/features/profile/data/doctor_name_change_policy.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
-import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
-import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/doctor_loyalty_card.dart';
-import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
 import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
@@ -118,9 +114,6 @@ const double _kNavWidth = 248;
 
 /// Section content never gets wider than this, so fields stay readable.
 const double _kContentMaxWidth = 760;
-
-/// Profile avatar on the identity card.
-const double _kProfileMonogram = 64;
 
 /// The Settings tab, inside the desktop shell: a section list on the left
 /// and the open section's cards on the right. Built on the Calm Clinical
@@ -541,66 +534,6 @@ class _ProfileSection extends ConsumerStatefulWidget {
 }
 
 class _ProfileSectionState extends ConsumerState<_ProfileSection> {
-  final _name = TextEditingController();
-  bool _nameLoaded = false;
-  bool _saving = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadName();
-  }
-
-  @override
-  void didUpdateWidget(_ProfileSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _loadName();
-  }
-
-  /// Fills the field once the profile arrives; never overwrites typing.
-  void _loadName() {
-    if (_nameLoaded || widget.profile == null) return;
-    _nameLoaded = true;
-    _name.text =
-        DoctorProfileHelper.tryFormatDoctorName(widget.user, widget.profile) ??
-        '';
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveName() async {
-    final name = _name.text.trim();
-    if (name.isEmpty) {
-      _toast(context, 'Enter your name first.');
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      await DoctorNameChangePolicy.save(
-        name: name,
-        profile: widget.profile,
-        user: widget.user,
-      );
-      if (mounted) _toast(context, 'Name saved.');
-    } on NameChangeLimitException catch (e) {
-      if (mounted) {
-        _toast(
-          context,
-          'You can change your name twice in 6 months. '
-          'Next change on ${DateFormat('d MMM y').format(e.nextAt)}.',
-        );
-      }
-    } catch (e) {
-      if (mounted) _toast(context, 'Could not save your name: $e');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
   Future<void> _sendPasswordReset(String email) async {
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
@@ -626,13 +559,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final user = widget.user;
-    final name = DoctorProfileHelper.formatDoctorName(user, widget.profile);
-    final clinic = DoctorProfileHelper.tryFormatClinicName(
-      user,
-      widget.profile,
-    );
     final specialty = ref.watch(activeDoctorSpecialtyProvider).value;
     final providers =
         user?.providerData.map((p) => p.providerId).toSet() ?? const {};
@@ -642,93 +569,11 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
         ? 'phone number'
         : 'email and password';
     final email = user?.email;
-    final phone = user?.phoneNumber;
     final canResetPassword =
         providers.contains('password') && email != null && email.isNotEmpty;
 
-    final isPhone = cruIsPhone(context);
-
     return _Stack([
-      if (isPhone)
-        const DoctorLoyaltyCard()
-      else ...[
-        CruCard(
-          semanticLabel: 'Your profile',
-          child: Row(
-            children: [
-              CruMonogram(name: name, size: _kProfileMonogram),
-              const SizedBox(width: CruSpace.s20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: CruType.title.tint(c.label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: CruSpace.s4),
-                    Text(
-                      [
-                        if (specialty != null) specialty.label,
-                        ?clinic,
-                      ].join(' · '),
-                      style: CruType.text.tint(c.label2),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: CruSpace.s12),
-                    Wrap(
-                      spacing: CruSpace.s8,
-                      runSpacing: CruSpace.s8,
-                      children: [
-                        if (email != null && email.isNotEmpty)
-                          CruInfoPill(
-                            text: email,
-                            tone: CruInfoPillTone.outlined,
-                          ),
-                        if (phone != null && phone.isNotEmpty)
-                          CruInfoPill(
-                            text: phone,
-                            icon: CruIcons.phone,
-                            tone: CruInfoPillTone.outlined,
-                            tabular: true,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const _ProfileLoyaltySection(),
-        _SettingsCard(
-          title: 'Your name',
-          description: 'Shown on the dashboard, prescriptions and bills.',
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: CruTextField(
-                  label: 'Full name',
-                  controller: _name,
-                  hint: 'Dr. Ananya Deshpande',
-                  textCapitalization: TextCapitalization.words,
-                  onSubmitted: (_) => _saveName(),
-                ),
-              ),
-              const SizedBox(width: CruSpace.s12),
-              CruButton(
-                label: _saving ? 'Saving…' : 'Save',
-                large: true,
-                onPressed: _saving ? null : _saveName,
-              ),
-            ],
-          ),
-        ),
-      ],
+      const DoctorLoyaltyCard(),
       _SettingsCard(
         title: 'Specialty',
         description: specialty == null
@@ -782,68 +627,6 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
         ),
       ),
     ]);
-  }
-}
-
-/// The loyalty card: a stamp per month with CruDoc, the 6th month free.
-class _ProfileLoyaltySection extends ConsumerStatefulWidget {
-  const _ProfileLoyaltySection();
-
-  @override
-  ConsumerState<_ProfileLoyaltySection> createState() =>
-      _ProfileLoyaltySectionState();
-}
-
-class _ProfileLoyaltySectionState
-    extends ConsumerState<_ProfileLoyaltySection> {
-  bool _claiming = false;
-
-  Future<void> _claim() async {
-    if (_claiming) return;
-    setState(() => _claiming = true);
-    try {
-      await LoyaltyService.claimFreeMonth();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Free month added to your plan.')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not claim. Try again.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _claiming = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    var card = ref.watch(loyaltyCardProvider).value;
-    if (card == null) {
-      if (DemoSessionService.isDemoMode) {
-        card = const LoyaltyCard(
-          stamps: 3,
-          stampedMonths: ['2026-08', '2026-09', '2026-10'],
-          freeMonthsClaimed: 0,
-        );
-      } else if (ref.watch(authStateProvider).value != null) {
-        card = const LoyaltyCard(stamps: 1, stampedMonths: []);
-      }
-    }
-    // Hide until the card exists (it is created on entering the app).
-    if (card == null) return const SizedBox.shrink();
-    final user = ref.watch(authStateProvider).value;
-    final profile = ref.watch(doctorProfileProvider).value;
-    return LoyaltyCardView(
-      card: card,
-      holderName: DoctorProfileHelper.tryFormatDoctorName(user, profile),
-      holderId: user?.uid,
-      photoUrl: user?.photoURL,
-      onClaim: _claiming ? null : _claim,
-    );
   }
 }
 
@@ -983,6 +766,10 @@ class _PlanSectionState extends State<_PlanSection> {
     );
   }
 }
+
+
+
+
 
 // =============================================================================
 // CONNECTED ACCOUNTS

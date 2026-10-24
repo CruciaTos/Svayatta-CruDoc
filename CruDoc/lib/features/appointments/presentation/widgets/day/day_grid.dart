@@ -24,6 +24,7 @@ class DayGrid extends ConsumerStatefulWidget {
     required this.groups,
     required this.now,
     required this.ringedIds,
+    this.hoursFrom,
   });
 
   /// Date only.
@@ -35,13 +36,29 @@ class DayGrid extends ConsumerStatefulWidget {
   /// Blocks drawn with the 2 px accent ring.
   final Set<String> ringedIds;
 
+  /// The visits whose times set the hours drawn: the whole week, so Day
+  /// shows the same hours as Week. Null: the day's own [items].
+  final List<ApptItem>? hoursFrom;
+
   @override
   ConsumerState<DayGrid> createState() => _DayGridState();
 }
 
 class _DayGridState extends ConsumerState<DayGrid> {
-  final ScrollController _scroll = ScrollController();
+  late final ScrollController _scroll;
   DateTime? _scrolledFor;
+
+  @override
+  void initState() {
+    super.initState();
+    final controller = ref.read(apptsControllerProvider.notifier);
+    // Opened from Week: start where Week was, so the same hours stay put.
+    final handoff = controller.takeHandoffScroll();
+    if (handoff != null) _scrolledFor = widget.day;
+    _scroll = ScrollController(initialScrollOffset: handoff ?? 0);
+    _scroll.addListener(() => controller.dayScroll = _scroll.offset);
+    controller.dayScroll = handoff ?? 0;
+  }
 
   /// Session label row and break band heights, for the initial scroll.
   static const double _labelRow = CruSpace.s16 + CruSpace.s12;
@@ -96,7 +113,10 @@ class _DayGridState extends ConsumerState<DayGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final range = ApptsBuilder.range(widget.items, widget.day);
+    final range = ApptsBuilder.range(
+      widget.hoursFrom ?? widget.items,
+      widget.day,
+    );
     final sessions = range.sessions;
     final showLegend = widget.groups.any(
       (g) => g.isOverlap && g.kind == OverlapKind.unsorted,

@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,6 +8,7 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+import '../day/day_block.dart';
 import 'week_block.dart';
 import 'week_focus.dart';
 import 'week_metrics.dart';
@@ -63,20 +67,25 @@ class WeekSessionGrid extends StatelessWidget {
           endMinute: endMinute,
           now: now,
           nowY: nowY,
-          pxPerMinute: pxPerMinute,
-          labelEnd: focus.hourLabelEnd,
+          focus: focus,
+          // Opening another day than today: Day has no now line, so the
+          // time pill fades as the column opens.
+          nowOpacity: focus.active && days[focus.index!] != today
+              ? 1 - focus.dayLook
+              : 1,
         ),
         columns: [
-          for (final d in days)
+          for (var i = 0; i < days.length; i++)
             _DayColumn(
-              pxPerMinute: pxPerMinute,
-              day: d,
+              focus: focus,
+              opening: focus.active && focus.index == i,
+              day: days[i],
               startMinute: startMinute,
               endMinute: endMinute,
-              groups: groupsByDay[d] ?? const [],
-              isToday: d == today,
-              nowY: d == today ? nowY : null,
-              onOpenVisit: (item) => onOpenVisit(d, item),
+              groups: groupsByDay[days[i]] ?? const [],
+              isToday: days[i] == today,
+              nowY: days[i] == today ? nowY : null,
+              onOpenVisit: (item) => onOpenVisit(days[i], item),
             ),
         ],
       ),
@@ -96,35 +105,48 @@ class _Gutter extends StatelessWidget {
     required this.endMinute,
     required this.now,
     required this.nowY,
-    required this.pxPerMinute,
-    required this.labelEnd,
+    required this.focus,
+    this.nowOpacity = 1,
   });
 
   final int startMinute;
   final int endMinute;
   final DateTime now;
   final double? nowY;
-  final double pxPerMinute;
 
-  /// Hour labels end this far before the first column.
-  final double labelEnd;
+  /// The time pill's opacity; an hour label it hides shows as it fades.
+  final double nowOpacity;
+
+  /// Sets the hour height, and moves the labels into Day's place and style
+  /// as a column opens.
+  final WeekFocus focus;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final labelStyle = CruType.micro.tabular.tint(c.label3);
+    final pxPerMinute = focus.pxPerMinute;
+    final labelEnd = focus.hourLabelEnd;
+    final labelStyle = TextStyle.lerp(
+      CruType.micro.tabular.tint(c.label3),
+      CruType.groupLabel.w500.tabular.tint(c.label3),
+      focus.active ? focus.t : 0,
+    );
     final hourFormat = DateFormat('h a');
     return Stack(
       clipBehavior: Clip.none,
       children: [
         for (final m in _hours(startMinute, endMinute))
-          // The time pill replaces an hour label it would collide with.
-          if (nowY == null ||
-              ((m - startMinute) * pxPerMinute - nowY!).abs() >=
-                  WeekMetrics.nowPill)
-            Positioned(
-              right: labelEnd,
-              top: (m - startMinute) * pxPerMinute - WeekMetrics.hourLabelLift,
+          Positioned(
+            right: labelEnd,
+            top: (m - startMinute) * pxPerMinute - focus.hourLabelLift,
+            child: Opacity(
+              // The time pill replaces an hour label it would collide with.
+              opacity:
+                  nowY != null &&
+                      ((m - startMinute) * pxPerMinute - nowY!).abs() <
+                          WeekMetrics.nowPill
+                  ? 1 - nowOpacity
+                  : 1,
               child: Text(
                 hourFormat.format(DateTime(2000, 1, 1, m ~/ 60 % 24)),
                 maxLines: 1,
@@ -132,23 +154,27 @@ class _Gutter extends StatelessWidget {
                 style: labelStyle,
               ),
             ),
+          ),
         if (nowY != null)
           Positioned(
             right: CruSpace.s6,
             top: nowY! - WeekMetrics.nowPill / 2,
             height: WeekMetrics.nowPill,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: CruSpace.s6),
-              alignment: Alignment.center,
-              decoration: ShapeDecoration(
-                color: c.accent,
-                shape: const StadiumBorder(),
-              ),
-              child: Text(
-                DashFormat.timeParts(now).$1,
-                maxLines: 1,
-                softWrap: false,
-                style: CruType.micro.w600.tabular.tint(c.onAccent),
+            child: Opacity(
+              opacity: nowOpacity,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s6),
+                alignment: Alignment.center,
+                decoration: ShapeDecoration(
+                  color: c.accent,
+                  shape: const StadiumBorder(),
+                ),
+                child: Text(
+                  DashFormat.timeParts(now).$1,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: CruType.micro.w600.tabular.tint(c.onAccent),
+                ),
               ),
             ),
           ),
@@ -159,6 +185,8 @@ class _Gutter extends StatelessWidget {
 
 class _DayColumn extends StatelessWidget {
   const _DayColumn({
+    required this.focus,
+    required this.opening,
     required this.day,
     required this.startMinute,
     required this.endMinute,
@@ -166,10 +194,15 @@ class _DayColumn extends StatelessWidget {
     required this.isToday,
     required this.nowY,
     required this.onOpenVisit,
-    required this.pxPerMinute,
   });
 
-  final double pxPerMinute;
+  /// Sets the hour height, and how far the opening column has become Day.
+  final WeekFocus focus;
+
+  /// This column is opening into its Day: its chips grow into Day's blocks
+  /// at Day's places, and its own line and today's tint fade away, so the
+  /// last frame is Day itself.
+  final bool opening;
   final DateTime day;
   final int startMinute;
   final int endMinute;
@@ -181,11 +214,15 @@ class _DayColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final pxPerMinute = focus.pxPerMinute;
     final height = (endMinute - startMinute) * pxPerMinute;
+    final t = opening ? focus.t : 0.0;
+    final dayLook = opening ? focus.dayLook : 0.0;
+    final inset = opening ? focus.blockInset : WeekMetrics.blockInset;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final inner = width - 2 * WeekMetrics.blockInset;
+        final inner = width - 2 * inset;
         final blocks = <Widget>[];
         for (final g in groups) {
           final cols = g.columns < 1 ? 1 : g.columns;
@@ -193,15 +230,40 @@ class _DayColumn extends StatelessWidget {
           for (final item in g.items) {
             final col = g.columnOf[item.id] ?? 0;
             final m = item.start.hour * 60 + item.start.minute;
+            final chip = WeekBlock(item: item, onTap: () => onOpenVisit(item));
             blocks.add(
               Positioned(
-                left:
-                    WeekMetrics.blockInset +
-                    col * (bw + WeekMetrics.overlapGap),
+                left: inset + col * (bw + WeekMetrics.overlapGap),
                 width: bw < 0 ? 0 : bw,
                 top: (m - startMinute) * pxPerMinute + 1,
-                height: WeekMetrics.blockHeight,
-                child: WeekBlock(item: item, onTap: () => onOpenVisit(item)),
+                // A 22 px chip grows as tall as Day draws the visit.
+                height: opening
+                    ? lerpDouble(
+                        WeekMetrics.blockHeight,
+                        math.max(
+                          item.durationMinutes * pxPerMinute - 2,
+                          5 * pxPerMinute,
+                        ),
+                        t,
+                      )
+                    : WeekMetrics.blockHeight,
+                child: opening
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Opacity(opacity: 1 - dayLook, child: chip),
+                          Opacity(
+                            opacity: dayLook,
+                            child: DayBlock(
+                              item: item,
+                              ringed: item.id == focus.ringedId,
+                              onTap: () {},
+                              onDoubleTap: () {},
+                            ),
+                          ),
+                        ],
+                      )
+                    : chip,
               ),
             );
           }
@@ -211,13 +273,19 @@ class _DayColumn extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             if (isToday)
-              Positioned.fill(child: ColoredBox(color: c.accentWash)),
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 1 - dayLook,
+                  child: ColoredBox(color: c.accentWash),
+                ),
+              ),
             for (final m in _hours(startMinute, endMinute))
               Positioned(
                 left: 0,
                 right: 0,
+                // Day draws the last line on the edge; Week keeps it in.
                 top: ((m - startMinute) * pxPerMinute)
-                    .clamp(0, height - 1)
+                    .clamp(0, height - 1 + dayLook)
                     .toDouble(),
                 height: 1,
                 child: ColoredBox(color: c.separator),
@@ -227,7 +295,10 @@ class _DayColumn extends StatelessWidget {
               top: 0,
               bottom: 0,
               width: 1,
-              child: ColoredBox(color: c.separator),
+              child: Opacity(
+                opacity: 1 - dayLook,
+                child: ColoredBox(color: c.separator),
+              ),
             ),
             ...blocks,
             if (nowY != null) ...[

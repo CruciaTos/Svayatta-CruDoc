@@ -67,6 +67,18 @@ class AppointmentsDayView extends ConsumerWidget {
       if (selected != null) selected.id,
     };
 
+    // The same hours as this day's week, so Week and Day line up.
+    final all = ref.watch(apptItemsProvider).value;
+    final week = ApptsBuilder.weekDays(day);
+    final last = week.last;
+    final weekItems = all == null
+        ? null
+        : ApptsBuilder.inRange(
+            all,
+            week.first,
+            DateTime(last.year, last.month, last.day + 1),
+          );
+
     final grid = DayGrid(
       key: ValueKey(day),
       day: day,
@@ -74,6 +86,7 @@ class AppointmentsDayView extends ConsumerWidget {
       groups: groups,
       now: now,
       ringedIds: ringed,
+      hoursFrom: weekItems,
     );
     final column = DayRightColumn(
       day: day,

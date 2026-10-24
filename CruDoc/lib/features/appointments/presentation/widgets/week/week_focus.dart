@@ -4,19 +4,25 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/rendering.dart' show OverflowBoxFit;
 import 'package:flutter/widgets.dart';
 
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
 import '../day/day_grid_metrics.dart';
 import 'week_metrics.dart';
 
 /// One Week column opening into its Day. [t] 0 is the plain week; at 1
 /// that column fills the grid and the other six are squeezed to nothing.
 class WeekFocus {
-  const WeekFocus(this.index, this.t);
+  const WeekFocus(this.index, this.t, {this.ringedId});
 
   static const none = WeekFocus(null, 0);
 
   /// The opening column, 0 = Monday; null when no day is opening.
   final int? index;
   final double t;
+
+  /// The visit Day will show selected (ringed), so the ring is already
+  /// there when Day takes over.
+  final String? ringedId;
 
   bool get active => index != null && t > 0;
 
@@ -36,6 +42,22 @@ class WeekFocus {
     DayGridMetrics.gutter - DayGridMetrics.hourLabelWidth,
     _p,
   )!;
+
+  /// How far an hour label sits above its line: Day centres it on it.
+  double get hourLabelLift => lerpDouble(
+    WeekMetrics.hourLabelLift,
+    CruType.groupLabel.fontSize! * CruType.groupLabel.height! / 2,
+    _p,
+  )!;
+
+  /// Blocks' gap to the column's sides: Day's 8 px at the end.
+  double get blockInset =>
+      lerpDouble(WeekMetrics.blockInset, DayGridMetrics.blockRight, _p)!;
+
+  /// Week's look fading into Day's: chips into blocks, the column's own
+  /// line and today's tint away. Starts a little after the column moves.
+  double get dayLook =>
+      active ? Curves.easeInOut.transform(((t - 0.15) / 0.7).clamp(0, 1)) : 0;
 }
 
 /// The hour gutter and the day columns of one Week row, sized by [focus].

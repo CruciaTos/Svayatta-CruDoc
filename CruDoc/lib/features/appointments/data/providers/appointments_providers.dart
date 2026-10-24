@@ -167,6 +167,18 @@ class ApptsController extends Notifier<ApptsState> {
 
   bool _weekFromDay = false;
 
+  /// Week ⇄ Day keep the same hours in view: Week leaves its scroll
+  /// offset here when it opens a day (Day starts there), and Day keeps its
+  /// own in [dayScroll] for the way back.
+  double? handoffScroll;
+  double dayScroll = 0;
+
+  double? takeHandoffScroll() {
+    final v = handoffScroll;
+    handoffScroll = null;
+    return v;
+  }
+
   /// ← / → : one day, week or month.
   void step(int delta) {
     if (state.view == ApptsView.live) {

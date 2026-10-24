@@ -151,7 +151,20 @@ class ApptsController extends Notifier<ApptsState> {
     anchor: ApptsBuilder.dateOnly(ref.read(apptsNowProvider)),
   );
 
-  void setView(ApptsView view) => state = state.copyWith(view: view);
+  void setView(ApptsView view) {
+    _weekFromDay = state.view == ApptsView.day && view == ApptsView.week;
+    state = state.copyWith(view: view);
+  }
+
+  /// True once after Day switched to Week: Week then opens with the day's
+  /// column filling the grid and folds back into the week.
+  bool takeWeekFromDay() {
+    final from = _weekFromDay;
+    _weekFromDay = false;
+    return from;
+  }
+
+  bool _weekFromDay = false;
 
   /// ← / → : one day, week or month.
   void step(int delta) {

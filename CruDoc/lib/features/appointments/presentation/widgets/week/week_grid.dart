@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/dashboard/domain/dashboard_format
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 import 'week_block.dart';
+import 'week_focus.dart';
 import 'week_metrics.dart';
 
 /// One drawn session of the Week grid (the whole day while working hours
@@ -21,7 +22,13 @@ class WeekSessionGrid extends StatelessWidget {
     required this.today,
     required this.now,
     required this.onOpenVisit,
+    this.focus = WeekFocus.none,
   });
+
+  /// A column opening into its Day (it also sets the hour height).
+  final WeekFocus focus;
+
+  double get pxPerMinute => focus.pxPerMinute;
 
   /// Minutes since midnight.
   final int startMinute;
@@ -34,14 +41,14 @@ class WeekSessionGrid extends StatelessWidget {
   final DateTime now;
   final void Function(DateTime day, ApptItem item) onOpenVisit;
 
-  double get _height => (endMinute - startMinute) * WeekMetrics.pxPerMinute;
+  double get _height => (endMinute - startMinute) * pxPerMinute;
 
   /// Now's y offset, or null when now isn't inside this session this week.
   double? get _nowY {
     if (!days.contains(today)) return null;
     final m = now.hour * 60 + now.minute;
     if (m < startMinute || m > endMinute) return null;
-    return (m - startMinute) * WeekMetrics.pxPerMinute;
+    return (m - startMinute) * pxPerMinute;
   }
 
   @override
@@ -49,29 +56,27 @@ class WeekSessionGrid extends StatelessWidget {
     final nowY = _nowY;
     return SizedBox(
       height: _height,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: WeekMetrics.gutter,
-            child: _Gutter(
+      child: WeekColumnsRow(
+        focus: focus,
+        gutter: _Gutter(
+          startMinute: startMinute,
+          endMinute: endMinute,
+          now: now,
+          nowY: nowY,
+          pxPerMinute: pxPerMinute,
+          labelEnd: focus.hourLabelEnd,
+        ),
+        columns: [
+          for (final d in days)
+            _DayColumn(
+              pxPerMinute: pxPerMinute,
+              day: d,
               startMinute: startMinute,
               endMinute: endMinute,
-              now: now,
-              nowY: nowY,
-            ),
-          ),
-          for (final d in days)
-            Expanded(
-              child: _DayColumn(
-                day: d,
-                startMinute: startMinute,
-                endMinute: endMinute,
-                groups: groupsByDay[d] ?? const [],
-                isToday: d == today,
-                nowY: d == today ? nowY : null,
-                onOpenVisit: (item) => onOpenVisit(d, item),
-              ),
+              groups: groupsByDay[d] ?? const [],
+              isToday: d == today,
+              nowY: d == today ? nowY : null,
+              onOpenVisit: (item) => onOpenVisit(d, item),
             ),
         ],
       ),
@@ -91,12 +96,18 @@ class _Gutter extends StatelessWidget {
     required this.endMinute,
     required this.now,
     required this.nowY,
+    required this.pxPerMinute,
+    required this.labelEnd,
   });
 
   final int startMinute;
   final int endMinute;
   final DateTime now;
   final double? nowY;
+  final double pxPerMinute;
+
+  /// Hour labels end this far before the first column.
+  final double labelEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -109,13 +120,11 @@ class _Gutter extends StatelessWidget {
         for (final m in _hours(startMinute, endMinute))
           // The time pill replaces an hour label it would collide with.
           if (nowY == null ||
-              ((m - startMinute) * WeekMetrics.pxPerMinute - nowY!).abs() >=
+              ((m - startMinute) * pxPerMinute - nowY!).abs() >=
                   WeekMetrics.nowPill)
             Positioned(
-              right: WeekMetrics.hourLabelEnd,
-              top:
-                  (m - startMinute) * WeekMetrics.pxPerMinute -
-                  WeekMetrics.hourLabelLift,
+              right: labelEnd,
+              top: (m - startMinute) * pxPerMinute - WeekMetrics.hourLabelLift,
               child: Text(
                 hourFormat.format(DateTime(2000, 1, 1, m ~/ 60 % 24)),
                 maxLines: 1,
@@ -157,8 +166,10 @@ class _DayColumn extends StatelessWidget {
     required this.isToday,
     required this.nowY,
     required this.onOpenVisit,
+    required this.pxPerMinute,
   });
 
+  final double pxPerMinute;
   final DateTime day;
   final int startMinute;
   final int endMinute;
@@ -170,7 +181,7 @@ class _DayColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final height = (endMinute - startMinute) * WeekMetrics.pxPerMinute;
+    final height = (endMinute - startMinute) * pxPerMinute;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -188,7 +199,7 @@ class _DayColumn extends StatelessWidget {
                     WeekMetrics.blockInset +
                     col * (bw + WeekMetrics.overlapGap),
                 width: bw < 0 ? 0 : bw,
-                top: (m - startMinute) * WeekMetrics.pxPerMinute + 1,
+                top: (m - startMinute) * pxPerMinute + 1,
                 height: WeekMetrics.blockHeight,
                 child: WeekBlock(item: item, onTap: () => onOpenVisit(item)),
               ),
@@ -205,7 +216,7 @@ class _DayColumn extends StatelessWidget {
               Positioned(
                 left: 0,
                 right: 0,
-                top: ((m - startMinute) * WeekMetrics.pxPerMinute)
+                top: ((m - startMinute) * pxPerMinute)
                     .clamp(0, height - 1)
                     .toDouble(),
                 height: 1,

@@ -7,24 +7,39 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+import 'week_focus.dart';
 import 'week_metrics.dart';
 
 /// Column headers Mon–Sun above the Week grid, lined up with its columns.
 class WeekHeaderRow extends StatelessWidget {
-  const WeekHeaderRow({super.key, required this.days, required this.today});
+  const WeekHeaderRow({
+    super.key,
+    required this.days,
+    required this.today,
+    required this.onOpenDay,
+    this.focus = WeekFocus.none,
+  });
 
   final List<DateTime> days;
   final DateTime today;
 
+  /// Opens column [index]'s day.
+  final void Function(int index, DateTime day) onOpenDay;
+
+  /// A column opening into its Day.
+  final WeekFocus focus;
+
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return WeekColumnsRow(
+      focus: focus,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        const SizedBox(width: WeekMetrics.gutter),
-        for (final d in days)
-          Expanded(
-            child: WeekDayHeader(date: d, today: today),
+      columns: [
+        for (var i = 0; i < days.length; i++)
+          WeekDayHeader(
+            date: days[i],
+            today: today,
+            onOpen: () => onOpenDay(i, days[i]),
           ),
       ],
     );
@@ -34,10 +49,16 @@ class WeekHeaderRow extends StatelessWidget {
 /// Weekday, date (today in a filled accent circle) and the count line.
 /// Clicking it opens that Day.
 class WeekDayHeader extends ConsumerWidget {
-  const WeekDayHeader({super.key, required this.date, required this.today});
+  const WeekDayHeader({
+    super.key,
+    required this.date,
+    required this.today,
+    required this.onOpen,
+  });
 
   final DateTime date;
   final DateTime today;
+  final VoidCallback onOpen;
 
   /// Past: "11 seen · 1 missed". Today and future: "13 booked" (today
   /// counts every visit that day). Nothing when the day is empty.
@@ -63,7 +84,7 @@ class WeekDayHeader extends ConsumerWidget {
     final overlap = counts?.hasUnsortedOverlap ?? false;
 
     return CruPressable(
-      onTap: () => ref.read(apptsControllerProvider.notifier).openDay(date),
+      onTap: onOpen,
       scaleOnPress: false,
       semanticLabel:
           '${DashFormat.dateLine(date)}${line.isEmpty ? '' : ', $line'}. Open day',

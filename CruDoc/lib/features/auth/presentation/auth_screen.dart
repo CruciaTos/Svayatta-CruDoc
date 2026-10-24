@@ -555,6 +555,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
       if (!mounted) return;
       _enterApp();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'sign-in-cancelled') return;
+      // The browser sign-in on Windows says what went wrong in plain words.
+      _showError(
+        e.code == 'google-desktop-failed'
+            ? (e.message ?? 'Google sign-in failed')
+            : 'Google sign-in failed',
+      );
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString();

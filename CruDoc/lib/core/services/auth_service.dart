@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
+import 'package:doctor_management_app/core/services/desktop_google_oauth.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/core/services/push_notifications.dart';
 
@@ -27,6 +28,27 @@ class AuthService {
   /// Triggers the native Google Sign-In flow and authenticates with Firebase.
   /// Returns the [UserCredential] on success; throws on cancellation or error.
   Future<UserCredential> signInWithGoogle() async {
+    // Windows and Linux have no google_sign_in plugin: sign in through the
+    // browser, then hand Google's tokens to Firebase.
+    if (DesktopGoogleOAuth.usesBrowser) {
+      try {
+        final tokens = await DesktopGoogleOAuth.authorize(
+          scopes: const ['openid', 'email', 'profile'],
+        );
+        return _auth.signInWithCredential(
+          GoogleAuthProvider.credential(
+            accessToken: tokens.accessToken,
+            idToken: tokens.idToken,
+          ),
+        );
+      } on DesktopGoogleOAuthException catch (e) {
+        throw FirebaseAuthException(
+          code: e.cancelled ? 'sign-in-cancelled' : 'google-desktop-failed',
+          message: e.message,
+        );
+      }
+    }
+
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw FirebaseAuthException(
@@ -126,9 +148,11 @@ class AuthService {
     await DeviceSessionService.instance.endCurrentSession();
     // Before signing out: deleting the token needs the signed-in account.
     await PushNotifications.instance.forgetThisDevice();
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
+    if (!DesktopGoogleOAuth.usesBrowser) {
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+    }
     await _auth.signOut();
   }
 }

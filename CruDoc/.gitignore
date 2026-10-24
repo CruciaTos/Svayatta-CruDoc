@@ -163,3 +163,7 @@ app.*.map.json
 /assets/voice/*/
 /tool/voice_server/.venv/
 /tool/voice_server/models/
+
+# Google "Desktop app" OAuth client for Google sign-in and Gmail on the PC.
+# Pass to Windows builds: --dart-define-from-file=google_desktop_oauth.json
+google_desktop_oauth.json

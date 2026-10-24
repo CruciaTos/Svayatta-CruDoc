@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/core/errors/gmail_exceptions.dart';
+import 'package:doctor_management_app/core/services/desktop_google_oauth.dart';
 
 /// Service managing OAuth 2.0 user consent and credentials for the Gmail API.
 ///
@@ -50,10 +51,8 @@ class GmailAuthService {
   static const String _tokenEndpoint = 'https://oauth2.googleapis.com/token';
   static const String _revokeEndpoint = 'https://oauth2.googleapis.com/revoke';
 
-  static const String _desktopClientId = String.fromEnvironment(
-    'GMAIL_OAUTH_CLIENT_ID',
-    defaultValue: '',
-  );
+  /// The same Desktop OAuth client as Google sign-in on the PC.
+  static const String _desktopClientId = DesktopGoogleOAuth.clientId;
 
   // In-memory token cache
   String? _cachedAccessToken;
@@ -291,9 +290,9 @@ class GmailAuthService {
   // ---------------------------------------------------------------------------
 
   Future<String> _signInDesktop(String doctorId) async {
-    if (_desktopClientId.isEmpty) {
+    if (!DesktopGoogleOAuth.configured) {
       throw const GmailSendException(
-        'Desktop OAuth client ID not configured. Pass --dart-define=GMAIL_OAUTH_CLIENT_ID=... at build time.',
+        "Connecting Gmail isn't set up on this computer yet.",
       );
     }
 
@@ -392,6 +391,7 @@ class GmailAuthService {
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: {
           'client_id': _desktopClientId,
+          'client_secret': DesktopGoogleOAuth.clientSecret,
           'code': code,
           'code_verifier': codeVerifier,
           'redirect_uri': redirectUri,
@@ -490,6 +490,7 @@ class GmailAuthService {
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: {
           'client_id': _desktopClientId,
+          'client_secret': DesktopGoogleOAuth.clientSecret,
           'refresh_token': refreshToken,
           'grant_type': 'refresh_token',
         },

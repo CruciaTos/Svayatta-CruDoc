@@ -146,8 +146,9 @@ class ApptsState {
 
 class ApptsController extends Notifier<ApptsState> {
   @override
+  // Schedule opens on Week (Day opens from a date in it).
   ApptsState build() => ApptsState(
-    view: ApptsView.live,
+    view: ApptsView.week,
     anchor: ApptsBuilder.dateOnly(ref.read(apptsNowProvider)),
   );
 
@@ -239,15 +240,16 @@ final apptsControllerProvider = NotifierProvider<ApptsController, ApptsState>(
 );
 
 /// The view actually shown: Live needs the queue module and the calendar
-/// views need appointments, so fall back when one is switched off.
+/// views need appointments, so fall back (to Week, or Live when only the
+/// queue is on) when one is switched off.
 final effectiveApptsViewProvider = Provider<ApptsView>((ref) {
   final view = ref.watch(apptsControllerProvider.select((s) => s.view));
   final queueOn = ref.watch(isQueueFeatureEnabledProvider);
   final apptsOn = ref.watch(isAppointmentsFeatureEnabledProvider);
   if (view == ApptsView.visits && !ref.watch(isPhysiotherapyProvider)) {
-    return ApptsView.day;
+    return ApptsView.week;
   }
-  if (view == ApptsView.live && !queueOn) return ApptsView.day;
+  if (view == ApptsView.live && !queueOn) return ApptsView.week;
   if (view != ApptsView.live && !apptsOn && queueOn) return ApptsView.live;
   return view;
 });

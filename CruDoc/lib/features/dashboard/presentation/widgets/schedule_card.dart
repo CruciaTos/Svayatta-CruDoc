@@ -7,6 +7,11 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum ScheduleFilter { all, waiting, done }
 
+/// Where schedule separators start past dot and monogram:
+/// row padding 12 + dot 12 + gap 14 + monogram 34 + gap 14 = 86.
+const double _scheduleTextInset =
+    CruSpace.s12 + 12 + CruSpace.s14 + 34 + CruSpace.s14;
+
 /// Today's schedule: every booked visit and queue token, in time order.
 class ScheduleCard extends StatefulWidget {
   const ScheduleCard({super.key, required this.items, required this.now});
@@ -238,7 +243,7 @@ class _ScheduleCardState extends State<ScheduleCard> {
       if (i > 0 && !rows[i].status.isNow && !rows[i - 1].status.isNow) {
         out.add(
           const CruSeparator(
-            indent: CruSize.scheduleTextInset,
+            indent: _scheduleTextInset,
             endIndent: CruSpace.s12,
           ),
         );
@@ -265,7 +270,7 @@ class ScheduleRow extends StatelessWidget {
           ? null
           : () => DashboardActions.openPatient(context, item.patient!),
       semanticLabel:
-          '${DashFormat.time(item.time)}, ${item.name}, '
+          '${item.name}, ${DashFormat.time(item.time)}, '
           '${_statusText(item)}',
       scaleOnPress: false,
       builder: (context, hovered) => AnimatedContainer(
@@ -287,27 +292,6 @@ class ScheduleRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            SizedBox(
-              width: CruSize.timeColumn,
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: hm,
-                      style: CruType.row.w600.tabular.tint(c.accentText),
-                    ),
-                    TextSpan(
-                      text: ' $ampm',
-                      style: CruType.micro.w600.tint(c.accentText),
-                    ),
-                  ],
-                ),
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.visible,
-              ),
-            ),
-            const SizedBox(width: CruSpace.s14),
             CruStatusDot(_dotKind(item.status), size: 12),
             const SizedBox(width: CruSpace.s14),
             CruMonogram(name: item.name, vibrant: true),
@@ -317,20 +301,9 @@ class ScheduleRow extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: item.name,
-                          style: CruType.row.tint(c.label),
-                        ),
-                        if (item.ageSex != null)
-                          TextSpan(
-                            text: ' ${item.ageSex}',
-                            style: CruType.subhead.tabular.tint(c.label2),
-                          ),
-                      ],
-                    ),
+                  Text(
+                    item.name,
+                    style: CruType.row.tint(c.label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -346,6 +319,28 @@ class ScheduleRow extends StatelessWidget {
             ),
             const SizedBox(width: CruSpace.s12),
             _StatusLabel(item: item),
+            const SizedBox(width: CruSpace.s12),
+            SizedBox(
+              width: CruSize.timeColumn,
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: hm,
+                      style: CruType.row.w600.tabular.tint(c.accentText),
+                    ),
+                    TextSpan(
+                      text: ' $ampm',
+                      style: CruType.micro.w600.tint(c.accentText),
+                    ),
+                  ],
+                ),
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+              ),
+            ),
           ],
         ),
       ),
@@ -541,12 +536,12 @@ class _LastBooking extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const CruSeparator(
-          indent: CruSize.scheduleTextInset,
+          indent: _scheduleTextInset,
           endIndent: CruSpace.s12,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            CruSize.scheduleTextInset,
+            _scheduleTextInset,
             16,
             12,
             8,

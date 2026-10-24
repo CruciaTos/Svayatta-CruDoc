@@ -283,7 +283,7 @@ _ScheduleResult _buildSchedule({
       name: name,
       tokenNumber: e.tokenNumber > 0 ? e.tokenNumber : null,
       waitMinutes: _minutesBetween(e.checkedInAt, now),
-      details: _details(patient, earlier[patient?.id], now),
+      details: _details(patient, now),
       reason: _clean(e.reason) ?? _clean(visit?.treatmentType),
       patient: patient,
       isNextInCallOrder: rawWaiting.first.id == e.id,
@@ -364,23 +364,12 @@ Iterable<AttentionItem> _buildAttention(
   }
 }
 
-String _details(Patient? p, Visit? last, DateTime now) {
+String _details(Patient? p, DateTime now) {
   if (p == null) return 'Walk-in · not registered';
   final parts = <String>[
     '${_age(p.dateOfBirth, now)} y',
     if (_sexWord(p.gender) != null) _sexWord(p.gender)!,
   ];
-  if (last == null) {
-    parts.addAll(['New patient', 'First visit']);
-  } else {
-    final diagnosis = p.diagnosis.isEmpty ? null : p.diagnosis.last.trim();
-    parts.add('Returning');
-    parts.add(
-      diagnosis == null || diagnosis.isEmpty
-          ? 'Last visit ${DashFormat.shortDate(last.scheduledStart)}'
-          : 'Last visit ${DashFormat.shortDate(last.scheduledStart)}, $diagnosis',
-    );
-  }
   return parts.join(' · ');
 }
 

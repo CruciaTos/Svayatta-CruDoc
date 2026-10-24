@@ -427,11 +427,11 @@ void main() {
     test('details for a returning patient (Kavya, Day fixture)', () {
       expect(
         dayDashboard().upNext!.details,
-        '23 y · Female · Returning · Last visit 14 Aug, seasonal allergy',
+        '23 y · Female',
       );
     });
 
-    test('details use the most recent earlier non-cancelled visit', () {
+    test('details use age and gender', () {
       final upNext = schedule(
         queue: [mkToken('t1', checkedIn: at(11, 30), patientId: 'vik')],
         visits: [
@@ -453,8 +453,7 @@ void main() {
         ],
       ).upNext!;
 
-      // No diagnosis recorded, so the last-visit part has no suffix.
-      expect(upNext.details, '45 y · Male · Returning · Last visit 2 Jul');
+      expect(upNext.details, '45 y · Male');
     });
 
     test('details for a first-time patient', () {
@@ -469,7 +468,7 @@ void main() {
         ],
       ).upNext!;
 
-      expect(upNext.details, '36 y · Male · New patient · First visit');
+      expect(upNext.details, '36 y · Male');
     });
 
     test('details for an unregistered walk-in', () {

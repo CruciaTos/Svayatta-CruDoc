@@ -5,13 +5,12 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
-import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/dashboard_search_field.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
-/// Date line + greeting, then search, Add patient and New visit (these
+/// Date line + greeting, then search and New appointment (these
 /// replace the old Quick Actions card).
 class DashboardHeader extends ConsumerWidget {
   const DashboardHeader({super.key, this.searchFocusNode});
@@ -67,16 +66,6 @@ class DashboardHeader extends ConsumerWidget {
               width: CruSize.searchWidth,
             ),
           ),
-        const SizedBox(width: CruSpace.s10),
-        TutorialAnchor(
-          target: TutorialTarget.addPatient,
-          child: CruButton(
-            label: 'Add patient',
-            kind: CruButtonKind.secondary,
-            icon: CruIcons.userPlus,
-            onPressed: () => DashboardActions.addPatient(context),
-          ),
-        ),
         const SizedBox(width: CruSpace.s10),
         // The same booking flow as Schedule's "New appointment".
         TutorialAnchor(

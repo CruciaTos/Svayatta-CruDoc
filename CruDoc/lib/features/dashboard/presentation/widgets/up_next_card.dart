@@ -86,21 +86,36 @@ class UpNextCard extends ConsumerWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        width: 1,
+                  CruPressable(
+                    onTap: data.patient == null
+                        ? null
+                        : () => DashboardActions.openPatient(
+                            context,
+                            data.patient!,
+                          ),
+                    tooltip:
+                        data.patient != null ? 'Open patient history' : null,
+                    scaleOnPress: false,
+                    builder: (context, hovered) => Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(
+                            alpha: hovered ? 0.8 : 0.4,
+                          ),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: CruMonogram(
-                      name: data.name,
-                      size: 40,
-                      background: Colors.white.withValues(alpha: 0.20),
-                      foreground: Colors.white,
-                      showRing: false,
+                      child: CruMonogram(
+                        name: data.name,
+                        size: 40,
+                        background: Colors.white.withValues(
+                          alpha: hovered ? 0.35 : 0.20,
+                        ),
+                        foreground: Colors.white,
+                        showRing: false,
+                      ),
                     ),
                   ),
                   const SizedBox(width: CruSpace.s12),
@@ -109,11 +124,31 @@ class UpNextCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          data.name,
-                          style: CruType.headline.w700.tint(Colors.white),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        CruPressable(
+                          onTap: data.patient == null
+                              ? null
+                              : () => DashboardActions.openPatient(
+                                  context,
+                                  data.patient!,
+                                ),
+                          tooltip: data.patient != null
+                              ? 'Open patient history'
+                              : null,
+                          scaleOnPress: false,
+                          builder: (context, hovered) => Text(
+                            data.name,
+                            style: CruType.headline.w700.copyWith(
+                              color: hovered && data.patient != null
+                                  ? const Color(0xFFBFDBFE)
+                                  : Colors.white,
+                              decoration: hovered && data.patient != null
+                                  ? TextDecoration.underline
+                                  : TextDecoration.none,
+                              decorationColor: const Color(0xFFBFDBFE),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         const SizedBox(height: CruSpace.s2),
                         Text(
@@ -184,63 +219,19 @@ class UpNextCard extends ConsumerWidget {
                   ),
                 ),
               ],
-              if (data.reason != null) ...[
-                const SizedBox(height: CruSpace.s10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: ShapeDecoration(
-                    color: Colors.white.withValues(alpha: 0.10),
-                    shape: cruShape(8),
-                  ),
-                  child: Row(
-                    children: [
-                      CruIcon(
-                        CruIcons.fileText,
-                        size: 14,
-                        color: const Color(0xFF93C5FD),
-                      ),
-                      const SizedBox(width: CruSpace.s8),
-                      Expanded(
-                        child: Text(
-                          data.reason!,
-                          style: CruType.callout.tint(Colors.white),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+              const SizedBox(height: CruSpace.s12),
+              SizedBox(
+                width: double.infinity,
+                child: CruButton(
+                  label: home ? 'Start session' : 'Start consultation',
+                  icon: CruIcons.play,
+                  onPressed: () => DashboardActions.startConsultation(
+                    context,
+                    ref,
+                    data,
+                    navigate: navigate,
                   ),
                 ),
-              ],
-              const SizedBox(height: CruSpace.s12),
-              Row(
-                children: [
-                  Expanded(
-                    child: CruButton(
-                      label: home ? 'Start session' : 'Start consultation',
-                      icon: CruIcons.play,
-                      onPressed: () => DashboardActions.startConsultation(
-                        context,
-                        ref,
-                        data,
-                        navigate: navigate,
-                      ),
-                    ),
-                  ),
-                  if (data.patient != null) ...[
-                    const SizedBox(width: CruSpace.s8),
-                    CruButton(
-                      label: 'History',
-                      icon: CruIcons.clock,
-                      kind: CruButtonKind.inset,
-                      onPressed: () =>
-                          DashboardActions.openPatient(context, data.patient!),
-                    ),
-                  ],
-                ],
               ),
             ],
           );

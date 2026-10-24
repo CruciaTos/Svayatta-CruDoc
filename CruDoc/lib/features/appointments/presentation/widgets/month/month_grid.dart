@@ -83,18 +83,18 @@ class MonthGrid extends StatelessWidget {
             for (final d in weeks[w])
               SizedBox(
                 height: MonthMetrics.tileHeight,
-                child: loading && _kind(d) != MonthTileKind.otherMonth
-                    ? const _TileSkeleton()
-                    : MonthDayTile(
-                        key: ValueKey(d),
-                        date: d,
-                        kind: _kind(d),
-                        selected:
-                            d == selected &&
-                            _kind(d) != MonthTileKind.otherMonth,
-                        onSelect: () => onSelect(d),
-                        onOpen: () => onOpen(d),
-                      ),
+                child: _kind(d) == MonthTileKind.otherMonth
+                    ? const SizedBox.shrink()
+                    : loading
+                        ? const _TileSkeleton()
+                        : MonthDayTile(
+                            key: ValueKey(d),
+                            date: d,
+                            kind: _kind(d),
+                            selected: d == selected,
+                            onSelect: () => onSelect(d),
+                            onOpen: () => onOpen(d),
+                          ),
               ),
           ]),
         ],

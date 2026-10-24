@@ -7,8 +7,8 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
+import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
-import 'package:doctor_management_app/features/appointments/presentation/widgets/visits/home_visit_pill.dart';
 
 import 'appt_time_label.dart';
 import 'month_metrics.dart';
@@ -118,9 +118,10 @@ class MonthDayPanel extends ConsumerWidget {
                         if (i > 0)
                           const CruSeparator(
                             indent:
-                                CruSpace.s4 +
-                                MonthMetrics.timeColumn +
+                                CruSpace.s8 +
+                                MonthPanelRow.rowAvatar +
                                 CruSpace.s12,
+                            endIndent: CruSpace.s8,
                           )
                         else
                           const SizedBox(height: 1),
@@ -168,13 +169,15 @@ class MonthDayPanel extends ConsumerWidget {
   }
 }
 
-/// One appointment in the day panel: time with a small AM/PM, name,
-/// reason. Clicking it opens the Day with that visit selected.
+/// One appointment in the day panel: avatar with visit/appointment badge,
+/// name, reason, and time on the extreme right.
 class MonthPanelRow extends StatelessWidget {
   const MonthPanelRow({super.key, required this.item, required this.onTap});
 
   final ApptItem item;
   final VoidCallback onTap;
+
+  static const double rowAvatar = 34;
 
   @override
   Widget build(BuildContext context) {
@@ -187,72 +190,67 @@ class MonthPanelRow extends StatelessWidget {
         onTap: onTap,
         scaleOnPress: false,
         semanticLabel:
-            '${DashFormat.time(item.start)}, ${item.name}'
+            '${item.name}, ${DashFormat.time(item.start)}'
             '${item.reason == null ? '' : ', ${item.reason}'}',
-        builder: (context, hovered) => Container(
-          height: MonthMetrics.panelRow,
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
-          decoration: ShapeDecoration(
-            color: hovered ? c.hoverFill : Colors.transparent,
-            shape: cruShape(CruRadius.control),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: MonthMetrics.timeColumn,
-                child: ApptTimeLabel(item.start),
-              ),
-              const SizedBox(width: CruSpace.s12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            item.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: CruType.callout
-                                .tint(missed ? c.label3 : c.label)
-                                .copyWith(
-                                  decoration: missed
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  decorationColor: c.label3,
-                                ),
-                          ),
-                        ),
-                        if (item.isHomeVisit) ...[
-                          const SizedBox(width: CruSpace.s6),
-                          CruIcon(
-                            CruIcons.home,
-                            size: 14,
-                            strokeWidth: 2.2,
-                            color: quiet ? c.label3 : c.homeVisit,
-                          ),
-                        ],
-                      ],
-                    ),
-                    if (item.detailLine != null)
+        builder: (context, hovered) {
+          final fill = hovered ? c.hoverFill : Colors.transparent;
+          return Container(
+            height: MonthMetrics.panelRow,
+            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+            decoration: ShapeDecoration(
+              color: fill,
+              shape: cruShape(CruRadius.control),
+            ),
+            child: Row(
+              children: [
+                VisitBadged(
+                  avatar: CruMonogram(
+                    name: item.name,
+                    size: rowAvatar,
+                    vibrant: true,
+                  ),
+                  avatarSize: rowAvatar,
+                  homeVisit: item.isHomeVisit,
+                  ringColor: Color.alphaBlend(fill, c.surface),
+                ),
+                const SizedBox(width: CruSpace.s12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        item.detailLine!,
+                        item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: CruType.caption.tint(c.label2),
+                        style: CruType.callout
+                            .tint(missed ? c.label3 : c.label)
+                            .copyWith(
+                              decoration: missed
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              decorationColor: c.label3,
+                            ),
                       ),
-                  ],
+                      if (item.detailLine != null)
+                        Text(
+                          item.detailLine!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CruType.caption.tint(c.label2),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (item.isHomeVisit) ...[
-                const SizedBox(width: CruSpace.s8),
-                HomeVisitPill(quiet: quiet),
+                const SizedBox(width: CruSpace.s10),
+                ApptTimeLabel(
+                  item.start,
+                  color: quiet ? c.label3 : c.accentText,
+                ),
               ],
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -269,18 +267,17 @@ class _RowsSkeleton extends StatelessWidget {
         for (var i = 0; i < 4; i++)
           const SizedBox(
             height: MonthMetrics.panelRow,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: MonthMetrics.timeColumn,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: SkeletonBox(width: 56, height: 12),
-                  ),
-                ),
-                SizedBox(width: CruSpace.s12),
-                Expanded(child: SkeletonBox(height: 12)),
-              ],
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: CruSpace.s8),
+              child: Row(
+                children: [
+                  SkeletonBox(width: 34, height: 34, circle: true),
+                  SizedBox(width: CruSpace.s12),
+                  Expanded(child: SkeletonBox(height: 12)),
+                  SizedBox(width: CruSpace.s12),
+                  SkeletonBox(width: 50, height: 12),
+                ],
+              ),
             ),
           ),
       ],

@@ -1346,13 +1346,14 @@ class _MonthWeeks extends StatelessWidget {
               children: [
                 for (final d in days.sublist(i, i + 7))
                   Expanded(
-                    child: _DayCell(
-                      day: d,
-                      selected: selected,
-                      today: today,
-                      onSelect: onSelect,
-                      fade: d.month == month.month ? 0 : 1,
-                    ),
+                    child: d.month != month.month
+                        ? const SizedBox.shrink()
+                        : _DayCell(
+                            day: d,
+                            selected: selected,
+                            today: today,
+                            onSelect: onSelect,
+                          ),
                   ),
               ],
             ),

@@ -62,21 +62,7 @@ class _MonthDayTileState extends ConsumerState<MonthDayTile> {
     final kind = widget.kind;
 
     if (kind == MonthTileKind.otherMonth) {
-      return Padding(
-        padding: MonthMetrics.tilePadding,
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            height: MonthMetrics.dateRow,
-            child: Center(
-              child: Text(
-                '${widget.date.day}',
-                style: CruType.chip.w600.tabular.tint(c.label3),
-              ),
-            ),
-          ),
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     final counts = ref.watch(apptDayCountsProvider(widget.date)).value;

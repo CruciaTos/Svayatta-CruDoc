@@ -130,8 +130,8 @@ class _MiniMonthCalendarState extends State<MiniMonthCalendar> {
   }
 
   Widget _dayCell(BuildContext context, DateTime d) {
+    if (d.month != _month.month) return const SizedBox.shrink();
     final c = context.cru;
-    final inMonth = d.month == _month.month;
     final isToday = ApptsBuilder.sameDay(d, widget.today);
     final isSelected = ApptsBuilder.sameDay(d, widget.selected);
 
@@ -144,9 +144,7 @@ class _MiniMonthCalendarState extends State<MiniMonthCalendar> {
         ? c.onAccent
         : isSelected
         ? c.accentText
-        : inMonth
-        ? c.label
-        : c.label3;
+        : c.label;
     var style = CruType.dateLine.tabular.tint(fg);
     if (isToday || isSelected) style = style.w600;
 

@@ -7,7 +7,6 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
-import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appts_search_dialog.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
@@ -24,28 +23,21 @@ import 'package:doctor_management_app/features/tutorial/presentation/tutorial_ta
 /// the view switcher and search never move when the view changes.
 const double kSchedulePrimaryWidth = 196;
 
-/// Below this width (tablets in portrait) the view switcher moves to its
-/// own row under the title; every other control keeps its place.
+/// Below this width (tablets in portrait) the Live view's filter row
+/// wraps onto two rows.
 const double kScheduleHeaderOneRow = 1080;
 
 /// The Schedule header frame, shared by Live and the calendar views so
-/// every control sits in the same place whichever view is open: Today,
-/// ‹ ›, title + summary on the left; the view switcher, search and the
-/// one filled button (fixed width) on the right.
+/// every control sits in the same place whichever view is open: title +
+/// summary on the left; the one filled button (fixed width) on the right;
+/// the view switcher on its own row below. Dates are picked from the
+/// mini calendar beside the page.
 class ScheduleHeaderFrame extends StatelessWidget {
   const ScheduleHeaderFrame({
     super.key,
-    required this.stepLabel,
-    required this.onToday,
-    required this.onStep,
     required this.title,
     required this.primary,
   });
-
-  /// "day", "week" or "month" (for the ‹ › labels).
-  final String stepLabel;
-  final VoidCallback onToday;
-  final ValueChanged<int> onStep;
 
   /// Usually a [ScheduleTitle].
   final Widget title;
@@ -55,70 +47,33 @@ class ScheduleHeaderFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final oneRow = constraints.maxWidth >= kScheduleHeaderOneRow;
-        final top = _row(context, switcher: oneRow);
-        if (oneRow) return top;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            top,
-            const SizedBox(height: CruSpace.s12),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ScheduleViewSwitcher(),
-              ),
-            ),
-          ],
-        );
-      },
+    // The view switcher sits on its own row, under the title and summary.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _row(context),
+        const SizedBox(height: CruSpace.s12),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: ScheduleViewSwitcher(),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _row(BuildContext context, {required bool switcher}) {
+  Widget _row(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: Align(alignment: Alignment.centerLeft, child: title),
         ),
         const SizedBox(width: CruSpace.s16),
-        CruButton(
-          label: 'Today',
-          kind: CruButtonKind.secondary,
-          onPressed: onToday,
-        ),
-        const SizedBox(width: CruSpace.s12),
-        CruIconButton(
-          icon: CruIcons.chevronLeft,
-          semanticLabel: 'Previous $stepLabel',
-          size: CruSize.squareButton,
-          onPressed: () => onStep(-1),
-        ),
-        const SizedBox(width: CruSpace.s4),
-        CruIconButton(
-          icon: CruIcons.chevronRight,
-          semanticLabel: 'Next $stepLabel',
-          size: CruSize.squareButton,
-          onPressed: () => onStep(1),
-        ),
-        const SizedBox(width: CruSpace.s12),
-        if (switcher) ...[
-          const ScheduleViewSwitcher(),
-          const SizedBox(width: CruSpace.s10),
-        ],
         const ScheduleDoctorFilter(),
         const _ScribeButton(),
-        CruSquareButton(
-          icon: CruIcons.search,
-          semanticLabel: 'Search appointments',
-          secondary: true,
-          onPressed: () => showApptsSearchDialog(context),
-        ),
-        const SizedBox(width: CruSpace.s10),
         SizedBox(width: kSchedulePrimaryWidth, child: primary),
       ],
     );
@@ -223,17 +178,8 @@ class ApptsHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(apptsControllerProvider);
-    final controller = ref.read(apptsControllerProvider.notifier);
-    final stepLabel = switch (state.view) {
-      ApptsView.week => 'week',
-      ApptsView.month => 'month',
-      _ => 'day',
-    };
 
     return ScheduleHeaderFrame(
-      stepLabel: stepLabel,
-      onToday: controller.today,
-      onStep: controller.step,
       title: _TitleBlock(state: state),
       primary: CruButton(
         label: state.view == ApptsView.visits
@@ -256,9 +202,10 @@ class ApptsHeader extends ConsumerWidget {
   }
 }
 
-/// Live · Day · Week · Month · Agenda, shared by the Live (queue) header
-/// and the calendar header. Live needs the queue module, the calendar
-/// views need appointments; hidden when only one view is left.
+/// Live · Week · Month · Agenda, shared by the Live (queue) header and the
+/// calendar header. Live needs the queue module, the calendar views need
+/// appointments; hidden when only one view is left. Day isn't listed: it
+/// opens from a date in Week, Month or Agenda (no segment is lit there).
 class ScheduleViewSwitcher extends ConsumerWidget {
   const ScheduleViewSwitcher({super.key});
 
@@ -271,6 +218,7 @@ class ScheduleViewSwitcher extends ConsumerWidget {
       for (final v in ApptsView.values)
         if (switch (v) {
           ApptsView.live => queueOn,
+          ApptsView.day => false,
           ApptsView.visits => apptsOn && physio,
           _ => apptsOn,
         })

@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/errors/queue_exceptions.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
-import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appts_header.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
@@ -396,9 +395,6 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
           // 1. Header: the Schedule frame (same slots as the calendar);
           // the filled button is always the one next step.
           ScheduleHeaderFrame(
-            stepLabel: 'day',
-            onToday: ref.read(apptsControllerProvider.notifier).today,
-            onStep: ref.read(apptsControllerProvider.notifier).step,
             title: ScheduleTitle(
               title: ApptFormat.dateLine(now),
               shortTitle: DateFormat('EEE, d MMMM').format(now),

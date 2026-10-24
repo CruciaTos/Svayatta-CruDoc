@@ -34,7 +34,8 @@ enum ClinicalMediaKind {
 /// Which clinic branding image is being stored.
 enum ClinicBrandingKind {
   logo('logo'),
-  signature('signature');
+  signature('signature'),
+  clinicStamp('clinic-stamp');
 
   const ClinicBrandingKind(this.fileName);
   final String fileName;
@@ -298,6 +299,48 @@ class MedicalStorageService {
     final path =
         'doctors/$doctorId/clinic/branding/${kind.fileName}.${_extensions[type]}';
     return _put(path, payload, type, {
+      'doctorId': doctorId,
+      'category': 'branding',
+    });
+  }
+
+  /// A clinic document image (template picture, letterhead background):
+  /// doctors/{clinic}/clinic/branding/templates/{templateId}/{name}.png
+  Future<StoredFile> uploadClinicTemplateImage({
+    required String doctorId,
+    required String templateId,
+    required String name,
+    required Uint8List png,
+  }) {
+    _requireSignedInAs(doctorId);
+    final cleanName = name.endsWith('.png')
+        ? name.substring(0, name.length - 4)
+        : name;
+    final path =
+        'doctors/$doctorId/clinic/branding/templates/$templateId/$cleanName.png';
+    return _put(path, png, _png, {
+      'doctorId': doctorId,
+      'category': 'branding',
+    });
+  }
+
+  /// One doctor's own image (signature, stamp, template picture):
+  /// doctors/{clinic}/doctor-files/{uid}/{relativePath}.png
+  Future<StoredFile> uploadDoctorFile({
+    required String doctorId,
+    required String uid,
+    required String relativePath,
+    required Uint8List png,
+  }) {
+    _requireSignedInAs(doctorId);
+    if (uid != FirebaseAuth.instance.currentUser?.uid) {
+      throw StateError('Cannot upload doctor file for another doctor: $uid');
+    }
+    final cleanPath = relativePath.endsWith('.png')
+        ? relativePath.substring(0, relativePath.length - 4)
+        : relativePath;
+    final path = 'doctors/$doctorId/doctor-files/$uid/$cleanPath.png';
+    return _put(path, png, _png, {
       'doctorId': doctorId,
       'category': 'branding',
     });

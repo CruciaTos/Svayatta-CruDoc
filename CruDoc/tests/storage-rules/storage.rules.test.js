@@ -632,3 +632,44 @@ describe('referral attachments', () => {
     await assertFails(uploadBytes(ref(as(A), path(A, 'page.html')), bytes(), { contentType: 'text/html' }));
   });
 });
+
+describe('doctor-files in storage', () => {
+  const DOC_A = 'doc-user-a';
+  const DOC_B = 'doc-user-b';
+  const RECEP = 'recep-user';
+  const png = { contentType: 'image/png' };
+
+  beforeEach(async () => {
+    await seedFirestore(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seedFirestore(`clinics/${A}/members/${DOC_A}`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view'],
+      name: 'Dr. A',
+    });
+    await seedFirestore(`clinics/${A}/members/${DOC_B}`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view'],
+      name: 'Dr. B',
+    });
+    await seedFirestore(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'billing'],
+      name: 'Receptionist',
+    });
+  });
+
+  it('doctor A uploads signature.png to their own doctor-files; doctor B fails; member reads', async () => {
+    const pathA = `doctors/${A}/doctor-files/${DOC_A}/signature.png`;
+    // doctor A uploads
+    await assertSucceeds(uploadBytes(ref(as(DOC_A), pathA), bytes(), png));
+    // doctor B uploads to doctor A's folder: fails
+    await assertFails(uploadBytes(ref(as(DOC_B), pathA), bytes(), png));
+    // receptionist in the clinic reads doctor A's signature: succeeds
+    await assertSucceeds(getBytes(ref(as(RECEP), pathA)));
+    // outsider cannot read
+    await assertFails(getBytes(ref(as('stranger'), pathA)));
+  });
+});

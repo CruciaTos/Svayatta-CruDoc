@@ -54,7 +54,9 @@ class PdfTemplateTheme {
         accentColor: PdfColor.fromInt(0xFF8B5CF6),
         secondaryAccentColor: PdfColor.fromInt(0xFF1E78FF),
       ),
-      PdfMedicalDocumentType.report => const PdfTemplateTheme(
+      PdfMedicalDocumentType.report ||
+      PdfMedicalDocumentType.referral ||
+      PdfMedicalDocumentType.certificate => const PdfTemplateTheme(
         name: 'Clean Letterhead - Report',
         accentColor: PdfColor.fromInt(0xFF1E78FF),
         secondaryAccentColor: PdfColor.fromInt(0xFF475569),

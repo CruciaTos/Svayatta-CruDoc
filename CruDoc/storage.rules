@@ -200,6 +200,20 @@ service firebase.storage {
       allow delete: if can(doctorId, 'settings');
     }
 
+    // A doctor's own signature, stamp and template images. Only that doctor
+    // writes; everyone in the clinic reads them (to print documents).
+    match /doctors/{doctorId}/doctor-files/{uid}/{allPaths=**} {
+      allow read: if can(doctorId, 'member');
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && can(doctorId, 'member')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+      allow delete: if request.auth != null
+        && request.auth.uid == uid
+        && can(doctorId, 'member');
+    }
+
     // Inventory receipts and autoclave indicator strips
     match /doctors/{doctorId}/inventory-receipts/{allPaths=**} {
       allow read, delete: if can(doctorId, 'inventory');

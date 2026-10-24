@@ -33,7 +33,9 @@ abstract final class GeneratedDocumentSync {
   }) async {
     final kind = switch (data.type) {
       PdfMedicalDocumentType.invoice => UploadKind.invoicePdf,
-      PdfMedicalDocumentType.prescription => UploadKind.prescriptionPdf,
+      PdfMedicalDocumentType.prescription ||
+      PdfMedicalDocumentType.referral ||
+      PdfMedicalDocumentType.certificate => UploadKind.prescriptionPdf,
       PdfMedicalDocumentType.report => null,
     };
     final patientId = data.patient.patientId;

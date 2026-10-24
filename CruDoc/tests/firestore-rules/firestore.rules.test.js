@@ -1709,3 +1709,106 @@ describe('referrals between doctors', () => {
     await assertFails(setDoc(doc(doctor(A), `users/${SMIT}/device_tokens/t2`), { token: 'x' }));
   });
 });
+
+describe('printable documents (doc_settings, doc_doctors, doc_templates, doc_counters)', () => {
+  const DOC_A = 'doc-user-a';
+  const DOC_B = 'doc-user-b';
+  const RECEP_USER = 'recep-user';
+  const ADMIN_USER = 'admin-user';
+
+  beforeEach(async () => {
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seed(`clinics/${A}/members/${DOC_A}`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view', 'clinical.edit', 'billing'],
+      name: 'Dr. A',
+    });
+    await seed(`clinics/${A}/members/${DOC_B}`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view', 'clinical.edit', 'billing'],
+      name: 'Dr. B',
+    });
+    await seed(`clinics/${A}/members/${RECEP_USER}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'schedule'],
+      name: 'Receptionist',
+    });
+    await seed(`clinics/${A}/members/${ADMIN_USER}`, {
+      active: true,
+      roleId: 'admin',
+      perms: ['patients.view', 'settings', 'billing'],
+      name: 'Admin',
+    });
+  });
+
+  it('member reads doc_settings/clinic; receptionist without settings cannot write; admin with settings can write', async () => {
+    await seed(`clinics/${A}/doc_settings/clinic`, { name: 'Old Clinic' });
+    await assertSucceeds(getDoc(doc(as(RECEP_USER), `clinics/${A}/doc_settings/clinic`)));
+    await assertSucceeds(getDoc(doc(as(DOC_A), `clinics/${A}/doc_settings/clinic`)));
+    await assertFails(setDoc(doc(as(RECEP_USER), `clinics/${A}/doc_settings/clinic`), { name: 'New Clinic' }));
+    await assertSucceeds(setDoc(doc(as(ADMIN_USER), `clinics/${A}/doc_settings/clinic`), { name: 'New Clinic' }));
+  });
+
+  it('doctor A writes doc_doctors/A; doctor B writes doc_doctors/A fails; owner writes doc_doctors/A fails; doctor A writes with uid: B fails', async () => {
+    await assertSucceeds(setDoc(doc(as(DOC_A), `clinics/${A}/doc_doctors/${DOC_A}`), { uid: DOC_A, nameOnDocs: 'Dr. A' }));
+    await assertFails(setDoc(doc(as(DOC_B), `clinics/${A}/doc_doctors/${DOC_A}`), { uid: DOC_A, nameOnDocs: 'Hacked' }));
+    await assertFails(setDoc(doc(as(A), `clinics/${A}/doc_doctors/${DOC_A}`), { uid: DOC_A, nameOnDocs: 'Owner change' }));
+    await assertFails(setDoc(doc(as(DOC_A), `clinics/${A}/doc_doctors/${DOC_A}`), { uid: DOC_B, nameOnDocs: 'Mismatch' }));
+    await assertSucceeds(getDoc(doc(as(DOC_B), `clinics/${A}/doc_doctors/${DOC_A}`)));
+  });
+
+  it('templates: doctor creates doctor template; receptionist cannot create clinic template; admin can; cannot update another\'s; cannot change scope/ownerUid', async () => {
+    await assertSucceeds(setDoc(doc(as(DOC_A), `clinics/${A}/doc_templates/t1`), {
+      name: 'T1', scope: 'doctor', ownerUid: DOC_A,
+    }));
+    await assertFails(setDoc(doc(as(DOC_A), `clinics/${A}/doc_templates/t2`), {
+      name: 'T2', scope: 'doctor', ownerUid: DOC_B,
+    }));
+    await assertFails(setDoc(doc(as(RECEP_USER), `clinics/${A}/doc_templates/t3`), {
+      name: 'T3', scope: 'clinic', ownerUid: '',
+    }));
+    await assertSucceeds(setDoc(doc(as(ADMIN_USER), `clinics/${A}/doc_templates/t3`), {
+      name: 'T3', scope: 'clinic', ownerUid: '',
+    }));
+    await assertFails(updateDoc(doc(as(DOC_B), `clinics/${A}/doc_templates/t1`), { name: 'T1 modified' }));
+    await assertSucceeds(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_templates/t1`), {
+      name: 'T1 modified', scope: 'doctor', ownerUid: DOC_A,
+    }));
+    await assertFails(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_templates/t1`), {
+      scope: 'clinic', ownerUid: DOC_A,
+    }));
+    await assertFails(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_templates/t1`), {
+      scope: 'doctor', ownerUid: DOC_B,
+    }));
+  });
+
+  it('counter: create last: 1 succeeds, last: 5 fails; update 4->5 succeeds, 4->6 fails, 4->3 fails; extra key fails; delete fails; receptionist fails', async () => {
+    await assertFails(setDoc(doc(as(RECEP_USER), `clinics/${A}/doc_counters/invoice_26-27`), {
+      last: 1, updatedAt: '2026-04-01',
+    }));
+    await assertSucceeds(setDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/invoice_26-27`), {
+      last: 1, updatedAt: '2026-04-01',
+    }));
+    await assertFails(setDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/rx_26-27`), {
+      last: 5, updatedAt: '2026-04-01',
+    }));
+    await seed(`clinics/${A}/doc_counters/invoice_26-27`, { last: 4, updatedAt: '2026-04-01' });
+    await assertSucceeds(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/invoice_26-27`), {
+      last: 5, updatedAt: '2026-04-02',
+    }));
+    await seed(`clinics/${A}/doc_counters/invoice_26-27`, { last: 4, updatedAt: '2026-04-01' });
+    await assertFails(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/invoice_26-27`), {
+      last: 6, updatedAt: '2026-04-02',
+    }));
+    await assertFails(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/invoice_26-27`), {
+      last: 3, updatedAt: '2026-04-02',
+    }));
+    await assertFails(updateDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/invoice_26-27`), {
+      last: 5, updatedAt: '2026-04-02', extra: true,
+    }));
+    await assertFails(deleteDoc(doc(as(DOC_A), `clinics/${A}/doc_counters/invoice_26-27`)));
+  });
+});

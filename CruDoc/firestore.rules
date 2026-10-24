@@ -715,6 +715,59 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // ---- Printable documents (handoff/antigravity_documents_pdf.md) ----
+      // Clinic print details: everyone in the clinic reads them (staff print
+      // bills too); only people with the settings permission edit them.
+      match /doc_settings/{docId} {
+        allow read: if clinicAllows(clinicId, 'member');
+        allow write: if clinicAllows(clinicId, 'settings');
+      }
+
+      // A doctor's details for documents (registration no., signature).
+      // Only that doctor may change them, so nobody can swap a signature.
+      match /doc_doctors/{uid} {
+        allow read: if clinicAllows(clinicId, 'member');
+        allow create, update: if isSelf(uid)
+          && clinicAllows(clinicId, 'member')
+          && request.resource.data.uid == uid;
+        allow delete: if isSelf(uid);
+      }
+
+      // Templates: clinic ones need 'settings'; a doctor's own ones only
+      // their owner may write. Scope and owner never change.
+      match /doc_templates/{templateId} {
+        allow read: if clinicAllows(clinicId, 'member');
+        allow create: if clinicAllows(clinicId, 'member')
+          && request.resource.data.scope in ['clinic', 'doctor']
+          && (request.resource.data.scope == 'clinic'
+            ? clinicAllows(clinicId, 'settings')
+            : request.resource.data.ownerUid == request.auth.uid);
+        allow update: if clinicAllows(clinicId, 'member')
+          && request.resource.data.scope == resource.data.scope
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && (resource.data.scope == 'clinic'
+            ? clinicAllows(clinicId, 'settings')
+            : resource.data.ownerUid == request.auth.uid);
+        allow delete: if clinicAllows(clinicId, 'member')
+          && (resource.data.scope == 'clinic'
+            ? clinicAllows(clinicId, 'settings')
+            : resource.data.ownerUid == request.auth.uid);
+      }
+
+      // Document numbers: a counter only ever goes up by one.
+      match /doc_counters/{counterId} {
+        allow read: if clinicAllows(clinicId, 'member');
+        allow create: if (clinicAllows(clinicId, 'billing')
+            || clinicAllows(clinicId, 'clinical.edit'))
+          && request.resource.data.keys().hasOnly(['last', 'updatedAt'])
+          && request.resource.data.last == 1;
+        allow update: if (clinicAllows(clinicId, 'billing')
+            || clinicAllows(clinicId, 'clinical.edit'))
+          && request.resource.data.keys().hasOnly(['last', 'updatedAt'])
+          && request.resource.data.last == resource.data.last + 1;
+        allow delete: if false;
+      }
+
       match /invites/{inviteId} {
         allow read: if isSuperAdmin() || clinicAllows(clinicId, 'team');
         allow write: if false;

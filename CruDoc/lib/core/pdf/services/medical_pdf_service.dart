@@ -1,47 +1,46 @@
 import 'dart:typed_data';
 
-import 'package:pdf/widgets.dart' as pw;
-
+import '../data/doc_repository.dart';
 import '../models/pdf_document_models.dart';
-import '../templates/letterhead_pdf_template.dart';
-import '../templates/medical_document_pdf_builder.dart';
-import '../templates/pdf_template_theme.dart';
-import 'pdf_asset_loader.dart';
+import '../render/doc_context.dart';
+import '../render/doc_context_builder.dart';
+import '../render/doc_renderer.dart';
+import '../templates/doc_template.dart';
 
-class MedicalPdfService {
-  const MedicalPdfService({
-    this.assetLoader = const PdfAssetLoader(),
-    this.baseTheme = const CleanLetterheadPdfTheme(),
+class RenderedDoc {
+  const RenderedDoc({
+    required this.bytes,
+    required this.template,
+    required this.warnings,
   });
 
-  final PdfAssetLoader assetLoader;
-  final PdfTemplateTheme baseTheme;
+  final Uint8List bytes;
+  final DocTemplate template;
+  final List<DocWarning> warnings;
+}
 
-  Future<Uint8List> generate(PdfMedicalDocumentData data) async {
-    final logoBytes = await assetLoader.loadRemoteBytes(
-      data.letterheadConfig.logoUrl,
-    );
-    final theme = baseTheme.forDocument(data.type);
-    final letterheadTemplate = LetterheadPdfTemplate(
-      config: data.letterheadConfig,
-      theme: theme,
-      logoBytes: logoBytes,
-    );
-    final bodyBuilder = MedicalDocumentPdfBuilder(template: letterheadTemplate);
-    final document = pw.Document(
-      title: data.previewTitle,
-      author: data.letterheadConfig.doctorName,
-      creator: 'CruDoc Practice Management System',
-      subject: data.type.title,
-    );
+class MedicalPdfService {
+  const MedicalPdfService();
 
-    document.addPage(
-      letterheadTemplate.page(
-        data: data,
-        build: (_) => bodyBuilder.build(data),
-      ),
-    );
-
-    return document.save();
+  Future<RenderedDoc> render(
+    PdfMedicalDocumentData data, {
+    DocTemplate? template,
+    bool forPrint = false,
+    bool sample = false,
+  }) async {
+    final t =
+        template ??
+        await DocRepository.instance.resolveTemplate(
+          data.kind,
+          issuingDoctorUid: data.issuingDoctorUid,
+          explicitId: data.templateId,
+        );
+    final ctx = await buildDocContext(data: data, template: t, sample: sample);
+    final bytes = await DocRenderer.render(t, ctx, forPrint: forPrint);
+    return RenderedDoc(bytes: bytes, template: t, warnings: ctx.warnings);
   }
+
+  /// Kept for older callers.
+  Future<Uint8List> generate(PdfMedicalDocumentData data) async =>
+      (await render(data)).bytes;
 }

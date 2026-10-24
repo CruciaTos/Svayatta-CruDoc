@@ -1,31 +1,50 @@
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 
+import '../templates/doc_template.dart';
+
 enum PdfMedicalDocumentType {
   invoice,
   prescription,
-  report;
+  referral,
+  report,
+  certificate;
 
   String get title => switch (this) {
     PdfMedicalDocumentType.invoice => 'Medical Invoice / Receipt',
-    PdfMedicalDocumentType.prescription => 'Prescription (Rx)',
+    PdfMedicalDocumentType.prescription => 'Prescription',
+    PdfMedicalDocumentType.referral => 'Referral letter',
     PdfMedicalDocumentType.report => 'Medical Report',
+    PdfMedicalDocumentType.certificate => 'Medical certificate',
   };
 
   String get filePrefix => switch (this) {
     PdfMedicalDocumentType.invoice => 'crudoc-invoice',
     PdfMedicalDocumentType.prescription => 'crudoc-prescription',
+    PdfMedicalDocumentType.referral => 'crudoc-referral',
     PdfMedicalDocumentType.report => 'crudoc-medical-report',
+    PdfMedicalDocumentType.certificate => 'crudoc-certificate',
+  };
+
+  DocKind get kind => switch (this) {
+    PdfMedicalDocumentType.invoice => DocKind.invoice,
+    PdfMedicalDocumentType.prescription => DocKind.prescription,
+    PdfMedicalDocumentType.referral => DocKind.referral,
+    PdfMedicalDocumentType.report => DocKind.report,
+    PdfMedicalDocumentType.certificate => DocKind.certificate,
   };
 }
 
 abstract class PdfMedicalDocumentData {
   const PdfMedicalDocumentData({
     required this.type,
-    required this.letterheadConfig,
+    this.letterheadConfig = DoctorLetterheadConfig.empty,
     required this.patient,
     required this.documentNumber,
     required this.documentDate,
     this.notes,
+    this.issuingDoctorUid,
+    this.signedByUid,
+    this.templateId,
   });
 
   final PdfMedicalDocumentType type;
@@ -34,8 +53,16 @@ abstract class PdfMedicalDocumentData {
   final String documentNumber;
   final DateTime documentDate;
   final String? notes;
+  final String? issuingDoctorUid;
+  final String? signedByUid;
+  final String? templateId;
+
+  DocKind get kind => type.kind;
 
   String get previewTitle => type.title;
+
+  String titleFor(bool gst) => type.title.toUpperCase();
+
   String get fileName => '${type.filePrefix}-$documentNumber.pdf'.replaceAll(
     RegExp(r'[^A-Za-z0-9._-]+'),
     '-',
@@ -68,11 +95,15 @@ class PdfInvoiceLineItem {
     required this.description,
     required this.quantity,
     required this.unitPrice,
+    this.taxPercent = 0,
+    this.note = '',
   });
 
   final String description;
   final int quantity;
   final double unitPrice;
+  final double taxPercent;
+  final String note;
 
   double get total => quantity * unitPrice;
 }
@@ -87,6 +118,7 @@ class PdfMoneyTotals {
     required this.paidAmount,
     required this.balanceDue,
     required this.paymentMode,
+    this.roundOff = 0,
   });
 
   final double subtotal;
@@ -97,21 +129,30 @@ class PdfMoneyTotals {
   final double paidAmount;
   final double balanceDue;
   final String paymentMode;
+  final double roundOff;
 }
 
 class PdfInvoiceDocumentData extends PdfMedicalDocumentData {
   const PdfInvoiceDocumentData({
-    required super.letterheadConfig,
+    super.letterheadConfig = DoctorLetterheadConfig.empty,
     required super.patient,
     required super.documentNumber,
     required super.documentDate,
     required this.items,
     required this.totals,
     super.notes,
+    super.issuingDoctorUid,
+    super.signedByUid,
+    super.templateId,
+    this.cancelled = false,
   }) : super(type: PdfMedicalDocumentType.invoice);
 
   final List<PdfInvoiceLineItem> items;
   final PdfMoneyTotals totals;
+  final bool cancelled;
+
+  @override
+  String titleFor(bool gst) => gst ? 'TAX INVOICE' : 'INVOICE';
 }
 
 class PdfPrescriptionMedication {
@@ -132,7 +173,7 @@ class PdfPrescriptionMedication {
 
 class PdfPrescriptionDocumentData extends PdfMedicalDocumentData {
   const PdfPrescriptionDocumentData({
-    required super.letterheadConfig,
+    super.letterheadConfig = DoctorLetterheadConfig.empty,
     required super.patient,
     required super.documentNumber,
     required super.documentDate,
@@ -144,6 +185,9 @@ class PdfPrescriptionDocumentData extends PdfMedicalDocumentData {
     required this.advice,
     required this.followUp,
     super.notes,
+    super.issuingDoctorUid,
+    super.signedByUid,
+    super.templateId,
   }) : super(type: PdfMedicalDocumentType.prescription);
 
   final String vitals;
@@ -164,15 +208,79 @@ class PdfReportSection {
 
 class PdfMedicalReportDocumentData extends PdfMedicalDocumentData {
   const PdfMedicalReportDocumentData({
-    required super.letterheadConfig,
+    super.letterheadConfig = DoctorLetterheadConfig.empty,
     required super.patient,
     required super.documentNumber,
     required super.documentDate,
     required this.reportTitle,
     required this.sections,
     super.notes,
+    super.issuingDoctorUid,
+    super.signedByUid,
+    super.templateId,
   }) : super(type: PdfMedicalDocumentType.report);
 
   final String reportTitle;
   final List<PdfReportSection> sections;
+
+  @override
+  String titleFor(bool gst) => reportTitle.trim().isNotEmpty
+      ? reportTitle.trim().toUpperCase()
+      : 'MEDICAL REPORT';
+}
+
+class PdfReferralDocumentData extends PdfMedicalDocumentData {
+  const PdfReferralDocumentData({
+    super.letterheadConfig = DoctorLetterheadConfig.empty,
+    required super.patient,
+    required super.documentNumber,
+    required super.documentDate,
+    required this.recipient,
+    this.reason = '',
+    this.findings = '',
+    this.question = '',
+    this.teeth = '',
+    this.urgency = '',
+    this.isReply = false,
+    this.reply = '',
+    super.notes,
+    super.issuingDoctorUid,
+    super.signedByUid,
+    super.templateId,
+  }) : super(type: PdfMedicalDocumentType.referral);
+
+  final String recipient;
+  final String reason;
+  final String findings;
+  final String question;
+  final String teeth;
+  final String urgency;
+  final bool isReply;
+  final String reply;
+
+  @override
+  String titleFor(bool gst) => isReply ? 'REFERRAL REPLY' : 'REFERRAL LETTER';
+}
+
+class PdfCertificateDocumentData extends PdfMedicalDocumentData {
+  const PdfCertificateDocumentData({
+    super.letterheadConfig = DoctorLetterheadConfig.empty,
+    required super.patient,
+    required super.documentNumber,
+    required super.documentDate,
+    required this.title,
+    required this.body,
+    super.notes,
+    super.issuingDoctorUid,
+    super.signedByUid,
+    super.templateId,
+  }) : super(type: PdfMedicalDocumentType.certificate);
+
+  final String title;
+  final String body;
+
+  @override
+  String titleFor(bool gst) => title.trim().isNotEmpty
+      ? title.trim().toUpperCase()
+      : 'MEDICAL CERTIFICATE';
 }

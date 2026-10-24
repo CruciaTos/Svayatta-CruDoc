@@ -138,208 +138,222 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
     final c = context.cru;
     final recordsAsync = ref.watch(clinicRecordsProvider(RecKind.formTemplate));
 
+    final phone = cruIsPhone(context);
     return Scaffold(
-      backgroundColor: c.canvas,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header
-          DentalPageHeader(
-            title: 'Clinical Forms & Questionnaires',
-            subtitle:
-                'Design custom intake questionnaires, symptom logs, and patient forms',
-            actions: [
-              CruButton(
-                label: 'New form template',
-                icon: CruIcons.plus,
-                kind: CruButtonKind.primary,
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const FormBuilderDialog(),
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: phone
+            ? const EdgeInsets.fromLTRB(16, 8, 16, 0)
+            : desktopPagePadding(context).copyWith(bottom: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            DentalPageHeader(
+              title: 'Form templates',
+              subtitle:
+                  'Questionnaires you fill for a patient from their dental record',
+              actions: [
+                CruButton(
+                  label: 'New form template',
+                  icon: CruIcons.plus,
+                  kind: CruButtonKind.primary,
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const FormBuilderDialog(),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
-          Expanded(
-            child: recordsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
-              data: (records) {
-                final templates = records.map(FormTemplate.fromRecord).toList()
-                  ..sort((a, b) => a.name.compareTo(b.name));
+            Expanded(
+              child: recordsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Error: $e')),
+                data: (records) {
+                  final templates =
+                      records.map(FormTemplate.fromRecord).toList()
+                        ..sort((a, b) => a.name.compareTo(b.name));
 
-                final query = _searchCtrl.text.trim().toLowerCase();
-                final filtered = templates.where((t) {
-                  return t.name.toLowerCase().contains(query) ||
-                      t.description.toLowerCase().contains(query);
-                }).toList();
+                  final query = _searchCtrl.text.trim().toLowerCase();
+                  final filtered = templates.where((t) {
+                    return t.name.toLowerCase().contains(query) ||
+                        t.description.toLowerCase().contains(query);
+                  }).toList();
 
-                if (templates.isEmpty) {
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 680),
-                      child: Padding(
-                        padding: const EdgeInsets.all(CruSpace.s24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            DentalEmptyState(
-                              icon: CruIcons.box,
-                              title: 'No custom forms designed yet',
-                              body:
-                                  'Design specialized symptom questionnaires, medical intake, or oral medicine screening forms for your clinic.',
-                              actions: [
-                                CruButton(
-                                  label: 'Create first form',
-                                  icon: CruIcons.plus,
-                                  onPressed: () => showDialog<void>(
-                                    context: context,
-                                    builder: (_) => const FormBuilderDialog(),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: CruSpace.s24),
-
-                            // Starter presets
-                            Container(
-                              padding: const EdgeInsets.all(CruSpace.s16),
-                              decoration: BoxDecoration(
-                                color: c.surface,
-                                borderRadius: BorderRadius.circular(
-                                  CruRadius.control,
-                                ),
-                                border: Border.all(color: c.hairline),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CruIcon(
-                                        CruIcons.sparkle,
-                                        size: 16,
-                                        color: c.accent,
-                                      ),
-                                      const SizedBox(width: CruSpace.s8),
-                                      Text(
-                                        'OR START WITH A CLINICAL TEMPLATE',
-                                        style: CruType.micro.w600.tint(
-                                          c.accent,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: CruSpace.s12),
-                                  _presetRow(
-                                    title: 'Burning Mouth Syndrome Intake',
-                                    desc:
-                                        '6 questions on site, severity, dysgeusia, xerostomia and diurnal pattern.',
-                                    onUse: _loadStarterBurningMouth,
-                                    c: c,
-                                  ),
-                                  const CruSeparator(),
-                                  _presetRow(
-                                    title: 'Xerostomia (Dry Mouth) Inventory',
-                                    desc:
-                                        '5 questions assessing salivary hypofunction, swallowing, and nocturnal dryness.',
-                                    onUse: _loadStarterXerostomia,
-                                    c: c,
+                  if (templates.isEmpty) {
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 680),
+                        child: Padding(
+                          padding: const EdgeInsets.all(CruSpace.s24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              DentalEmptyState(
+                                icon: CruIcons.box,
+                                title: 'No custom forms designed yet',
+                                body:
+                                    'Design specialized symptom questionnaires, medical intake, or oral medicine screening forms for your clinic.',
+                                actions: [
+                                  CruButton(
+                                    label: 'Create first form',
+                                    icon: CruIcons.plus,
+                                    onPressed: () => showDialog<void>(
+                                      context: context,
+                                      builder: (_) => const FormBuilderDialog(),
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
+                              const SizedBox(height: CruSpace.s24),
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(CruSpace.s24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Search & count bar
-                      Row(
-                        children: [
-                          Text(
-                            '${filtered.length} ${filtered.length == 1 ? 'Template' : 'Templates'}',
-                            style: CruType.callout.w600.tint(c.label),
-                          ),
-                          const Spacer(),
-                          SizedBox(
-                            width: 280,
-                            child: DentalSearchField(
-                              hint: 'Search form templates...',
-                              controller: _searchCtrl,
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: CruSpace.s16),
-
-                      // Templates list
-                      CruCard(
-                        padding: EdgeInsets.zero,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (var i = 0; i < filtered.length; i++) ...[
-                              if (i > 0) const CruSeparator(),
-                              _TemplateRow(
-                                template: filtered[i],
-                                onEdit: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => FormBuilderDialog(
-                                    initialTemplate: filtered[i],
+                              // Starter presets
+                              Container(
+                                padding: const EdgeInsets.all(CruSpace.s16),
+                                decoration: BoxDecoration(
+                                  color: c.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    CruRadius.control,
                                   ),
+                                  border: Border.all(color: c.hairline),
                                 ),
-                                onDelete: () async {
-                                  final ok = await confirmDental(
-                                    context,
-                                    title: 'Delete template?',
-                                    body:
-                                        'Delete "${filtered[i].name}"? Existing patient responses will remain saved in their charts.',
-                                    action: 'Delete',
-                                  );
-                                  if (ok && filtered[i].record != null) {
-                                    await deleteDentalRecord(
-                                      ref,
-                                      filtered[i].record!,
-                                    );
-                                    if (context.mounted) {
-                                      recToast(context, 'Template deleted');
-                                    }
-                                  }
-                                },
-                                onFill: () async {
-                                  final patient = await pickRadPatient(context);
-                                  if (patient != null && context.mounted) {
-                                    showDialog<void>(
-                                      context: context,
-                                      builder: (_) => FormFillDialog(
-                                        patient: patient,
-                                        template: filtered[i],
-                                      ),
-                                    );
-                                  }
-                                },
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CruIcon(
+                                          CruIcons.sparkle,
+                                          size: 16,
+                                          color: c.accent,
+                                        ),
+                                        const SizedBox(width: CruSpace.s8),
+                                        Text(
+                                          'OR START WITH A CLINICAL TEMPLATE',
+                                          style: CruType.micro.w600.tint(
+                                            c.accent,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: CruSpace.s12),
+                                    _presetRow(
+                                      title: 'Burning Mouth Syndrome Intake',
+                                      desc:
+                                          '6 questions on site, severity, dysgeusia, xerostomia and diurnal pattern.',
+                                      onUse: _loadStarterBurningMouth,
+                                      c: c,
+                                    ),
+                                    const CruSeparator(),
+                                    _presetRow(
+                                      title: 'Xerostomia (Dry Mouth) Inventory',
+                                      desc:
+                                          '5 questions assessing salivary hypofunction, swallowing, and nocturnal dryness.',
+                                      onUse: _loadStarterXerostomia,
+                                      c: c,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
-                          ],
+                          ),
                         ),
                       ),
-                    ],
-                  ),
-                );
-              },
+                    );
+                  }
+
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      top: phone ? CruSpace.s16 : CruSpace.cardGap,
+                      bottom: phone
+                          ? CruSpace.s24
+                          : desktopPagePadding(context).bottom,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Search & count bar
+                        Row(
+                          children: [
+                            Text(
+                              '${filtered.length} ${filtered.length == 1 ? 'Template' : 'Templates'}',
+                              style: CruType.callout.w600.tint(c.label),
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              width: 280,
+                              child: DentalSearchField(
+                                hint: 'Search form templates...',
+                                controller: _searchCtrl,
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: CruSpace.s16),
+
+                        // Templates list
+                        CruCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (var i = 0; i < filtered.length; i++) ...[
+                                if (i > 0) const CruSeparator(),
+                                _TemplateRow(
+                                  template: filtered[i],
+                                  onEdit: () => showDialog<void>(
+                                    context: context,
+                                    builder: (_) => FormBuilderDialog(
+                                      initialTemplate: filtered[i],
+                                    ),
+                                  ),
+                                  onDelete: () async {
+                                    final ok = await confirmDental(
+                                      context,
+                                      title: 'Delete template?',
+                                      body:
+                                          'Delete "${filtered[i].name}"? Existing patient responses will remain saved in their charts.',
+                                      action: 'Delete',
+                                    );
+                                    if (ok && filtered[i].record != null) {
+                                      await deleteDentalRecord(
+                                        ref,
+                                        filtered[i].record!,
+                                      );
+                                      if (context.mounted) {
+                                        recToast(context, 'Template deleted');
+                                      }
+                                    }
+                                  },
+                                  onFill: () async {
+                                    final patient = await pickRadPatient(
+                                      context,
+                                    );
+                                    if (patient != null && context.mounted) {
+                                      showDialog<void>(
+                                        context: context,
+                                        builder: (_) => FormFillDialog(
+                                          patient: patient,
+                                          template: filtered[i],
+                                        ),
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

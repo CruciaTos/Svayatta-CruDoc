@@ -14,6 +14,7 @@ abstract final class PatientsBuilder {
     required List<Patient> patients,
     required List<Visit> visits,
     required DateTime now,
+    Set<String> perio = const {},
   }) {
     final byPatient = <String, List<Visit>>{};
     for (final v in visits) {
@@ -21,11 +22,22 @@ abstract final class PatientsBuilder {
       (byPatient[v.patientId] ??= []).add(v);
     }
     return [
-      for (final p in patients) summarize(p, byPatient[p.id] ?? const [], now),
+      for (final p in patients)
+        summarize(
+          p,
+          byPatient[p.id] ?? const [],
+          now,
+          perio: perio.contains(p.id),
+        ),
     ];
   }
 
-  static PatientSummary summarize(Patient p, List<Visit> raw, DateTime now) {
+  static PatientSummary summarize(
+    Patient p,
+    List<Visit> raw,
+    DateTime now, {
+    bool perio = false,
+  }) {
     final visits = [...raw.where((v) => !v.isDeleted)]
       ..sort((a, b) => b.scheduledStart.compareTo(a.scheduledStart));
 
@@ -82,6 +94,7 @@ abstract final class PatientsBuilder {
       seenToday: seenToday,
       seenWithin7Days: seen7,
       inTreatment: completed > 0 && next != null,
+      perio: perio,
     );
   }
 
@@ -92,6 +105,7 @@ abstract final class PatientsBuilder {
     PatientFilter.balanceDue => s.hasBalance,
     PatientFilter.inTreatment => s.inTreatment,
     PatientFilter.newThisMonth => s.isNewThisMonth,
+    PatientFilter.perio => s.perio,
   };
 
   /// Live chip counts (before search).

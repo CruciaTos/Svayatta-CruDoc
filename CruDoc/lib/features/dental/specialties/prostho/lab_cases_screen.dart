@@ -99,170 +99,178 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
       ],
     );
 
+    final phone = cruIsPhone(context);
     return Scaffold(
-      backgroundColor: c.canvas,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header
-          DentalPageHeader(
-            title: 'Lab cases',
-            subtitle: subtitle.isNotEmpty
-                ? subtitle
-                : 'Track prosthodontic cases from impression to try-in and delivery',
-            actions: [
-              CruButton(
-                label: 'New lab case',
-                icon: CruIcons.plus,
-                kind: CruButtonKind.primary,
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const LabCaseEditDialog(),
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: phone
+            ? const EdgeInsets.fromLTRB(16, 8, 16, 0)
+            : desktopPagePadding(context).copyWith(bottom: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            DentalPageHeader(
+              title: 'Lab cases',
+              subtitle: subtitle.isNotEmpty
+                  ? subtitle
+                  : 'Track prosthodontic cases from impression to try-in and delivery',
+              actions: [
+                CruButton(
+                  label: 'New lab case',
+                  icon: CruIcons.plus,
+                  kind: CruButtonKind.primary,
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const LabCaseEditDialog(),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
 
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(CruSpace.s24),
-              children: [
-                // Glance strip
-                GlanceStrip(
-                  semanticLabel: 'Lab cases at a glance',
-                  cells: [
-                    cell(
-                      'At lab',
-                      '$atLab',
-                      const Text('Fabrication in progress'),
-                    ),
-                    cell(
-                      'Due this week',
-                      '$dueThisWeek',
-                      const Text('Next 7 days'),
-                    ),
-                    cell(
-                      'Overdue',
-                      '$overdue',
-                      overdue > 0
-                          ? Text(
-                              'Past due date',
-                              style: CruType.caption.tint(c.amberText),
-                            )
-                          : const Text('None'),
-                      warn: overdue > 0,
-                    ),
-                    cell(
-                      'Received to fit',
-                      '$receivedToFit',
-                      const Text('Ready for try-in / delivery'),
-                    ),
-                  ],
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.only(
+                  top: phone ? CruSpace.s16 : CruSpace.cardGap,
+                  bottom: phone
+                      ? CruSpace.s24
+                      : desktopPagePadding(context).bottom,
                 ),
-                const SizedBox(height: CruSpace.s20),
+                children: [
+                  // Glance strip
+                  GlanceStrip(
+                    semanticLabel: 'Lab cases at a glance',
+                    cells: [
+                      cell(
+                        'At lab',
+                        '$atLab',
+                        const Text('Fabrication in progress'),
+                      ),
+                      cell(
+                        'Due this week',
+                        '$dueThisWeek',
+                        const Text('Next 7 days'),
+                      ),
+                      cell(
+                        'Overdue',
+                        '$overdue',
+                        overdue > 0
+                            ? Text(
+                                'Past due date',
+                                style: CruType.caption.tint(c.amberText),
+                              )
+                            : const Text('None'),
+                        warn: overdue > 0,
+                      ),
+                      cell(
+                        'Received to fit',
+                        '$receivedToFit',
+                        const Text('Ready for try-in / delivery'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CruSpace.s20),
 
-                // Controls row: View toggle & Search & Filters
-                Row(
-                  children: [
-                    CruSegmentedControl<_CaseViewMode>(
-                      semanticLabel: 'View mode',
-                      segments: const [
-                        CruSegment(_CaseViewMode.list, 'List'),
-                        CruSegment(_CaseViewMode.board, 'Board'),
-                      ],
-                      selected: _view,
-                      onChanged: (v) => setState(() => _view = v),
-                    ),
-                    const SizedBox(width: CruSpace.s16),
-                    if (_view == _CaseViewMode.list) ...[
-                      DropdownButtonHideUnderline(
-                        child: DropdownButton<LabCaseStage?>(
-                          value: _stageFilter,
-                          hint: Text(
-                            'All stages',
-                            style: CruType.subhead.tint(c.label2),
-                          ),
-                          items: [
-                            DropdownMenuItem<LabCaseStage?>(
+                  // Controls row: View toggle & Search & Filters
+                  Row(
+                    children: [
+                      CruSegmentedControl<_CaseViewMode>(
+                        semanticLabel: 'View mode',
+                        segments: const [
+                          CruSegment(_CaseViewMode.list, 'List'),
+                          CruSegment(_CaseViewMode.board, 'Board'),
+                        ],
+                        selected: _view,
+                        onChanged: (v) => setState(() => _view = v),
+                      ),
+                      const SizedBox(width: CruSpace.s16),
+                      if (_view == _CaseViewMode.list) ...[
+                        // The same inset menu button as the worklist's type.
+                        PopupMenuButton<LabCaseStage?>(
+                          tooltip: 'Stage',
+                          onSelected: (st) => setState(() => _stageFilter = st),
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
                               value: null,
-                              child: Text(
-                                'All stages',
-                                style: CruType.body.tint(c.label),
-                              ),
+                              child: Text('All stages'),
                             ),
                             for (final st in LabCaseStage.values)
-                              DropdownMenuItem<LabCaseStage?>(
-                                value: st,
-                                child: Text(
-                                  st.label,
-                                  style: CruType.body.tint(c.label),
-                                ),
-                              ),
+                              PopupMenuItem(value: st, child: Text(st.label)),
                           ],
-                          onChanged: (st) => setState(() => _stageFilter = st),
+                          child: IgnorePointer(
+                            child: CruButton(
+                              label: _stageFilter?.label ?? 'All stages',
+                              icon: CruIcons.chevronDown,
+                              kind: CruButtonKind.inset,
+                              onPressed: () {},
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      SizedBox(
+                        width: 280,
+                        child: DentalSearchField(
+                          hint: 'Search patient, lab, restoration…',
+                          controller: _search,
+                          onChanged: (_) => setState(() {}),
                         ),
                       ),
                     ],
-                    const Spacer(),
-                    SizedBox(
-                      width: 280,
-                      child: DentalSearchField(
-                        hint: 'Search patient, lab, restoration…',
-                        controller: _search,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s16),
+                  ),
+                  const SizedBox(height: CruSpace.cardGap),
 
-                // Content: List or Board
-                if (filtered.isEmpty)
-                  DentalEmptyState(
-                    icon: CruIcons.box,
-                    title: query.isNotEmpty
-                        ? 'No matching lab cases'
-                        : 'No lab cases yet',
-                    body: query.isNotEmpty
-                        ? 'Try changing your search terms or filters.'
-                        : 'Create a laboratory prescription for crowns, bridges, dentures or night guards.',
-                    actions: query.isEmpty
-                        ? [
-                            CruButton(
-                              label: 'New lab case',
-                              icon: CruIcons.plus,
-                              onPressed: () => showDialog<void>(
-                                context: context,
-                                builder: (_) => const LabCaseEditDialog(),
-                              ),
+                  // Content: List or Board
+                  if (filtered.isEmpty)
+                    desktopEmptyCard(
+                      context,
+                      DentalEmptyState(
+                        icon: CruIcons.box,
+                        title: query.isNotEmpty
+                            ? 'No matching lab cases'
+                            : 'No lab cases yet',
+                        body: query.isNotEmpty
+                            ? 'Try changing your search terms or filters.'
+                            : 'Create a laboratory prescription for crowns, bridges, dentures or night guards.',
+                        actions: query.isEmpty
+                            ? [
+                                CruButton(
+                                  label: 'New lab case',
+                                  icon: CruIcons.plus,
+                                  onPressed: () => showDialog<void>(
+                                    context: context,
+                                    builder: (_) => const LabCaseEditDialog(),
+                                  ),
+                                ),
+                              ]
+                            : const [],
+                      ),
+                    )
+                  else if (_view == _CaseViewMode.list)
+                    CruCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = 0; i < filtered.length; i++) ...[
+                            if (i > 0) const CruSeparator(),
+                            _LabCaseListRow(
+                              labCase: filtered[i],
+                              patient: patients
+                                  .where((p) => p.id == filtered[i].patientId)
+                                  .firstOrNull,
                             ),
-                          ]
-                        : const [],
-                  )
-                else if (_view == _CaseViewMode.list)
-                  CruCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0; i < filtered.length; i++) ...[
-                          if (i > 0) const CruSeparator(),
-                          _LabCaseListRow(
-                            labCase: filtered[i],
-                            patient: patients
-                                .where((p) => p.id == filtered[i].patientId)
-                                .firstOrNull,
-                          ),
+                          ],
                         ],
-                      ],
-                    ),
-                  )
-                else
-                  _LabCaseBoardView(cases: filtered, patients: patients),
-              ],
+                      ),
+                    )
+                  else
+                    _LabCaseBoardView(cases: filtered, patients: patients),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

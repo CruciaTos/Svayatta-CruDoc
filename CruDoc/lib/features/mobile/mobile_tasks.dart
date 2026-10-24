@@ -1,16 +1,19 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/presentation/patient_picker_dialog.dart';
-import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/mobile/tasks/tasks_logic.dart';
@@ -27,6 +30,7 @@ import 'package:doctor_management_app/features/radiology/presentation/radiology_
 import 'package:doctor_management_app/features/radiology/presentation/reports/phrase_library.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/template_manager.dart';
 import 'package:doctor_management_app/features/radiology/presentation/rvg_capture_dialog.dart';
+import 'package:doctor_management_app/features/radiology/viewer/thumbnail_strip.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -41,6 +45,36 @@ class MobileTasksScreen extends ConsumerStatefulWidget {
   ConsumerState<MobileTasksScreen> createState() => _MobileTasksScreenState();
 }
 
+/// Size of a scan's pictures on this device; null when none are here yet
+/// (the row then shows no size).
+final _studyBytesProvider = FutureProvider.autoDispose.family<int?, String>((
+  ref,
+  studyId,
+) async {
+  final s = await ref.watch(radStudyProvider(studyId).future);
+  if (s == null || s.images.isEmpty) return null;
+  final repo = ref.watch(radiologyRepositoryProvider);
+  final doctorId = ref.watch(radDoctorIdProvider);
+  var total = 0;
+  try {
+    for (final i in s.images) {
+      final f = await repo.fileOf(doctorId, s.id, i.path);
+      if (await f.exists()) total += await f.length();
+    }
+  } catch (_) {
+    return null;
+  }
+  return total > 0 ? total : null;
+});
+
+/// "840 KB", "12.4 MB".
+String _fileSize(int bytes) {
+  const kb = 1024;
+  const mb = 1024 * kb;
+  if (bytes >= mb) return '${(bytes / mb).toStringAsFixed(1)} MB';
+  return '${(bytes / kb).ceil()} KB';
+}
+
 class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
   TaskSourceFilter _sourceFilter = TaskSourceFilter.all;
   TaskStatusFilter _statusFilter = TaskStatusFilter.any;
@@ -48,9 +82,15 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
   final TextEditingController _search = TextEditingController();
   String _query = '';
 
+  /// Scan pictures for the Recent activity cards.
+  late final RadThumbCache _thumbs = RadThumbCache(
+    ref.read(radiologyProvider).thumbSourceOf,
+  );
+
   @override
   void dispose() {
     _search.dispose();
+    _thumbs.dispose();
     super.dispose();
   }
 
@@ -107,11 +147,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     ];
 
     if (actions.isEmpty) return;
-    showMobileActionSheet(
-      context,
-      title: 'New task',
-      actions: actions,
-    );
+    showMobileActionSheet(context, title: 'New task', actions: actions);
   }
 
   void _openFilterModal(BuildContext context, TaskSourceFilter source) {
@@ -135,10 +171,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
               CruSpace.s8,
               CruSpace.s8,
             ),
-            decoration: ShapeDecoration(
-              color: c.surface,
-              shape: cruShape(28),
-            ),
+            decoration: ShapeDecoration(color: c.surface, shape: cruShape(28)),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -157,7 +190,9 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                   ),
                   const SizedBox(height: CruSpace.s12),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: CruSpace.s16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s16,
+                    ),
                     child: Text(
                       'STATUS',
                       style: MobileType.caption.w600.tint(c.label3),
@@ -194,10 +229,13 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                               Expanded(
                                 child: Text(
                                   sf.label,
-                                  style: (selected
-                                          ? MobileType.row.w600
-                                          : MobileType.row)
-                                      .tint(selected ? c.accentText : c.label),
+                                  style:
+                                      (selected
+                                              ? MobileType.row.w600
+                                              : MobileType.row)
+                                          .tint(
+                                            selected ? c.accentText : c.label,
+                                          ),
                                 ),
                               ),
                               if (selected)
@@ -216,7 +254,9 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                   const CruSeparator(),
                   const SizedBox(height: CruSpace.s12),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: CruSpace.s16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s16,
+                    ),
                     child: Text(
                       'TIME',
                       style: MobileType.caption.w600.tint(c.label3),
@@ -253,10 +293,13 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                               Expanded(
                                 child: Text(
                                   tf.label,
-                                  style: (selected
-                                          ? MobileType.row.w600
-                                          : MobileType.row)
-                                      .tint(selected ? c.accentText : c.label),
+                                  style:
+                                      (selected
+                                              ? MobileType.row.w600
+                                              : MobileType.row)
+                                          .tint(
+                                            selected ? c.accentText : c.label,
+                                          ),
                                 ),
                               ),
                               if (selected)
@@ -281,15 +324,23 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     );
   }
 
+  /// Opens a lab case to view or move it to its next stage.
+  void _openLabCase(BuildContext context, LabCase lc) => showDialog<void>(
+    context: mobileRoot(context),
+    builder: (_) => LabCaseEditDialog(initialCase: lc),
+  );
+
   void _handleTaskTap(BuildContext context, TaskItem t) {
+    final lc = t.labCase;
+    if (lc != null) {
+      _openLabCase(context, lc);
+      return;
+    }
     if (t.stage.isFinished) {
       if (t.study != null) {
         openRadReport(context, t.study!);
       } else if (t.patient != null) {
-        showTreatmentPlanDialog(
-          mobileRoot(context),
-          patient: t.patient!,
-        );
+        showTreatmentPlanDialog(mobileRoot(context), patient: t.patient!);
       }
       return;
     }
@@ -319,6 +370,12 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       case TaskStage.delivered:
       case TaskStage.invoiced:
       case TaskStage.declined:
+      // Lab cases open above, before this switch.
+      case TaskStage.labToSend:
+      case TaskStage.atLab:
+      case TaskStage.labRemake:
+      case TaskStage.readyToFit:
+      case TaskStage.fitted:
         break;
     }
   }
@@ -462,6 +519,16 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
           );
         }
       }
+    } else if (t.labCase != null) {
+      final lc = t.labCase!;
+      actions.add(
+        MobileSheetAction(
+          label: 'Open lab case',
+          icon: CruIcons.box,
+          tone: MobileTone.sky,
+          onTap: () => _openLabCase(context, lc),
+        ),
+      );
     } else if (t.source == TaskSource.plan) {
       if (t.patient != null) {
         actions.add(
@@ -540,9 +607,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     showMobileActionSheet(
       context,
       title: t.patientName,
-      subtitle: t.stage.isFinished
-          ? t.stage.label
-          : '${t.stage.label} · Step ${t.stage.step} of ${t.stage.steps}',
+      subtitle: t.stage.label,
       actions: actions,
     );
   }
@@ -556,14 +621,6 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       }
       final d = diff.inDays.clamp(1, 9999);
       return 'Overdue ${d}d';
-    }
-
-    if (t.dueAt != null) {
-      final due = t.dueAt!;
-      if (due.year == now.year && due.month == now.month && due.day == now.day) {
-        return 'Due ${DashFormat.time(due)}';
-      }
-      return 'Due ${DashFormat.shortDate(due)}';
     }
 
     final diff = now.difference(t.since);
@@ -583,42 +640,45 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     return '${mo}mo ago';
   }
 
-  Widget _buildTaskRow(
-    BuildContext context,
-    TaskItem t,
-    DateTime now,
-  ) {
+  Widget _buildTaskRow(BuildContext context, TaskItem t, DateTime now) {
     final c = context.cru;
 
     final leading = switch (t.source) {
       TaskSource.scan => const MobileIconTile(
-          icon: RadIcons.worklist,
-          tone: MobileTone.indigo,
-        ),
+        icon: RadIcons.worklist,
+        tone: MobileTone.indigo,
+      ),
       TaskSource.report => const MobileIconTile(
-          icon: RadIcons.report,
-          tone: MobileTone.teal,
-        ),
+        icon: RadIcons.report,
+        tone: MobileTone.teal,
+      ),
       TaskSource.plan => const MobileIconTile(
-          icon: DentalIcons.plan,
-          tone: MobileTone.blue,
-        ),
+        icon: DentalIcons.plan,
+        tone: MobileTone.blue,
+      ),
+      TaskSource.lab => const MobileIconTile(
+        icon: CruIcons.box,
+        tone: MobileTone.sky,
+      ),
     };
 
-    String prefix = '';
-    if (!t.critical) {
-      if (t.priority == RadPriority.stat) {
-        prefix = 'STAT · ';
-      } else if (t.priority == RadPriority.urgent) {
-        prefix = 'Urgent · ';
-      }
-    }
-    final timeStr = _formatTimeText(t, now);
+    final urgency = t.critical
+        ? null
+        : switch (t.priority) {
+            RadPriority.stat => 'STAT',
+            RadPriority.urgent => 'Urgent',
+            _ => null,
+          };
     final subtitle = [
-      '$prefix${t.title}',
+      ?urgency,
+      if (t.title.isNotEmpty) t.title,
       if (t.detail != null && t.detail!.isNotEmpty) t.detail!,
-      timeStr,
+      _formatTimeText(t, now),
     ].join(' · ');
+    final study = t.study;
+    final bytes = study == null
+        ? null
+        : ref.watch(_studyBytesProvider(study.id)).value;
 
     final Widget pillWidget;
     if (t.critical) {
@@ -644,6 +704,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
         TaskStage.delivered => MobileTone.green,
         TaskStage.invoiced => MobileTone.green,
         TaskStage.declined => MobileTone.slate,
+        TaskStage.fitted => MobileTone.green,
         _ => MobileTone.slate,
       };
       pillWidget = MobilePill(t.stage.label, tone: tone);
@@ -656,6 +717,10 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
         TaskStage.toSend => MobileTone.green,
         TaskStage.awaitingOk => MobileTone.amber,
         TaskStage.toTreat => MobileTone.blue,
+        TaskStage.labToSend => MobileTone.amber,
+        TaskStage.atLab => MobileTone.blue,
+        TaskStage.labRemake => MobileTone.amber,
+        TaskStage.readyToFit => MobileTone.amber,
         _ => MobileTone.slate,
       };
       pillWidget = MobilePill(t.stage.label, tone: tone);
@@ -666,11 +731,11 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         pillWidget,
-        if (!t.stage.isFinished) ...[
+        if (bytes != null) ...[
           const SizedBox(height: CruSpace.s2),
           Text(
-            'Step ${t.stage.step} of ${t.stage.steps}',
-            style: MobileType.caption.tint(c.label3),
+            _fileSize(bytes),
+            style: MobileType.caption.tabular.tint(c.label3),
           ),
         ],
       ],
@@ -701,6 +766,8 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     final reportsOn = tabs.contains(DesktopTab.reports);
     final plansOn = tabs.contains(DesktopTab.treatmentPlans);
 
+    final labOn = tabs.contains(DesktopTab.labCases);
+
     final radiologyOn = worklistOn || reportsOn;
     final dentalOn = plansOn;
     // Watching keeps the scanner receiver listening while Tasks is open,
@@ -711,35 +778,38 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     final lastFrom = worklistOn ? ref.watch(radReceiverProvider).lastFrom : '';
     if (worklistOn) ref.watch(radPacsServersProvider);
 
-    final none = !radiologyOn && !dentalOn;
+    final none = !radiologyOn && !dentalOn && !labOn;
 
     final availableSources = <TaskSourceFilter>[
       TaskSourceFilter.all,
       if (worklistOn) TaskSourceFilter.worklist,
       if (reportsOn) TaskSourceFilter.reports,
       if (plansOn) TaskSourceFilter.plans,
+      if (labOn) TaskSourceFilter.labCases,
     ];
-    final activeCount = (worklistOn ? 1 : 0) + (reportsOn ? 1 : 0) + (plansOn ? 1 : 0);
 
-    final effectiveSource = activeCount == 1
-        ? (worklistOn
-            ? TaskSourceFilter.worklist
-            : (reportsOn ? TaskSourceFilter.reports : TaskSourceFilter.plans))
+    // With one source there are no pills: it is the only filter.
+    final effectiveSource = availableSources.length == 2
+        ? availableSources[1]
         : (availableSources.contains(_sourceFilter)
-            ? _sourceFilter
-            : TaskSourceFilter.all);
+              ? _sourceFilter
+              : TaskSourceFilter.all);
 
     final studiesAsync = radiologyOn ? ref.watch(radStudiesProvider) : null;
     final referrers = radiologyOn
         ? ref.watch(radReferrerByIdProvider)
         : const <String, RadReferrer>{};
 
-    final planItemsAsync =
-        dentalOn ? ref.watch(clinicTreatmentPlansProvider) : null;
-    final patientsAsync =
-        (radiologyOn || dentalOn) ? ref.watch(patientsStreamProvider) : null;
+    final planItemsAsync = dentalOn
+        ? ref.watch(clinicTreatmentPlansProvider)
+        : null;
+    final labCases = labOn ? ref.watch(allLabCasesProvider) : null;
+    final patientsAsync = (radiologyOn || dentalOn || labOn)
+        ? ref.watch(patientsStreamProvider)
+        : null;
 
-    final isLoading = (radiologyOn && studiesAsync?.value == null) ||
+    final isLoading =
+        (radiologyOn && studiesAsync?.value == null) ||
         (dentalOn &&
             (planItemsAsync?.value == null || patientsAsync?.value == null));
 
@@ -752,14 +822,17 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       planItems: planItemsAsync?.value,
       patientsById: patientsById,
       now: now,
+      labCases: labCases,
     );
 
     final hasAddActions = radiologyOn || dentalOn;
 
     // Filter candidate list: finished items only when explicitly requested
-    final bool showingFinished = _statusFilter == TaskStatusFilter.sent ||
+    final bool showingFinished =
+        _statusFilter == TaskStatusFilter.sent ||
         _statusFilter == TaskStatusFilter.invoiced ||
-        _statusFilter == TaskStatusFilter.declined;
+        _statusFilter == TaskStatusFilter.declined ||
+        _statusFilter == TaskStatusFilter.fitted;
 
     final candidates = showingFinished ? board.finished : board.items;
 
@@ -778,36 +851,50 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
 
     // Counts for source pills
     int countForSource(TaskSourceFilter s) => switch (s) {
-          TaskSourceFilter.all => board.items.length,
-          TaskSourceFilter.worklist => board.items
-              .where((t) =>
-                  t.stage == TaskStage.toRead || t.stage == TaskStage.reading)
-              .length,
-          TaskSourceFilter.reports => board.items
-              .where((t) =>
+      TaskSourceFilter.all => board.items.length,
+      TaskSourceFilter.worklist =>
+        board.items
+            .where(
+              (t) =>
+                  t.stage == TaskStage.toRead || t.stage == TaskStage.reading,
+            )
+            .length,
+      TaskSourceFilter.reports =>
+        board.items
+            .where(
+              (t) =>
                   t.stage == TaskStage.drafting ||
                   t.stage == TaskStage.toSign ||
-                  t.stage == TaskStage.toSend)
-              .length,
-          TaskSourceFilter.plans => board.items
-              .where((t) =>
+                  t.stage == TaskStage.toSend,
+            )
+            .length,
+      TaskSourceFilter.plans =>
+        board.items
+            .where(
+              (t) =>
                   t.stage == TaskStage.awaitingOk ||
-                  t.stage == TaskStage.toTreat)
-              .length,
-        };
+                  t.stage == TaskStage.toTreat,
+            )
+            .length,
+      TaskSourceFilter.labCases =>
+        board.items.where((t) => t.source == TaskSource.lab).length,
+    };
 
     // Recent activity for the sliding strip above search: every task,
     // open or finished, newest change first.
-    final recentActivity = [...board.items, ...board.finished]
-        .where((t) => matchesSource(t, effectiveSource))
-        .toList()
-      ..sort((a, b) => b.since.compareTo(a.since));
+    final recentActivity =
+        [
+            ...board.items,
+            ...board.finished,
+          ].where((t) => matchesSource(t, effectiveSource)).toList()
+          ..sort((a, b) => b.since.compareTo(a.since));
     if (recentActivity.length > 10) {
       recentActivity.removeRange(10, recentActivity.length);
     }
 
     final hasActiveFilter =
-        _statusFilter != TaskStatusFilter.any || _timeFilter != TaskTimeFilter.any;
+        _statusFilter != TaskStatusFilter.any ||
+        _timeFilter != TaskTimeFilter.any;
 
     return ListView(
       padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
@@ -836,9 +923,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                   tone: MobileTone.blue,
                 ),
                 title: '${RadFormat.images(received.length)} received',
-                subtitle: lastFrom.isEmpty
-                    ? 'From scanners'
-                    : 'From $lastFrom',
+                subtitle: lastFrom.isEmpty ? 'From scanners' : 'From $lastFrom',
                 trailing: MobilePill('Add to worklist', tone: MobileTone.blue),
                 onTap: () => importRadReceived(context, ref),
               ),
@@ -859,7 +944,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
           )
         else ...[
           // 1. Source filter pill row (shown only when > 1 source is available)
-          if (activeCount > 1) ...[
+          if (availableSources.length > 2) ...[
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(
@@ -891,6 +976,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
           _RecentActivityStrip(
             items: recentActivity,
             now: now,
+            thumbs: _thumbs,
             onTap: (t) => _handleTaskTap(context, t),
             onLongPress: (t) => _openTaskActions(context, t),
           ),
@@ -978,8 +1064,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                   semanticLabel: 'Clear filters',
                   builder: (context, _) => Text(
                     'Clear filters',
-                    style:
-                        MobileType.subhead.w600.tint(context.cru.accentText),
+                    style: MobileType.subhead.w600.tint(context.cru.accentText),
                   ),
                 ),
                 const SizedBox(height: CruSpace.s16),
@@ -1006,12 +1091,14 @@ class _RecentActivityStrip extends StatelessWidget {
   const _RecentActivityStrip({
     required this.items,
     required this.now,
+    required this.thumbs,
     required this.onTap,
     required this.onLongPress,
   });
 
   final List<TaskItem> items;
   final DateTime now;
+  final RadThumbCache thumbs;
   final ValueChanged<TaskItem> onTap;
   final ValueChanged<TaskItem> onLongPress;
 
@@ -1100,6 +1187,7 @@ class _RecentActivityStrip extends StatelessWidget {
                         _RecentActivityCard(
                           task: t,
                           now: now,
+                          thumbs: thumbs,
                           fullWidth: fullWidth,
                           onTap: () => onTap(t),
                           onLongPress: () => onLongPress(t),
@@ -1119,6 +1207,7 @@ class _RecentActivityCard extends StatelessWidget {
   const _RecentActivityCard({
     required this.task,
     required this.now,
+    required this.thumbs,
     required this.fullWidth,
     required this.onTap,
     required this.onLongPress,
@@ -1126,7 +1215,22 @@ class _RecentActivityCard extends StatelessWidget {
 
   final TaskItem task;
   final DateTime now;
+  final RadThumbCache thumbs;
   final double fullWidth;
+
+  /// The scan's first picture, once its thumbnail is ready; null for plans,
+  /// scans without a readable picture, or while it's still being made.
+  ui.Image? _thumb() {
+    final s = task.study;
+    if (s == null) return null;
+    for (final i in s.images) {
+      if (i.compressed) continue;
+      thumbs.request(s, i);
+      return thumbs.image(s.id, i.id);
+    }
+    return null;
+  }
+
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
@@ -1144,13 +1248,17 @@ class _RecentActivityCard extends StatelessWidget {
     return switch (t.stage) {
       TaskStage.toRead ||
       TaskStage.toSign ||
-      TaskStage.awaitingOk =>
-        const Color(0xFFFFB340),
-      TaskStage.reading || TaskStage.toTreat => const Color(0xFF93C5FD),
+      TaskStage.awaitingOk ||
+      TaskStage.labToSend ||
+      TaskStage.labRemake ||
+      TaskStage.readyToFit => const Color(0xFFFFB340),
+      TaskStage.reading ||
+      TaskStage.toTreat ||
+      TaskStage.atLab => const Color(0xFF93C5FD),
       TaskStage.toSend ||
       TaskStage.delivered ||
-      TaskStage.invoiced =>
-        const Color(0xFF4ADE80),
+      TaskStage.invoiced ||
+      TaskStage.fitted => const Color(0xFF4ADE80),
       TaskStage.drafting || TaskStage.declined => const Color(0xFFCBD5E1),
     };
   }
@@ -1161,24 +1269,29 @@ class _RecentActivityCard extends StatelessWidget {
 
     final (icon, top, bottom) = switch (t.source) {
       TaskSource.scan => (
-          RadIcons.worklist,
-          const Color(0xFF3960FB),
-          const Color(0xFF1E3A8A),
-        ),
+        RadIcons.worklist,
+        const Color(0xFF3960FB),
+        const Color(0xFF1E3A8A),
+      ),
       TaskSource.report => (
-          RadIcons.report,
-          const Color(0xFF4F46E5),
-          const Color(0xFF1E1B4B),
-        ),
+        RadIcons.report,
+        const Color(0xFF4F46E5),
+        const Color(0xFF1E1B4B),
+      ),
       TaskSource.plan => (
-          DentalIcons.plan,
-          const Color(0xFF2563EB),
-          const Color(0xFF0C4A6E),
-        ),
+        DentalIcons.plan,
+        const Color(0xFF2563EB),
+        const Color(0xFF0C4A6E),
+      ),
+      TaskSource.lab => (
+        CruIcons.box,
+        const Color(0xFF1D4ED8),
+        const Color(0xFF172554),
+      ),
     };
 
     final subtitle = [
-      t.title,
+      if (t.title.isNotEmpty) t.title,
       if (t.detail != null && t.detail!.isNotEmpty) t.detail!,
     ].join(' · ');
 
@@ -1192,157 +1305,163 @@ class _RecentActivityCard extends StatelessWidget {
         MobileHaptics.tap();
         onLongPress();
       },
-      child: LayoutBuilder(
-        builder: (context, box) {
-          // Text fades out as the card narrows into the sliver at the edge.
-          final reveal =
-              ((box.maxWidth - 80) / (fullWidth * 0.7 - 80)).clamp(0.0, 1.0);
+      child: ListenableBuilder(
+        listenable: thumbs,
+        builder: (context, _) => LayoutBuilder(
+          builder: (context, box) {
+            final thumb = _thumb();
+            // Text fades out as the card narrows into the sliver at the edge.
+            final reveal = ((box.maxWidth - 80) / (fullWidth * 0.7 - 80)).clamp(
+              0.0,
+              1.0,
+            );
 
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [top, bottom],
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [top, bottom],
+                ),
               ),
-            ),
-            child: OverflowBox(
-              minWidth: fullWidth,
-              maxWidth: fullWidth,
-              alignment: Alignment.center,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Large faint glyph behind everything, like a thumbnail.
-                  Positioned(
-                    right: -18,
-                    top: 28,
-                    child: CruIcon(
-                      icon,
-                      size: 120,
-                      strokeWidth: 1.4,
-                      color: Colors.white.withValues(alpha: 0.10),
-                    ),
-                  ),
-                  // Scrim so the bottom text stays readable.
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.center,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x00000000), Color(0x59000000)],
+              child: OverflowBox(
+                minWidth: fullWidth,
+                maxWidth: fullWidth,
+                alignment: Alignment.center,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // The scan itself when there's a picture; otherwise a
+                    // large faint glyph on the blue card.
+                    if (thumb != null)
+                      RawImage(image: thumb, fit: BoxFit.cover)
+                    else
+                      Positioned(
+                        right: -18,
+                        top: 28,
+                        child: CruIcon(
+                          icon,
+                          size: 120,
+                          strokeWidth: 1.4,
+                          color: Colors.white.withValues(alpha: 0.10),
+                        ),
+                      ),
+                    // Scrim so the bottom text stays readable.
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.center,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0x00000000), Color(0x59000000)],
+                        ),
                       ),
                     ),
-                  ),
-                  // Centred glyph for the narrow sliver; fades as text appears.
-                  Align(
-                    alignment: const Alignment(0, -0.2),
-                    child: Opacity(
-                      opacity: 1 - reveal,
-                      child: _glyph(icon),
+                    // Centred glyph for the narrow sliver; fades as text appears.
+                    Align(
+                      alignment: const Alignment(0, -0.2),
+                      child: Opacity(opacity: 1 - reveal, child: _glyph(icon)),
                     ),
-                  ),
-                  Opacity(
-                    opacity: reveal,
-                    child: Padding(
-                      padding: const EdgeInsets.all(CruSpace.s12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              _glyph(icon, size: 32),
-                              const Spacer(),
-                              Text(
-                                _ago(t.since, now),
-                                style: MobileType.micro.w600.tabular
-                                    .tint(Colors.white.withValues(alpha: 0.8)),
+                    Opacity(
+                      opacity: reveal,
+                      child: Padding(
+                        padding: const EdgeInsets.all(CruSpace.s12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                _glyph(icon, size: 32),
+                                const Spacer(),
+                                Text(
+                                  _ago(t.since, now),
+                                  style: MobileType.micro.w600.tabular.tint(
+                                    Colors.white.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                            Text(
+                              t.patientName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: MobileType.row.w600.tint(Colors.white),
+                            ),
+                            const SizedBox(height: CruSpace.s2),
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: MobileType.caption.tint(
+                                Colors.white.withValues(alpha: 0.75),
                               ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Text(
-                            t.patientName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: MobileType.row.w600.tint(Colors.white),
-                          ),
-                          const SizedBox(height: CruSpace.s2),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: MobileType.caption
-                                .tint(Colors.white.withValues(alpha: 0.75)),
-                          ),
-                          const SizedBox(height: CruSpace.s8),
-                          _statusPill(t),
-                        ],
+                            ),
+                            const SizedBox(height: CruSpace.s8),
+                            _statusPill(t),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _glyph(CruIconData icon, {double size = 44}) => Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          shape: BoxShape.circle,
-        ),
-        child: CruIcon(
-          icon,
-          size: size * 0.48,
-          strokeWidth: 1.9,
-          color: Colors.white,
-        ),
-      );
+    width: size,
+    height: size,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.16),
+      shape: BoxShape.circle,
+    ),
+    child: CruIcon(
+      icon,
+      size: size * 0.48,
+      strokeWidth: 1.9,
+      color: Colors.white,
+    ),
+  );
 
   Widget _statusPill(TaskItem t) => Container(
-        height: 24,
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
-        decoration: ShapeDecoration(
-          color: Colors.white.withValues(alpha: 0.16),
-          shape: const StadiumBorder(),
+    height: 24,
+    padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+    decoration: ShapeDecoration(
+      color: Colors.white.withValues(alpha: 0.16),
+      shape: const StadiumBorder(),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: _statusDot(t),
+            shape: BoxShape.circle,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: _statusDot(t),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: CruSpace.s6),
-            Flexible(
-              child: Text(
-                t.critical ? 'Critical · ${t.stage.label}' : t.stage.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: MobileType.micro.w600.tint(Colors.white),
-              ),
-            ),
-          ],
+        const SizedBox(width: CruSpace.s6),
+        Flexible(
+          child: Text(
+            t.critical ? 'Critical · ${t.stage.label}' : t.stage.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: MobileType.micro.w600.tint(Colors.white),
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _FilterIconButton extends StatelessWidget {
-  const _FilterIconButton({
-    required this.hasActiveFilter,
-    required this.onTap,
-  });
+  const _FilterIconButton({required this.hasActiveFilter, required this.onTap});
 
   final bool hasActiveFilter;
   final VoidCallback onTap;

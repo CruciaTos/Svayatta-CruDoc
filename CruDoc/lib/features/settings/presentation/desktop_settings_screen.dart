@@ -16,6 +16,9 @@ import 'package:doctor_management_app/features/radiology/presentation/radiology_
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/mobile/mobile_more.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
@@ -1785,6 +1788,14 @@ class _BackgroundColorSwatch extends StatelessWidget {
 // =============================================================================
 
 /// Dental-only settings. F3, P and PD add their own cards to this _Stack.
+/// Opens a dental set-up page: in the desktop shell (with a link back to
+/// Settings), or pushed on the phone.
+void _openDentalPage(BuildContext context, WidgetRef ref, int tab) {
+  final navigate = ref.read(shellNavigatorProvider);
+  if (navigate != null && navigate(tab)) return;
+  openMobileDestination(context, tab, backLabel: 'Dental');
+}
+
 class _DentalSection extends ConsumerWidget {
   const _DentalSection();
 
@@ -1795,6 +1806,13 @@ class _DentalSection extends ConsumerWidget {
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final large = ref.watch(largeModeProvider).value ?? false;
+    final tabs = {
+      for (final t in sidebarTabs(
+        dental: dentalFeatures,
+        access: ref.watch(clinicAccessProvider).value,
+      ))
+        t.tab,
+    };
     return _Stack([
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1807,6 +1825,34 @@ class _DentalSection extends ConsumerWidget {
           ),
         ],
       ),
+      // Set up once, so they live here rather than in the sidebar.
+      if (tabs.contains(DesktopTab.procedures))
+        _SettingsCard(
+          title: 'Procedures & fees',
+          description:
+              'What can be picked when logging a procedure or planning '
+              'treatment, and what each costs.',
+          trailing: CruButton(
+            label: 'Open',
+            kind: CruButtonKind.secondary,
+            onPressed: () => _openDentalPage(context, ref, DesktopTab.procedures),
+          ),
+          child: const SizedBox.shrink(),
+        ),
+      if (tabs.contains(DesktopTab.oralMedForms))
+        _SettingsCard(
+          title: 'Form templates',
+          description:
+              'Questionnaires to fill for a patient from their record '
+              '(Forms in the dental record).',
+          trailing: CruButton(
+            label: 'Open',
+            kind: CruButtonKind.secondary,
+            onPressed: () =>
+                _openDentalPage(context, ref, DesktopTab.oralMedForms),
+          ),
+          child: const SizedBox.shrink(),
+        ),
       _SettingsCard(
         title: 'Tooth numbering',
         description:

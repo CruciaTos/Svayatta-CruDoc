@@ -39,44 +39,91 @@ class _NavGroup {
   final List<_NavItem> items;
 }
 
-/// Extra sidebar pages per dental feature.
+/// Extra sidebar pages per dental feature. Only features with a built
+/// page have one; the rest were placeholders and are gone.
 List<_NavItem> specialtyNav(DentalFeature f) => switch (f) {
   DentalFeature.perio => const [
     _NavItem(DesktopTab.perioPatients, 'Perio patients', RecIcons.perio),
   ],
-  DentalFeature.endo => const [
-    _NavItem(DesktopTab.rootCanals, 'Root canals', RecIcons.endo),
-  ],
-  DentalFeature.pedo => const [
-    _NavItem(DesktopTab.pedoChildren, 'Children', CruIcons.patients),
-  ],
-  DentalFeature.pathology => const [
-    _NavItem(DesktopTab.biopsies, 'Biopsies', CruIcons.flask),
-  ],
   DentalFeature.oralMedicine => const [
-    _NavItem(DesktopTab.oralMedLesions, 'Lesions', RecIcons.pain),
     _NavItem(DesktopTab.oralMedForms, 'Forms', RecIcons.checklist),
   ],
   DentalFeature.sedation => const [
-    _NavItem(DesktopTab.sedationCases, 'Sedation cases', CruIcons.flask),
     _NavItem(DesktopTab.emergency, 'Emergency', CruIcons.warning),
   ],
   DentalFeature.prostho => const [
     _NavItem(DesktopTab.labCases, 'Lab cases', CruIcons.box),
   ],
-  DentalFeature.ortho => const [
-    _NavItem(DesktopTab.orthoPatients, 'Ortho patients', CruIcons.patients),
-  ],
-  DentalFeature.publicHealth => const [
-    _NavItem(DesktopTab.healthCamps, 'Camps', CruIcons.megaphone),
-    _NavItem(DesktopTab.population, 'Population', CruIcons.patients),
-  ],
-  DentalFeature.surgery => const [
-    _NavItem(DesktopTab.surgeries, 'Surgeries', DentalIcons.procedures),
-    _NavItem(DesktopTab.implants, 'Implants', DentalIcons.tooth),
-  ],
   _ => const [],
 };
+
+const _tasksTabs = {
+  DesktopTab.worklist,
+  DesktopTab.reports,
+  DesktopTab.treatmentPlans,
+  DesktopTab.labCases,
+};
+const _referralTabs = {DesktopTab.dentalReferrals, DesktopTab.referrers};
+
+/// Which drawn item stays lit while a page that has no item of its own is
+/// open: Recalls and Perio belong to Patients, Scribe to Schedule,
+/// Sterilization to Inventory.
+const _litBy = {
+  DesktopTab.recalls: DesktopTab.patients,
+  DesktopTab.perioPatients: DesktopTab.patients,
+  DesktopTab.scribe: DesktopTab.appointments,
+  DesktopTab.sterilization: DesktopTab.inventory,
+};
+
+/// Pages reached from somewhere other than the sidebar: a button on their
+/// parent page (Recalls, Scribe), a tab (Sterilization), a Patients filter
+/// (Perio), Settings › Dental (Procedures, form templates) or the fixed
+/// Emergency button.
+const _notDrawn = {
+  DesktopTab.recalls,
+  DesktopTab.perioPatients,
+  DesktopTab.scribe,
+  DesktopTab.sterilization,
+  DesktopTab.procedures,
+  DesktopTab.oralMedForms,
+  DesktopTab.emergency,
+};
+
+/// The sidebar as drawn. Worklist, reports, treatment plans and lab cases
+/// are one Tasks page, referrals and referrers one Referrals page, and
+/// the pages in [_notDrawn] are reached from elsewhere. [sidebarTabs]
+/// still lists every page, for voice, gating and the phone.
+List<_NavGroup> _drawnGroups(List<_NavGroup> groups) {
+  final all = [for (final g in groups) ...g.items];
+  final tasks = [for (final i in all) if (_tasksTabs.contains(i.tab)) i];
+  final referrals = [
+    for (final i in all) if (_referralTabs.contains(i.tab)) i,
+  ];
+  return [
+    for (final g in groups)
+      if (<_NavItem>[
+            for (final i in g.items)
+              if (!_tasksTabs.contains(i.tab) &&
+                  !_referralTabs.contains(i.tab) &&
+                  !_notDrawn.contains(i.tab))
+                i,
+            if (g.label == 'Today' && tasks.isNotEmpty)
+              _NavItem(tasks.first.tab, 'Tasks', RadIcons.worklist),
+            if (g.label == 'Patients' && referrals.isNotEmpty)
+              _NavItem(referrals.first.tab, 'Referrals', CruIcons.arrowUpRight),
+          ]
+          case final items when items.isNotEmpty)
+        _NavGroup(g.label, items),
+  ];
+}
+
+/// Whether [item] is the one lit for [current], counting merged pages.
+bool _isSelected(_NavItem item, int current) {
+  if (item.tab == current) return true;
+  if (_tasksTabs.contains(item.tab)) return _tasksTabs.contains(current);
+  if (_referralTabs.contains(item.tab)) return _referralTabs.contains(current);
+  return _litBy[current] == item.tab;
+}
 
 /// The sidebar for this login.
 List<_NavGroup> _groupsFor({
@@ -212,9 +259,14 @@ class CruSidebar extends ConsumerWidget {
     final plan = access == null || access.isOwner
         ? ref.watch(subscriptionInfoProvider).value
         : null;
-    final groups = _groupsFor(
+    final allGroups = _groupsFor(
       dental: ref.watch(dentalFeaturesProvider),
       access: access,
+    );
+    final groups = _drawnGroups(allGroups);
+    // Emergency sits apart, always one click away, for logins that have it.
+    final emergency = allGroups.any(
+      (g) => g.items.any((i) => i.tab == DesktopTab.emergency),
     );
 
     return TweenAnimationBuilder<double>(
@@ -385,8 +437,10 @@ class CruSidebar extends ConsumerWidget {
                                         _tourTargets[groups[g].items[i].tab],
                                     child: _SidebarItem(
                                       item: groups[g].items[i],
-                                      selected:
-                                          currentTab == groups[g].items[i].tab,
+                                      selected: _isSelected(
+                                        groups[g].items[i],
+                                        currentTab,
+                                      ),
                                       collapsed: collapsed,
                                       progress: progress,
                                       badge:
@@ -407,6 +461,21 @@ class CruSidebar extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: CruSpace.s10),
+                      if (emergency) ...[
+                        _SidebarItem(
+                          item: const _NavItem(
+                            DesktopTab.emergency,
+                            'Emergency',
+                            CruIcons.warning,
+                          ),
+                          selected: currentTab == DesktopTab.emergency,
+                          collapsed: collapsed,
+                          progress: progress,
+                          onTap: () =>
+                              callbacks.onNavigate(DesktopTab.emergency),
+                        ),
+                        const SizedBox(height: CruSpace.s8),
+                      ],
                       if (plan?.daysRemaining != null && progress > 0.25) ...[
                         Opacity(
                           opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),

@@ -8,7 +8,11 @@ enum PatientFilter {
   followUpOverdue('Follow-up overdue'),
   balanceDue('Balance due'),
   inTreatment('In treatment'),
-  newThisMonth('New this month');
+  newThisMonth('New this month'),
+
+  /// Dentists with Periodontics: patients with a perio chart (was the
+  /// Perio patients page).
+  perio('Perio');
 
   const PatientFilter(this.label);
   final String label;
@@ -64,6 +68,7 @@ class PatientSummary {
     required this.seenToday,
     required this.seenWithin7Days,
     required this.inTreatment,
+    this.perio = false,
   });
 
   final Patient patient;
@@ -96,6 +101,9 @@ class PatientSummary {
 
   /// Has been seen and has a visit booked ahead.
   final bool inTreatment;
+
+  /// Has a perio chart (dentists with Periodontics).
+  final bool perio;
 
   String get id => patient.id;
   String get name => patient.fullName;

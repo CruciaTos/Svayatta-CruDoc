@@ -16,7 +16,9 @@ class DentalFeaturesPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const allFeatures = DentalFeature.values;
+    const allFeatures = DentalFeature.offered;
+    // At least one offered feature stays on (hidden old ones don't count).
+    final onCount = allFeatures.where(selected.contains).length;
 
     return CruCard(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
@@ -27,12 +29,11 @@ class DentalFeaturesPicker extends StatelessWidget {
             _DentalFeatureRow(
               feature: allFeatures[i],
               isSelected: selected.contains(allFeatures[i]),
-              disabled:
-                  selected.contains(allFeatures[i]) && selected.length == 1,
+              disabled: selected.contains(allFeatures[i]) && onCount == 1,
               onToggle: () {
                 final f = allFeatures[i];
                 final isSelected = selected.contains(f);
-                if (isSelected && selected.length == 1) {
+                if (isSelected && onCount == 1) {
                   return;
                 }
                 final next = Set<DentalFeature>.from(selected);

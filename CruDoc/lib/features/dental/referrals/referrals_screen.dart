@@ -36,7 +36,6 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final referrals = ref.watch(allReferralsProvider);
     final patients =
         ref.watch(patientsStreamProvider).value ?? const <Patient>[];
@@ -117,145 +116,156 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
     );
 
     return Scaffold(
-      backgroundColor: c.canvas,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header (with the page gutter on a phone)
-          Padding(
-            padding: cruIsPhone(context)
-                ? const EdgeInsets.fromLTRB(16, 8, 16, 0)
-                : EdgeInsets.zero,
-            child: DentalPageHeader(
-              title: 'Referrals',
-              subtitle: subtitle.isNotEmpty
-                  ? subtitle
-                  : 'Track referrals sent to and received from other doctors',
-              actions: [
-                CruButton(
-                  label: 'Contacts',
-                  icon: CruIcons.userPlus,
-                  kind: CruButtonKind.secondary,
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const ContactDirectoryDialog(),
-                  ),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                CruButton(
-                  label: 'New referral',
-                  icon: CruIcons.plus,
-                  kind: CruButtonKind.primary,
-                  onPressed: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => const ReferralEditDialog(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: ListView(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: cruIsPhone(context)
+            ? EdgeInsets.zero
+            : desktopPagePadding(context).copyWith(bottom: 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header (with the page gutter on a phone)
+            Padding(
               padding: cruIsPhone(context)
-                  ? const EdgeInsets.fromLTRB(16, 16, 16, 24)
-                  : const EdgeInsets.all(CruSpace.s24),
-              children: [
-                // Glance strip
-                GlanceStrip(
-                  semanticLabel: 'Referrals at a glance',
-                  cells: [
-                    cell(
-                      'Open sent',
-                      '$openSent',
-                      const Text('Active sent referrals'),
-                    ),
-                    cell(
-                      'Waiting for reply',
-                      '$waitingReply',
-                      const Text('Sent or acknowledged'),
-                    ),
-                    cell(
-                      'Received to see',
-                      '$receivedToSee',
-                      const Text('Incoming referrals'),
-                    ),
-                    cell(
-                      'Completed this month',
-                      '$completedThisMonth',
-                      const Text('This calendar month'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s20),
-
-                // Controls row: Segments & Search
-                DentalFilterBar(
-                  filters: [
-                    CruSegmentedControl<_ReferralTab>(
-                      semanticLabel: 'Filter referrals by status',
-                      segments: const [
-                        CruSegment(_ReferralTab.sent, 'Sent'),
-                        CruSegment(_ReferralTab.received, 'Received'),
-                        CruSegment(_ReferralTab.completed, 'Completed'),
-                      ],
-                      selected: _tab,
-                      onChanged: (t) => setState(() => _tab = t),
-                    ),
-                  ],
-                  search: DentalSearchField(
-                    hint: 'Search patient, doctor, reason…',
-                    controller: _search,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                const SizedBox(height: CruSpace.s16),
-
-                // List or empty state
-                if (filtered.isEmpty)
-                  DentalEmptyState(
-                    icon: CruIcons.arrowUpRight,
-                    title: query.isNotEmpty
-                        ? 'No matching referrals'
-                        : 'No referrals here',
-                    body: query.isNotEmpty
-                        ? 'Try changing your search terms or filters.'
-                        : 'Refer a patient to a specialist or record an incoming referral.',
-                    actions: query.isEmpty
-                        ? [
-                            CruButton(
-                              label: 'New referral',
-                              icon: CruIcons.plus,
-                              onPressed: () => showDialog<void>(
-                                context: context,
-                                builder: (_) => const ReferralEditDialog(),
-                              ),
-                            ),
-                          ]
-                        : const [],
-                  )
-                else
-                  CruCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0; i < filtered.length; i++) ...[
-                          if (i > 0) const CruSeparator(),
-                          _ReferralListRow(
-                            referral: filtered[i],
-                            patient: patients
-                                .where((p) => p.id == filtered[i].patientId)
-                                .firstOrNull,
-                          ),
-                        ],
-                      ],
+                  ? const EdgeInsets.fromLTRB(16, 8, 16, 0)
+                  : EdgeInsets.zero,
+              child: DentalPageHeader(
+                title: 'Referrals',
+                subtitle: subtitle.isNotEmpty
+                    ? subtitle
+                    : 'Track referrals sent to and received from other doctors',
+                actions: [
+                  CruButton(
+                    label: 'Contacts',
+                    icon: CruIcons.userPlus,
+                    kind: CruButtonKind.secondary,
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const ContactDirectoryDialog(),
                     ),
                   ),
-              ],
+                  const SizedBox(width: CruSpace.s8),
+                  CruButton(
+                    label: 'New referral',
+                    icon: CruIcons.plus,
+                    kind: CruButtonKind.primary,
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const ReferralEditDialog(),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+
+            Expanded(
+              child: ListView(
+                padding: cruIsPhone(context)
+                    ? const EdgeInsets.fromLTRB(16, 16, 16, 24)
+                    : EdgeInsets.only(
+                        top: CruSpace.cardGap,
+                        bottom: desktopPagePadding(context).bottom,
+                      ),
+                children: [
+                  // Glance strip
+                  GlanceStrip(
+                    semanticLabel: 'Referrals at a glance',
+                    cells: [
+                      cell(
+                        'Open sent',
+                        '$openSent',
+                        const Text('Active sent referrals'),
+                      ),
+                      cell(
+                        'Waiting for reply',
+                        '$waitingReply',
+                        const Text('Sent or acknowledged'),
+                      ),
+                      cell(
+                        'Received to see',
+                        '$receivedToSee',
+                        const Text('Incoming referrals'),
+                      ),
+                      cell(
+                        'Completed this month',
+                        '$completedThisMonth',
+                        const Text('This calendar month'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CruSpace.s20),
+
+                  // Controls row: Segments & Search
+                  DentalFilterBar(
+                    filters: [
+                      CruSegmentedControl<_ReferralTab>(
+                        semanticLabel: 'Filter referrals by status',
+                        segments: const [
+                          CruSegment(_ReferralTab.sent, 'Sent'),
+                          CruSegment(_ReferralTab.received, 'Received'),
+                          CruSegment(_ReferralTab.completed, 'Completed'),
+                        ],
+                        selected: _tab,
+                        onChanged: (t) => setState(() => _tab = t),
+                      ),
+                    ],
+                    search: DentalSearchField(
+                      hint: 'Search patient, doctor, reason…',
+                      controller: _search,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ),
+                  const SizedBox(height: CruSpace.cardGap),
+
+                  // List or empty state
+                  if (filtered.isEmpty)
+                    desktopEmptyCard(
+                      context,
+                      DentalEmptyState(
+                        icon: CruIcons.arrowUpRight,
+                        title: query.isNotEmpty
+                            ? 'No matching referrals'
+                            : 'No referrals here',
+                        body: query.isNotEmpty
+                            ? 'Try changing your search terms or filters.'
+                            : 'Refer a patient to a specialist or record an incoming referral.',
+                        actions: query.isEmpty
+                            ? [
+                                CruButton(
+                                  label: 'New referral',
+                                  icon: CruIcons.plus,
+                                  onPressed: () => showDialog<void>(
+                                    context: context,
+                                    builder: (_) => const ReferralEditDialog(),
+                                  ),
+                                ),
+                              ]
+                            : const [],
+                      ),
+                    )
+                  else
+                    CruCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = 0; i < filtered.length; i++) ...[
+                            if (i > 0) const CruSeparator(),
+                            _ReferralListRow(
+                              referral: filtered[i],
+                              patient: patients
+                                  .where((p) => p.id == filtered[i].patientId)
+                                  .firstOrNull,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
@@ -12,11 +15,13 @@ import 'package:doctor_management_app/features/appointments/presentation/schedul
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The selected day on the phone's Schedule. Kept for the session.
@@ -35,7 +40,10 @@ class _DayController extends Notifier<DateTime> {
 /// people along with a right swipe (check in, call in, finish); a long
 /// press has everything else.
 class MobileScheduleScreen extends ConsumerStatefulWidget {
-  const MobileScheduleScreen({super.key});
+  const MobileScheduleScreen({super.key, this.enabledModules});
+
+  /// The doctor's modules (Scribe's button needs `ai_assistant`).
+  final List<String>? enabledModules;
 
   @override
   ConsumerState<MobileScheduleScreen> createState() =>
@@ -212,6 +220,15 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
     final now = ref.watch(apptsNowProvider);
     final isToday = ApptsBuilder.sameDay(day, now);
     final items = ref.watch(apptDayItemsProvider(day));
+    final scribe =
+        DoctorFeatureGuard.isEnabled(
+          widget.enabledModules ?? DoctorFeatureGuard.defaultModules,
+          'ai_assistant',
+        ) &&
+        sidebarTabs(
+          dental: ref.watch(dentalFeaturesProvider),
+          access: ref.watch(clinicAccessProvider).value,
+        ).any((t) => t.tab == DesktopTab.scribe);
     // Today's walk-ins: queue tokens with no booked visit behind them.
     final walkIns = isToday
         ? [
@@ -235,10 +252,30 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
               onTap: _toggleCalendarView,
             ),
             onTitleTap: _toggleCalendarView,
-            trailing: MobileCircleButton(
-              icon: CruIcons.plus,
-              semanticLabel: 'Book a visit',
-              onPressed: () => _book(day),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Scribe left More for this button: it records the same
+                // day's visits listed here.
+                if (scribe) ...[
+                  MobileCircleButton(
+                    icon: CruIcons.mic,
+                    filled: false,
+                    semanticLabel: 'Scribe',
+                    onPressed: () => openMobileDestination(
+                      context,
+                      DesktopTab.scribe,
+                      backLabel: 'Schedule',
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s8),
+                ],
+                MobileCircleButton(
+                  icon: CruIcons.plus,
+                  semanticLabel: 'Book a visit',
+                  onPressed: () => _book(day),
+                ),
+              ],
             ),
           ),
         ),
@@ -1231,9 +1268,7 @@ class _MonthPager extends StatelessWidget {
   final VoidCallback onToday;
 
   static double _heightOf(int page) =>
-      ApptsBuilder.monthGrid(_pageMonth(page)).length /
-      7 *
-      _DayCell.rowHeight;
+      ApptsBuilder.monthGrid(_pageMonth(page)).length / 7 * _DayCell.rowHeight;
 
   double get _height {
     final settled = _monthPage(month).toDouble();

@@ -14,7 +14,6 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/dental/referrals/referrals_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/anaesthesia/emergency_protocols.dart';
-import 'package:doctor_management_app/features/dental/specialties/dental_not_built.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/forms_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_cases_screen.dart';
@@ -101,22 +100,6 @@ Widget? mobileDestinationScreen(int tab) => switch (tab) {
   DesktopTab.labCases => const LabCasesScreen(),
   DesktopTab.emergency => const EmergencyProtocolsScreen(),
   DesktopTab.files => const FilesScreen(),
-  DesktopTab.rootCanals ||
-  DesktopTab.pedoChildren ||
-  DesktopTab.biopsies ||
-  DesktopTab.oralMedLesions ||
-  DesktopTab.sedationCases ||
-  DesktopTab.orthoPatients ||
-  DesktopTab.healthCamps ||
-  DesktopTab.population ||
-  DesktopTab.surgeries ||
-  DesktopTab.implants => DentalNotBuiltScreen(
-    icon: _iconFor(tab),
-    title: DesktopTab.label(tab),
-    body:
-        'Not built yet. This page will hold your '
-        '${DesktopTab.label(tab).toLowerCase()} once it is ready.',
-  ),
   _ => null,
 };
 
@@ -163,13 +146,20 @@ class MobileMoreScreen extends ConsumerWidget {
     DesktopTab.scribe,
   };
 
-  /// Pages that moved: Recalls to the Patients header, the radiology
-  /// worklist and reports and treatment plans into Tasks.
+  /// Pages that moved: Recalls to the Patients header; the radiology
+  /// worklist and reports, treatment plans and lab cases into Tasks;
+  /// Perio to a Patients filter; Sterilization beside Inventory;
+  /// Procedures and form templates to Settings › Dental.
   static const _elsewhere = {
     DesktopTab.recalls,
     DesktopTab.worklist,
     DesktopTab.reports,
     DesktopTab.treatmentPlans,
+    DesktopTab.labCases,
+    DesktopTab.perioPatients,
+    DesktopTab.sterilization,
+    DesktopTab.procedures,
+    DesktopTab.oralMedForms,
   };
 
   void _open(BuildContext context, int tab) =>
@@ -287,15 +277,6 @@ class MobileMoreScreen extends ConsumerWidget {
                   : _locked(context, 'Invoices'),
             ),
             row(
-              'Scribe',
-              CruIcons.mic,
-              MobileTone.violet,
-              () => on('ai_assistant')
-                  ? _open(context, DesktopTab.scribe)
-                  : _locked(context, 'Scribe'),
-              detail: 'Consultation notes from your voice',
-            ),
-            row(
               'Campaigns',
               CruIcons.megaphone,
               MobileTone.amber,
@@ -325,7 +306,12 @@ class MobileMoreScreen extends ConsumerWidget {
                             context,
                             const MobileHostPage(
                               backLabel: 'More',
-                              child: _ReferralsHub(),
+                              child: _PageHub(
+                                pages: [
+                                  ('Referrals', ReferralsScreen()),
+                                  ('Referrers', RadReferrersScreen()),
+                                ],
+                              ),
                             ),
                           )
                         : _open(context, t.tab),
@@ -658,15 +644,19 @@ class _RevenueSlot extends StatelessWidget {
   Widget build(BuildContext context) => child;
 }
 
-/// Referrals sent out and the people who refer patients in, on one page.
-class _ReferralsHub extends StatefulWidget {
-  const _ReferralsHub();
+/// Several pages on one, with a segmented control on top: referrals
+/// sent out and the people who refer patients in.
+class _PageHub extends StatefulWidget {
+  const _PageHub({required this.pages});
+
+  /// (label, page), in order.
+  final List<(String, Widget)> pages;
 
   @override
-  State<_ReferralsHub> createState() => _ReferralsHubState();
+  State<_PageHub> createState() => _PageHubState();
 }
 
-class _ReferralsHubState extends State<_ReferralsHub> {
+class _PageHubState extends State<_PageHub> {
   int _tab = 0;
 
   @override
@@ -682,8 +672,8 @@ class _ReferralsHubState extends State<_ReferralsHub> {
             0,
           ),
           child: MobileSegmented<int>(
-            values: const [0, 1],
-            label: (i) => i == 0 ? 'Referrals' : 'Referrers',
+            values: [for (var i = 0; i < widget.pages.length; i++) i],
+            label: (i) => widget.pages[i].$1,
             selected: _tab,
             onChanged: (i) => setState(() => _tab = i),
           ),
@@ -691,7 +681,7 @@ class _ReferralsHubState extends State<_ReferralsHub> {
         Expanded(
           child: IndexedStack(
             index: _tab,
-            children: const [ReferralsScreen(), RadReferrersScreen()],
+            children: [for (final p in widget.pages) p.$2],
           ),
         ),
       ],

@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_view_providers.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
 import 'package:doctor_management_app/features/inventory/presentation/desktop_inventory_list_screen.dart';
@@ -18,6 +21,8 @@ import 'package:doctor_management_app/features/inventory/presentation/widgets/in
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_run_out_strip.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_skeleton.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_toolbar.dart';
+import 'package:doctor_management_app/features/mobile/mobile_more.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The Inventory tab: header, Items / Orders / Vendors / Usage, and on
@@ -79,6 +84,18 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   /// Width of the list/grid column at the last layout (grid arrow keys).
   double _leftWidth = 0;
+
+  /// The sterilization log: its own page on the desktop (with a link back
+  /// here), pushed on the phone.
+  void _openSterilization() {
+    final navigate = ref.read(shellNavigatorProvider);
+    if (navigate != null && navigate(DesktopTab.sterilization)) return;
+    openMobileDestination(
+      context,
+      DesktopTab.sterilization,
+      backLabel: 'Inventory',
+    );
+  }
 
   String? _lastTapId;
   DateTime? _lastTapAt;
@@ -285,11 +302,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         ? CruSpace.mainPaddingCompact
         : CruSpace.mainPadding;
 
+    // Sterilization opens from a button here, for logins that have it.
+    final sterilization = sidebarTabs(
+      dental: ref.watch(dentalFeaturesProvider),
+      access: ref.watch(clinicAccessProvider).value,
+    ).any((t) => t.tab == DesktopTab.sterilization);
     final header = InventoryHeader(
       view: view,
       onNewOrder: () => _controller.setTab(InventoryTab.orders),
       onAddItem: () => InventoryActions.addItem(context, ref),
       onScan: () => InventoryActions.scanItem(context, ref),
+      onSterilization: sterilization ? _openSterilization : null,
     );
     final toolbar = InventoryToolbar(
       tab: state.tab,

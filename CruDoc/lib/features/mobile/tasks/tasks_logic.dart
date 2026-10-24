@@ -1,15 +1,12 @@
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
 
 /// Where a task originated.
-enum TaskSource {
-  scan,
-  report,
-  plan,
-}
+enum TaskSource { scan, report, plan, lab }
 
 /// The stage a task is in. Decides its label, verb, step number and source.
 enum TaskStage {
@@ -22,7 +19,14 @@ enum TaskStage {
   toTreat('To treat', 'Treat', TaskSource.plan, 2, 2),
   delivered('Sent', 'View', TaskSource.report, 4, 4),
   invoiced('Invoiced', 'View', TaskSource.plan, 2, 2),
-  declined('Declined', 'View', TaskSource.plan, 1, 2);
+  declined('Declined', 'View', TaskSource.plan, 1, 2),
+
+  // Lab cases (crowns, bridges, dentures made by a lab).
+  labToSend('To send to lab', 'Send', TaskSource.lab, 1, 3),
+  atLab('At the lab', 'Track', TaskSource.lab, 2, 3),
+  labRemake('Remake', 'Follow up', TaskSource.lab, 2, 3),
+  readyToFit('Ready to fit', 'Fit', TaskSource.lab, 3, 3),
+  fitted('Fitted', 'View', TaskSource.lab, 3, 3);
 
   const TaskStage(this.label, this.verb, this.source, this.step, this.steps);
 
@@ -33,7 +37,10 @@ enum TaskStage {
   final int steps;
 
   bool get isFinished =>
-      this == delivered || this == invoiced || this == declined;
+      this == delivered ||
+      this == invoiced ||
+      this == declined ||
+      this == fitted;
 }
 
 /// A single patient's job on the unified mobile Tasks board.
@@ -53,6 +60,7 @@ class TaskItem {
   final RadStudy? study; // set for scan/report tasks
   final Patient? patient; // set for plan tasks
   final List<TreatmentPlanLineItemModel> planItems; // empty for radiology
+  final LabCase? labCase; // set for lab case tasks
   final String searchText; // lower-cased haystack
 
   const TaskItem({
@@ -70,6 +78,7 @@ class TaskItem {
     this.study,
     this.patient,
     this.planItems = const [],
+    this.labCase,
     required this.searchText,
   });
 
@@ -81,7 +90,8 @@ enum TaskSourceFilter {
   all('All'),
   worklist('Worklist'),
   reports('Reports'),
-  plans('Treatment plans');
+  plans('Treatment plans'),
+  labCases('Lab cases');
 
   const TaskSourceFilter(this.label);
   final String label;
@@ -113,7 +123,10 @@ enum TaskStatusFilter {
   awaiting('Awaiting'),
   accepted('Accepted'),
   invoiced('Invoiced'),
-  declined('Declined');
+  declined('Declined'),
+  atLab('At the lab'),
+  readyToFit('Ready to fit'),
+  fitted('Fitted');
 
   const TaskStatusFilter(this.label);
   final String label;
@@ -123,31 +136,38 @@ enum TaskStatusFilter {
 List<TaskStatusFilter> statusFiltersFor(TaskSourceFilter source) =>
     switch (source) {
       TaskSourceFilter.all => const [
-          TaskStatusFilter.any,
-          TaskStatusFilter.open,
-          TaskStatusFilter.urgent,
-        ],
+        TaskStatusFilter.any,
+        TaskStatusFilter.open,
+        TaskStatusFilter.urgent,
+      ],
       TaskSourceFilter.worklist => const [
-          TaskStatusFilter.any,
-          TaskStatusFilter.toRead,
-          TaskStatusFilter.reading,
-          TaskStatusFilter.urgent,
-        ],
+        TaskStatusFilter.any,
+        TaskStatusFilter.toRead,
+        TaskStatusFilter.reading,
+        TaskStatusFilter.urgent,
+      ],
       TaskSourceFilter.reports => const [
-          TaskStatusFilter.any,
-          TaskStatusFilter.drafting,
-          TaskStatusFilter.toSign,
-          TaskStatusFilter.toSend,
-          TaskStatusFilter.sent,
-        ],
+        TaskStatusFilter.any,
+        TaskStatusFilter.drafting,
+        TaskStatusFilter.toSign,
+        TaskStatusFilter.toSend,
+        TaskStatusFilter.sent,
+      ],
       TaskSourceFilter.plans => const [
-          TaskStatusFilter.any,
-          TaskStatusFilter.open,
-          TaskStatusFilter.awaiting,
-          TaskStatusFilter.accepted,
-          TaskStatusFilter.invoiced,
-          TaskStatusFilter.declined,
-        ],
+        TaskStatusFilter.any,
+        TaskStatusFilter.open,
+        TaskStatusFilter.awaiting,
+        TaskStatusFilter.accepted,
+        TaskStatusFilter.invoiced,
+        TaskStatusFilter.declined,
+      ],
+      TaskSourceFilter.labCases => const [
+        TaskStatusFilter.any,
+        TaskStatusFilter.open,
+        TaskStatusFilter.atLab,
+        TaskStatusFilter.readyToFit,
+        TaskStatusFilter.fitted,
+      ],
     };
 
 /// Whether a task matches a source filter.
@@ -166,6 +186,7 @@ bool matchesSource(TaskItem t, TaskSourceFilter f) {
           t.stage == TaskStage.toTreat ||
           t.stage == TaskStage.invoiced ||
           t.stage == TaskStage.declined,
+    TaskSourceFilter.labCases => t.source == TaskSource.lab,
   };
 }
 
@@ -210,6 +231,10 @@ bool matchesStatus(TaskItem t, TaskStatusFilter f) {
     TaskStatusFilter.accepted => t.stage == TaskStage.toTreat,
     TaskStatusFilter.invoiced => t.stage == TaskStage.invoiced,
     TaskStatusFilter.declined => t.stage == TaskStage.declined,
+    TaskStatusFilter.atLab =>
+      t.stage == TaskStage.atLab || t.stage == TaskStage.labRemake,
+    TaskStatusFilter.readyToFit => t.stage == TaskStage.readyToFit,
+    TaskStatusFilter.fitted => t.stage == TaskStage.fitted,
   };
 }
 
@@ -237,11 +262,11 @@ int compareUrgency(TaskItem a, TaskItem b, DateTime now) {
 
   // 3. Priority: stat > urgent > routine > no priority (plans)
   int priorityRank(RadPriority? p) => switch (p) {
-        RadPriority.stat => 3,
-        RadPriority.urgent => 2,
-        RadPriority.routine => 1,
-        null => 0,
-      };
+    RadPriority.stat => 3,
+    RadPriority.urgent => 2,
+    RadPriority.routine => 1,
+    null => 0,
+  };
   final aRank = priorityRank(a.priority);
   final bRank = priorityRank(b.priority);
   if (aRank != bRank) {
@@ -268,7 +293,8 @@ int compareUrgency(TaskItem a, TaskItem b, DateTime now) {
 /// The state of the unified tasks board.
 class TaskBoard {
   final List<TaskItem> items; // open tasks, sorted by urgency
-  final List<TaskItem> finished; // delivered studies + invoiced/declined plan items
+  final List<TaskItem>
+  finished; // delivered studies + invoiced/declined plan items
   final int doneToday; // delivered studies + invoiced plan items updated today
   final RadStudy? nextToRead; // radNextUnread(studies), null if none
 
@@ -287,6 +313,7 @@ TaskBoard buildTaskBoard({
   required List<TreatmentPlanLineItemModel>? planItems,
   required Map<String, Patient> patientsById,
   required DateTime now,
+  List<LabCase>? labCases,
 }) {
   final items = <TaskItem>[];
   final finished = <TaskItem>[];
@@ -298,14 +325,19 @@ TaskBoard buildTaskBoard({
   // 1. Radiology
   if (studies != null) {
     for (final study in studies) {
-      final title =
-          '${study.modality.short} · ${study.clinicalQuestion.isNotEmpty ? study.clinicalQuestion : (study.description.isNotEmpty ? study.description : study.modality.label)}';
+      // No modality label (IOPA, OPG…): the patient and the question say
+      // enough. Empty when neither was recorded.
+      final title = study.clinicalQuestion.isNotEmpty
+          ? study.clinicalQuestion
+          : study.description;
       final referrer = referrers[study.referrerId];
-      final detail =
-          (referrer != null && referrer.name.isNotEmpty) ? referrer.name : null;
+      final detail = (referrer != null && referrer.name.isNotEmpty)
+          ? referrer.name
+          : null;
 
-      final patient =
-          study.patientId.isNotEmpty ? patientsById[study.patientId] : null;
+      final patient = study.patientId.isNotEmpty
+          ? patientsById[study.patientId]
+          : null;
 
       final searchParts = [
         study.patientName,
@@ -410,7 +442,8 @@ TaskBoard buildTaskBoard({
     // Proposed items -> awaitingOk (open task)
     for (final entry in proposedByPatient.entries) {
       final patient = entry.key;
-      final list = entry.value..sort((a, b) => a.sequence.compareTo(b.sequence));
+      final list = entry.value
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
       final first = list.first;
       final teeth = first.toothNumbers.isNotEmpty
           ? ' · ${first.toothNumbers.join(', ')}'
@@ -422,8 +455,9 @@ TaskBoard buildTaskBoard({
       final detail =
           '${DashFormat.plural(list.length, 'procedure')} proposed · ${DashFormat.rupees(total)}';
 
-      final newestUpdated =
-          list.map((i) => i.updatedAt).reduce((a, b) => a.isAfter(b) ? a : b);
+      final newestUpdated = list
+          .map((i) => i.updatedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
       final since = newestUpdated;
       final dueAt = since.add(const Duration(days: 7));
 
@@ -460,7 +494,8 @@ TaskBoard buildTaskBoard({
     // Accepted items -> toTreat (open task)
     for (final entry in acceptedByPatient.entries) {
       final patient = entry.key;
-      final list = entry.value..sort((a, b) => a.sequence.compareTo(b.sequence));
+      final list = entry.value
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
       final first = list.first;
       final teeth = first.toothNumbers.isNotEmpty
           ? ' · ${first.toothNumbers.join(', ')}'
@@ -471,8 +506,9 @@ TaskBoard buildTaskBoard({
       final total = list.fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
       final detail = '${list.length} to do · ${DashFormat.rupees(total)}';
 
-      final newestUpdated =
-          list.map((i) => i.updatedAt).reduce((a, b) => a.isAfter(b) ? a : b);
+      final newestUpdated = list
+          .map((i) => i.updatedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
       final since = newestUpdated;
       final dueAt = since.add(const Duration(days: 14));
 
@@ -509,7 +545,8 @@ TaskBoard buildTaskBoard({
     // Invoiced items -> finished
     for (final entry in invoicedByPatient.entries) {
       final patient = entry.key;
-      final list = entry.value..sort((a, b) => a.sequence.compareTo(b.sequence));
+      final list = entry.value
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
       final first = list.first;
       final teeth = first.toothNumbers.isNotEmpty
           ? ' · ${first.toothNumbers.join(', ')}'
@@ -520,8 +557,9 @@ TaskBoard buildTaskBoard({
       final total = list.fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
       final detail = '${list.length} invoiced · ${DashFormat.rupees(total)}';
 
-      final newestUpdated =
-          list.map((i) => i.updatedAt).reduce((a, b) => a.isAfter(b) ? a : b);
+      final newestUpdated = list
+          .map((i) => i.updatedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
 
       final searchParts = [
         patient.fullName,
@@ -556,7 +594,8 @@ TaskBoard buildTaskBoard({
     // Declined items -> finished
     for (final entry in declinedByPatient.entries) {
       final patient = entry.key;
-      final list = entry.value..sort((a, b) => a.sequence.compareTo(b.sequence));
+      final list = entry.value
+        ..sort((a, b) => a.sequence.compareTo(b.sequence));
       final first = list.first;
       final teeth = first.toothNumbers.isNotEmpty
           ? ' · ${first.toothNumbers.join(', ')}'
@@ -567,8 +606,9 @@ TaskBoard buildTaskBoard({
       final total = list.fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
       final detail = '${list.length} declined · ${DashFormat.rupees(total)}';
 
-      final newestUpdated =
-          list.map((i) => i.updatedAt).reduce((a, b) => a.isAfter(b) ? a : b);
+      final newestUpdated = list
+          .map((i) => i.updatedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
 
       final searchParts = [
         patient.fullName,
@@ -598,6 +638,54 @@ TaskBoard buildTaskBoard({
           searchText: searchText,
         ),
       );
+    }
+  }
+
+  // 3. Lab cases
+  for (final lc in labCases ?? const <LabCase>[]) {
+    final patient = patientsById[lc.patientId];
+    final name = patient?.fullName.trim() ?? '';
+    final stage = switch (lc.stage) {
+      LabCaseStage.scanned => TaskStage.labToSend,
+      LabCaseStage.remake => TaskStage.labRemake,
+      LabCaseStage.received => TaskStage.readyToFit,
+      LabCaseStage.fitted => TaskStage.fitted,
+      _ => TaskStage.atLab,
+    };
+    final teeth = lc.teeth.where((t) => t.trim().isNotEmpty).join(', ');
+    final title = [
+      if (lc.type.trim().isNotEmpty) lc.type.trim(),
+      if (teeth.isNotEmpty) teeth,
+    ].join(' · ');
+    final lab = lc.labName.trim();
+    final since = lc.history.isEmpty
+        ? lc.recordedAt
+        : lc.history.map((h) => h.at).reduce((a, b) => a.isAfter(b) ? a : b);
+    final item = TaskItem(
+      id: 'lab_${lc.id}',
+      stage: stage,
+      patientName: name.isEmpty ? 'Patient' : name,
+      patientId: lc.patientId.isNotEmpty ? lc.patientId : null,
+      title: title,
+      detail: lab.isEmpty ? null : lab,
+      since: since,
+      dueAt: stage.isFinished ? null : lc.due,
+      patient: patient,
+      labCase: lc,
+      searchText: [
+        name,
+        lc.type,
+        teeth,
+        lab,
+        lc.material,
+        lc.stage.label,
+      ].join(' ').toLowerCase(),
+    );
+    if (stage.isFinished) {
+      if (isSameDay(since, now)) doneToday++;
+      finished.add(item);
+    } else {
+      items.add(item);
     }
   }
 

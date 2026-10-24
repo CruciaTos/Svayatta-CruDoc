@@ -25,11 +25,11 @@ enum DentalFeature {
   ),
   surgery('surgery', 'Oral surgery and implants', 'Surgeries and implants'),
   pathology('pathology', 'Oral pathology', 'Biopsies'),
-  oralMedicine('oral_medicine', 'Oral medicine', 'Lesions and forms'),
+  oralMedicine('oral_medicine', 'Oral medicine', 'Patient forms'),
   sedation(
     'sedation',
     'Sedation and emergencies',
-    'Sedation cases and emergency protocols',
+    'Emergency protocols',
   ),
   publicHealth('public_health', 'Public health', 'Camps and population health');
 
@@ -39,6 +39,17 @@ enum DentalFeature {
   final String detail;
 
   static const Set<DentalFeature> defaults = {chairside, radiology};
+
+  /// The features the picker offers: those with something built. The rest
+  /// stay in the enum so saved choices still parse.
+  static const List<DentalFeature> offered = [
+    chairside,
+    radiology,
+    perio,
+    prostho,
+    oralMedicine,
+    sedation,
+  ];
 
   static DentalFeature? fromKey(String key) {
     for (final f in values) {

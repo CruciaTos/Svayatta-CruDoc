@@ -13,6 +13,9 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
@@ -108,6 +111,7 @@ class ScheduleHeaderFrame extends StatelessWidget {
           const SizedBox(width: CruSpace.s10),
         ],
         const ScheduleDoctorFilter(),
+        const _ScribeButton(),
         CruSquareButton(
           icon: CruIcons.search,
           semanticLabel: 'Search appointments',
@@ -117,6 +121,31 @@ class ScheduleHeaderFrame extends StatelessWidget {
         const SizedBox(width: CruSpace.s10),
         SizedBox(width: kSchedulePrimaryWidth, child: primary),
       ],
+    );
+  }
+}
+
+/// Opens Scribe, which left the sidebar for this button: it records the
+/// same day's visits Schedule lists. Only where the login has Scribe.
+class _ScribeButton extends ConsumerWidget {
+  const _ScribeButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final navigate = ref.watch(shellNavigatorProvider);
+    final has = sidebarTabs(
+      dental: ref.watch(dentalFeaturesProvider),
+      access: ref.watch(clinicAccessProvider).value,
+    ).any((t) => t.tab == DesktopTab.scribe);
+    if (navigate == null || !has) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(right: CruSpace.s10),
+      child: CruSquareButton(
+        icon: CruIcons.mic,
+        semanticLabel: 'Scribe',
+        secondary: true,
+        onPressed: () => navigate(DesktopTab.scribe),
+      ),
     );
   }
 }

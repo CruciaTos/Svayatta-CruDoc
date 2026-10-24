@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dental/data/models/treatment_plan
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/search_lift.dart';
+import 'package:doctor_management_app/shared/widgets/page_tabs_scope.dart';
 
 /// Dates and times on the dental screens.
 abstract final class DentalFormat {
@@ -278,6 +279,26 @@ class DentalChipWrap<T> extends StatelessWidget {
 }
 
 /// Page title, one-line subtitle and the header buttons.
+/// The desktop page margins every screen uses (narrower windows get the
+/// compact ones).
+EdgeInsets desktopPagePadding(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < CruBreakpoint.compact
+    ? CruSpace.mainPaddingCompact
+    : CruSpace.mainPadding;
+
+/// An empty state on the desktop sits in a card like the list it stands
+/// in for; on a phone it stays bare.
+Widget desktopEmptyCard(BuildContext context, Widget empty) =>
+    cruIsPhone(context)
+    ? empty
+    : CruCard(
+        padding: const EdgeInsets.symmetric(
+          vertical: CruSpace.s32 * 2,
+          horizontal: CruSpace.s24,
+        ),
+        child: empty,
+      );
+
 class DentalPageHeader extends StatelessWidget {
   const DentalPageHeader({
     super.key,
@@ -344,17 +365,23 @@ class DentalPageHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Semantics(
-                header: true,
-                child: Text(title, style: CruType.largeTitle.tint(c.label)),
+              pageTitleOrTabs(
+                context,
+                Semantics(
+                  header: true,
+                  child: Text(title, style: CruType.largeTitle.tint(c.label)),
+                ),
               ),
-              const SizedBox(height: CruSpace.s2),
-              Text(
-                subtitle,
-                style: CruType.text.tabular.tint(c.accentText),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              // Under a page switch the switch says enough.
+              if (PageTabsScope.of(context) == null) ...[
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  subtitle,
+                  style: CruType.text.tabular.tint(c.accentText),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
           ),
         ),

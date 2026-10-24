@@ -145,7 +145,7 @@ class _MobileShellState extends ConsumerState<MobileShell> {
     }
     return switch (index) {
       MobileTab.home => MobileHomeScreen(enabledModules: modules),
-      MobileTab.schedule => const MobileScheduleScreen(),
+      MobileTab.schedule => MobileScheduleScreen(enabledModules: modules),
       MobileTab.patients => const MobilePatientsScreen(),
       MobileTab.tasks => MobileTasksScreen(enabledModules: modules),
       _ => MobileMoreScreen(enabledModules: modules),

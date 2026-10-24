@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
+import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
@@ -27,8 +30,18 @@ final patientSummariesProvider = Provider<AsyncValue<List<PatientSummary>>>((
   final p = patients.value;
   final v = visits.value ?? (visits.hasError ? const [] : null);
   if (p == null || v == null) return const AsyncValue.loading();
+  // Perio charts mark patients for the Perio filter (dentists with
+  // Periodontics only).
+  final perio = ref.watch(dentalFeaturesProvider).contains(DentalFeature.perio)
+      ? {
+          for (final r
+              in ref.watch(perioOverviewProvider)?.rows ??
+                  const <PerioPatientRow>[])
+            r.patientId,
+        }
+      : const <String>{};
   return AsyncValue.data(
-    PatientsBuilder.summaries(patients: p, visits: v, now: now),
+    PatientsBuilder.summaries(patients: p, visits: v, now: now, perio: perio),
   );
 });
 

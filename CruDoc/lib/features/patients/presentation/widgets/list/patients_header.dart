@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -25,6 +30,10 @@ class PatientsHeader extends ConsumerWidget {
     final subtitle = total == null
         ? null
         : PatientFormat.headerLine(total!, newThisMonth);
+    final recalls = sidebarTabs(
+      dental: ref.watch(dentalFeaturesProvider),
+      access: ref.watch(clinicAccessProvider).value,
+    ).any((t) => t.tab == DesktopTab.recalls);
 
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
@@ -84,6 +93,18 @@ class PatientsHeader extends ConsumerWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Recalls left the sidebar for this button (for logins that
+            // have it).
+            if (recalls) ...[
+              CruButton(
+                label: 'Recalls',
+                kind: CruButtonKind.secondary,
+                icon: RecIcons.recall,
+                onPressed: () =>
+                    ref.read(shellNavigatorProvider)?.call(DesktopTab.recalls),
+              ),
+              const SizedBox(width: CruSpace.s10),
+            ],
             CruButton(
               label: 'Import / Export',
               kind: CruButtonKind.secondary,

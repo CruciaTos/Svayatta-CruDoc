@@ -128,7 +128,8 @@ enum RadViewerAction {
   prevFrame('Previous frame', '[', RadActionGroup.image),
   thumbnails('Thumbnails', 'B', RadActionGroup.panels),
   panel('Side panel', 'J', RadActionGroup.panels),
-  shortcuts('Shortcuts', '?', RadActionGroup.panels);
+  shortcuts('Shortcuts', '?', RadActionGroup.panels),
+  cursorOffset('Cursor offset', '', RadActionGroup.view);
 
   const RadViewerAction(this.label, this.defaultKey, this.group);
   final String label;
@@ -193,6 +194,7 @@ class RadViewerPrefs {
     this.panelOpen = true,
     this.thumbs = true,
     this.fullQuality = true,
+    this.cursorOffset = false,
     this.states = const {},
   });
 
@@ -211,6 +213,9 @@ class RadViewerPrefs {
   final bool thumbs;
   final bool fullQuality;
 
+  /// Whether to offset the drawing cursor/magnifier 48 px above the finger on touch.
+  final bool cursorOffset;
+
   /// Last state by study type name: layout, tool, link, tab.
   final Map<String, Map<String, dynamic>> states;
 
@@ -226,6 +231,7 @@ class RadViewerPrefs {
 
   static const thumbsKey = 'v2d.thumbs';
   static const fullQualityKey = 'v2d.fullQuality';
+  static const cursorOffsetKey = 'v2d.cursorOffset';
   static String stateKey(RadModality m) => 'v2d.state.${m.name}';
 
   factory RadViewerPrefs.from(Map<String, dynamic> v) {
@@ -262,6 +268,7 @@ class RadViewerPrefs {
       panelOpen: v[panelOpenKey] != false,
       thumbs: v[thumbsKey] != false,
       fullQuality: v.containsKey(fullQualityKey) ? (v[fullQualityKey] == true) : defaultFullQuality(),
+      cursorOffset: v[cursorOffsetKey] == true,
       states: states,
     );
   }
@@ -297,6 +304,7 @@ class RadViewerPrefs {
     bool? panelOpen,
     bool? thumbs,
     bool? fullQuality,
+    bool? cursorOffset,
     Map<String, Map<String, dynamic>>? states,
   }) => RadViewerPrefs(
     keys: keys ?? this.keys,
@@ -308,6 +316,7 @@ class RadViewerPrefs {
     panelOpen: panelOpen ?? this.panelOpen,
     thumbs: thumbs ?? this.thumbs,
     fullQuality: fullQuality ?? this.fullQuality,
+    cursorOffset: cursorOffset ?? this.cursorOffset,
     states: states ?? this.states,
   );
 }

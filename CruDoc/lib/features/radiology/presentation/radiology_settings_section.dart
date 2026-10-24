@@ -101,6 +101,40 @@ class RadSettingsSection extends ConsumerWidget {
                   ],
                 ),
               ),
+              const CruSeparator(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Cursor offset on touch screens',
+                            style: CruType.callout.tint(context.cru.label),
+                          ),
+                          const SizedBox(height: CruSpace.s2),
+                          Text(
+                            'Offset the cursor 48 px above your finger so drawing and measuring are not blocked.',
+                            style: CruType.caption.tint(context.cru.label2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: CruSpace.s16),
+                    _SettingToggle(
+                      label: 'Cursor offset on touch screens',
+                      value: RadViewerPrefs.from(settings.viewer).cursorOffset,
+                      onChanged: (value) => ref
+                          .read(radiologyProvider)
+                          .saveViewerPrefs({
+                        RadViewerPrefs.cursorOffsetKey: value,
+                      }),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

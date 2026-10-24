@@ -681,6 +681,19 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     _savePrefs({RadViewerPrefs.thumbsKey: _prefs.thumbs});
   }
 
+  void _toggleCursorOffset() {
+    final next = !_prefs.cursorOffset;
+    _prefs = _prefs.copyWith(cursorOffset: next);
+    setState(() {});
+    _savePrefs({RadViewerPrefs.cursorOffsetKey: next});
+    radToast(
+      context,
+      next
+          ? 'Cursor offset enabled (48 px above touch)'
+          : 'Cursor offset disabled',
+    );
+  }
+
   Future<void> _openShortcuts() => showRadShortcuts(
     context,
     prefs: _prefs,
@@ -1319,6 +1332,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         _toggleThumbs();
       case RadViewerAction.panel:
         _togglePanel();
+      case RadViewerAction.cursorOffset:
+        _toggleCursorOffset();
       case RadViewerAction.shortcuts:
         _openShortcuts();
       default:
@@ -2168,6 +2183,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
           selected: _loupe,
         ),
         act(
+          RadViewerIcons.cursorOffset,
+          'Offset',
+          _toggleCursorOffset,
+          selected: _prefs.cursorOffset,
+        ),
+        act(
           RadViewerIcons.reset,
           'Reset',
           () => _run(RadViewerAction.reset),
@@ -2240,6 +2261,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
             () => _push(RadCephScreen(studyId: s.id, imageId: p.imageId)),
             enabled: has && own,
           ),
+        act(
+          RadViewerIcons.cursorOffset,
+          'Cursor offset',
+          _toggleCursorOffset,
+          selected: _prefs.cursorOffset,
+        ),
         act(
           RadViewerIcons.readingMode,
           'Full screen',

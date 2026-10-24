@@ -197,6 +197,9 @@ class _RadViewportState extends State<RadViewport>
   int _editHandle = -1;
   Offset _editStart = Offset.zero;
 
+  static const _touchCursorOffset = Offset(0, -48.0);
+  Offset? _touchPos;
+
   RadPane get pane => widget.pane;
 
   RadAnnotation? get _selected {
@@ -232,11 +235,15 @@ class _RadViewportState extends State<RadViewport>
       _draftBeforeTouch = pane.draft;
     }
     widget.host.activatePane(pane);
-    final pos = e.localPosition;
+    final isTouch = e.kind == PointerDeviceKind.touch;
+    final useOffset = isTouch && widget.host.prefs.cursorOffset;
+    final pos = useOffset ? e.localPosition + _touchCursorOffset : e.localPosition;
+    _touchPos = isTouch && useOffset ? e.localPosition : null;
     pane.cursor = pos;
     if (!pane.hasImage) return;
     _downPos = _lastPos = pos;
     _moved = false;
+    if (useOffset) pane.touch();
 
     final prefs = widget.host.prefs;
     if (e.buttons & kSecondaryMouseButton != 0) return _startDrag(prefs.right);
@@ -376,7 +383,10 @@ class _RadViewportState extends State<RadViewport>
       if (_drag == _Drag.pinch) return _pinchUpdate();
       if (_ignoreUntilUp) return;
     }
-    final pos = e.localPosition;
+    final isTouch = e.kind == PointerDeviceKind.touch;
+    final useOffset = isTouch && widget.host.prefs.cursorOffset;
+    final pos = useOffset ? e.localPosition + _touchCursorOffset : e.localPosition;
+    _touchPos = isTouch && useOffset ? e.localPosition : null;
     final delta = pos - _lastPos;
     _lastPos = pos;
     pane.cursor = pos;
@@ -442,8 +452,12 @@ class _RadViewportState extends State<RadViewport>
   }
 
   void _up(PointerUpEvent e) {
+    _touchPos = null;
     if (e.kind == PointerDeviceKind.touch && _touchUp(e.pointer)) return;
     final d = pane.draft;
+    final isTouch = e.kind == PointerDeviceKind.touch;
+    final useOffset = isTouch && widget.host.prefs.cursorOffset;
+    final pos = useOffset ? e.localPosition + _touchCursorOffset : e.localPosition;
     switch (_drag) {
       case _Drag.draw:
         pane.draft = null;
@@ -453,7 +467,7 @@ class _RadViewportState extends State<RadViewport>
         if (d != null && !_moved) {
           pane.draft = d.copyWith(points: [d.points.first]);
         }
-        pane.draftHover = e.localPosition;
+        pane.draftHover = pos;
         pane.touch();
       case _Drag.freehand:
         pane.draft = null;
@@ -500,6 +514,7 @@ class _RadViewportState extends State<RadViewport>
     _pinchFocal = (pts[0] + pts[1]) / 2;
     _pinchDist = (pts[0] - pts[1]).distance;
     _lastClick = null;
+    _touchPos = null;
     pane.cursor = null;
     pane.touch();
     setState(() => _drag = _Drag.pinch);
@@ -614,6 +629,7 @@ class _RadViewportState extends State<RadViewport>
               onPointerUp: _up,
               onPointerCancel: (e) {
                 _touches.remove(e.pointer);
+                _touchPos = null;
                 if (_touches.isEmpty) _ignoreUntilUp = false;
                 setState(() => _drag = _Drag.none);
               },
@@ -651,6 +667,8 @@ class _RadViewportState extends State<RadViewport>
                         calibrating: widget.tool == RadTool.calibrate,
                         aiFindings: widget.aiFindings,
                         showAiMarks: widget.showAiMarks,
+                        touchPos: _touchPos,
+                        cursorOffset: widget.host.prefs.cursorOffset,
                       ),
                     ),
                   ),
@@ -830,6 +848,8 @@ class _OverlayPainter extends CustomPainter {
     required this.calibrating,
     this.aiFindings = const [],
     this.showAiMarks = true,
+    this.touchPos,
+    this.cursorOffset = false,
   }) : super(repaint: pane);
 
   final RadPane pane;
@@ -840,6 +860,8 @@ class _OverlayPainter extends CustomPainter {
   final bool calibrating;
   final List<RadAiFinding> aiFindings;
   final bool showAiMarks;
+  final Offset? touchPos;
+  final bool cursorOffset;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -874,7 +896,55 @@ class _OverlayPainter extends CustomPainter {
     if (mm != null && pane.zoom > 0) {
       radPaintScaleBar(canvas, size, mm / pane.zoom);
     }
+    if (cursorOffset && touchPos != null && pane.cursor != null) {
+      _paintCursorOffsetGuide(canvas, touchPos!, pane.cursor!);
+    }
     canvas.restore();
+  }
+
+  void _paintCursorOffsetGuide(Canvas canvas, Offset touch, Offset cur) {
+    // Connector line between touch point and offset cursor
+    final linePaint = Paint()
+      ..color = const Color(0x66FFFFFF)
+      ..strokeWidth = 1.0;
+    canvas.drawLine(touch + const Offset(0, -6), cur + const Offset(0, 6), linePaint);
+
+    // Touch ring
+    canvas.drawCircle(
+      touch,
+      4.0,
+      Paint()
+        ..color = const Color(0x33FFFFFF)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawCircle(
+      touch,
+      4.0,
+      Paint()
+        ..color = const Color(0x80FFFFFF)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    // Crosshair shadow + stroke at offset target
+    final shadowPaint = Paint()
+      ..color = const Color(0x80000000)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final reticlePaint = Paint()
+      ..color = RadInk.annotation
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    for (final p in [shadowPaint, reticlePaint]) {
+      canvas.drawLine(Offset(cur.dx - 8, cur.dy), Offset(cur.dx - 3, cur.dy), p);
+      canvas.drawLine(Offset(cur.dx + 3, cur.dy), Offset(cur.dx + 8, cur.dy), p);
+      canvas.drawLine(Offset(cur.dx, cur.dy - 8), Offset(cur.dx, cur.dy - 3), p);
+      canvas.drawLine(Offset(cur.dx, cur.dy + 3), Offset(cur.dx, cur.dy + 8), p);
+    }
+    canvas.drawCircle(cur, 1.2, Paint()..color = RadInk.annotation);
   }
 
   void _paintAiFindings(Canvas canvas, Size size) {
@@ -951,7 +1021,9 @@ class _OverlayPainter extends CustomPainter {
       old.mmPerPx != mmPerPx ||
       old.calibrating != calibrating ||
       old.aiFindings != aiFindings ||
-      old.showAiMarks != showAiMarks;
+      old.showAiMarks != showAiMarks ||
+      old.touchPos != touchPos ||
+      old.cursorOffset != cursorOffset;
 }
 
 // ───────────────────────────── Corners ─────────────────────────────

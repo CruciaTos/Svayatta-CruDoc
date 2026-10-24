@@ -7,6 +7,11 @@ abstract final class RadViewerIcons {
     'M5.5 3.5v14l4-3.5 2.8 6 2.6-1.2-2.8-5.9h5.4z',
   );
 
+  /// Cursor offset: cursor arrow with an upward offset arrow.
+  static const cursorOffset = CruIconData(
+    'M5.5 3.5v14l4-3.5 2.8 6 2.6-1.2-2.8-5.9h5.4zM18 15V4M15 7l3-3 3 3',
+  );
+
   static const pan = CruIconData(
     'M12 3v18M3 12h18M9.5 5.5 12 3l2.5 2.5M9.5 18.5 12 21l2.5-2.5'
     'M5.5 9.5 3 12l2.5 2.5M18.5 9.5 21 12l-2.5 2.5',

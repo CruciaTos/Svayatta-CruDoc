@@ -17,6 +17,8 @@ import 'package:doctor_management_app/features/radiology/presentation/rad_import
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/features/radiology/presentation/rvg_capture_dialog.dart';
+import 'package:doctor_management_app/features/radiology/viewer/viewer_icons.dart';
+import 'package:doctor_management_app/features/radiology/viewer/viewer_prefs.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum _Show { all, toRead, inReport, signed }
@@ -183,6 +185,33 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                 : '${DashFormat.plural(toRead.length, 'study', 'studies')} to read'
                       '${overdue > 0 ? ' · $overdue overdue' : ''}',
             actions: [
+              if (cruIsPhone(context))
+                Consumer(
+                  builder: (context, ref, _) {
+                    final settings = ref.watch(radSettingsProvider).value;
+                    final cursorOffset = settings != null &&
+                        RadViewerPrefs.from(settings.viewer).cursorOffset;
+                    return CruButton(
+                      label: cursorOffset ? 'Offset on' : 'Offset off',
+                      icon: RadViewerIcons.cursorOffset,
+                      kind: cursorOffset
+                          ? CruButtonKind.primary
+                          : CruButtonKind.secondary,
+                      onPressed: () {
+                        final next = !cursorOffset;
+                        ref.read(radiologyProvider).saveViewerPrefs({
+                          RadViewerPrefs.cursorOffsetKey: next,
+                        });
+                        radToast(
+                          context,
+                          next
+                              ? 'Cursor offset enabled (48 px above touch)'
+                              : 'Cursor offset disabled',
+                        );
+                      },
+                    );
+                  },
+                ),
               CruButton(
                 label: 'Capture RVG',
                 icon: RadIcons.xray,

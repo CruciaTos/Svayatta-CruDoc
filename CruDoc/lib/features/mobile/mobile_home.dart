@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
@@ -107,11 +108,12 @@ ScheduleItem? _nextBooked(DashboardData data) {
   return booked.firstOrNull;
 }
 
-/// A home visit's card: green ink, the counterpart of the blue one.
+/// The home-visit card colours.
 abstract final class _VisitInk {
-  static const gradient = [Color(0xFF0D3B2B), Color(0xFF178060)];
-  static const border = Color(0xFF6FD9AC);
-  static const accent = Color(0xFFBDF2D8);
+  // WhatsApp's deep teal-greens, dark to light like the blue card.
+  static const gradient = [Color(0xFF075E54), Color(0xFF128C7E)];
+  static const border = Color(0xFF5CC9A7);
+  static const accent = Color(0xFFCFF3E6);
 }
 
 /// The hero: the next patient on the ink card with one big Start, or a
@@ -442,6 +444,21 @@ class _BookedCard extends ConsumerWidget {
     }
   }
 
+  /// Start visit: open Google Maps at the home address, then check in.
+  Future<void> _startVisit(BuildContext context, WidgetRef ref) async {
+    final url = item.mapsUrl;
+    if (url == null) {
+      mobileSay(context, 'No address saved for ${item.firstName}.');
+    } else {
+      final opened = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && context.mounted) mobileSay(context, 'Could not open maps.');
+    }
+    if (context.mounted) await _checkIn(context, ref);
+  }
+
   void _more(BuildContext context, Patient p) => showMobileActionSheet(
     context,
     title: item.name,
@@ -535,7 +552,8 @@ class _BookedCard extends ConsumerWidget {
                   _InkButton(
                     label: home ? 'Start visit' : 'Check in ${item.firstName}',
                     icon: home ? CruIcons.play : CruIcons.userCheck,
-                    onPressed: () => _checkIn(context, ref),
+                    onPressed: () =>
+                        home ? _startVisit(context, ref) : _checkIn(context, ref),
                   ),
                 ],
               ),

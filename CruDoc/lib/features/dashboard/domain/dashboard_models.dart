@@ -40,6 +40,7 @@ class ScheduleItem {
     this.patient,
     this.queueEntryId,
     this.visitId,
+    this.mapsUrl,
   });
 
   final String id;
@@ -65,6 +66,10 @@ class ScheduleItem {
   final Patient? patient;
   final String? queueEntryId;
   final String? visitId;
+
+  /// Google Maps link to a home visit's address; null for clinic visits or
+  /// when no address was saved.
+  final String? mapsUrl;
 }
 
 class GlanceData {

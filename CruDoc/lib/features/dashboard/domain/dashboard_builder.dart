@@ -200,6 +200,7 @@ _ScheduleResult _buildSchedule({
         patient: patient,
         queueEntryId: e.id,
         visitId: visit?.id ?? e.linkedVisitId,
+        mapsUrl: _mapsUrl(visit),
       ),
     );
   }
@@ -226,6 +227,7 @@ _ScheduleResult _buildSchedule({
         kindLabel: kindFor(patient, v),
         patient: patient,
         visitId: v.id,
+        mapsUrl: _mapsUrl(v),
       ),
     );
   }
@@ -428,6 +430,28 @@ String? _clean(String? s) {
   return t.isEmpty ? null : t;
 }
 
+/// A Google Maps link for a home visit: the saved maps link, else the
+/// geocoded point, else a search for the address. Null otherwise.
+String? _mapsUrl(Visit? v) {
+  if (v == null || v.visitType != VisitType.home) return null;
+  final link = v.mapsLink?.trim();
+  if (link != null && link.isNotEmpty) {
+    return link.startsWith('http://') || link.startsWith('https://')
+        ? link
+        : 'https://$link';
+  }
+  final String query;
+  if (v.latitude != null && v.longitude != null) {
+    query = '${v.latitude},${v.longitude}';
+  } else {
+    final address = v.address.trim();
+    if (address.isEmpty) return null;
+    query = address;
+  }
+  return 'https://www.google.com/maps/search/?api=1'
+      '&query=${Uri.encodeComponent(query)}';
+}
+
 int _minutesBetween(DateTime from, DateTime to) {
   final m = to.difference(from).inMinutes;
   return m < 0 ? 0 : m;
@@ -487,6 +511,7 @@ void _groupSchedule(List<ScheduleItem> items, Map<String, String> groupOf) {
         patient: i.patient,
         queueEntryId: i.queueEntryId,
         visitId: i.visitId,
+        mapsUrl: i.mapsUrl,
       ),
     );
   }

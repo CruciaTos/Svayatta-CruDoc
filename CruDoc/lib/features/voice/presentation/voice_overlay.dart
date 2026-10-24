@@ -603,8 +603,14 @@ class _Strip extends StatelessWidget {
         ],
       ),
     );
-    // Why it's off, on hover.
-    return error == null ? pill : Tooltip(message: error!, child: pill);
+    if (error == null) return pill;
+    // Why it's off, on hover or tap. Not a Tooltip: the pill sits above the
+    // Navigator, so there is no Overlay for a tooltip to float in.
+    return _OffReason(
+      reason: error!.replaceFirst('Bad state: ', ''),
+      style: CruType.caption.copyWith(color: c.label3),
+      child: pill,
+    );
   }
 
   /// Wider capsule: sound bars and the words as they come, and under
@@ -894,6 +900,65 @@ class _Bars extends StatelessWidget {
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The "Voice off" pill; hovering or tapping it shows why underneath.
+class _OffReason extends StatefulWidget {
+  const _OffReason({
+    required this.reason,
+    required this.style,
+    required this.child,
+  });
+
+  final String reason;
+  final TextStyle style;
+  final Widget child;
+
+  @override
+  State<_OffReason> createState() => _OffReasonState();
+}
+
+class _OffReasonState extends State<_OffReason> {
+  bool _hover = false;
+  bool _pinned = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final open = _hover || _pinned;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _pinned = !_pinned),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            widget.child,
+            if (open)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    CruSpace.s16,
+                    0,
+                    CruSpace.s16,
+                    CruSpace.s8,
+                  ),
+                  child: Text(
+                    widget.reason,
+                    style: widget.style,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

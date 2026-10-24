@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:doctor_management_app/features/messaging/data/models/whatsapp_notification_log.dart';
+import 'package:doctor_management_app/features/messaging/data/models/whatsapp_reply.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_log_local_service.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
@@ -125,6 +126,37 @@ class WhatsAppRepository {
           return null;
         })
         .handleError((_) => null);
+  }
+
+  /// Reminders that failed to send, newest first (for Notifications).
+  Stream<List<WhatsAppNotificationLog>> watchFailedLogs({int limit = 20}) {
+    final firestore = _firestore;
+    if (firestore == null) return Stream.value(const []);
+    return firestore
+        .collection(_collection)
+        .where('doctorId', isEqualTo: _currentDoctorId)
+        .where('status', isEqualTo: WhatsAppNotificationStatus.failed.value)
+        .orderBy('updatedAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (s) => [for (final d in s.docs) WhatsAppNotificationLog.fromFirestore(d)],
+        )
+        .handleError((_) {});
+  }
+
+  /// What patients wrote back to the reminder number, newest first.
+  Stream<List<WhatsAppReply>> watchRecentReplies({int limit = 30}) {
+    final firestore = _firestore;
+    if (firestore == null) return Stream.value(const []);
+    return firestore
+        .collection('whatsapp_replies')
+        .where('doctorId', isEqualTo: _currentDoctorId)
+        .orderBy('receivedAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((s) => [for (final d in s.docs) WhatsAppReply.fromFirestore(d)])
+        .handleError((_) {});
   }
 
   /// Keeps a local copy so a reopened appointment shows its last known status

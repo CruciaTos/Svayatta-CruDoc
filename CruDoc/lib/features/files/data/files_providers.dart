@@ -263,3 +263,10 @@ final filesViewProvider = Provider<AsyncValue<FilesView>>((ref) {
     ),
   );
 });
+
+/// The newest files across all patients, for Notifications.
+final recentFilesProvider = FutureProvider<List<PatientFile>>((ref) {
+  ref.watch(filesVersionProvider);
+  ref.watch(clinicAccessProvider);
+  return FilesRepository.instance.files(limit: 40);
+});

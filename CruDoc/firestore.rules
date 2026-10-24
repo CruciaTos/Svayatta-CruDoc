@@ -590,6 +590,13 @@ service cloud.firestore {
       }
     }
 
+    // What patients wrote back to the reminder number. Only the server
+    // writes; the clinic reads them in Notifications.
+    match /whatsapp_replies/{replyId} {
+      allow get, list: if clinicAllows(resource.data.doctorId, 'messaging');
+      allow write: if false;
+    }
+
     // Patients who replied STOP. Keyed by phone number and shared across all
     // clinics, so it is never readable by a doctor: it would expose that a
     // given number belongs to someone who also sees another practice.

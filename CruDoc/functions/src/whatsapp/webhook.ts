@@ -16,6 +16,9 @@ import {sendSessionText} from "./send";
 
 const AUTOREPLY_COLLECTION = "whatsapp_autoreplies";
 
+/** What patients wrote back, readable by their clinic (Notifications). */
+const REPLIES_COLLECTION = "whatsapp_replies";
+
 /** One auto-reply per phone per day, so a chatty patient is not spammed. */
 const AUTOREPLY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
@@ -143,6 +146,32 @@ async function replySafely(to: string, text: string): Promise<void> {
   }
 }
 
+/** Keeps what a patient wrote, so their clinic sees it in Notifications. */
+async function recordReply(
+  m: Record<string, any>,
+  from: string,
+  text: string,
+  kind: "text" | "stop" | "start",
+): Promise<void> {
+  try {
+    const clinic = await lastClinicFor(from);
+    if (!clinic?.doctorId) return;
+    const id = String(m.id || "") || `${from}_${Date.now()}`;
+    await getDb().collection(REPLIES_COLLECTION).doc(id).set({
+      doctorId: clinic.doctorId,
+      patientId: clinic.patientId ?? null,
+      visitId: clinic.visitId ?? null,
+      name: clinic.recipientName ?? "",
+      phone: from,
+      kind,
+      text: text.slice(0, 500),
+      receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("[WhatsApp] could not record reply", err);
+  }
+}
+
 async function handleInbound(
   messages: Array<Record<string, any>>,
 ): Promise<void> {
@@ -155,6 +184,12 @@ async function handleInbound(
       String(m.button?.text || m.interactive?.button_reply?.title || "");
 
     const intent = classifyReply(text);
+    await recordReply(
+      m,
+      from,
+      text,
+      intent === "stop" ? "stop" : intent === "start" ? "start" : "text",
+    );
 
     if (intent === "stop") {
       await optOut(from, "reply");

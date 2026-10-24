@@ -18,6 +18,8 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart'
+    show activityUnreadProvider;
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/mobile/mobile_notifications.dart';
@@ -733,10 +735,23 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: CruSpace.s12),
-          MobileCircleButton(
-            icon: mobileBellIcon,
-            semanticLabel: 'Notifications',
-            onPressed: () => openMobileNotifications(context),
+          Consumer(
+            builder: (context, ref, _) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+                MobileCircleButton(
+                  icon: mobileBellIcon,
+                  semanticLabel: 'Notifications',
+                  onPressed: () => openMobileNotifications(context),
+                ),
+                if (ref.watch(activityUnreadProvider))
+                  const Positioned(
+                    top: 9,
+                    right: 9,
+                    child: IgnorePointer(child: MobileUnreadDot(size: 9)),
+                  ),
+              ],
+            ),
           ),
         ],
       ),

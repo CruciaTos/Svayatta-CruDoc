@@ -271,7 +271,13 @@ export async function applyStatusEvent(params: {
 /** The clinic a phone number last heard from, for the auto-reply. */
 export async function lastClinicFor(
   phone: string,
-): Promise<{clinicName?: string; doctorId?: string} | null> {
+): Promise<{
+  clinicName?: string;
+  doctorId?: string;
+  patientId?: string | null;
+  recipientName?: string;
+  visitId?: string;
+} | null> {
   const snap = await getDb()
     .collection(LOGS_COLLECTION)
     .where("recipientPhone", "==", phone)
@@ -280,6 +286,13 @@ export async function lastClinicFor(
     .get();
 
   if (snap.empty) return null;
-  const data = snap.docs[0].data();
-  return {clinicName: data.clinicName, doctorId: data.doctorId};
+  const doc = snap.docs[0];
+  const data = doc.data();
+  return {
+    clinicName: data.clinicName,
+    doctorId: data.doctorId,
+    patientId: data.patientId ?? null,
+    recipientName: data.recipientName,
+    visitId: doc.id,
+  };
 }

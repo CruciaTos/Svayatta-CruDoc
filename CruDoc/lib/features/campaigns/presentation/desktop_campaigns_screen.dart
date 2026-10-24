@@ -1,35 +1,21 @@
-import 'dart:ui' as ui;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
-import '../data/models/campaign_model.dart';
-import '../data/models/campaign_enums.dart';
-import '../data/providers/campaign_providers.dart';
-import '../data/repo/campaign_repository.dart';
-import '../data/services/campaign_dispatch_service.dart';
-import 'post_campaign_modal.dart';
-import 'campaign_analytics_dialog.dart';
 
-// =============================================================================
-// DESIGN TOKENS (Matching desktop consistency system)
-// =============================================================================
-const _kPrimaryAccent = Color(0xFF2563EB); // Royal cobalt blue
-const _kAccentTint = Color(0xFFEFF6FF);
-const _kSuccessGreen = Color(0xFF10B981);
-const _kSuccessTint = Color(0xFFECFDF5);
-const _kDangerRose = Color(0xFFF43F5E);
-const _kDangerTint = Color(0xFFFFF1F2);
-const _kWarningAmber = Color(0xFFF59E0B);
-const _kWarningTint = Color(0xFFFFFBEB);
-const _kTextDark = Color(0xFF0F172A);
-const _kTextMedium = Color(0xFF334155);
-const _kTextMuted = Color(0xFF64748B);
-const _kBorderLight = Color(0xFFE2E8F0);
-const _kCardBg = Colors.white;
+import 'package:doctor_management_app/features/campaigns/data/models/campaign_enums.dart';
+import 'package:doctor_management_app/features/campaigns/data/models/campaign_model.dart';
+import 'package:doctor_management_app/features/campaigns/data/providers/campaign_providers.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/campaign_analytics_dialog.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/post_campaign_modal.dart';
+import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Full desktop Campaign Management Hub screen.
+/// Campaigns on the desktop, laid out like the other pages: header with
+/// the one filled button, the at-a-glance strip, filters and search, then
+/// the campaigns in one card.
 class DesktopCampaignsScreen extends ConsumerStatefulWidget {
   const DesktopCampaignsScreen({super.key});
 
@@ -40,1010 +26,430 @@ class DesktopCampaignsScreen extends ConsumerStatefulWidget {
 
 class _DesktopCampaignsScreenState
     extends ConsumerState<DesktopCampaignsScreen> {
-  CampaignRepository get _campaignRepository =>
-      ref.read(campaignRepositoryProvider);
-  CampaignDispatchService get _dispatchService =>
-      ref.read(campaignDispatchServiceProvider);
-  final TextEditingController _searchController = TextEditingController();
+  final _search = TextEditingController();
+  CampaignCategory? _category;
+  CampaignStatus? _status;
 
-  String _searchQuery = '';
-  CampaignCategory? _selectedCategoryFilter;
-  CampaignStatus? _selectedStatusFilter;
-
-  String get _currentDoctorId =>
-      FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+  String get _doctorId => FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _search.dispose();
     super.dispose();
+  }
+
+  List<CampaignModel> _filter(List<CampaignModel> all) {
+    final q = _search.text.trim().toLowerCase();
+    return [
+      for (final c in all)
+        if ((q.isEmpty ||
+                c.title.toLowerCase().contains(q) ||
+                c.message.toLowerCase().contains(q) ||
+                c.category.label.toLowerCase().contains(q)) &&
+            (_category == null || c.category == _category) &&
+            (_status == null || c.status == _status))
+          c,
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFCBD5E1), width: 0.75),
-              boxShadow: const [],
-            ),
-            child: StreamBuilder<List<CampaignModel>>(
-              stream: _campaignRepository.watchDoctorCampaigns(
-                _currentDoctorId,
-              ),
-              builder: (context, snapshot) {
-                final allCampaigns = snapshot.data ?? [];
-                final filteredCampaigns = _filterCampaigns(allCampaigns);
-
-                return Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. Header Bar
-                      _buildHeaderSection(context),
-                      const SizedBox(height: 18),
-
-                      // 2. Summary KPI Metric Row (Clean no-icon value boxes)
-                      _buildSummaryKpiRow(allCampaigns),
-                      const SizedBox(height: 18),
-
-                      // 3. Search & Filter Bar
-                      _buildSearchAndFilters(),
-                      const SizedBox(height: 16),
-
-                      // 4. Campaign Cards List / Table
-                      Expanded(
-                        child:
-                            snapshot.connectionState == ConnectionState.waiting
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: _kPrimaryAccent,
-                                ),
-                              )
-                            : filteredCampaigns.isEmpty
-                            ? _buildEmptyState(allCampaigns.isEmpty)
-                            : _buildCampaignsList(filteredCampaigns),
-                      ),
-                    ],
+    final repo = ref.watch(campaignRepositoryProvider);
+    return Padding(
+      padding: desktopPagePadding(context),
+      child: StreamBuilder<List<CampaignModel>>(
+        stream: repo.watchDoctorCampaigns(_doctorId),
+        builder: (context, snapshot) {
+          final all = snapshot.data;
+          final shown = all == null ? const <CampaignModel>[] : _filter(all);
+          final filtering =
+              _category != null ||
+              _status != null ||
+              _search.text.trim().isNotEmpty;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DentalPageHeader(
+                title: 'Campaigns',
+                subtitle: all == null
+                    ? ''
+                    : all.isEmpty
+                    ? 'Health notices to your patients by WhatsApp and email'
+                    : _subtitle(all),
+                actions: [
+                  CruButton(
+                    label: 'New campaign',
+                    icon: CruIcons.plus,
+                    onPressed: () => PostCampaignModal.show(context),
                   ),
-                );
-              },
-            ),
-          ),
-        ),
+                ],
+              ),
+              const SizedBox(height: CruSpace.cardGap),
+              _Glance(campaigns: all ?? const []),
+              const SizedBox(height: CruSpace.cardGap),
+              DentalFilterBar(
+                filters: [
+                  _Menu<CampaignCategory>(
+                    tooltip: 'Category',
+                    allLabel: 'All categories',
+                    value: _category,
+                    values: CampaignCategory.values,
+                    label: (c) => c.label,
+                    onSelected: (c) => setState(() => _category = c),
+                  ),
+                  _Menu<CampaignStatus>(
+                    tooltip: 'Status',
+                    allLabel: 'All statuses',
+                    value: _status,
+                    values: CampaignStatus.values,
+                    label: (s) => s.label,
+                    onSelected: (s) => setState(() => _status = s),
+                  ),
+                  if (filtering)
+                    CruLink(
+                      label: 'Clear',
+                      onPressed: () {
+                        _search.clear();
+                        setState(() {
+                          _category = null;
+                          _status = null;
+                        });
+                      },
+                    ),
+                ],
+                search: DentalSearchField(
+                  controller: _search,
+                  hint: 'Search title, topic or message',
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+              const SizedBox(height: CruSpace.cardGap),
+              Expanded(
+                child: all == null
+                    ? const SizedBox.shrink()
+                    : shown.isEmpty
+                    // The empty card fills the list's space, like the
+                    // other pages' lists do.
+                    ? CruCard(
+                        padding: const EdgeInsets.all(CruSpace.s12),
+                        child: Center(
+                          child: SingleChildScrollView(
+                            child: DentalEmptyState(
+                              icon: CruIcons.megaphone,
+                              title: all.isEmpty
+                                  ? 'No campaigns yet'
+                                  : 'No campaigns here',
+                              body: all.isEmpty
+                                  ? 'Send check-up drives, vaccine notices and '
+                                        'health advisories to your patients.'
+                                  : 'Try another filter or search.',
+                              actions: [
+                                if (all.isEmpty)
+                                  CruButton(
+                                    label: 'New campaign',
+                                    icon: CruIcons.plus,
+                                    onPressed: () =>
+                                        PostCampaignModal.show(context),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    : CruCard(
+                        semanticLabel: 'Campaigns',
+                        padding: const EdgeInsets.all(CruSpace.s12),
+                        child: ListView.separated(
+                          itemCount: shown.length,
+                          separatorBuilder: (_, _) => const CruSeparator(),
+                          itemBuilder: (context, i) =>
+                              _CampaignRow(campaign: shown[i]),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  // ===========================================================================
-  // 1. HEADER SECTION
-  // ===========================================================================
-  Widget _buildHeaderSection(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  static String _subtitle(List<CampaignModel> all) {
+    final reached = all.fold<int>(0, (s, c) => s + c.totalRecipients);
+    return [
+      DashFormat.plural(all.length, 'campaign'),
+      '${NumberFormat.decimalPattern('en_IN').format(reached)} patients reached',
+    ].join(' · ');
+  }
+}
+
+/// Campaigns, patients reached, delivery and messages sent.
+class _Glance extends StatelessWidget {
+  const _Glance({required this.campaigns});
+
+  final List<CampaignModel> campaigns;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    var recipients = 0, emails = 0, whatsApp = 0, failed = 0;
+    for (final x in campaigns) {
+      recipients += x.totalRecipients;
+      emails += x.emailsSent;
+      whatsApp += x.whatsAppSent;
+      failed += x.totalFailed;
+    }
+    final sent = emails + whatsApp;
+    final attempts = sent + failed;
+    final rate = attempts == 0 ? null : sent / attempts * 100;
+    final number = NumberFormat.decimalPattern('en_IN');
+
+    Widget cell(String label, String value, Widget caption) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Campaigns & Broadcasts',
-              style: TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: _kTextDark,
-                letterSpacing: -0.5,
-              ),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'Publish health advisories, vaccination drives, and camp notices via Email & WhatsApp',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: _kTextMuted,
-              ),
-            ),
-          ],
-        ),
-        ElevatedButton.icon(
-          onPressed: () => PostCampaignModal.show(context),
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('Post Campaign'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _kPrimaryAccent,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            textStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-            elevation: 0,
+        GlanceLabel(label),
+        GlanceMetric(value),
+        GlanceCaption(caption),
+      ],
+    );
+
+    return GlanceStrip(
+      semanticLabel: 'Campaigns at a glance',
+      cells: [
+        cell(
+          'Campaigns',
+          '${campaigns.length}',
+          Text(
+            campaigns.isEmpty
+                ? 'None sent yet'
+                : '${campaigns.where((x) => x.status == CampaignStatus.completed).length} completed',
           ),
+        ),
+        cell(
+          'Patients reached',
+          number.format(recipients),
+          const Text('Across all campaigns'),
+        ),
+        cell(
+          'Delivered',
+          rate == null ? '—' : '${rate.toStringAsFixed(0)}%',
+          failed > 0
+              ? Text(
+                  '${number.format(failed)} not delivered',
+                  style: TextStyle(color: c.amberText),
+                )
+              : Text(attempts == 0 ? 'Nothing sent yet' : 'All delivered'),
+        ),
+        cell(
+          'Messages sent',
+          number.format(sent),
+          Text('$emails email · $whatsApp WhatsApp'),
         ),
       ],
     );
   }
+}
 
-  // ===========================================================================
-  // 2. KPI SUMMARY ROW (Matching Financial Overview & Invoice Management)
-  // ===========================================================================
-  Widget _buildSummaryKpiRow(List<CampaignModel> campaigns) {
-    int totalRecipients = 0;
-    int totalEmails = 0;
-    int totalWhatsApp = 0;
-    int totalFailed = 0;
+/// An inset menu button ("All categories ⌄"), like the worklist's type.
+class _Menu<T> extends StatelessWidget {
+  const _Menu({
+    required this.tooltip,
+    required this.allLabel,
+    required this.value,
+    required this.values,
+    required this.label,
+    required this.onSelected,
+  });
 
-    for (final c in campaigns) {
-      totalRecipients += c.totalRecipients;
-      totalEmails += c.emailsSent;
-      totalWhatsApp += c.whatsAppSent;
-      totalFailed += c.totalFailed;
-    }
+  final String tooltip;
+  final String allLabel;
+  final T? value;
+  final List<T> values;
+  final String Function(T) label;
+  final ValueChanged<T?> onSelected;
 
-    final totalSent = totalEmails + totalWhatsApp;
-    final totalAttempts = totalSent + totalFailed;
-    final successRate = totalAttempts > 0
-        ? (totalSent / totalAttempts) * 100.0
-        : 100.0;
-
-    final isHealthy = successRate >= 90;
-    final isModerate = successRate >= 70;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double width = (constraints.maxWidth - (16 * 3)) / 4;
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            _CampaignMetricCard(
-              title: 'Total Campaigns',
-              amount: '${campaigns.length}',
-              subtitle: 'Broadcast campaigns',
-              badgeText: 'Published',
-              badgeColor: _kPrimaryAccent,
-              badgeBg: _kAccentTint,
-              width: width,
-            ),
-            _CampaignMetricCard(
-              title: 'Patients Reached',
-              amount: NumberFormat.compact().format(totalRecipients),
-              subtitle: '$totalRecipients total targeted',
-              badgeText: 'Audience',
-              badgeColor: _kSuccessGreen,
-              badgeBg: _kSuccessTint,
-              width: width,
-            ),
-            _CampaignMetricCard(
-              title: 'Delivery Rate',
-              amount: '${successRate.toStringAsFixed(1)}%',
-              subtitle: '$totalSent sent • $totalFailed failed',
-              badgeText: isHealthy
-                  ? 'Healthy'
-                  : (isModerate ? 'Moderate' : 'Errors'),
-              badgeColor: isHealthy
-                  ? _kSuccessGreen
-                  : (isModerate ? _kWarningAmber : _kDangerRose),
-              badgeBg: isHealthy
-                  ? _kSuccessTint
-                  : (isModerate ? _kWarningTint : _kDangerTint),
-              width: width,
-            ),
-            _CampaignMetricCard(
-              title: 'Messages Dispatched',
-              amount: '$totalSent',
-              subtitle: '$totalEmails email • $totalWhatsApp WhatsApp',
-              badgeText: 'Omnichannel',
-              badgeColor: const Color(0xFF0284C7),
-              badgeBg: const Color(0xFFF0F9FF),
-              width: width,
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // ===========================================================================
-  // 3. SEARCH & FILTERS BAR
-  // ===========================================================================
-  Widget _buildSearchAndFilters() {
-    final bool hasActiveFilter =
-        _selectedCategoryFilter != null ||
-        _selectedStatusFilter != null ||
-        _searchQuery.isNotEmpty;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: _kCardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorderLight, width: 0.8),
-        boxShadow: const [],
-      ),
-      child: Row(
-        children: [
-          // Search Input
-          Expanded(
-            child: SizedBox(
-              height: 38,
-              child: TextField(
-                controller: _searchController,
-                onChanged: (q) =>
-                    setState(() => _searchQuery = q.trim().toLowerCase()),
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 13,
-                  color: _kTextDark,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Search campaigns by title, topic, or message...',
-                  hintStyle: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 13,
-                    color: _kTextMuted,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    size: 18,
-                    color: _kTextMuted,
-                  ),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            size: 16,
-                            color: _kTextMuted,
-                          ),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: _kBorderLight),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: _kBorderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: _kPrimaryAccent),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-
-          // Category Dropdown Filter
-          Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _kBorderLight),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<CampaignCategory?>(
-                value: _selectedCategoryFilter,
-                hint: const Text(
-                  'All Categories',
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 12.5,
-                    color: _kTextMedium,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: _kTextMuted,
-                ),
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('All Categories'),
-                  ),
-                  ...CampaignCategory.values.map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c.label)),
-                  ),
-                ],
-                onChanged: (cat) =>
-                    setState(() => _selectedCategoryFilter = cat),
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 12.5,
-                  color: _kTextDark,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Status Dropdown Filter
-          Container(
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _kBorderLight),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<CampaignStatus?>(
-                value: _selectedStatusFilter,
-                hint: const Text(
-                  'All Statuses',
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 12.5,
-                    color: _kTextMedium,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  size: 18,
-                  color: _kTextMuted,
-                ),
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('All Statuses'),
-                  ),
-                  ...CampaignStatus.values.map(
-                    (s) => DropdownMenuItem(value: s, child: Text(s.label)),
-                  ),
-                ],
-                onChanged: (s) => setState(() => _selectedStatusFilter = s),
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 12.5,
-                  color: _kTextDark,
-                ),
-              ),
-            ),
-          ),
-
-          if (hasActiveFilter) ...[
-            const SizedBox(width: 10),
-            InkWell(
-              onTap: () {
-                _searchController.clear();
-                setState(() {
-                  _searchQuery = '';
-                  _selectedCategoryFilter = null;
-                  _selectedStatusFilter = null;
-                });
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _kDangerTint,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _kDangerRose.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.filter_alt_off_rounded,
-                      size: 15,
-                      color: _kDangerRose,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      'Reset',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _kDangerRose,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  List<CampaignModel> _filterCampaigns(List<CampaignModel> all) {
-    return all.where((c) {
-      if (_searchQuery.isNotEmpty &&
-          !c.title.toLowerCase().contains(_searchQuery) &&
-          !c.message.toLowerCase().contains(_searchQuery) &&
-          !c.category.label.toLowerCase().contains(_searchQuery)) {
-        return false;
-      }
-      if (_selectedCategoryFilter != null &&
-          c.category != _selectedCategoryFilter) {
-        return false;
-      }
-      if (_selectedStatusFilter != null && c.status != _selectedStatusFilter) {
-        return false;
-      }
-      return true;
-    }).toList();
-  }
-
-  // ===========================================================================
-  // 4. CAMPAIGNS LIST
-  // ===========================================================================
-  Widget _buildCampaignsList(List<CampaignModel> campaigns) {
-    return ListView.separated(
-      physics: const BouncingScrollPhysics(),
-      itemCount: campaigns.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final campaign = campaigns[index];
-        return _buildCampaignCard(context, campaign);
-      },
-    );
-  }
-
-  Widget _buildCampaignCard(BuildContext context, CampaignModel campaign) {
-    final cat = campaign.category;
-    final successRate = campaign.successRate;
-    final hasFailures = campaign.totalFailed > 0;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _kCardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorderLight, width: 0.8),
-        boxShadow: const [],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Category Icon Container
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: cat.color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: cat.color.withValues(alpha: 0.2)),
-            ),
-            child: Icon(cat.icon, color: cat.color, size: 22),
-          ),
-          const SizedBox(width: 16),
-
-          // Main Campaign Details
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Category Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cat.color.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        cat.label,
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: cat.color,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-
-                    // Channel Badge
-                    _buildChannelBadge(campaign.channels),
-                    const SizedBox(width: 6),
-
-                    // Status Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: campaign.status.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        campaign.status.label,
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: campaign.status.color,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  campaign.title,
-                  style: const TextStyle(
-                    fontFamily: AppColors.headingFontFamily,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _kTextDark,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  campaign.message,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 13,
-                    color: _kTextMuted,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.schedule_rounded,
-                      size: 14,
-                      color: _kTextMuted,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Published ${campaign.formattedCreatedAt}',
-                      style: const TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 11.5,
-                        color: _kTextMuted,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Icon(
-                      Icons.people_outline_rounded,
-                      size: 14,
-                      color: _kTextMuted,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Audience: ${campaign.audienceType.label}',
-                      style: const TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 11.5,
-                        color: _kTextMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 20),
-
-          // Delivery Health Progress Indicator
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Delivery Rate',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _kTextMuted,
-                      ),
-                    ),
-                    Text(
-                      '${successRate.toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontFamily: AppColors.headingFontFamily,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: successRate >= 90
-                            ? _kSuccessGreen
-                            : (successRate > 50
-                                  ? _kWarningAmber
-                                  : _kDangerRose),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: successRate / 100.0,
-                    minHeight: 6,
-                    backgroundColor: _kBorderLight,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      successRate >= 90
-                          ? _kSuccessGreen
-                          : (successRate > 50 ? _kPrimaryAccent : _kDangerRose),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${campaign.emailsSent} Email • ${campaign.whatsAppSent} WhatsApp',
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: _kTextMedium,
-                  ),
-                ),
-                if (hasFailures)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      '${campaign.totalFailed} delivery error${campaign.totalFailed > 1 ? 's' : ''}',
-                      style: const TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _kDangerRose,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 16),
-
-          // Action Buttons
-          Column(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () =>
-                    CampaignAnalyticsDialog.show(context, campaign: campaign),
-                icon: const Icon(Icons.insights_rounded, size: 15),
-                label: const Text('Logs'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _kTextDark,
-                  side: const BorderSide(color: _kBorderLight),
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  textStyle: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              PopupMenuButton<String>(
-                onSelected: (v) async {
-                  if (v == 'retry') {
-                    await _dispatchService.retryFailedRecipients(
-                      doctorId: campaign.doctorId,
-                      campaignId: campaign.id,
-                    );
-                    setState(() {});
-                  } else if (v == 'delete') {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        title: const Text('Delete Campaign?'),
-                        content: const Text(
-                          'This will delete the campaign record and its recipient delivery logs.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _kDangerRose,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed == true) {
-                      await _campaignRepository.deleteCampaign(
-                        campaign.doctorId,
-                        campaign.id,
-                      );
-                    }
-                  }
-                },
-                itemBuilder: (_) => [
-                  if (hasFailures)
-                    const PopupMenuItem(
-                      value: 'retry',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.refresh_rounded,
-                            size: 16,
-                            color: _kPrimaryAccent,
-                          ),
-                          SizedBox(width: 8),
-                          Text('Retry Failed Recipients'),
-                        ],
-                      ),
-                    ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline_rounded,
-                          size: 16,
-                          color: _kDangerRose,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Delete Campaign',
-                          style: TextStyle(color: _kDangerRose),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                icon: const Icon(
-                  Icons.more_vert_rounded,
-                  color: _kTextMuted,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChannelBadge(CampaignChannel channel) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 0.6),
-      ),
-      child: Text(
-        channel.label,
-        style: const TextStyle(
-          fontFamily: AppColors.bodyFontFamily,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF475569),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(bool isCompletelyEmpty) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: _kAccentTint,
-              ),
-              child: const Icon(
-                Icons.campaign_outlined,
-                size: 48,
-                color: _kPrimaryAccent,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isCompletelyEmpty
-                  ? 'No Campaigns Created Yet'
-                  : 'No Campaigns Match Your Filters',
-              style: const TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: _kTextDark,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              isCompletelyEmpty
-                  ? 'Engage your patients with health checkup drives, vaccine notices, and health advisories.'
-                  : 'Try clearing your search query or selecting "All Categories".',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: _kTextMuted,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () => PostCampaignModal.show(context),
-              icon: const Icon(Icons.add_rounded, size: 18),
-              label: const Text('Post First Campaign'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kPrimaryAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                textStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+  @override
+  Widget build(BuildContext context) {
+    final v = value;
+    return PopupMenuButton<T?>(
+      tooltip: tooltip,
+      onSelected: onSelected,
+      itemBuilder: (_) => [
+        PopupMenuItem<T?>(value: null, child: Text(allLabel)),
+        for (final x in values)
+          PopupMenuItem<T?>(value: x, child: Text(label(x))),
+      ],
+      child: IgnorePointer(
+        child: CruButton(
+          label: v == null ? allLabel : label(v),
+          icon: CruIcons.chevronDown,
+          kind: CruButtonKind.inset,
+          onPressed: () {},
         ),
       ),
     );
   }
 }
 
-// =============================================================================
-// REUSABLE METRIC VALUE BOX (Identical to Financial Overview & Invoice Management)
-// =============================================================================
-class _CampaignMetricCard extends StatelessWidget {
-  final String title;
-  final String amount;
-  final String subtitle;
-  final String badgeText;
-  final Color badgeColor;
-  final Color badgeBg;
-  final double width;
+/// One campaign: what it was, to whom and when, how delivery went, and
+/// its actions.
+class _CampaignRow extends ConsumerWidget {
+  const _CampaignRow({required this.campaign});
 
-  const _CampaignMetricCard({
-    required this.title,
-    required this.amount,
-    required this.subtitle,
-    required this.badgeText,
-    required this.badgeColor,
-    required this.badgeBg,
-    required this.width,
-  });
+  final CampaignModel campaign;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width.clamp(230.0, double.infinity),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _kCardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorderLight, width: 0.8),
-        boxShadow: const [],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final x = campaign;
+    final failed = x.totalFailed > 0;
+    final (pillBg, pillFg) = switch (x.status) {
+      CampaignStatus.completed => (c.greenTint, c.greenText),
+      CampaignStatus.partiallyFailed ||
+      CampaignStatus.failed => (c.amberTint, c.amberText),
+      CampaignStatus.processing ||
+      CampaignStatus.scheduled => (c.accentTint, c.accentText),
+      CampaignStatus.draft => (c.inset, c.label2),
+    };
+    return DentalListRow(
+      semanticLabel: x.title,
+      onTap: () => CampaignAnalyticsDialog.show(context, campaign: x),
+      minHeight: 64,
+      child: Row(
         children: [
-          // Top row: Metric title
-          Text(
-            title,
-            style: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              color: _kTextMuted,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+          CruIconTile(
+            icon: x.channels == CampaignChannel.email
+                ? CruIcons.megaphone
+                : CruIcons.whatsapp,
+            tone: CruTileTone.neutral,
           ),
-          const SizedBox(height: 12),
-
-          // Big bold number
-          Text(
-            amount,
-            style: const TextStyle(
-              fontFamily: AppColors.headingFontFamily,
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: _kTextDark,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Bottom row: Subtitle & status pill
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2.5,
-                ),
-                decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badgeText,
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: badgeColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: _kTextMuted,
-                    fontSize: 11.5,
-                  ),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  x.title,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: CruType.callout.w600.tint(c.label),
                 ),
-              ),
-            ],
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  [
+                    x.category.label,
+                    x.channels.label,
+                    x.audienceType.label,
+                    DateFormat('d MMM, h:mm a').format(x.createdAt),
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.subhead.tabular.tint(c.label2),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: CruSpace.s16),
+          SizedBox(
+            width: 168,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${x.emailsSent + x.whatsAppSent} of ${x.totalRecipients} sent',
+                  style: CruType.callout.tabular.tint(c.label),
+                ),
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  failed
+                      ? '${x.totalFailed} not delivered'
+                      : '${x.successRate.toStringAsFixed(0)}% delivered',
+                  style: CruType.subhead.tabular.tint(
+                    failed ? c.amberText : c.label2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: CruSpace.s16),
+          CruPill(text: x.status.label, background: pillBg, foreground: pillFg),
+          const SizedBox(width: CruSpace.s4),
+          _RowMenu(campaign: x),
         ],
+      ),
+    );
+  }
+}
+
+/// Logs, retry and delete.
+class _RowMenu extends ConsumerWidget {
+  const _RowMenu({required this.campaign});
+
+  final CampaignModel campaign;
+
+  Future<void> _delete(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this campaign?'),
+        content: const Text(
+          'Its record and the delivery log for each patient are removed.',
+        ),
+        actions: [
+          CruButton(
+            label: 'Cancel',
+            kind: CruButtonKind.secondary,
+            onPressed: () => Navigator.pop(ctx, false),
+          ),
+          CruButton(label: 'Delete', onPressed: () => Navigator.pop(ctx, true)),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ref
+          .read(campaignRepositoryProvider)
+          .deleteCampaign(campaign.doctorId, campaign.id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final failed = campaign.totalFailed > 0;
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      onSelected: (v) async {
+        switch (v) {
+          case 'logs':
+            CampaignAnalyticsDialog.show(context, campaign: campaign);
+          case 'retry':
+            await ref
+                .read(campaignDispatchServiceProvider)
+                .retryFailedRecipients(
+                  doctorId: campaign.doctorId,
+                  campaignId: campaign.id,
+                );
+          case 'delete':
+            if (context.mounted) await _delete(context, ref);
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'logs', child: Text('Delivery log')),
+        if (failed)
+          const PopupMenuItem(
+            value: 'retry',
+            child: Text('Retry failed sends'),
+          ),
+        const PopupMenuItem(value: 'delete', child: Text('Delete campaign')),
+      ],
+      child: const IgnorePointer(
+        child: CruIconButton(
+          icon: CruIcons.more,
+          semanticLabel: 'More',
+          onPressed: null,
+        ),
       ),
     );
   }

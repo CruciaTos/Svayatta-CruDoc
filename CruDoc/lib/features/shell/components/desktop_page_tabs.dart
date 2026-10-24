@@ -16,10 +16,14 @@ import 'package:doctor_management_app/shared/widgets/page_tabs_scope.dart';
 class DesktopPageTabs extends ConsumerWidget {
   const DesktopPageTabs({
     super.key,
+    this.title,
     required this.current,
     required this.pages,
     required this.child,
   });
+
+  /// An optional overall heading (e.g. 'Tasks') shown above the page tabs.
+  final String? title;
 
   /// The DesktopTab being shown.
   final int current;
@@ -43,10 +47,17 @@ class DesktopPageTabs extends ConsumerWidget {
       for (final p in pages)
         if (allowed.contains(p.$1)) p,
     ];
-    if (shown.length < 2) return child;
+    if (shown.length < 2) {
+      if (title == null) return child;
+      return PageTabsScope(
+        title: title,
+        tabs: null,
+        child: child,
+      );
+    }
 
-    // The switch takes the page title's place (see [PageTabsScope]).
     return PageTabsScope(
+      title: title,
       tabs: _PageSwitcher(
         pages: shown,
         current: current,

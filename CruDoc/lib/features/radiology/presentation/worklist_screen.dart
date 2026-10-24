@@ -541,13 +541,9 @@ class _StudyRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final due = RadFormat.due(study, now);
-    final line = [
-      RadFormat.patientLine(study, now),
-      if (study.clinicalQuestion.isNotEmpty)
-        study.clinicalQuestion
-      else if (study.description.isNotEmpty)
-        study.description,
-    ].where((s) => s.isNotEmpty).join(' · ');
+    final line = study.clinicalQuestion.isNotEmpty
+        ? study.clinicalQuestion
+        : study.description;
     final priority = radPriorityPill(c, study.priority);
     final hasPacs = ref.watch(
       radPacsServersProvider.select((a) => a.value?.isNotEmpty ?? false),

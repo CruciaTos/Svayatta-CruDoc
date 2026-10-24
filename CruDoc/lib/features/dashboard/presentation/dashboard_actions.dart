@@ -122,7 +122,7 @@ abstract final class DesktopTab {
     recalls => 'Recalls',
     perioPatients => 'Perio patients',
     rootCanals => 'Root canals',
-    dentalReferrals => 'Referrals',
+    dentalReferrals => 'Consults',
     pedoChildren => 'Children',
     biopsies => 'Biopsies',
     oralMedLesions => 'Lesions',

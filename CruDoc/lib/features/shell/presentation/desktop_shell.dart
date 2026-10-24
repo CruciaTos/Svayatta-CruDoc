@@ -180,7 +180,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Recalls',
     'Perio patients',
     'Root canals',
-    'Referrals',
+    'Consults',
     'Children',
     'Biopsies',
     'Lesions',
@@ -295,6 +295,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       case DesktopTab.treatmentPlans:
       case DesktopTab.labCases:
         return DesktopPageTabs(
+          title: 'Tasks',
           current: index,
           pages: const [
             (DesktopTab.worklist, 'Worklist'),
@@ -313,6 +314,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       case DesktopTab.dentalReferrals:
       case DesktopTab.referrers:
         return DesktopPageTabs(
+          title: 'Consults',
           current: index,
           pages: const [
             (DesktopTab.dentalReferrals, 'Referrals'),
@@ -336,9 +338,17 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           child: FormsScreen(),
         );
       case DesktopTab.recalls:
-        return const RecallsScreen();
+        return const DesktopBackPage(
+          backLabel: 'Patients',
+          backTab: DesktopTab.patients,
+          child: RecallsScreen(),
+        );
       case DesktopTab.perioPatients:
-        return const PerioPatientsScreen();
+        return const DesktopBackPage(
+          backLabel: 'Patients',
+          backTab: DesktopTab.patients,
+          child: PerioPatientsScreen(),
+        );
       case DesktopTab.emergency:
         return const EmergencyProtocolsScreen();
       case DesktopTab.files:

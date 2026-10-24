@@ -90,7 +90,7 @@ const _notDrawn = {
 };
 
 /// The sidebar as drawn. Worklist, reports, treatment plans and lab cases
-/// are one Tasks page, referrals and referrers one Referrals page, and
+/// are one Tasks page, referrals and referrers one Consults page, and
 /// the pages in [_notDrawn] are reached from elsewhere. [sidebarTabs]
 /// still lists every page, for voice, gating and the phone.
 List<_NavGroup> _drawnGroups(List<_NavGroup> groups) {
@@ -110,7 +110,7 @@ List<_NavGroup> _drawnGroups(List<_NavGroup> groups) {
             if (g.label == 'Today' && tasks.isNotEmpty)
               _NavItem(tasks.first.tab, 'Tasks', RadIcons.worklist),
             if (g.label == 'Patients' && referrals.isNotEmpty)
-              _NavItem(referrals.first.tab, 'Referrals', CruIcons.arrowUpRight),
+              _NavItem(referrals.first.tab, 'Consults', CruIcons.arrowUpRight),
           ]
           case final items when items.isNotEmpty)
         _NavGroup(g.label, items),
@@ -171,7 +171,7 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       // Every specialty refers patients to other doctors.
       const _NavItem(
         DesktopTab.dentalReferrals,
-        'Referrals',
+        'Consults',
         CruIcons.arrowUpRight,
       ),
       const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),

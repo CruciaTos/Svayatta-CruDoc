@@ -314,6 +314,9 @@ class DentalPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final pageHeading = PageTabsScope.titleOf(context);
+    final pageTabs = PageTabsScope.tabsOf(context);
+
     if (cruIsPhone(context)) {
       // Phone: title and subtitle on their own lines, the buttons in one
       // row under them that slides sideways when they don't fit.
@@ -321,16 +324,30 @@ class DentalPageHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+          if (pageHeading != null) ...[
+            Semantics(
+              header: true,
+              child: Text(
+                pageHeading,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+              ),
             ),
-          ),
-          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: CruSpace.s12),
+          ],
+          pageTabs ??
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+                ),
+              ),
+          if (subtitle.isNotEmpty && pageTabs == null) ...[
             const SizedBox(height: CruSpace.s2),
             Text(
               subtitle,
@@ -357,7 +374,8 @@ class DentalPageHeader extends StatelessWidget {
         ],
       );
     }
-    return Row(
+
+    final headerRow = Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Expanded(
@@ -365,15 +383,13 @@ class DentalPageHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              pageTitleOrTabs(
-                context,
-                Semantics(
-                  header: true,
-                  child: Text(title, style: CruType.largeTitle.tint(c.label)),
-                ),
-              ),
+              pageTabs ??
+                  Semantics(
+                    header: true,
+                    child: Text(title, style: CruType.largeTitle.tint(c.label)),
+                  ),
               // Under a page switch the switch says enough.
-              if (PageTabsScope.of(context) == null) ...[
+              if (pageTabs == null) ...[
                 const SizedBox(height: CruSpace.s2),
                 Text(
                   subtitle,
@@ -391,6 +407,23 @@ class DentalPageHeader extends StatelessWidget {
         ],
       ],
     );
+
+    if (pageHeading != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(pageHeading, style: CruType.largeTitle.tint(c.label)),
+          ),
+          const SizedBox(height: CruSpace.s16),
+          headerRow,
+        ],
+      );
+    }
+
+    return headerRow;
   }
 }
 

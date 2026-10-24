@@ -96,7 +96,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
     _engine.init().then(
       (_) => mounted ? setState(() => _loaded = true) : null,
       onError: (Object e) =>
-          mounted ? setState(() => _error = 'Voice model failed: $e') : null,
+          mounted ? setState(() => _error = 'Voice is off: $e') : null,
     );
   }
 
@@ -333,32 +333,42 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
         ],
       );
     }
+    final listenable = Listenable.merge([
+      _voice.understood,
+      _voice.ready,
+      _voice.hint,
+      _voice.asking,
+    ]);
     return Stack(
       children: [
         widget.child,
-        Positioned(
-          left: CruSpace.s16,
-          right: CruSpace.s16,
-          top: CruSpace.s12,
-          child: Center(
-            child: Material(
-              type: MaterialType.transparency,
+        ListenableBuilder(
+          listenable: listenable,
+          builder: (context, _) {
+            final understood = _showResult ? _voice.understood.value : null;
+            // At rest (or off) the pill waits at the bottom, out of every
+            // page's header; while talking it comes up to the top.
+            final resting =
+                _voice.asking.value == null &&
+                !_listening &&
+                (_error != null ||
+                    (_loaded && (understood == null || understood.isEmpty)));
+            return Positioned(
+              left: CruSpace.s16,
+              right: CruSpace.s16,
+              top: resting ? null : CruSpace.s12,
+              bottom: resting ? CruSpace.s16 : null,
               child: Center(
-                child: ListenableBuilder(
-                  listenable: Listenable.merge([
-                    _voice.understood,
-                    _voice.ready,
-                    _voice.hint,
-                    _voice.asking,
-                  ]),
-                  builder: (context, _) => TutorialAnchor(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: TutorialAnchor(
                     target: TutorialTarget.voicePill,
                     shape: TutorialShape.stadium,
                     child: _Strip(
                       listening: _listening,
                       loaded: _loaded,
                       error: _error,
-                      understood: _showResult ? _voice.understood.value : null,
+                      understood: understood,
                       ready: _voice.ready.value,
                       need: _voice.hint.value,
                       heard: _heard,
@@ -377,8 +387,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
@@ -465,7 +475,10 @@ class _Strip extends StatelessWidget {
     if (ask != null) return _Mode.question;
     if (listening) return _Mode.listening;
     final hasLine = understood != null && understood!.isNotEmpty;
-    if (error != null || !loaded || hasLine) return _Mode.result;
+    // A failed voice set-up rests as a small "Voice off" pill rather
+    // than a long error across the top of every page.
+    if (error != null) return _Mode.resting;
+    if (!loaded || hasLine) return _Mode.result;
     return _Mode.resting;
   }
 
@@ -556,29 +569,43 @@ class _Strip extends StatelessWidget {
   );
 
   /// Small capsule: how to start.
-  Widget _resting(CruColors c) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      CruSpace.s12,
-      CruSpace.s8,
-      CruSpace.s16,
-      CruSpace.s8,
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _micIcon(c, handsFree ? Icons.hearing : Icons.mic_none, lit: handsFree),
-        const SizedBox(width: CruSpace.s8),
-        Text(
-          handsFree
-              ? 'Hands-free'
-              : tapToTalk
-              ? 'Tap to talk'
-              : 'Hold Space',
-          style: CruType.callout.copyWith(color: c.label2),
-        ),
-      ],
-    ),
-  );
+  Widget _resting(CruColors c) {
+    final pill = Padding(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        CruSpace.s8,
+        CruSpace.s16,
+        CruSpace.s8,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _micIcon(
+            c,
+            error != null
+                ? Icons.mic_off_outlined
+                : handsFree
+                ? Icons.hearing
+                : Icons.mic_none,
+            lit: handsFree && error == null,
+          ),
+          const SizedBox(width: CruSpace.s8),
+          Text(
+            error != null
+                ? 'Voice off'
+                : handsFree
+                ? 'Hands-free'
+                : tapToTalk
+                ? 'Tap to talk'
+                : 'Hold Space',
+            style: CruType.callout.copyWith(color: c.label2),
+          ),
+        ],
+      ),
+    );
+    // Why it's off, on hover.
+    return error == null ? pill : Tooltip(message: error!, child: pill);
+  }
 
   /// Wider capsule: sound bars and the words as they come, and under
   /// them, live, what the app makes of them.

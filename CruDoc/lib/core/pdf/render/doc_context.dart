@@ -98,6 +98,18 @@ class DocWarning {
   final DocFix fix;
 }
 
+class DocScriptImage {
+  const DocScriptImage({
+    required this.png,
+    required this.widthPt,
+    required this.heightPt,
+  });
+
+  final Uint8List png;
+  final double widthPt;
+  final double heightPt;
+}
+
 class DocContext {
   const DocContext({
     required this.data,
@@ -117,7 +129,7 @@ class DocContext {
   final DocImages images;
   final bool sample;
   final List<DocWarning> warnings;
-  final Map<String, Uint8List> scriptImages;
+  final Map<String, DocScriptImage> scriptImages;
 
   DocKind get kind => data.kind;
 

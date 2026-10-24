@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
@@ -412,3 +413,6 @@ final docTemplatesProvider = StreamProvider<List<DocTemplate>>((ref) {
         ),
       );
 });
+
+/// Documents page tab: 0 clinic, 1 my details, 2 templates.
+final documentsTabProvider = StateProvider<int>((ref) => 2);

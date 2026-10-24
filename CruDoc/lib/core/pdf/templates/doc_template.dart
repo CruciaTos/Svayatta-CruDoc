@@ -245,6 +245,18 @@ class DocBackground {
   final bool printOnPaper;
   final double opacity;
 
+  DocBackground copyWith({
+    String? path,
+    String? sha,
+    bool? printOnPaper,
+    double? opacity,
+  }) => DocBackground(
+    path: path ?? this.path,
+    sha: sha ?? this.sha,
+    printOnPaper: printOnPaper ?? this.printOnPaper,
+    opacity: opacity ?? this.opacity,
+  );
+
   Map<String, dynamic> toMap() => {
     'path': path,
     'sha': sha,
@@ -593,6 +605,10 @@ class DocTemplate {
       ...saved.where((s) => known.contains(s.id)),
       ...defaults.where((d) => !ids.contains(d.id)),
     ];
+  }
+
+  DocTemplate withBodySections(DocKind k, List<DocBodySection> sections) {
+    return copyWith(body: {...body, k: sections});
   }
 
   DocTemplate copyWith({

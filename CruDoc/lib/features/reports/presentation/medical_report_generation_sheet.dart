@@ -2,8 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/pdf/data/doc_numbering.dart';
 import 'package:doctor_management_app/core/pdf/models/pdf_document_models.dart';
 import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
+import 'package:doctor_management_app/core/pdf/render/doc_context_builder.dart';
+import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -587,9 +590,13 @@ class _MedicalReportGenerationSheetState
   }
 
   Future<void> _generateReportPreview() async {
-    final reportNumber = _reportNumberCtrl.text.trim().isEmpty
-        ? 'RPT-${DateTime.now().millisecondsSinceEpoch}'
-        : _reportNumberCtrl.text.trim();
+    final rawNumber = _reportNumberCtrl.text.trim();
+    final reportNumber = rawNumber.isNotEmpty && !rawNumber.startsWith('RPT-')
+        ? rawNumber
+        : await DocNumbering.next(DocKind.report, _reportDate);
+
+    final issuing = defaultIssuingDoctorUid();
+    final signer = docSignerFor(issuing);
 
     final documentData = PdfMedicalReportDocumentData(
       letterheadConfig: widget.letterheadConfig,
@@ -599,6 +606,8 @@ class _MedicalReportGenerationSheetState
       reportTitle: _reportTitleCtrl.text.trim().isEmpty
           ? 'Medical Report'
           : _reportTitleCtrl.text.trim(),
+      issuingDoctorUid: issuing,
+      signedByUid: signer,
       sections: [
         PdfReportSection(
           title: 'Clinical Summary',
@@ -624,6 +633,7 @@ class _MedicalReportGenerationSheetState
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
 
+    if (!mounted) return;
     await MedicalPdfPreviewScreen.open(context, documentData: documentData);
   }
 

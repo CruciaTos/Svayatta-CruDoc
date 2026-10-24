@@ -5,16 +5,26 @@ and do what **▶ DO NOW** says. Claude (the lead) reviews at each GATE and then
 
 ## ▶ DO NOW
 
-**Phase 2: tasks T15 to T22, in order.** Write every task first, then run the Phase 2 Checks once.
-Then **STOP at GATE 2** and report (see "Reporting").
-
-Do not start Phase 3. Phase 1 is done — don't redo it; read "Gate 1 notes" below first.
+**Nothing.** All three phases are built and reviewed (2026-10-25). Wait for new instructions.
 
 ## Status (Claude updates this)
 
-- Phase 1 (engine, data, rules): **done, passed GATE 1 on 2026-10-25** (see Gate 1 notes)
-- Phase 2 (bill flow, preview, all document kinds, Settings): **do now**
-- Phase 3 (layout editor, letterhead paper, Indian scripts): not started
+- Phase 1 (engine, data, rules): done, passed GATE 1 on 2026-10-25 (see Gate 1 notes)
+- Phase 2 (bill flow, preview, all document kinds, Settings): done, reviewed 2026-10-25
+- Phase 3 (layout editor, letterhead paper, Indian scripts): done, reviewed 2026-10-25
+- Phone/PC test by the user: not done yet (needs the rules deployed first)
+
+## Final review notes (Claude, 2026-10-25)
+
+- "Clinic & documents" moved out of Settings into its own **Documents** page in the sidebar (Clinic group, after
+  Revenue; also in the phone's More): `DesktopTab.documents = 32`, `lib/features/settings/presentation/documents/documents_screen.dart`.
+  Tabs Templates · Clinic · My details (`CruSegmentedControl`), Templates first. The preview's "Fix" opens this page.
+- Bill writes no longer wait for the server (5 s, then Firestore sends them when back online), so saving offline works.
+  "Overdue" now compares the due date with today.
+- My details save: no longer rewrites the owner's old clinic letterhead fields (it could blank them); the member
+  record update now writes only the keys the rules allow.
+- Editor: blocks are hit-tested where they are drawn when there's no logo; the hidden logo tile can't be grabbed.
+- Web: WhatsApp from the preview downloads the PDF instead of writing to a folder.
 
 ## Gate 1 notes (changes Claude made after reviewing Phase 1 — build on them)
 

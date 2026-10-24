@@ -11,7 +11,6 @@ import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/gmail_integration_card.dart';
-import 'package:doctor_management_app/features/profile/presentation/widgets/letterhead_branding_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/active_sessions_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -386,13 +385,7 @@ class ProfileScreen extends StatelessWidget {
                           title: 'Authentication Provider',
                           subtitle: '$authMethod Account',
                         ),
-                        const SizedBox(height: 20),
 
-                        // ---- Letterhead & Branding Section (Bills & Prescriptions) ----
-                        LetterheadBrandingCard(
-                          profileData: profileData,
-                          user: user,
-                        ),
 
                         if (!kIsWeb) ...[
                           const SizedBox(height: 20),

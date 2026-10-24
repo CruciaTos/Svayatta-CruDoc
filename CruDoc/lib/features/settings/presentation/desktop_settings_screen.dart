@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +12,6 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_settings_section.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
-import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -48,6 +46,7 @@ import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dar
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
+import 'package:doctor_management_app/features/settings/presentation/documents/documents_settings_section.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The Settings sections, in sidebar order. Every entry does something
@@ -55,7 +54,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 enum SettingsSection {
   profile('Profile', CruIcons.user),
   plan('Plan & billing', CruIcons.wallet),
-  clinic('Clinic & letterhead', CruIcons.pen),
+  clinic('Clinic & documents', CruIcons.pen),
 
   /// People who can manage the clinic's team.
   team('Team', CruIcons.patients),
@@ -100,9 +99,8 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
     // The server reads reminder settings from the owner's profile.
     SettingsSection.reminders =>
       isOwner && ref.watch(whatsAppRemindersAvailableProvider),
-    // The letterhead is each doctor's own; staff have none.
-    SettingsSection.clinic =>
-      access == null || access.kind == MemberKind.doctor || isOwner,
+    // Clinic & documents moved to the Documents page in the sidebar.
+    SettingsSection.clinic => false,
     SettingsSection.team => access != null && access.can(ClinicPermission.team),
     SettingsSection.myFeatures => !isOwner,
     SettingsSection.storage => !kIsWeb,
@@ -123,9 +121,6 @@ const double _kContentMaxWidth = 760;
 
 /// Profile avatar on the identity card.
 const double _kProfileMonogram = 64;
-
-/// Letterhead preview: a sheet of paper, always on the Day palette.
-const double _kPreviewMinHeight = 260;
 
 /// The Settings tab, inside the desktop shell: a section list on the left
 /// and the open section's cards on the right. Built on the Calm Clinical
@@ -151,7 +146,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
     Widget body(SettingsSection section) => switch (section) {
       SettingsSection.profile => _ProfileSection(user: user, profile: profile),
       SettingsSection.plan => const _PlanSection(),
-      SettingsSection.clinic => _ClinicSection(user: user, profile: profile),
+      SettingsSection.clinic => const DocumentsSettingsSection(),
       SettingsSection.team => const TeamSection(),
       SettingsSection.myFeatures => const MyFeaturesSection(),
       SettingsSection.invites => const ClinicInvitesSection(),
@@ -985,351 +980,6 @@ class _PlanSectionState extends State<_PlanSection> {
           ),
         ]);
       },
-    );
-  }
-}
-
-// =============================================================================
-// CLINIC & LETTERHEAD
-// =============================================================================
-
-class _ClinicSection extends StatefulWidget {
-  const _ClinicSection({required this.user, required this.profile});
-
-  final User? user;
-  final Map<String, dynamic>? profile;
-
-  @override
-  State<_ClinicSection> createState() => _ClinicSectionState();
-}
-
-class _ClinicSectionState extends State<_ClinicSection> {
-  final _clinicName = TextEditingController();
-  final _tagline = TextEditingController();
-  final _qualifications = TextEditingController();
-  final _registration = TextEditingController();
-  final _phone = TextEditingController();
-  final _email = TextEditingController();
-  final _address = TextEditingController();
-  final _footer = TextEditingController();
-  bool _loaded = false;
-  bool _saving = false;
-
-  List<TextEditingController> get _all => [
-    _clinicName,
-    _tagline,
-    _qualifications,
-    _registration,
-    _phone,
-    _email,
-    _address,
-    _footer,
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_ClinicSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _load();
-  }
-
-  /// Fills the form once the profile arrives; never overwrites typing.
-  void _load() {
-    final d = widget.profile;
-    if (_loaded || d == null) return;
-    _loaded = true;
-    String read(List<String> keys, [String? fallback]) {
-      for (final k in keys) {
-        final v = d[k];
-        if (v is String && v.trim().isNotEmpty) return v;
-      }
-      return fallback ?? '';
-    }
-
-    _clinicName.text = read(['clinicName', 'practiceName']);
-    _tagline.text = read(['letterheadTagline']);
-    _qualifications.text = read(['qualifications', 'doctorQualifications']);
-    _registration.text = read([
-      'registrationNumber',
-      'doctorRegistrationNumber',
-    ]);
-    _phone.text = read(['clinicPhone'], widget.user?.phoneNumber);
-    _email.text = read(['clinicEmail'], widget.user?.email);
-    _address.text = read(['clinicAddress']);
-    _footer.text = read(['letterheadFooterDisclaimer']);
-  }
-
-  @override
-  void dispose() {
-    for (final t in _all) {
-      t.dispose();
-    }
-    super.dispose();
-  }
-
-  /// The owner's clinic name is also the team's clinic name.
-  Future<void> _syncClinicName(String name) async {
-    final access = ClinicSession.instance.access;
-    if (access == null || !access.isOwner || name.isEmpty) return;
-    try {
-      final clinic = FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(access.clinicId);
-      if ((await clinic.get()).exists) {
-        await clinic.update({
-          'name': name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (_) {
-      // The letterhead is saved; the team's copy catches up next time.
-    }
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      await DoctorProfileHelper.updateLetterheadBranding(
-        clinicName: _clinicName.text,
-        doctorQualifications: _qualifications.text,
-        registrationNumber: _registration.text,
-        clinicAddress: _address.text,
-        clinicPhone: _phone.text,
-        clinicEmail: _email.text,
-        tagline: _tagline.text,
-        footerDisclaimer: _footer.text,
-      );
-      await _syncClinicName(_clinicName.text.trim());
-      if (mounted) _toast(context, 'Clinic details and letterhead saved.');
-    } catch (e) {
-      if (mounted) _toast(context, 'Could not save the letterhead: $e');
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final doctor = DoctorProfileHelper.formatDoctorName(
-      widget.user,
-      widget.profile,
-    );
-    return _Stack([
-      _SettingsCard(
-        title: 'Letterhead preview',
-        description: 'The top and bottom of every prescription and bill.',
-        child: ListenableBuilder(
-          listenable: Listenable.merge(_all),
-          builder: (context, _) => _LetterheadPreview(
-            doctor: doctor,
-            clinicName: _clinicName.text,
-            tagline: _tagline.text,
-            qualifications: _qualifications.text,
-            registration: _registration.text,
-            phone: _phone.text,
-            email: _email.text,
-            address: _address.text,
-            footer: _footer.text,
-          ),
-        ),
-      ),
-      _SettingsCard(
-        title: 'Clinic details',
-        trailing: CruButton(
-          label: _saving ? 'Saving…' : 'Save',
-          onPressed: _saving ? null : _save,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            CruFieldRow(
-              children: [
-                CruTextField(
-                  label: 'Clinic name',
-                  controller: _clinicName,
-                  hint: 'Sanjeevani Clinic',
-                  textCapitalization: TextCapitalization.words,
-                ),
-                CruTextField(
-                  label: 'Tagline',
-                  controller: _tagline,
-                  optional: true,
-                  hint: 'Family medicine and diabetes care',
-                ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s16),
-            CruFieldRow(
-              children: [
-                CruTextField(
-                  label: 'Qualifications',
-                  controller: _qualifications,
-                  hint: 'MBBS, MD (Medicine)',
-                ),
-                CruTextField(
-                  label: 'Registration number',
-                  controller: _registration,
-                  hint: 'MMC 2014/05/1234',
-                ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s16),
-            CruFieldRow(
-              children: [
-                CruTextField(
-                  label: 'Clinic phone',
-                  controller: _phone,
-                  keyboardType: TextInputType.phone,
-                  tabular: true,
-                ),
-                CruTextField(
-                  label: 'Clinic email',
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s16),
-            CruTextField(
-              label: 'Address',
-              controller: _address,
-              maxLines: 2,
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: CruSpace.s16),
-            CruTextField(
-              label: 'Footer note',
-              controller: _footer,
-              optional: true,
-              maxLines: 2,
-              help: 'Printed at the bottom of every document.',
-            ),
-          ],
-        ),
-      ),
-    ]);
-  }
-}
-
-/// A sheet of paper: always the Day palette, whatever the appearance,
-/// because that is what prints.
-class _LetterheadPreview extends StatelessWidget {
-  const _LetterheadPreview({
-    required this.doctor,
-    required this.clinicName,
-    required this.tagline,
-    required this.qualifications,
-    required this.registration,
-    required this.phone,
-    required this.email,
-    required this.address,
-    required this.footer,
-  });
-
-  final String doctor;
-  final String clinicName;
-  final String tagline;
-  final String qualifications;
-  final String registration;
-  final String phone;
-  final String email;
-  final String address;
-  final String footer;
-
-  @override
-  Widget build(BuildContext context) {
-    const p = CruColors.day;
-    final c = context.cru;
-    String? clean(String s) => s.trim().isEmpty ? null : s.trim();
-    final credentials = [
-      ?clean(qualifications),
-      if (clean(registration) != null) 'Reg. no. ${registration.trim()}',
-    ].join(' · ');
-    final contact = [?clean(phone), ?clean(email)].join(' · ');
-
-    return Container(
-      constraints: const BoxConstraints(minHeight: _kPreviewMinHeight),
-      padding: const EdgeInsets.all(CruSpace.s24),
-      decoration: ShapeDecoration(
-        color: p.surface,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      clean(clinicName) ?? 'Your clinic name',
-                      style: CruType.title2.tint(
-                        clean(clinicName) == null ? p.label3 : p.label,
-                      ),
-                    ),
-                    if (clean(tagline) != null)
-                      Text(
-                        tagline.trim(),
-                        style: CruType.caption.tint(p.label2),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: CruSpace.s16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(doctor, style: CruType.callout.tint(p.label)),
-                  if (credentials.isNotEmpty)
-                    Text(credentials, style: CruType.caption.tint(p.label2)),
-                ],
-              ),
-            ],
-          ),
-          if (clean(address) != null || contact.isNotEmpty) ...[
-            const SizedBox(height: CruSpace.s8),
-            Text(
-              [?clean(address), if (contact.isNotEmpty) contact].join('\n'),
-              style: CruType.caption.tabular.tint(p.label2),
-            ),
-          ],
-          const SizedBox(height: CruSpace.s12),
-          Container(height: 1, color: p.separator),
-          const SizedBox(height: CruSpace.s24),
-          // Where the prescription or bill goes.
-          for (final w in const [0.7, 0.5, 0.6]) ...[
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: w,
-              child: Container(
-                height: CruSpace.s8,
-                decoration: ShapeDecoration(
-                  color: p.inset,
-                  shape: const StadiumBorder(),
-                ),
-              ),
-            ),
-            const SizedBox(height: CruSpace.s12),
-          ],
-          const SizedBox(height: CruSpace.s12),
-          Container(height: 1, color: p.separator),
-          const SizedBox(height: CruSpace.s8),
-          Text(
-            clean(footer) ?? 'No footer note',
-            style: CruType.caption.tint(
-              clean(footer) == null ? p.label3 : p.label2,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

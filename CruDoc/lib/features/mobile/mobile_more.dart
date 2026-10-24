@@ -38,6 +38,7 @@ import 'package:doctor_management_app/features/settings/data/appearance_provider
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/features/files/presentation/files_screen.dart';
+import 'package:doctor_management_app/features/settings/presentation/documents/documents_screen.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -100,6 +101,7 @@ Widget? mobileDestinationScreen(int tab) => switch (tab) {
   DesktopTab.labCases => const LabCasesScreen(),
   DesktopTab.emergency => const EmergencyProtocolsScreen(),
   DesktopTab.files => const FilesScreen(),
+  DesktopTab.documents => const DocumentsScreen(),
   _ => null,
 };
 
@@ -125,6 +127,7 @@ CruIconData _iconFor(int tab) => switch (tab) {
   DesktopTab.implants => DentalIcons.tooth,
   DesktopTab.emergency => CruIcons.warning,
   DesktopTab.files => FileIcons.folder,
+  DesktopTab.documents => CruIcons.fileText,
   _ => CruIcons.patients,
 };
 

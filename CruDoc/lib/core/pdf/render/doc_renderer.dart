@@ -227,6 +227,19 @@ class DocRenderer {
   }
 
   pw.Widget textBox(DocBlock b, String text, {required bool multiline}) {
+    final scriptImg = ctx.scriptImages[text.trim()];
+    if (scriptImg != null) {
+      final w = scriptImg.widthPt * (b.fontPt / 10);
+      final h = scriptImg.heightPt * (b.fontPt / 10);
+      return pw.Align(
+        alignment: align(b),
+        child: pw.FittedBox(
+          fit: pw.BoxFit.contain,
+          alignment: align(b),
+          child: pw.Image(pw.MemoryImage(scriptImg.png), width: w, height: h),
+        ),
+      );
+    }
     final st = style(b.fontPt, bold: b.bold, color: b.color);
     final lineMm = b.fontPt * 0.3528 * 1.3;
     final maxLines = (b.h / lineMm).floor();

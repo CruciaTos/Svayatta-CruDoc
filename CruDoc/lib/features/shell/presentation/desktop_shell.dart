@@ -50,6 +50,7 @@ import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
 import 'package:doctor_management_app/features/files/presentation/files_screen.dart';
+import 'package:doctor_management_app/features/settings/presentation/documents/documents_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
@@ -194,6 +195,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Implants',
     'Emergency',
     'Files',
+    'Documents',
   ];
 
   static const List<IconData> _icons = [
@@ -229,6 +231,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.build_outlined,
     Icons.medical_services_outlined,
     Icons.folder_outlined,
+    Icons.description_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -353,6 +356,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const EmergencyProtocolsScreen();
       case DesktopTab.files:
         return const FilesScreen();
+      case DesktopTab.documents:
+        return const DocumentsScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -483,6 +488,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == 5 ||
             shown == DesktopTab.settings ||
             shown == DesktopTab.files ||
+            shown == DesktopTab.documents ||
             DesktopTab.isDental(shown) ||
             DesktopTab.isRadiology(shown) ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey) ||
@@ -499,6 +505,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.appointments ||
             shown == DesktopTab.settings ||
             shown == DesktopTab.files ||
+            shown == DesktopTab.documents ||
             shown == DesktopTab.scribe ||
             shown == DesktopTab.campaigns ||
             DesktopTab.isDental(shown) ||

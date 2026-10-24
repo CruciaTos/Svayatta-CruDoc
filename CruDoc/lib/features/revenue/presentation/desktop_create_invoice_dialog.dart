@@ -2,20 +2,40 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/core/pdf/data/doc_repository.dart';
+import 'package:doctor_management_app/core/pdf/data/doc_settings_models.dart';
+import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
+import 'package:doctor_management_app/core/pdf/render/doc_context_builder.dart';
+import 'package:doctor_management_app/core/pdf/render/pdf_text.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/revenue/data/invoice_pdf_mapper.dart';
+import 'package:doctor_management_app/features/revenue/data/models/invoice_bill.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_icons.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
-import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/voice/domain/name_matcher.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:doctor_management_app/features/voice/services/voice_form_ai.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+class InvoiceDialogResult {
+  const InvoiceDialogResult({
+    required this.invoice,
+    this.patient,
+  });
+
+  final InvoiceModel invoice;
+  final Patient? patient;
+}
 
 /// Opens the desktop Create invoice form.
 Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
@@ -35,8 +55,11 @@ Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
   String? initialTreatmentName,
   double? initialTreatmentPrice,
   String? initialNotes,
-}) {
-  return showDialog<InvoiceModel>(
+  String? attendingDoctorUid,
+  InvoiceModel? initialInvoice,
+  bool openPreview = true,
+}) async {
+  final result = await showDialog<InvoiceDialogResult>(
     context: context,
     barrierDismissible: true,
     builder: (_) => DesktopCreateInvoiceDialog(
@@ -46,8 +69,22 @@ Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
       initialTreatmentName: initialTreatmentName,
       initialTreatmentPrice: initialTreatmentPrice,
       initialNotes: initialNotes,
+      attendingDoctorUid: attendingDoctorUid,
+      initialInvoice: initialInvoice,
     ),
   );
+
+  if (result == null) return null;
+
+  if (openPreview && onSave == null && context.mounted) {
+    await MedicalPdfPreviewScreen.open(
+      context,
+      documentData: invoicePdfData(result.invoice, patient: result.patient),
+      invoice: result.invoice,
+    );
+  }
+
+  return result.invoice;
 }
 
 class DesktopCreateInvoiceDialog extends StatefulWidget {
@@ -59,17 +96,16 @@ class DesktopCreateInvoiceDialog extends StatefulWidget {
     this.initialTreatmentName,
     this.initialTreatmentPrice,
     this.initialNotes,
+    this.attendingDoctorUid,
+    this.initialInvoice,
   });
 
-  /// Prefill (e.g. "Bill together" for patients seen together): the payer,
-  /// a treatment line waiting for its price, and a note.
   final Patient? initialPatient;
   final String? initialTreatmentName;
-
-  /// The treatment line's price, when the caller knows it (a radiology
-  /// reading fee).
   final double? initialTreatmentPrice;
   final String? initialNotes;
+  final String? attendingDoctorUid;
+  final InvoiceModel? initialInvoice;
 
   final InvoiceRepository? repository;
   final Future<void> Function(
@@ -90,35 +126,41 @@ class DesktopCreateInvoiceDialog extends StatefulWidget {
 
 class _TreatmentItem {
   final String name;
+  final int qty;
   final double price;
-  _TreatmentItem({required this.name, required this.price});
+  final double taxPct;
+
+  _TreatmentItem({
+    required this.name,
+    this.qty = 1,
+    required this.price,
+    this.taxPct = 0,
+  });
 }
 
 class _MedicineItem {
   final String name;
+  final int qty;
   final String dosage;
   final double price;
+  final double taxPct;
+
   _MedicineItem({
     required this.name,
+    this.qty = 1,
     required this.dosage,
     required this.price,
+    this.taxPct = 0,
   });
 }
 
 final _moneyFormatter = [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))];
-
-/// "₹1,200" for whole rupees, "₹1,200.50" when there are paise.
-String _rupees(double v) => v == v.roundToDouble()
-    ? DashFormat.rupees(v)
-    : NumberFormat.currency(
-        locale: 'en_IN',
-        symbol: '₹',
-        decimalDigits: 2,
-      ).format(v);
+final _qtyFormatter = [FilteringTextInputFormatter.digitsOnly];
 
 class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
     with VoiceDialogHook<DesktopCreateInvoiceDialog> {
   static const _statuses = ['Paid', 'Pending', 'Overdue'];
+  static const _paymentModes = ['Cash', 'UPI', 'Card', 'Net banking', 'Other'];
 
   final _formKey = GlobalKey<FormState>();
   late final InvoiceRepository _invoiceRepository =
@@ -130,19 +172,29 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
   final _clinicalNotesController = TextEditingController();
 
   final _treatmentNameController = TextEditingController();
+  final _treatmentQtyController = TextEditingController(text: '1');
   final _treatmentPriceController = TextEditingController();
+  final _treatmentTaxController = TextEditingController(text: '0');
   final _treatmentNameFocus = FocusNode();
 
   final _medicineNameController = TextEditingController();
+  final _medicineQtyController = TextEditingController(text: '1');
   final _dosageController = TextEditingController();
   final _medicinePriceController = TextEditingController();
+  final _medicineTaxController = TextEditingController(text: '0');
   final _medicineNameFocus = FocusNode();
 
   final _discountController = TextEditingController();
+  final _amountReceivedController = TextEditingController();
+  final _invoiceNumberController = TextEditingController();
 
   DateTime _invoiceDate = DateTime.now();
   DateTime? _dueDate;
   String _selectedStatus = 'Paid';
+  String _selectedPaymentMode = 'Cash';
+  String? _attendingDoctorUid;
+  bool _manualNumber = false;
+  ClinicDocSettings? _docSettings;
 
   Patient? _selectedPatient;
   String _patientSearchQuery = '';
@@ -163,19 +215,82 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
   @override
   void initState() {
     super.initState();
-    final p = widget.initialPatient;
-    if (p != null) {
-      _selectedPatient = p;
-      _patientNameController.text = p.fullName;
+    _attendingDoctorUid =
+        widget.attendingDoctorUid ?? defaultIssuingDoctorUid();
+
+    DocRepository.instance.clinicSettingsOnce().then((s) {
+      if (mounted) setState(() => _docSettings = s);
+    });
+
+    final inv = widget.initialInvoice;
+    if (inv != null) {
+      _patientNameController.text = inv.patientName;
+      _clinicalNotesController.text = inv.notes;
+      _invoiceDate = inv.date;
+      _dueDate = inv.dueDate;
+      _selectedStatus = inv.status;
+      _attendingDoctorUid = inv.attendingDoctorUid.isNotEmpty
+          ? inv.attendingDoctorUid
+          : _attendingDoctorUid;
+
+      if (inv.invoiceNumber.isNotEmpty) {
+        _manualNumber = true;
+        _invoiceNumberController.text = inv.invoiceNumber;
+      }
+
+      final bill = inv.bill;
+      if (bill.items.isNotEmpty) {
+        for (final item in bill.items) {
+          if (item.kind == 'medicine') {
+            _medicines.add(_MedicineItem(
+              name: item.name,
+              qty: item.qty,
+              dosage: item.note,
+              price: item.ratePaise / 100.0,
+              taxPct: item.taxPct,
+            ));
+          } else {
+            _treatments.add(_TreatmentItem(
+              name: item.name,
+              qty: item.qty,
+              price: item.ratePaise / 100.0,
+              taxPct: item.taxPct,
+            ));
+          }
+        }
+        if (bill.discountPaise > 0) {
+          _discountController.text = (bill.discountPaise / 100.0).toStringAsFixed(
+            bill.discountPaise % 100 == 0 ? 0 : 2,
+          );
+        }
+        _amountReceivedController.text = (bill.paidPaise / 100.0).toStringAsFixed(
+          bill.paidPaise % 100 == 0 ? 0 : 2,
+        );
+        if (bill.paymentMode.isNotEmpty) {
+          _selectedPaymentMode = bill.paymentMode;
+        }
+      } else {
+        _treatments.add(_TreatmentItem(
+          name: inv.service.isNotEmpty ? inv.service : 'Medical Consultation',
+          price: inv.amount,
+        ));
+        _amountReceivedController.text = inv.isPaid ? inv.amount.toStringAsFixed(0) : '0';
+      }
+    } else {
+      final p = widget.initialPatient;
+      if (p != null) {
+        _selectedPatient = p;
+        _patientNameController.text = p.fullName;
+      }
+      final t = widget.initialTreatmentName;
+      if (t != null) _treatmentNameController.text = t;
+      final price = widget.initialTreatmentPrice;
+      if (price != null) {
+        _treatmentPriceController.text = price.toStringAsFixed(0);
+      }
+      final n = widget.initialNotes;
+      if (n != null) _clinicalNotesController.text = n;
     }
-    final t = widget.initialTreatmentName;
-    if (t != null) _treatmentNameController.text = t;
-    final price = widget.initialTreatmentPrice;
-    if (price != null) {
-      _treatmentPriceController.text = price.toStringAsFixed(0);
-    }
-    final n = widget.initialNotes;
-    if (n != null) _clinicalNotesController.text = n;
   }
 
   @override
@@ -183,30 +298,58 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
     _patientNameController.dispose();
     _clinicalNotesController.dispose();
     _treatmentNameController.dispose();
+    _treatmentQtyController.dispose();
     _treatmentPriceController.dispose();
+    _treatmentTaxController.dispose();
     _treatmentNameFocus.dispose();
     _medicineNameController.dispose();
+    _medicineQtyController.dispose();
     _dosageController.dispose();
     _medicinePriceController.dispose();
+    _medicineTaxController.dispose();
     _medicineNameFocus.dispose();
     _discountController.dispose();
+    _amountReceivedController.dispose();
+    _invoiceNumberController.dispose();
     super.dispose();
   }
 
-  double get _treatmentSubtotal =>
-      _treatments.fold(0.0, (sum, t) => sum + t.price);
+  bool get _gstEnabled => _docSettings?.gstEnabled ?? false;
 
-  double get _medicineSubtotal =>
-      _medicines.fold(0.0, (sum, m) => sum + m.price);
+  InvoiceBill get _bill {
+    final items = [
+      for (final t in _treatments)
+        InvoiceBillItem(
+          name: t.name,
+          qty: t.qty,
+          ratePaise: toPaise(t.price),
+          taxPct: t.taxPct,
+          kind: 'treatment',
+        ),
+      for (final m in _medicines)
+        InvoiceBillItem(
+          name: m.name,
+          qty: m.qty,
+          ratePaise: toPaise(m.price),
+          taxPct: m.taxPct,
+          kind: 'medicine',
+          note: m.dosage,
+        ),
+    ];
+    final disc = double.tryParse(_discountController.text.trim()) ?? 0.0;
+    final paid = double.tryParse(_amountReceivedController.text.trim()) ?? 0.0;
+    return InvoiceBill(
+      items: items,
+      discountPaise: toPaise(disc),
+      roundOff: _docSettings?.roundOff ?? true,
+      paidPaise: toPaise(paid),
+      paymentMode: _selectedPaymentMode,
+      signedByUid: widget.initialInvoice?.bill.signedByUid ?? '',
+      templateId: widget.initialInvoice?.bill.templateId ?? '',
+    );
+  }
 
-  double get _discount =>
-      double.tryParse(_discountController.text.trim()) ?? 0.0;
-
-  double get _totalPayable =>
-      ((_treatmentSubtotal + _medicineSubtotal) - _discount).clamp(
-        0.0,
-        double.infinity,
-      );
+  InvoiceTotals get _totals => InvoiceTotals.of(_bill);
 
   bool get _noItems => _treatments.isEmpty && _medicines.isEmpty;
 
@@ -215,6 +358,12 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
       _dirty = true;
       _notice = null;
     });
+  }
+
+  void _syncPaidAmountToTotal() {
+    final total = _totals.grand / 100.0;
+    _amountReceivedController.text =
+        total % 1 == 0 ? total.toStringAsFixed(0) : total.toStringAsFixed(2);
   }
 
   void _onPatientChanged(String val) {
@@ -297,14 +446,23 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
 
         for (final treatment in result.treatments) {
           _treatments.add(
-            _TreatmentItem(name: treatment.name, price: treatment.price),
+            _TreatmentItem(name: treatment.name, qty: 1, price: treatment.price),
           );
         }
 
         for (final med in result.medicines) {
           _medicines.add(
-            _MedicineItem(name: med.name, dosage: med.dosage, price: med.price),
+            _MedicineItem(
+              name: med.name,
+              qty: 1,
+              dosage: med.dosage,
+              price: med.price,
+            ),
           );
+        }
+
+        if (_selectedStatus == 'Paid') {
+          _syncPaidAmountToTotal();
         }
       });
 
@@ -330,12 +488,17 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
 
   void _addTreatment() {
     final name = _treatmentNameController.text.trim();
+    final qty = int.tryParse(_treatmentQtyController.text.trim()) ?? 1;
     final price = double.tryParse(_treatmentPriceController.text.trim()) ?? 0.0;
-    if (name.isEmpty || price <= 0) {
+    final taxPct = _gstEnabled
+        ? (double.tryParse(_treatmentTaxController.text.trim()) ?? 0.0)
+        : 0.0;
+
+    if (name.isEmpty || price <= 0 || qty <= 0) {
       setState(
         () => _treatmentError = name.isEmpty
             ? 'Add the treatment name.'
-            : 'Add a fee above ₹0.',
+            : (qty <= 0 ? 'Qty must be at least 1.' : 'Add a fee above ₹0.'),
       );
       return;
     }
@@ -343,22 +506,32 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
     setState(() {
       _dirty = true;
       _treatmentError = null;
-      _treatments.add(_TreatmentItem(name: name, price: price));
+      _treatments.add(
+        _TreatmentItem(name: name, qty: qty, price: price, taxPct: taxPct),
+      );
       _treatmentNameController.clear();
+      _treatmentQtyController.text = '1';
       _treatmentPriceController.clear();
+      _treatmentTaxController.text = '0';
+      if (_selectedStatus == 'Paid') _syncPaidAmountToTotal();
     });
     _treatmentNameFocus.requestFocus();
   }
 
   void _addMedicine() {
     final name = _medicineNameController.text.trim();
+    final qty = int.tryParse(_medicineQtyController.text.trim()) ?? 1;
     final dosage = _dosageController.text.trim();
     final price = double.tryParse(_medicinePriceController.text.trim()) ?? 0.0;
-    if (name.isEmpty || price <= 0) {
+    final taxPct = _gstEnabled
+        ? (double.tryParse(_medicineTaxController.text.trim()) ?? 0.0)
+        : 0.0;
+
+    if (name.isEmpty || price <= 0 || qty <= 0) {
       setState(
         () => _medicineError = name.isEmpty
             ? 'Add the medicine name.'
-            : 'Add a price above ₹0.',
+            : (qty <= 0 ? 'Qty must be at least 1.' : 'Add a price above ₹0.'),
       );
       return;
     }
@@ -369,15 +542,53 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
       _medicines.add(
         _MedicineItem(
           name: name,
+          qty: qty,
           dosage: dosage.isEmpty ? '1 unit' : dosage,
           price: price,
+          taxPct: taxPct,
         ),
       );
       _medicineNameController.clear();
+      _medicineQtyController.text = '1';
       _dosageController.clear();
       _medicinePriceController.clear();
+      _medicineTaxController.text = '0';
+      if (_selectedStatus == 'Paid') _syncPaidAmountToTotal();
     });
     _medicineNameFocus.requestFocus();
+  }
+
+  Future<void> _onDoctorSelected(
+    String? uid,
+    List<ClinicMember> doctors,
+  ) async {
+    setState(() {
+      _attendingDoctorUid = (uid != null && uid.isNotEmpty) ? uid : null;
+      _edited();
+    });
+
+    if (uid != null &&
+        uid.isNotEmpty &&
+        _treatments.isEmpty &&
+        _medicines.isEmpty) {
+      final prof = await DocRepository.instance.doctorProfileOnce(uid);
+      if (prof != null &&
+          prof.consultFeePaise > 0 &&
+          _treatments.isEmpty &&
+          _medicines.isEmpty &&
+          mounted) {
+        final doc = doctors.where((d) => d.uid == uid).firstOrNull;
+        final docName = doc?.name ?? 'Doctor';
+        setState(() {
+          _treatments.add(_TreatmentItem(
+            name: 'Consultation — $docName',
+            qty: 1,
+            price: prof.consultFeePaise / 100.0,
+          ));
+          if (_selectedStatus == 'Paid') _syncPaidAmountToTotal();
+        });
+      }
+    }
   }
 
   // ── Voice ─────────────────────────────────────────────────────────────
@@ -389,13 +600,14 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
   Map<String, Object?> voiceValues() => {
     'patientName': _patientNameController.text.trim(),
     'treatments': [
-      for (final t in _treatments) {'name': t.name, 'price': t.price},
+      for (final t in _treatments)
+        {'name': t.name, 'qty': t.qty, 'price': t.price},
     ],
     'medicines': [
       for (final m in _medicines)
-        {'name': m.name, 'dosage': m.dosage, 'price': m.price},
+        {'name': m.name, 'qty': m.qty, 'dosage': m.dosage, 'price': m.price},
     ],
-    'discount': _discount == 0 ? null : _discount,
+    'discount': double.tryParse(_discountController.text.trim()) ?? 0,
     'status': _selectedStatus,
     'dueDate': _dueDate,
     'notes': _clinicalNotesController.text.trim(),
@@ -430,7 +642,7 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
         )) {
           continue;
         }
-        _treatments.add(_TreatmentItem(name: n, price: p));
+        _treatments.add(_TreatmentItem(name: n, qty: 1, price: p));
       }
       for (final m in AiValue.objects(v['medicines'])) {
         final n = AiValue.str(m['name']);
@@ -446,6 +658,7 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
         _medicines.add(
           _MedicineItem(
             name: n,
+            qty: 1,
             dosage: AiValue.str(m['dosage']) ?? '1 unit',
             price: p,
           ),
@@ -456,6 +669,7 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
       }
       if (AiValue.str(v['status']) case final st? when _statuses.contains(st)) {
         _selectedStatus = st;
+        if (st == 'Paid') _syncPaidAmountToTotal();
       }
       if (AiValue.date(v['dueDate']) case final d?) _dueDate = d;
       if (AiValue.str(v['notes']) case final n?) {
@@ -469,7 +683,6 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
     if (name != null) unawaited(_matchSpokenPatient(name));
   }
 
-  /// "Invoice for Rahul": links the patient when the name is clear.
   Future<void> _matchSpokenPatient(String name) async {
     try {
       final patients = await (_patients ??= _patientRepository
@@ -500,7 +713,7 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
     final patientName = _patientNameController.text.trim();
     if (patientName.isEmpty) return;
 
-    if (_totalPayable <= 0 && _treatments.isEmpty && _medicines.isEmpty) return;
+    if (_totals.grand <= 0 && _treatments.isEmpty && _medicines.isEmpty) return;
 
     setState(() {
       _isSubmitting = true;
@@ -508,54 +721,79 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
     });
 
     try {
-      final List<String> servicesList = [];
-      if (_treatments.isNotEmpty) {
-        servicesList.add(
-          'Treatments: ${_treatments.map((t) => t.name).join(", ")}',
-        );
-      }
-      if (_medicines.isNotEmpty) {
-        servicesList.add(
-          'Medicines: ${_medicines.map((m) => m.name).join(", ")}',
-        );
-      }
-      final serviceSummary = servicesList.isNotEmpty
-          ? servicesList.join(' | ')
-          : 'Consultation & Clinical Services';
-
       final notes = _clinicalNotesController.text.trim();
+      final manualNum =
+          _manualNumber ? _invoiceNumberController.text.trim() : null;
 
       if (widget.onSave != null) {
+        final List<String> servicesList = [];
+        if (_treatments.isNotEmpty) {
+          servicesList.add(
+            'Treatments: ${_treatments.map((t) => t.name).join(", ")}',
+          );
+        }
+        if (_medicines.isNotEmpty) {
+          servicesList.add(
+            'Medicines: ${_medicines.map((m) => m.name).join(", ")}',
+          );
+        }
+        final serviceSummary = servicesList.isNotEmpty
+            ? servicesList.join(' | ')
+            : 'Consultation & Clinical Services';
+
         await widget.onSave!(
           patientName,
           serviceSummary,
-          _totalPayable,
+          _totals.grand / 100.0,
           _selectedStatus,
           notes,
           _dueDate ?? _invoiceDate,
           _selectedPatient?.id,
         );
-      } else {
-        await _invoiceRepository.createInvoice(
+
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        return;
+      }
+
+      final InvoiceModel savedInvoice;
+      if (widget.initialInvoice != null) {
+        savedInvoice = await _invoiceRepository.updateBilledInvoice(
+          widget.initialInvoice!,
           patientName: patientName,
-          service: serviceSummary,
-          amount: _totalPayable,
-          status: _selectedStatus,
-          notes: notes,
-          dueDate: _dueDate ?? _invoiceDate,
           patientId: _selectedPatient?.id,
+          bill: _bill,
+          date: _invoiceDate,
+          dueDate: _dueDate,
+          notes: notes,
+          attendingDoctorUid: _attendingDoctorUid,
+          invoiceNumber: manualNum,
+        );
+      } else {
+        savedInvoice = await _invoiceRepository.createBilledInvoice(
+          patientName: patientName,
+          patientId: _selectedPatient?.id,
+          bill: _bill,
+          date: _invoiceDate,
+          dueDate: _dueDate,
+          notes: notes,
+          attendingDoctorUid: _attendingDoctorUid,
+          invoiceNumber: manualNum,
         );
       }
 
       if (!mounted) return;
-      Navigator.of(context).pop();
-    } catch (_) {
+      Navigator.of(context).pop(InvoiceDialogResult(
+        invoice: savedInvoice,
+        patient: _selectedPatient,
+      ));
+    } catch (e) {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _notice =
-            "Couldn't create the invoice. "
-            'Check your connection and try again.';
+        _notice = e is StateError
+            ? e.message
+            : "Couldn't save the invoice. Check your connection and try again.";
       });
     }
   }
@@ -563,21 +801,25 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
   @override
   Widget build(BuildContext context) {
     final name = _patientNameController.text.trim();
+    final isEdit = widget.initialInvoice != null;
+
     return CruFormDialog(
-      title: 'New invoice',
-      subtitle: 'Bill a patient for treatments and medicines',
+      title: isEdit ? 'Edit invoice' : 'New invoice',
+      subtitle: isEdit
+          ? 'Update invoice details, items, or payments'
+          : 'Bill a patient for treatments and medicines',
       leading: name.isEmpty
           ? const CruIconTile(
               icon: RevenueIcons.receipt,
               tone: CruTileTone.neutral,
             )
           : CruMonogram(name: name, size: CruSize.iconTile),
-      submitLabel: 'Create invoice',
+      submitLabel: 'Save & preview',
       onSubmit: _handleSave,
       busy: _isSubmitting,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to create',
+      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _formKey,
         autovalidateMode: _submitted
@@ -594,8 +836,10 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
             ),
             CruFormSection(
               title: 'Billing',
-              description: 'When it was issued and whether it has been paid.',
+              description: 'Invoice number, doctor, dates and payment.',
               children: [
+                _buildNumberField(),
+                _buildDoctorPicker(),
                 CruFieldRow(
                   children: [
                     CruPickerField(
@@ -626,11 +870,64 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
                       segments: [for (final s in _statuses) CruSegment(s, s)],
                       selected: _selectedStatus,
                       onChanged: (v) {
-                        _selectedStatus = v;
-                        _edited();
+                        setState(() {
+                          _selectedStatus = v;
+                          if (v == 'Paid') {
+                            _syncPaidAmountToTotal();
+                          }
+                          _edited();
+                        });
                       },
                     ),
                   ),
+                ),
+                CruFieldRow(
+                  children: [
+                    CruTextField(
+                      label: 'Amount received',
+                      controller: _amountReceivedController,
+                      hint: '0.00',
+                      prefix: '₹',
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: _moneyFormatter,
+                      onChanged: (v) {
+                        final rec = double.tryParse(v.trim()) ?? 0.0;
+                        final total = _totals.grand / 100.0;
+                        setState(() {
+                          if (toPaise(rec) >= _totals.grand && total > 0) {
+                            _selectedStatus = 'Paid';
+                          } else {
+                            _selectedStatus = 'Pending';
+                          }
+                          _edited();
+                        });
+                      },
+                    ),
+                    CruFieldFrame(
+                      label: 'Payment mode',
+                      child: Wrap(
+                        spacing: CruSpace.s6,
+                        runSpacing: CruSpace.s6,
+                        children: [
+                          for (final mode in _paymentModes)
+                            CruCapsuleButton(
+                              label: mode,
+                              kind: _selectedPaymentMode == mode
+                                  ? CruCapsuleKind.tinted
+                                  : CruCapsuleKind.inset,
+                              onPressed: () {
+                                setState(() {
+                                  _selectedPaymentMode = mode;
+                                  _edited();
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -666,6 +963,83 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildNumberField() {
+    final c = context.cru;
+    if (!_manualNumber) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: CruSpace.s12),
+        child: Row(
+          children: [
+            Text(
+              'Number: assigned when saved',
+              style: CruType.caption.tint(c.label3),
+            ),
+            const SizedBox(width: CruSpace.s8),
+            CruLink(
+              label: 'Set number',
+              style: CruType.caption.w600,
+              onPressed: () {
+                setState(() {
+                  _manualNumber = true;
+                  _edited();
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s12),
+      child: CruTextField(
+        label: 'Invoice number',
+        controller: _invoiceNumberController,
+        hint: 'e.g. INV-26-27/0042',
+        trailing: CruLink(
+          label: 'Auto',
+          style: CruType.caption.w600,
+          onPressed: () {
+            setState(() {
+              _manualNumber = false;
+              _invoiceNumberController.clear();
+              _edited();
+            });
+          },
+        ),
+        onChanged: _edited,
+      ),
+    );
+  }
+
+  Widget _buildDoctorPicker() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final doctors = ref.watch(clinicDoctorsProvider).value ?? const [];
+        if (doctors.length < 2) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: CruSpace.s12),
+          child: CruDropdownField<String>(
+            label: 'Attending doctor',
+            icon: CruIcons.user,
+            value: _attendingDoctorUid ?? '',
+            items: ['', for (final d in doctors) d.uid],
+            itemLabel: (uid) => uid.isEmpty
+                ? 'Clinic'
+                : doctors
+                    .firstWhere(
+                      (d) => d.uid == uid,
+                      orElse: () => doctors.first,
+                    )
+                    .name,
+            onChanged: (v) => _onDoctorSelected(v, doctors),
+          ),
+        );
+      },
     );
   }
 
@@ -753,18 +1127,31 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
       rows: [
         for (var i = 0; i < _treatments.length; i++)
           _LineRow(
-            flex: const [7, 2],
-            cells: [_treatments[i].name],
-            amount: _treatments[i].price,
+            flex: [6, 2, if (_gstEnabled) 2, 2],
+            cells: [
+              _treatments[i].name,
+              'Qty: ${_treatments[i].qty}',
+              if (_gstEnabled) '${_treatments[i].taxPct}% tax',
+            ],
+            amount: _treatments[i].qty * _treatments[i].price,
             onRemove: () {
               _treatments.removeAt(i);
+              if (_selectedStatus == 'Paid') _syncPaidAmountToTotal();
               _edited();
             },
           ),
       ],
       addRow: _AddRow(
-        flex: const [7, 2],
+        flex: [2, 6, if (_gstEnabled) 2, 3],
         inputs: [
+          _LineInput(
+            controller: _treatmentQtyController,
+            hint: 'Qty',
+            tabular: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: _qtyFormatter,
+            onChanged: _onTreatmentTyped,
+          ),
           _LineInput(
             controller: _treatmentNameController,
             focusNode: _treatmentNameFocus,
@@ -772,9 +1159,19 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
             textCapitalization: TextCapitalization.sentences,
             onChanged: _onTreatmentTyped,
           ),
+          if (_gstEnabled)
+            _LineInput(
+              controller: _treatmentTaxController,
+              hint: 'Tax %',
+              suffix: '%',
+              tabular: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: _moneyFormatter,
+              onChanged: _onTreatmentTyped,
+            ),
           _LineInput(
             controller: _treatmentPriceController,
-            hint: 'Fee',
+            hint: 'Rate',
             prefix: '₹',
             tabular: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -798,18 +1195,32 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
       rows: [
         for (var i = 0; i < _medicines.length; i++)
           _LineRow(
-            flex: const [5, 2, 2],
-            cells: [_medicines[i].name, _medicines[i].dosage],
-            amount: _medicines[i].price,
+            flex: [5, 2, 2, if (_gstEnabled) 2, 2],
+            cells: [
+              _medicines[i].name,
+              'Qty: ${_medicines[i].qty}',
+              _medicines[i].dosage,
+              if (_gstEnabled) '${_medicines[i].taxPct}% tax',
+            ],
+            amount: _medicines[i].qty * _medicines[i].price,
             onRemove: () {
               _medicines.removeAt(i);
+              if (_selectedStatus == 'Paid') _syncPaidAmountToTotal();
               _edited();
             },
           ),
       ],
       addRow: _AddRow(
-        flex: const [5, 2, 2],
+        flex: [2, 5, 2, if (_gstEnabled) 2, 3],
         inputs: [
+          _LineInput(
+            controller: _medicineQtyController,
+            hint: 'Qty',
+            tabular: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: _qtyFormatter,
+            onChanged: _onMedicineTyped,
+          ),
           _LineInput(
             controller: _medicineNameController,
             focusNode: _medicineNameFocus,
@@ -822,9 +1233,19 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
             hint: '1-0-1',
             onChanged: _onMedicineTyped,
           ),
+          if (_gstEnabled)
+            _LineInput(
+              controller: _medicineTaxController,
+              hint: 'Tax %',
+              suffix: '%',
+              tabular: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: _moneyFormatter,
+              onChanged: _onMedicineTyped,
+            ),
           _LineInput(
             controller: _medicinePriceController,
-            hint: 'Price',
+            hint: 'Rate',
             prefix: '₹',
             tabular: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -853,6 +1274,8 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
 
   Widget _buildTotals() {
     final c = context.cru;
+    final totals = _totals;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -861,15 +1284,14 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_treatments.isNotEmpty)
+              _TotalLine(
+                label: 'Subtotal',
+                value: formatPaise(totals.subtotal),
+              ),
+              if (totals.tax > 0)
                 _TotalLine(
-                  label: 'Treatments',
-                  value: _rupees(_treatmentSubtotal),
-                ),
-              if (_medicines.isNotEmpty)
-                _TotalLine(
-                  label: 'Medicines',
-                  value: _rupees(_medicineSubtotal),
+                  label: 'Tax',
+                  value: formatPaise(totals.tax),
                 ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
@@ -894,12 +1316,23 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
                           decimal: true,
                         ),
                         inputFormatters: _moneyFormatter,
-                        onChanged: _edited,
+                        onChanged: (v) {
+                          if (_selectedStatus == 'Paid') {
+                            _syncPaidAmountToTotal();
+                          }
+                          _edited();
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
+              if (totals.roundOff != 0)
+                _TotalLine(
+                  label: 'Round off',
+                  value: (totals.roundOff > 0 ? '+ ' : '') +
+                      formatPaise(totals.roundOff),
+                ),
               const SizedBox(height: CruSpace.s6),
               const CruSeparator(),
               const SizedBox(height: CruSpace.s12),
@@ -909,7 +1342,7 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
                     child: Text('Total', style: CruType.callout.tint(c.label)),
                   ),
                   Text(
-                    _rupees(_totalPayable),
+                    formatPaise(totals.grand),
                     style: CruType.title2.tabular.tint(c.label),
                   ),
                 ],
@@ -922,8 +1355,6 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
   }
 }
 
-/// A section that uses the full dialog width: title and description on
-/// top with an optional action, then its children.
 class _WideSection extends StatelessWidget {
   const _WideSection({
     required this.title,
@@ -983,8 +1414,6 @@ class _WideSection extends StatelessWidget {
   }
 }
 
-/// A labelled group of line items: the added rows in a hairline panel,
-/// then an add row.
 class _LineGroup extends StatelessWidget {
   const _LineGroup({
     required this.title,
@@ -1054,7 +1483,6 @@ class _LineRow extends StatelessWidget {
     required this.onRemove,
   });
 
-  /// Flex for each cell, then the amount.
   final List<int> flex;
   final List<String> cells;
   final double amount;
@@ -1144,13 +1572,13 @@ class _AddRow extends StatelessWidget {
   }
 }
 
-/// A 40 px inset input without a label, for line items and the discount.
 class _LineInput extends StatefulWidget {
   const _LineInput({
     required this.controller,
     required this.hint,
     this.focusNode,
     this.prefix,
+    this.suffix,
     this.tabular = false,
     this.textAlign = TextAlign.start,
     this.keyboardType,
@@ -1165,6 +1593,7 @@ class _LineInput extends StatefulWidget {
   final String hint;
   final FocusNode? focusNode;
   final String? prefix;
+  final String? suffix;
   final bool tabular;
   final TextAlign textAlign;
   final TextInputType? keyboardType;
@@ -1242,6 +1671,10 @@ class _LineInputState extends State<_LineInput> {
               ),
             ),
           ),
+          if (widget.suffix != null) ...[
+            const SizedBox(width: CruSpace.s6),
+            Text(widget.suffix!, style: CruType.input.w500.tint(c.label2)),
+          ],
         ],
       ),
     );
@@ -1312,3 +1745,11 @@ class _PatientOption extends StatelessWidget {
     );
   }
 }
+
+String _rupees(double v) => v == v.roundToDouble()
+    ? DashFormat.rupees(v)
+    : NumberFormat.currency(
+        locale: 'en_IN',
+        symbol: '₹',
+        decimalDigits: 2,
+      ).format(v);

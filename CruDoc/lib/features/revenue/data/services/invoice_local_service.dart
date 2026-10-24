@@ -25,9 +25,26 @@ class InvoiceLocalService {
         attendingDoctorUid TEXT NOT NULL DEFAULT '',
         createdByUid TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL
+        updatedAt INTEGER NOT NULL,
+        invoiceNumber TEXT NOT NULL DEFAULT '',
+        billJson TEXT NOT NULL DEFAULT ''
       )
     ''');
+
+    final cols = {
+      for (final r in await db.rawQuery('PRAGMA table_info(invoices)'))
+        (r['name'] ?? '').toString(),
+    };
+    if (!cols.contains('invoiceNumber')) {
+      await db.execute(
+        "ALTER TABLE invoices ADD COLUMN invoiceNumber TEXT NOT NULL DEFAULT ''",
+      );
+    }
+    if (!cols.contains('billJson')) {
+      await db.execute(
+        "ALTER TABLE invoices ADD COLUMN billJson TEXT NOT NULL DEFAULT ''",
+      );
+    }
   }
 
   Future<void> upsertInvoice(InvoiceModel invoice) async {

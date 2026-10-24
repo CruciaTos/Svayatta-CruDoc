@@ -1,6 +1,16 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart'
+    show
+        Canvas,
+        Colors,
+        Offset,
+        TextDirection,
+        TextPainter,
+        TextSpan,
+        TextStyle;
 
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -13,6 +23,40 @@ import '../models/pdf_document_models.dart';
 import '../templates/doc_template.dart';
 import 'doc_context.dart';
 import 'pdf_text.dart';
+
+Future<DocScriptImage?> _rasterizeScript(
+  String s, {
+  required double maxWidthPt,
+}) async {
+  try {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: const TextStyle(fontSize: 10 * 3, color: Colors.black),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    painter.layout(
+      maxWidth: maxWidthPt.isFinite ? maxWidthPt * 3 : double.infinity,
+    );
+    final widthPx = painter.width.ceil().clamp(1, 10000);
+    final heightPx = painter.height.ceil().clamp(1, 10000);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    painter.paint(canvas, Offset.zero);
+    final pic = recorder.endRecording();
+    final img = await pic.toImage(widthPx, heightPx);
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) return null;
+    return DocScriptImage(
+      png: byteData.buffer.asUint8List(),
+      widthPt: painter.width / 3,
+      heightPt: painter.height / 3,
+    );
+  } catch (_) {
+    return null;
+  }
+}
 
 /// The uid to record as signer: the signed-in user, but only when they
 /// are the issuing doctor (and a doctor). Null otherwise.
@@ -319,18 +363,92 @@ Future<DocContext> buildDocContext({
         DocWarning('Update CruDoc to use the template ‘${template.name}’'),
       );
     }
-    final textsToCheck = [
-      data.patient.fullName,
-      clinic.name,
-      clinic.address,
-      doctor?.name ?? '',
-    ];
-    if (textsToCheck.any(needsScriptFallback)) {
-      warnings.add(
-        const DocWarning(
-          'Some Indian-language text may not print correctly yet',
-        ),
-      );
+  }
+
+  // Pre-rasterize Indian script strings as images
+  final scriptImages = <String, DocScriptImage>{};
+  final candidateStrings = <({String text, bool isParagraph})>{};
+
+  void addCandidate(String? s, {bool isParagraph = false}) {
+    if (s == null) return;
+    final trimmed = s.trim();
+    if (trimmed.isEmpty) return;
+    if (isParagraph) {
+      for (final line in trimmed.split('\n')) {
+        final p = line.trim();
+        if (p.isNotEmpty && needsScriptFallback(p)) {
+          candidateStrings.add((text: p, isParagraph: true));
+        }
+      }
+    } else {
+      if (needsScriptFallback(trimmed)) {
+        candidateStrings.add((text: trimmed, isParagraph: false));
+      }
+    }
+  }
+
+  // Clinic info
+  addCandidate(clinic.name);
+  addCandidate(clinic.tagline);
+  addCandidate(clinic.address, isParagraph: true);
+  addCandidate(clinic.footerText, isParagraph: true);
+  addCandidate(clinic.termsText, isParagraph: true);
+
+  // Doctor info
+  addCandidate(doctor?.name);
+  addCandidate(doctor?.qualification);
+  addCandidate(doctor?.specialty);
+
+  // Patient
+  addCandidate(data.patient.fullName);
+
+  // Document body fields
+  if (data is PdfPrescriptionDocumentData) {
+    addCandidate(data.complaints, isParagraph: true);
+    addCandidate(data.diagnosis, isParagraph: true);
+    for (final m in data.medications) {
+      addCandidate(m.drugName);
+      addCandidate(m.instructions);
+      addCandidate(m.dosage);
+    }
+    addCandidate(data.labTests, isParagraph: true);
+    addCandidate(data.advice, isParagraph: true);
+    addCandidate(data.notes, isParagraph: true);
+    addCandidate(data.followUp);
+  } else if (data is PdfInvoiceDocumentData) {
+    for (final item in data.items) {
+      addCandidate(item.description);
+    }
+    addCandidate(data.notes, isParagraph: true);
+  } else if (data is PdfReferralDocumentData) {
+    addCandidate(data.recipient);
+    addCandidate(data.reason, isParagraph: true);
+    addCandidate(data.findings, isParagraph: true);
+    addCandidate(data.question, isParagraph: true);
+    addCandidate(data.teeth);
+    addCandidate(data.reply, isParagraph: true);
+    addCandidate(data.notes, isParagraph: true);
+  } else if (data is PdfMedicalReportDocumentData) {
+    addCandidate(data.reportTitle);
+    for (final sec in data.sections) {
+      addCandidate(sec.title);
+      addCandidate(sec.content, isParagraph: true);
+    }
+    addCandidate(data.notes, isParagraph: true);
+  } else if (data is PdfCertificateDocumentData) {
+    addCandidate(data.title);
+    addCandidate(data.body, isParagraph: true);
+    addCandidate(data.notes, isParagraph: true);
+  }
+
+  final contentWidthPt = template.paper.contentWidthMm * 72.0 / 25.4;
+  for (final cand in candidateStrings) {
+    final img = await _rasterizeScript(
+      cand.text,
+      maxWidthPt: cand.isParagraph ? contentWidthPt : double.infinity,
+    );
+    if (img != null) {
+      scriptImages[cand.text] = img;
     }
   }
 
@@ -342,5 +460,6 @@ Future<DocContext> buildDocContext({
     images: images,
     sample: sample,
     warnings: warnings,
+    scriptImages: scriptImages,
   );
 }

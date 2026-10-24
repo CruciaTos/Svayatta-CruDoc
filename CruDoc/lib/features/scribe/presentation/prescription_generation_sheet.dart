@@ -3,6 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/core/pdf/data/doc_numbering.dart';
+import 'package:doctor_management_app/core/pdf/models/pdf_document_models.dart';
+import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
+import 'package:doctor_management_app/core/pdf/render/doc_context_builder.dart';
+import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -619,15 +624,52 @@ class _PrescriptionGenerationSheetState
     );
   }
 
-  void _generateAndSavePrescription() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Prescription $_rxNumber saved! (Ready for PDF Generation)',
-        ),
+  Future<void> _generateAndSavePrescription() async {
+    final issuingDoctorUid = widget.initialVisit?.attendingDoctorUid.trim().isNotEmpty == true
+        ? widget.initialVisit!.attendingDoctorUid.trim()
+        : defaultIssuingDoctorUid();
+    final docNum = _rxNumber.isNotEmpty && !_rxNumber.startsWith('RX-')
+        ? _rxNumber
+        : await DocNumbering.next(DocKind.prescription, _rxDate);
+
+    final data = PdfPrescriptionDocumentData(
+      patient: PdfPatientSnapshot(
+        fullName: _patientNameCtrl.text.trim().isNotEmpty
+            ? _patientNameCtrl.text.trim()
+            : 'Patient',
+        phone: _patientPhoneCtrl.text.trim().isNotEmpty
+            ? _patientPhoneCtrl.text.trim()
+            : null,
+        ageGender: _patientAgeGenderCtrl.text.trim().isNotEmpty
+            ? _patientAgeGenderCtrl.text.trim()
+            : null,
       ),
+      documentNumber: docNum,
+      documentDate: _rxDate,
+      vitals: _vitalsCtrl.text.trim(),
+      complaints: _complaintsCtrl.text.trim(),
+      diagnosis: _diagnosisCtrl.text.trim(),
+      medications: [
+        for (final d in _drugs)
+          PdfPrescriptionMedication(
+            drugName: d.drugName,
+            dosage: d.dosage,
+            frequency: d.frequency,
+            duration: d.duration,
+            instructions: d.instructions,
+          ),
+      ],
+      labTests: _labTestsCtrl.text.trim(),
+      advice: _adviceCtrl.text.trim(),
+      followUp: _followUpCtrl.text.trim(),
+      letterheadConfig: widget.letterheadConfig,
+      issuingDoctorUid: issuingDoctorUid,
+      signedByUid: docSignerFor(issuingDoctorUid),
     );
+
+    if (!mounted) return;
     Navigator.pop(context);
+    await MedicalPdfPreviewScreen.open(context, documentData: data);
   }
 
   Future<void> _shareRxWhatsApp() async {

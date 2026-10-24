@@ -95,9 +95,13 @@ const _notDrawn = {
 /// still lists every page, for voice, gating and the phone.
 List<_NavGroup> _drawnGroups(List<_NavGroup> groups) {
   final all = [for (final g in groups) ...g.items];
-  final tasks = [for (final i in all) if (_tasksTabs.contains(i.tab)) i];
+  final tasks = [
+    for (final i in all)
+      if (_tasksTabs.contains(i.tab)) i,
+  ];
   final referrals = [
-    for (final i in all) if (_referralTabs.contains(i.tab)) i,
+    for (final i in all)
+      if (_referralTabs.contains(i.tab)) i,
   ];
   return [
     for (final g in groups)
@@ -183,6 +187,7 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
         _NavItem(DesktopTab.procedures, 'Procedures', DentalIcons.procedures),
       ],
       const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
+      const _NavItem(DesktopTab.documents, 'Documents', CruIcons.fileText),
       const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
     ]),
     if (specialtyItems.isNotEmpty) _NavGroup('Specialty care', specialtyItems),

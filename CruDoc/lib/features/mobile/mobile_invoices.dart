@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/revenue/data/invoice_pdf_mapper.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Invoices on the phone: what is still owed, then every invoice with
-/// its state. Tap one to mark it paid (or back), or delete it.
+/// its state. Tap one to view PDF, edit, mark it paid, or cancel it.
 class MobileInvoicesScreen extends StatefulWidget {
   const MobileInvoicesScreen({super.key});
 
@@ -42,7 +46,9 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
     final q = _search.text.trim().toLowerCase();
     return q.isEmpty ||
         i.patientName.toLowerCase().contains(q) ||
-        i.service.toLowerCase().contains(q);
+        i.service.toLowerCase().contains(q) ||
+        i.id.toLowerCase().contains(q) ||
+        i.invoiceNumber.toLowerCase().contains(q);
   }
 
   @override
@@ -51,16 +57,21 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
       stream: _stream,
       builder: (context, snap) {
         final all = snap.data;
-        final owed = all == null ? 0.0 : _sum(all.where((i) => !i.isPaid));
+        final owed = all == null
+            ? 0.0
+            : _sum(all.where((i) => !i.isPaid && !i.isCancelled));
         final shown = all == null
             ? const <InvoiceModel>[]
             : all.where(_matches).toList();
+
         int count(String f) => all == null
             ? 0
             : f == 'All'
             ? all.length
             : all
-                  .where((i) => i.status.toLowerCase() == f.toLowerCase())
+                  .where((i) =>
+                      !i.isCancelled &&
+                      i.status.toLowerCase() == f.toLowerCase())
                   .length;
 
         return ListView(
@@ -111,9 +122,9 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                   horizontal: MobileMetrics.gutter,
                 ),
                 child: _Totals(
-                  paid: _sum(all.where((i) => i.isPaid)),
-                  pending: _sum(all.where((i) => i.isPending)),
-                  overdue: _sum(all.where((i) => i.isOverdue)),
+                  paid: _sum(all.where((i) => i.isPaid && !i.isCancelled)),
+                  pending: _sum(all.where((i) => i.isPending && !i.isCancelled)),
+                  overdue: _sum(all.where((i) => i.isOverdue && !i.isCancelled)),
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
@@ -123,49 +134,50 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                 ),
                 child: MobileSearchField(
                   controller: _search,
-                  hint: 'Search patient or service',
+                  hint: 'Search patient, service or no.',
                   onChanged: (_) => setState(() {}),
                 ),
               ),
-              const SizedBox(height: CruSpace.s12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+              Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: MobileMetrics.gutter,
                 ),
-                child: Row(
-                  children: [
-                    for (final f in _filters) ...[
-                      MobileChip(
-                        label: f,
-                        count: count(f),
-                        selected: _filter == f,
-                        attention: f == 'Overdue' && count(f) > 0,
-                        onTap: () => setState(() => _filter = f),
-                      ),
-                      const SizedBox(width: CruSpace.s8),
-                    ],
-                  ],
+                child: MobileSegmented<String>(
+                  values: _filters,
+                  label: (f) => f == 'All' ? f : '$f (${count(f)})',
+                  selected: _filter,
+                  onChanged: (f) => setState(() => _filter = f),
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
-              MobileRowGroup(
-                children: shown.isEmpty
-                    ? [
-                        Padding(
-                          padding: const EdgeInsets.all(CruSpace.s20),
-                          child: Text(
-                            'No invoices match.',
-                            textAlign: TextAlign.center,
-                            style: MobileType.subhead.tint(context.cru.label2),
-                          ),
-                        ),
-                      ]
-                    : [
-                        for (final i in shown)
-                          _InvoiceRow(invoice: i, repo: _repo),
+              if (shown.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MobileMetrics.gutter,
+                  ),
+                  child: MobileEmpty(
+                    icon: CruIcons.search,
+                    title: 'No invoices match',
+                    body: 'Try a different filter or search term.',
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MobileMetrics.gutter,
+                  ),
+                  child: MobileCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < shown.length; i++) ...[
+                          if (i > 0) const Divider(height: 1, thickness: 0.5),
+                          _InvoiceRow(invoice: shown[i], repo: _repo),
+                        ],
                       ],
-              ),
+                    ),
+                  ),
+                ),
             ],
           ],
         );
@@ -174,7 +186,6 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
   }
 }
 
-/// Paid, pending and overdue in one card.
 class _Totals extends StatelessWidget {
   const _Totals({
     required this.paid,
@@ -188,34 +199,71 @@ class _Totals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
-    Widget figure(String label, double v, Color color) => Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return MobileCard(
+      padding: const EdgeInsets.all(CruSpace.s16),
+      child: Row(
         children: [
-          Text(label, style: MobileType.caption.tint(c.label2)),
-          const SizedBox(height: CruSpace.s4),
-          Text(
-            DashFormat.rupeesCompact(v),
-            maxLines: 1,
-            style: MobileType.title2.tabular.tint(color),
+          Expanded(
+            child: _TotalTile(
+              label: 'Paid',
+              value: paid,
+              tone: MobileTone.green,
+            ),
           ),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: _TotalTile(
+              label: 'Pending',
+              value: pending,
+              tone: MobileTone.blue,
+            ),
+          ),
+          if (overdue > 0) ...[
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: _TotalTile(
+                label: 'Overdue',
+                value: overdue,
+                tone: MobileTone.amber,
+              ),
+            ),
+          ],
         ],
       ),
     );
-    return MobileCard(
-      padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
-      child: Row(
-        children: [
-          figure('Paid', paid, mobileTone(c, MobileTone.green).$2),
-          figure('Pending', pending, c.label),
-          figure(
-            'Overdue',
-            overdue,
-            overdue > 0 ? mobileTone(c, MobileTone.amber).$2 : c.label,
-          ),
-        ],
-      ),
+  }
+}
+
+class _TotalTile extends StatelessWidget {
+  const _TotalTile({
+    required this.label,
+    required this.value,
+    required this.tone,
+  });
+
+  final String label;
+  final double value;
+  final MobileTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final color = switch (tone) {
+      MobileTone.green => c.greenText,
+      MobileTone.amber => c.amberText,
+      MobileTone.blue => c.accent,
+      _ => c.label,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: MobileType.caption.tint(c.label3)),
+        const SizedBox(height: CruSpace.s2),
+        Text(
+          DashFormat.rupees(value),
+          style: MobileType.headline.tabular.tint(color),
+        ),
+      ],
     );
   }
 }
@@ -226,11 +274,13 @@ class _InvoiceRow extends StatelessWidget {
   final InvoiceModel invoice;
   final InvoiceRepository repo;
 
-  MobileTone get _tone => invoice.isPaid
-      ? MobileTone.green
-      : invoice.isOverdue
-      ? MobileTone.amber
-      : MobileTone.blue;
+  MobileTone get _tone => invoice.isCancelled
+      ? MobileTone.slate
+      : (invoice.isPaid
+          ? MobileTone.green
+          : invoice.isOverdue
+          ? MobileTone.amber
+          : MobileTone.blue);
 
   bool get _sample => invoice.doctorId == 'sample';
 
@@ -239,69 +289,115 @@ class _InvoiceRow extends StatelessWidget {
     await repo.updateInvoiceStatus(invoice.id, status);
   }
 
+  Future<void> _viewPdf(BuildContext context) async {
+    Patient? patient;
+    if (invoice.patientId != null && invoice.patientId!.isNotEmpty) {
+      try {
+        final patients = await PatientRepository().watchPatients().first;
+        patient = patients.where((p) => p.id == invoice.patientId).firstOrNull;
+      } catch (_) {}
+    }
+
+    if (!context.mounted) return;
+    await MedicalPdfPreviewScreen.open(
+      context,
+      documentData: invoicePdfData(invoice, patient: patient),
+      invoice: invoice,
+    );
+  }
+
   void _sheet(BuildContext context) {
     final i = invoice;
+    final displayNo = i.invoiceNumber.isNotEmpty ? i.invoiceNumber : i.id;
+
     showMobileActionSheet(
       context,
-      title: i.patientName.isEmpty ? 'Invoice' : i.patientName,
-      subtitle: '${DashFormat.rupees(i.amount)} · ${i.service}',
+      title: i.patientName.isEmpty ? displayNo : i.patientName,
+      subtitle: '$displayNo · ${DashFormat.rupees(i.amount)} · ${i.service}',
       leading: MobileIconTile(icon: CruIcons.fileText, tone: _tone),
       actions: [
-        if (!i.isPaid)
-          MobileSheetAction(
-            label: 'Mark paid',
-            icon: CruIcons.check,
-            tone: MobileTone.green,
-            onTap: () => _set('Paid'),
-          ),
-        if (!i.isPending)
-          MobileSheetAction(
-            label: i.isPaid ? 'Mark not paid' : 'Mark pending',
-            icon: CruIcons.clock,
-            tone: MobileTone.blue,
-            onTap: () => _set('Pending'),
-          ),
-        if (!i.isOverdue && !i.isPaid)
-          MobileSheetAction(
-            label: 'Mark overdue',
-            icon: CruIcons.warning,
-            tone: MobileTone.amber,
-            onTap: () => _set('Overdue'),
-          ),
         MobileSheetAction(
-          label: 'Delete invoice',
+          label: 'View PDF',
+          icon: CruIcons.fileText,
+          tone: MobileTone.blue,
+          onTap: () => _viewPdf(context),
+        ),
+        if (!i.isCancelled) ...[
+          MobileSheetAction(
+            label: 'Edit',
+            icon: CruIcons.pen,
+            tone: MobileTone.blue,
+            onTap: () {
+              showDesktopCreateInvoiceDialog(
+                context,
+                initialInvoice: i,
+              );
+            },
+          ),
+          if (!i.isPaid)
+            MobileSheetAction(
+              label: 'Mark paid',
+              icon: CruIcons.check,
+              tone: MobileTone.green,
+              onTap: () => _set('Paid'),
+            ),
+          if (!i.isPending)
+            MobileSheetAction(
+              label: i.isPaid ? 'Mark not paid' : 'Mark pending',
+              icon: CruIcons.clock,
+              tone: MobileTone.blue,
+              onTap: () => _set('Pending'),
+            ),
+          if (!i.isOverdue && !i.isPaid)
+            MobileSheetAction(
+              label: 'Mark overdue',
+              icon: CruIcons.warning,
+              tone: MobileTone.amber,
+              onTap: () => _set('Overdue'),
+            ),
+          MobileSheetAction(
+            label: 'Cancel invoice',
+            icon: CruIcons.close,
+            destructive: true,
+            onTap: () => _confirmCancel(context),
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _confirmCancel(BuildContext context) {
+    final displayNo =
+        invoice.invoiceNumber.isNotEmpty ? invoice.invoiceNumber : invoice.id;
+    showMobileActionSheet(
+      context,
+      title: 'Cancel invoice $displayNo?',
+      subtitle:
+          'It stays in your records with its number, marked cancelled, and leaves your revenue.',
+      actions: [
+        MobileSheetAction(
+          label: 'Cancel invoice',
           icon: CruIcons.close,
           destructive: true,
-          onTap: () => _confirmDelete(context),
+          onTap: () async {
+            if (!_sample) await repo.cancelInvoice(invoice.id);
+          },
         ),
       ],
     );
   }
 
-  void _confirmDelete(BuildContext context) => showMobileActionSheet(
-    context,
-    title: 'Delete this invoice?',
-    subtitle: 'It cannot be brought back.',
-    actions: [
-      MobileSheetAction(
-        label: 'Delete',
-        icon: CruIcons.close,
-        destructive: true,
-        onTap: () async {
-          if (!_sample) await repo.deleteInvoice(invoice.id);
-        },
-      ),
-    ],
-  );
-
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     final i = invoice;
+    final displayNo = i.invoiceNumber.isNotEmpty ? i.invoiceNumber : i.id;
+
     return MobileRow(
       leading: MobileIconTile(icon: CruIcons.fileText, tone: _tone),
       title: i.patientName.isEmpty ? 'Unnamed patient' : i.patientName,
       subtitle: [
+        displayNo,
         if (i.service.trim().isNotEmpty) i.service.trim(),
         DashFormat.shortDate(i.date),
       ].join(' · '),

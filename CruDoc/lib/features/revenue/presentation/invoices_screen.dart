@@ -224,17 +224,19 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 return matchesStatus && matchesSearch;
               }).toList();
 
-              final totalInvoiced = allInvoices.fold<double>(
+              final activeInvoices =
+                  allInvoices.where((i) => !i.isCancelled).toList();
+              final totalInvoiced = activeInvoices.fold<double>(
                 0.0,
                 (sum, item) => sum + item.amount,
               );
-              final paidTotal = allInvoices
+              final paidTotal = activeInvoices
                   .where((i) => i.isPaid)
                   .fold<double>(0.0, (sum, item) => sum + item.amount);
-              final pendingTotal = allInvoices
+              final pendingTotal = activeInvoices
                   .where((i) => i.isPending)
                   .fold<double>(0.0, (sum, item) => sum + item.amount);
-              final overdueTotal = allInvoices
+              final overdueTotal = activeInvoices
                   .where((i) => i.isOverdue)
                   .fold<double>(0.0, (sum, item) => sum + item.amount);
 
@@ -748,16 +750,21 @@ class _InvoiceTableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCancelled = invoice.isCancelled;
     final isPaid = invoice.isPaid;
     final isPending = invoice.isPending;
 
-    final statusBg = isPaid
-        ? const Color(0xFFDCFCE7)
-        : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFFEE2E2));
+    final statusBg = isCancelled
+        ? const Color(0xFFE2E8F0)
+        : (isPaid
+            ? const Color(0xFFDCFCE7)
+            : (isPending ? const Color(0xFFFEF3C7) : const Color(0xFFFEE2E2)));
 
-    final statusText = isPaid
-        ? const Color(0xFF15803D)
-        : (isPending ? const Color(0xFFB45309) : const Color(0xFFB91C1C));
+    final statusText = isCancelled
+        ? const Color(0xFF64748B)
+        : (isPaid
+            ? const Color(0xFF15803D)
+            : (isPending ? const Color(0xFFB45309) : const Color(0xFFB91C1C)));
 
     final dateFormat = DateFormat('MMM dd, yyyy');
 

@@ -39,6 +39,13 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
+import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
+import 'package:doctor_management_app/features/reports/presentation/medical_report_generation_sheet.dart';
+import 'package:doctor_management_app/features/reports/presentation/certificate_dialog.dart';
 
 /// Main-area padding for Patient details (the dashboard's, 24 on top).
 final EdgeInsets _padding = CruSpace.mainPadding.copyWith(top: CruSpace.s24);
@@ -131,6 +138,10 @@ class _DetailsBody extends ConsumerWidget {
     );
     final canEdit = ref.watch(clinicCanProvider(ClinicPermission.patientsEdit));
     final canBook = ref.watch(clinicCanProvider(ClinicPermission.schedule));
+    final canClinicalEdit = ref.watch(
+      clinicCanProvider(ClinicPermission.clinicalEdit),
+    );
+    final canBill = ref.watch(clinicCanProvider(ClinicPermission.billing));
     final isPhysio = clinical && ref.watch(isPhysiotherapyProvider);
     final isHomeopath = clinical && specialty == DoctorSpecialtyType.homeopathy;
     // Scans and reports for dentists with radiology enabled.
@@ -251,6 +262,53 @@ class _DetailsBody extends ConsumerWidget {
                 onBack: onBack,
                 onEdit: canEdit ? edit : null,
                 onNewVisit: canBook ? newVisit : null,
+                onNewBill: canBill
+                    ? () => showDesktopCreateInvoiceDialog(
+                          context,
+                          initialPatient: p,
+                        )
+                    : null,
+                onPrescription: canClinicalEdit
+                    ? () {
+                        final profile = ref.read(doctorProfileProvider).value;
+                        final user = FirebaseAuth.instance.currentUser;
+                        final cfg = DoctorLetterheadConfig.fromProfileData(
+                          profile,
+                          user,
+                        );
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => PrescriptionGenerationSheet(
+                            letterheadConfig: cfg,
+                            initialPatient: p,
+                          ),
+                        );
+                      }
+                    : null,
+                onReport: canClinicalEdit
+                    ? () {
+                        final profile = ref.read(doctorProfileProvider).value;
+                        final user = FirebaseAuth.instance.currentUser;
+                        final cfg = DoctorLetterheadConfig.fromProfileData(
+                          profile,
+                          user,
+                        );
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => MedicalReportGenerationSheet(
+                            letterheadConfig: cfg,
+                            initialPatient: p,
+                          ),
+                        );
+                      }
+                    : null,
+                onCertificate: canClinicalEdit
+                    ? () => showCertificateDialog(context, patient: p)
+                    : null,
                 // Dentists have the tooth chart on the page itself.
                 onDentalChart: null,
                 onCaseSheet: isHomeopath

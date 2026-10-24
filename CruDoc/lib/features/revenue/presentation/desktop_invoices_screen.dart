@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/revenue/data/invoice_pdf_mapper.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
@@ -23,9 +27,9 @@ enum _InvoiceFilter {
 
   bool matches(InvoiceModel i) => switch (this) {
     _InvoiceFilter.all => true,
-    _InvoiceFilter.paid => i.isPaid,
-    _InvoiceFilter.pending => i.isPending,
-    _InvoiceFilter.overdue => i.isOverdue,
+    _InvoiceFilter.paid => i.isPaid && !i.isCancelled,
+    _InvoiceFilter.pending => i.isPending && !i.isCancelled,
+    _InvoiceFilter.overdue => i.isOverdue && !i.isCancelled,
   };
 }
 
@@ -51,6 +55,7 @@ class DesktopInvoicesScreen extends StatefulWidget {
 
 class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
   late final InvoiceRepository _repository = InvoiceRepository();
+  final PatientRepository _patientRepository = PatientRepository();
   final TextEditingController _search = TextEditingController();
   late final Stream<List<InvoiceModel>> _invoices =
       widget.invoices ?? _repository.watchInvoices();
@@ -75,19 +80,46 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
             (q.isEmpty ||
                 i.patientName.toLowerCase().contains(q) ||
                 i.service.toLowerCase().contains(q) ||
-                i.id.toLowerCase().contains(q)))
+                i.id.toLowerCase().contains(q) ||
+                i.invoiceNumber.toLowerCase().contains(q)))
           i,
     ];
   }
 
-  Future<void> _delete(InvoiceModel invoice) async {
+  Future<void> _viewPdf(InvoiceModel invoice) async {
+    Patient? patient;
+    if (invoice.patientId != null && invoice.patientId!.isNotEmpty) {
+      try {
+        final patients = await _patientRepository.watchPatients().first;
+        patient = patients.where((p) => p.id == invoice.patientId).firstOrNull;
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+    await MedicalPdfPreviewScreen.open(
+      context,
+      documentData: invoicePdfData(invoice, patient: patient),
+      invoice: invoice,
+    );
+  }
+
+  void _edit(InvoiceModel invoice) {
+    showDesktopCreateInvoiceDialog(
+      context,
+      initialInvoice: invoice,
+    );
+  }
+
+  Future<void> _cancel(InvoiceModel invoice) async {
+    final num =
+        invoice.invoiceNumber.isNotEmpty ? invoice.invoiceNumber : invoice.id;
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this invoice?'),
-        content: Text(
-          '${invoice.id} for ${_patient(invoice)} will be removed. '
-          'This cannot be undone.',
+        title: Text('Cancel invoice $num?'),
+        content: const Text(
+          'It stays in your records with its number, marked cancelled, '
+          'and leaves your revenue.',
         ),
         actions: [
           CruButton(
@@ -96,15 +128,15 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
             onPressed: () => Navigator.of(context).pop(false),
           ),
           CruButton(
-            label: 'Delete',
+            label: 'Cancel invoice',
             onPressed: () => Navigator.of(context).pop(true),
           ),
         ],
       ),
     );
     if (sure != true) return;
-    await _repository.deleteInvoice(invoice.id);
-    if (mounted) setState(() => _selectedId = null);
+    await _repository.cancelInvoice(invoice.id);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -200,11 +232,13 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
                         : _InvoiceDetails(
                             invoice: selected,
                             onClose: () => setState(() => _selectedId = null),
+                            onViewPdf: () => _viewPdf(selected!),
+                            onEdit: () => _edit(selected!),
+                            onCancel: () => _cancel(selected!),
                             onMarkPaid: () => _repository.updateInvoiceStatus(
                               selected!.id,
                               'Paid',
                             ),
-                            onDelete: () => _delete(selected!),
                           ),
                   ),
                 ],
@@ -222,8 +256,7 @@ String _patient(InvoiceModel i) =>
 
 String _date(DateTime d) => DateFormat('d MMM yyyy').format(d);
 
-/// The status pill: green once paid, amber while it waits (pending or
-/// overdue).
+/// The status pill: green once paid, amber while it waits, grey for cancelled.
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.invoice});
 
@@ -232,6 +265,13 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    if (invoice.isCancelled) {
+      return CruPill(
+        text: 'Cancelled',
+        background: c.track,
+        foreground: c.label2,
+      );
+    }
     final paid = invoice.isPaid;
     return CruPill(
       text: invoice.isOverdue
@@ -245,7 +285,7 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
-/// Invoiced, collected, awaiting and overdue totals.
+/// Invoiced, collected, awaiting and overdue totals (skips cancelled invoices).
 class _Glance extends StatelessWidget {
   const _Glance({required this.invoices});
 
@@ -254,9 +294,10 @@ class _Glance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final active = invoices.where((i) => !i.isCancelled).toList();
     double sum(bool Function(InvoiceModel) test) =>
-        invoices.where(test).fold<double>(0, (total, i) => total + i.amount);
-    int count(bool Function(InvoiceModel) test) => invoices.where(test).length;
+        active.where(test).fold<double>(0, (total, i) => total + i.amount);
+    int count(bool Function(InvoiceModel) test) => active.where(test).length;
 
     final overdue = count((i) => i.isOverdue);
     Widget cell(String label, double value, Widget caption) => Column(
@@ -275,7 +316,7 @@ class _Glance extends StatelessWidget {
         cell(
           'Invoiced',
           sum((_) => true),
-          Text(DashFormat.plural(invoices.length, 'invoice')),
+          Text(DashFormat.plural(active.length, 'invoice')),
         ),
         cell(
           'Collected',
@@ -391,11 +432,15 @@ class _InvoiceRow extends StatelessWidget {
     Text text(String s, TextStyle style) =>
         Text(s, style: style, maxLines: 1, overflow: TextOverflow.ellipsis);
 
+    final displayNo = invoice.invoiceNumber.isNotEmpty
+        ? invoice.invoiceNumber
+        : invoice.id;
+
     return CruPressable(
       onTap: onTap,
       scaleOnPress: false,
       semanticLabel:
-          '${invoice.id}, ${_patient(invoice)}, '
+          '$displayNo, ${_patient(invoice)}, '
           '${DashFormat.rupees(invoice.amount)}, ${invoice.status}',
       builder: (context, hovered) => DecoratedBox(
         decoration: ShapeDecoration(
@@ -413,7 +458,7 @@ class _InvoiceRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              cell(0, text(invoice.id, CruType.callout.tabular.tint(c.label2))),
+              cell(0, text(displayNo, CruType.callout.tabular.tint(c.label2))),
               cell(1, text(_patient(invoice), CruType.row.tint(c.label))),
               cell(2, text(invoice.service, CruType.subhead.tint(c.label2))),
               cell(
@@ -446,24 +491,32 @@ class _InvoiceRow extends StatelessWidget {
 }
 
 /// The selected invoice: who, what, how much, when, its notes, and
-/// Mark as paid / Delete.
+/// View PDF / Edit / Cancel invoice / Mark as paid.
 class _InvoiceDetails extends StatelessWidget {
   const _InvoiceDetails({
     required this.invoice,
     required this.onClose,
+    required this.onViewPdf,
+    required this.onEdit,
+    required this.onCancel,
     required this.onMarkPaid,
-    required this.onDelete,
   });
 
   final InvoiceModel invoice;
   final VoidCallback onClose;
+  final VoidCallback onViewPdf;
+  final VoidCallback onEdit;
+  final VoidCallback onCancel;
   final VoidCallback onMarkPaid;
-  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     final due = invoice.dueDate;
+    final displayNo = invoice.invoiceNumber.isNotEmpty
+        ? invoice.invoiceNumber
+        : invoice.id;
+
     Widget field(String label, String value) => Padding(
       padding: const EdgeInsets.only(bottom: CruSpace.s16),
       child: Column(
@@ -477,7 +530,7 @@ class _InvoiceDetails extends StatelessWidget {
     );
 
     return CruCard(
-      semanticLabel: 'Invoice ${invoice.id}',
+      semanticLabel: 'Invoice $displayNo',
       padding: const EdgeInsets.all(CruSpace.s24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -486,7 +539,7 @@ class _InvoiceDetails extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  invoice.id,
+                  displayNo,
                   style: CruType.headline.tabular.tint(c.label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -527,21 +580,39 @@ class _InvoiceDetails extends StatelessWidget {
               ),
             ),
           ),
-          if (!invoice.isPaid) ...[
+          CruButton(
+            label: 'View PDF',
+            icon: CruIcons.fileText,
+            expand: true,
+            onPressed: onViewPdf,
+          ),
+          const SizedBox(height: CruSpace.s8),
+          if (!invoice.isPaid && !invoice.isCancelled) ...[
             CruButton(
               label: 'Mark as paid',
+              kind: CruButtonKind.inset,
               icon: CruIcons.check,
               expand: true,
               onPressed: onMarkPaid,
             ),
             const SizedBox(height: CruSpace.s8),
           ],
-          CruButton(
-            label: 'Delete invoice',
-            kind: CruButtonKind.inset,
-            expand: true,
-            onPressed: onDelete,
-          ),
+          if (!invoice.isCancelled) ...[
+            CruButton(
+              label: 'Edit',
+              kind: CruButtonKind.inset,
+              icon: CruIcons.pen,
+              expand: true,
+              onPressed: onEdit,
+            ),
+            const SizedBox(height: CruSpace.s8),
+            CruButton(
+              label: 'Cancel invoice',
+              kind: CruButtonKind.inset,
+              expand: true,
+              onPressed: onCancel,
+            ),
+          ],
         ],
       ),
     );

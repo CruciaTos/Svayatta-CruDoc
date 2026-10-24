@@ -13,8 +13,10 @@ import 'package:doctor_management_app/features/messaging/data/providers/whatsapp
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
-import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
@@ -409,19 +411,12 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      final cfg = DoctorLetterheadConfig.fromProfileData(
-                        null,
-                        null,
-                      );
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => BillGenerationSheet(
-                          letterheadConfig: cfg,
-                          initialVisit: _visit,
-                          initialPatient: _patient,
-                        ),
+                      showDesktopCreateInvoiceDialog(
+                        context,
+                        initialPatient: _patient,
+                        attendingDoctorUid: _visit.attendingDoctorUid.isNotEmpty
+                            ? _visit.attendingDoctorUid
+                            : null,
                       );
                     },
                     icon: Icon(
@@ -449,9 +444,11 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
+                      final profile = ref.read(doctorProfileProvider).value;
+                      final user = FirebaseAuth.instance.currentUser;
                       final cfg = DoctorLetterheadConfig.fromProfileData(
-                        null,
-                        null,
+                        profile,
+                        user,
                       );
                       showModalBottomSheet(
                         context: context,

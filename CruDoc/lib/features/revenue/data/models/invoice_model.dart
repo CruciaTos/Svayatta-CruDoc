@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:doctor_management_app/features/revenue/data/models/invoice_bill.dart';
 
 @immutable
 class InvoiceModel {
@@ -8,7 +9,7 @@ class InvoiceModel {
   final String patientName;
   final String service;
   final double amount;
-  final String status; // 'Paid', 'Pending', 'Overdue'
+  final String status; // 'Paid', 'Pending', 'Overdue', 'Cancelled'
   final DateTime date;
   final DateTime? dueDate;
   final String notes;
@@ -16,6 +17,8 @@ class InvoiceModel {
   final String createdByUid;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String invoiceNumber;
+  final String billJson;
 
   const InvoiceModel({
     required this.id,
@@ -32,11 +35,16 @@ class InvoiceModel {
     this.createdByUid = '',
     required this.createdAt,
     required this.updatedAt,
+    this.invoiceNumber = '',
+    this.billJson = '',
   });
 
   bool get isPaid => status.toLowerCase() == 'paid';
   bool get isPending => status.toLowerCase() == 'pending';
   bool get isOverdue => status.toLowerCase() == 'overdue';
+  bool get isCancelled => status.toLowerCase() == 'cancelled';
+
+  InvoiceBill get bill => InvoiceBill.fromJson(billJson);
 
   InvoiceModel copyWith({
     String? id,
@@ -53,6 +61,8 @@ class InvoiceModel {
     String? createdByUid,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? invoiceNumber,
+    String? billJson,
   }) {
     return InvoiceModel(
       id: id ?? this.id,
@@ -69,6 +79,8 @@ class InvoiceModel {
       createdByUid: createdByUid ?? this.createdByUid,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+      billJson: billJson ?? this.billJson,
     );
   }
 
@@ -88,6 +100,8 @@ class InvoiceModel {
       'createdByUid': createdByUid,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
+      'invoiceNumber': invoiceNumber,
+      'billJson': billJson,
     };
   }
 
@@ -121,6 +135,8 @@ class InvoiceModel {
       updatedAt: map['updatedAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int)
           : DateTime.now(),
+      invoiceNumber: (map['invoiceNumber'] ?? '').toString(),
+      billJson: (map['billJson'] ?? '').toString(),
     );
   }
 }

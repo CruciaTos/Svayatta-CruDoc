@@ -4,6 +4,7 @@ import 'package:doctor_management_app/core/pdf/render/pdf_text.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_body_sections.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_presets.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
+import 'package:doctor_management_app/features/revenue/data/models/invoice_bill.dart';
 
 void main() {
   group('pdf_text formatting and conversions', () {
@@ -61,6 +62,82 @@ void main() {
       for (final d in defaults) {
         expect(body.any((s) => s.id == d.id), isTrue);
       }
+    });
+  });
+
+  group('InvoiceTotals.of calculations', () {
+    test('2 x ₹333.33 at 18% tax', () {
+      final bill = InvoiceBill(
+        items: [
+          InvoiceBillItem(
+            name: 'Consultation',
+            qty: 2,
+            ratePaise: 33333,
+            taxPct: 18,
+          ),
+        ],
+        roundOff: true,
+      );
+      final totals = InvoiceTotals.of(bill);
+      expect(totals.subtotal, 66666);
+      expect(totals.tax, 12000);
+      expect(totals.roundOff, 34);
+      expect(totals.grand, 78700);
+    });
+
+    test('₹1,000 discount on a ₹500 bill (capped)', () {
+      final bill = InvoiceBill(
+        items: [
+          InvoiceBillItem(
+            name: 'Consultation',
+            qty: 1,
+            ratePaise: 50000,
+          ),
+        ],
+        discountPaise: 100000,
+        roundOff: false,
+      );
+      final totals = InvoiceTotals.of(bill);
+      expect(totals.subtotal, 50000);
+      expect(totals.tax, 0);
+      expect(totals.discount, 50000);
+      expect(totals.grand, 0);
+      expect(totals.balance, 0);
+    });
+
+    test('round off of ₹1,234.50 -> ₹1,235', () {
+      final bill = InvoiceBill(
+        items: [
+          InvoiceBillItem(
+            name: 'Treatment',
+            qty: 1,
+            ratePaise: 123450,
+          ),
+        ],
+        roundOff: true,
+      );
+      final totals = InvoiceTotals.of(bill);
+      expect(totals.subtotal, 123450);
+      expect(totals.roundOff, 50);
+      expect(totals.grand, 123500);
+    });
+
+    test('received more than total (capped)', () {
+      final bill = InvoiceBill(
+        items: [
+          InvoiceBillItem(
+            name: 'Procedure',
+            qty: 1,
+            ratePaise: 10000,
+          ),
+        ],
+        paidPaise: 15000,
+        roundOff: false,
+      );
+      final totals = InvoiceTotals.of(bill);
+      expect(totals.grand, 10000);
+      expect(totals.paid, 10000);
+      expect(totals.balance, 0);
     });
   });
 }

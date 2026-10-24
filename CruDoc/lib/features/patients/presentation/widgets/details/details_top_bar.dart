@@ -15,6 +15,10 @@ class DetailsTopBar extends StatelessWidget {
     required this.onDelete,
     this.onDentalChart,
     this.onCaseSheet,
+    this.onNewBill,
+    this.onPrescription,
+    this.onReport,
+    this.onCertificate,
   });
 
   final String patientName;
@@ -29,6 +33,11 @@ class DetailsTopBar extends StatelessWidget {
 
   /// Homeopaths only.
   final VoidCallback? onCaseSheet;
+
+  final VoidCallback? onNewBill;
+  final VoidCallback? onPrescription;
+  final VoidCallback? onReport;
+  final VoidCallback? onCertificate;
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +54,21 @@ class DetailsTopBar extends StatelessWidget {
           ),
           const SizedBox(width: CruSpace.s10),
         ],
-        if (onDentalChart != null || onCaseSheet != null || onDelete != null)
+        if (onDentalChart != null ||
+            onCaseSheet != null ||
+            onNewBill != null ||
+            onPrescription != null ||
+            onReport != null ||
+            onCertificate != null ||
+            onDelete != null)
           _MoreMenu(
             patientName: patientName,
             onDentalChart: onDentalChart,
             onCaseSheet: onCaseSheet,
+            onNewBill: onNewBill,
+            onPrescription: onPrescription,
+            onReport: onReport,
+            onCertificate: onCertificate,
             onDelete: onDelete,
           ),
         if (onNewVisit != null) ...[
@@ -99,12 +118,20 @@ class _MoreMenu extends StatelessWidget {
     this.onDelete,
     this.onDentalChart,
     this.onCaseSheet,
+    this.onNewBill,
+    this.onPrescription,
+    this.onReport,
+    this.onCertificate,
   });
 
   final String patientName;
   final VoidCallback? onDelete;
   final VoidCallback? onDentalChart;
   final VoidCallback? onCaseSheet;
+  final VoidCallback? onNewBill;
+  final VoidCallback? onPrescription;
+  final VoidCallback? onReport;
+  final VoidCallback? onCertificate;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +168,30 @@ class _MoreMenu extends StatelessWidget {
         ),
       ),
       menuChildren: [
+        if (onNewBill != null)
+          MenuItemButton(
+            style: itemStyle,
+            onPressed: onNewBill,
+            child: const Text('New bill'),
+          ),
+        if (onPrescription != null)
+          MenuItemButton(
+            style: itemStyle,
+            onPressed: onPrescription,
+            child: const Text('Prescription'),
+          ),
+        if (onReport != null)
+          MenuItemButton(
+            style: itemStyle,
+            onPressed: onReport,
+            child: const Text('Medical report'),
+          ),
+        if (onCertificate != null)
+          MenuItemButton(
+            style: itemStyle,
+            onPressed: onCertificate,
+            child: const Text('Medical certificate'),
+          ),
         if (onDentalChart != null)
           MenuItemButton(
             style: itemStyle,

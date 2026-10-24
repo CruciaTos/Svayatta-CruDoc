@@ -42,8 +42,22 @@ class DocBody {
   /// Splits long text so MultiPage can break it across pages.
   List<pw.Widget> paragraphs(String text, pw.TextStyle st) {
     final out = <pw.Widget>[];
-    for (final para in pdfSafe(text).split('\n')) {
-      var rest = para;
+    for (final para in text.split('\n')) {
+      final trimmed = para.trim();
+      final scriptImg = r.ctx.scriptImages[trimmed];
+      if (scriptImg != null) {
+        final fontPt = st.fontSize ?? 9.0;
+        final w = scriptImg.widthPt * (fontPt / 10);
+        final h = scriptImg.heightPt * (fontPt / 10);
+        out.add(
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 2),
+            child: pw.Image(pw.MemoryImage(scriptImg.png), width: w, height: h),
+          ),
+        );
+        continue;
+      }
+      var rest = pdfSafe(para);
       while (rest.length > 1200) {
         var cut = rest.lastIndexOf(' ', 1200);
         if (cut < 600) cut = 1200;
@@ -161,10 +175,21 @@ class DocBody {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    pdfSafe(name),
-                    style: r.style(pt(11), bold: true, color: 'text'),
-                  ),
+                  () {
+                    final scriptImg = r.ctx.scriptImages[name];
+                    if (scriptImg != null) {
+                      final fontPt = pt(11);
+                      return pw.Image(
+                        pw.MemoryImage(scriptImg.png),
+                        width: scriptImg.widthPt * (fontPt / 10),
+                        height: scriptImg.heightPt * (fontPt / 10),
+                      );
+                    }
+                    return pw.Text(
+                      pdfSafe(name),
+                      style: r.style(pt(11), bold: true, color: 'text'),
+                    );
+                  }(),
                   if (details.isNotEmpty)
                     pw.Text(
                       pdfSafe(details),

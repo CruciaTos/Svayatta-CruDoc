@@ -1,4 +1,5 @@
 import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -19,6 +20,10 @@ bool clinicAllowsDesktopTab(ClinicAccess? access, int tab) {
   if (tab == DesktopTab.procedures) {
     return access.can(ClinicPermission.settings) ||
         access.can(ClinicPermission.clinicalView);
+  }
+  if (tab == DesktopTab.documents) {
+    return access.kind == MemberKind.doctor ||
+        access.can(ClinicPermission.settings);
   }
   // Files are patient records.
   if (tab == DesktopTab.files ||

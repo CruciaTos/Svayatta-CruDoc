@@ -2249,7 +2249,6 @@ class _MedicationRowCard extends StatelessWidget {
 
     // FM is a placeholder - replace with actual model field if it exists
     final String fmValue = '76.5%';
-    final String idValue = original?.id ?? '—';
 
     // Stock logic
     final int effectiveMaxStock = maxStock > 0 ? maxStock : 1;

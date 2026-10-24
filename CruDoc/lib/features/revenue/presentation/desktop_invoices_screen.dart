@@ -359,56 +359,6 @@ class _InvoicesDashboardView extends StatelessWidget {
   }
 }
 
-// ---------- Tabs (All, Paid, Pending, Overdue) ----------
-class _InvoicesTabsSection extends StatelessWidget {
-  final String selectedFilter;
-  final ValueChanged<String> onFilterChanged;
-
-  const _InvoicesTabsSection({
-    required this.selectedFilter,
-    required this.onFilterChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final List<String> tabs = ['All', 'Paid', 'Pending', 'Overdue'];
-    return Row(
-      children: tabs.map((tab) {
-        final bool isActive = selectedFilter == tab;
-        return Padding(
-          padding: const EdgeInsets.only(right: 24.0),
-          child: GestureDetector(
-            onTap: () => onFilterChanged(tab),
-            child: Column(
-              children: [
-                Text(
-                  tab,
-                  style: TextStyle(
-                    color: isActive ? const Color(0xFF1A1A1A) : Colors.grey,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 2,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? const Color(0xFF1A1A1A)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
 // ---------- Stats row (4 cards) ----------
 class _InvoiceStatsRow extends StatelessWidget {
   final _InvoicesDashboardViewData viewData;

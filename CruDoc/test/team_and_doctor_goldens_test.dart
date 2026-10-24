@@ -365,9 +365,6 @@ void main() {
             body: Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
               child: ScheduleHeaderFrame(
-                stepLabel: 'day',
-                onToday: () {},
-                onStep: (_) {},
                 title: Text(
                   'Today · Wednesday, 23 Sep',
                   style: CruType.title2.tint(CruColors.day.label),

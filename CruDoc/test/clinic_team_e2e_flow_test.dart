@@ -51,28 +51,6 @@ void main() {
     registrationNo: 'MH-12345',
   );
 
-  final receptionistMember = ClinicMember(
-    uid: receptionistUid,
-    name: 'Pooja Receptionist',
-    phone: receptionistPhone,
-    email: '',
-    kind: MemberKind.staff,
-    roleId: 'receptionist',
-    roleName: 'Receptionist',
-    perms: {
-      ClinicPermission.patientsView,
-      ClinicPermission.patientsEdit,
-      ClinicPermission.schedule,
-      ClinicPermission.billing,
-      ClinicPermission.messaging,
-    },
-    active: true,
-    isOwner: false,
-    specialty: '',
-    qualification: '',
-    registrationNo: '',
-  );
-
   final doctor2Member = ClinicMember(
     uid: doctor2Uid,
     name: 'Dr. Priya Sharma',
@@ -414,9 +392,6 @@ void main() {
                 body: Padding(
                   padding: const EdgeInsets.all(CruSpace.s16),
                   child: ScheduleHeaderFrame(
-                    stepLabel: 'day',
-                    onToday: () {},
-                    onStep: (_) {},
                     title: Text(
                       'Today · Wednesday, 23 Sep',
                       style: CruType.title2.tint(CruColors.day.label),

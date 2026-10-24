@@ -37,7 +37,6 @@ class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
   _Phase _phase = _Phase.idle;
   String _message = '';
   Duration _elapsed = Duration.zero;
-  double _level = 0;
   Timer? _ticker;
 
   @override
@@ -65,15 +64,11 @@ class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
     setState(() {
       _phase = _Phase.recording;
       _elapsed = Duration.zero;
-      _level = 0;
     });
-    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) async {
-      final db = await _service.amplitude();
+    _ticker = Timer.periodic(const Duration(milliseconds: 200), (_) {
       if (!mounted || _phase != _Phase.recording) return;
       setState(() {
         _elapsed += const Duration(milliseconds: 200);
-        // dBFS (-60 quiet .. 0 loud) to 0..1.
-        _level = ((db + 60) / 60).clamp(0.0, 1.0);
       });
       if (_elapsed >= PatientVoiceFillService.maxDuration) unawaited(_finish());
     });

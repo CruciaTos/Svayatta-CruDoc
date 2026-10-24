@@ -4,7 +4,7 @@ import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 
-/// Opens a rich modal dialog to switch between any of the 10 medical specialties.
+/// Opens a rich modal dialog to switch between clinical specialties.
 Future<void> showSpecialtySwitcherDialog(BuildContext context) async {
   await showGeneralDialog(
     context: context,
@@ -98,7 +98,10 @@ class _SpecialtySwitcherDialogState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 4,
                             children: [
                               const Text(
                                 'Switch Clinical Specialty',
@@ -109,7 +112,6 @@ class _SpecialtySwitcherDialogState
                                   fontFamily: AppColors.headingFontFamily,
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,

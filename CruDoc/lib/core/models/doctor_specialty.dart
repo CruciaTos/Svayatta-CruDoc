@@ -62,9 +62,12 @@ class DoctorSpecialty {
     _generalPhysician,
     _physiotherapist,
     _homeopath,
+    _dentist,
+  ];
+
+  static const List<DoctorSpecialty> _legacy = [
     _cardiologist,
     _pediatrician,
-    _dentist,
     _dermatologist,
     _orthopedic,
     _gynecologist,
@@ -225,7 +228,13 @@ class DoctorSpecialty {
 
   /// The specialty for [type].
   static DoctorSpecialty ofType(DoctorSpecialtyType type) =>
-      all.firstWhere((s) => s.type == type, orElse: () => _generalPhysician);
+      all.firstWhere(
+        (s) => s.type == type,
+        orElse: () => _legacy.firstWhere(
+          (s) => s.type == type,
+          orElse: () => _generalPhysician,
+        ),
+      );
 
   /// Resolve a specialty from a raw string stored in Firestore.
   /// Falls back to General Physician if nothing matches.
@@ -234,6 +243,14 @@ class DoctorSpecialty {
     final lower = raw.trim().toLowerCase();
 
     for (final spec in all) {
+      if (lower == spec.label.toLowerCase() ||
+          lower == spec.shortLabel.toLowerCase() ||
+          lower == spec.type.name.toLowerCase()) {
+        return spec;
+      }
+    }
+
+    for (final spec in _legacy) {
       if (lower == spec.label.toLowerCase() ||
           lower == spec.shortLabel.toLowerCase() ||
           lower == spec.type.name.toLowerCase()) {

@@ -1,9 +1,6 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
@@ -14,501 +11,10 @@ import 'package:doctor_management_app/features/inventory/presentation/desktop_ad
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 
-// =============================================================================
-// COLOR PALETTE
-// =============================================================================
-
-/// Primary dark text / button fill (charcoal).
-const _clrPrimary = Color(0xFF0F172A);
-
-/// Near-black used on card body text.
-const _clrTextDark = Color(0xFF0F172A);
-
-/// Medium grey for subtext and secondary labels.
-const _clrTextMedium = Color(0xFF475569);
-
-/// Darker grey for icons inside controls.
-const _clrIcon = Color(0xFF475569);
-
-/// Slate used on the clear-search icon.
-const _clrSlate = Color(0xFF64748B);
-
-/// Dark muted grey for vendor chip labels.
-const _clrTextSubtle = Color(0xFF334155);
-
-/// Positive / in-stock emerald.
-const _clrGreen = Color(0xFF10B981);
-
-/// Negative / loss rose.
-const _clrRed = Color(0xFFF43F5E);
-
-/// Amber used for paused / low-stock status dot.
-const _clrAmber = Color(0xFFF59E0B);
-
-/// Blue used for syncing banner text, chart bars, and the active vendor icon.
-const _clrBlue = Color(0xFF2563EB);
-
-/// Light-blue tint background (syncing banner bg, vendor icon bg).
-const _clrBlueTint = Color(0xFFEFF6FF);
-
-/// Very light grey for alert item rows and vendor medicine chips.
-const _clrSurfaceLight = Color(0xFFF8FAFC);
-
-/// Slightly darker light grey for the alerts-panel icon container.
-const _clrSurfaceMid = Color(0xFFF1F5F9);
-
-/// Lavender tint for alert-action button background.
-const _clrPurpleTint = Color(0xFFEDE7F6);
-
-/// Purple used on alert-action button text.
-const _clrPurple = Color(0xFF6366F1);
-
-/// Border used on the filter-tab strip.
-const _clrFilterBorder = Color(0xFFCBD5E1);
-
-// =============================================================================
-
 /// "₹2,450", or "₹7,021.84" with paise: never rounded to the rupee.
 String _formatCurrency(double value) => InventoryFormat.rupees(value);
 
-final _desktopInventoryViewProvider =
-    Provider<AsyncValue<_DesktopInventoryViewData>>((ref) {
-      return ref.watch(
-        medicinesStreamProvider.select(
-          (medicinesAsync) => medicinesAsync.whenData(_mapMedicinesToViewData),
-        ),
-      );
-    });
-
-const _emptyDesktopInventoryViewData = _DesktopInventoryViewData(
-  totalItems: '0',
-  lowStockAlerts: '0',
-  outOfStock: '0',
-  inventoryValue: '₹0',
-  monthlyUsage: '—',
-  medications: <MedicationData>[],
-  alerts: <AlertData>[],
-);
-
-class DesktopInventoryScreen extends ConsumerWidget {
-  const DesktopInventoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final inventoryViewAsync = ref.watch(_desktopInventoryViewProvider);
-    final inventoryViewData =
-        inventoryViewAsync.value ?? _emptyDesktopInventoryViewData;
-    final repository = ref.watch(inventoryRepositoryProvider);
-
-    final transactionsAsync = ref.watch(recentStockTransactionsProvider);
-    final transactions =
-        transactionsAsync.value ?? const <StockTransactionModel>[];
-    final medicineById = <String, MedicineModel>{
-      for (final med in inventoryViewData.medications)
-        if (med.originalMedicine != null)
-          med.originalMedicine!.id: med.originalMedicine!,
-    };
-    final monthlyUsageStat = _computeMonthlyUsageStat(
-      transactions,
-      medicineById,
-    );
-
-    void openAddMedicine() {
-      showDesktopAddEditMedicineDialog(context, repository: repository);
-    }
-
-    void openEditMedicine(MedicineModel medicine) {
-      showDesktopAddEditMedicineDialog(
-        context,
-        medicine: medicine,
-        repository: repository,
-      );
-    }
-
-    void openMedicineDetail(MedicineModel medicine) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => MedicineDetailScreen(medicine: medicine),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        SizedBox.expand(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFCBD5E1),
-                    width: 0.5,
-                  ),
-                ),
-                padding: const EdgeInsets.all(20),
-                child: _InventoryDashboardView(
-                  totalItems: inventoryViewData.totalItems,
-                  lowStockAlerts: inventoryViewData.lowStockAlerts,
-                  outOfStock: inventoryViewData.outOfStock,
-                  inventoryValue: inventoryViewData.inventoryValue,
-                  monthlyUsage: monthlyUsageStat.value,
-                  monthlyUsageGrowthLabel: monthlyUsageStat.growthLabel,
-                  monthlyUsageGrowthPositive: monthlyUsageStat.growthPositive,
-                  medications: inventoryViewData.medications,
-                  alerts: inventoryViewData.alerts,
-                  transactions: transactions,
-                  medicineById: medicineById,
-                  repository: repository,
-                  onAddMedicine: openAddMedicine,
-                  onEditMedicine: openEditMedicine,
-                  onOpenMedicineDetail: openMedicineDetail,
-                ),
-              ),
-            ),
-          ),
-        ),
-        if (inventoryViewAsync.hasError)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: _InventoryStatusBanner(
-              icon: Icons.error_outline_rounded,
-              message: 'Failed to load inventory',
-              color: Colors.red.shade700,
-              backgroundColor: Colors.red.shade50,
-            ),
-          )
-        else if (inventoryViewAsync.isLoading)
-          const Positioned(
-            top: 16,
-            right: 16,
-            child: _InventoryStatusBanner(
-              icon: Icons.sync_rounded,
-              message: 'Syncing inventory...',
-              color: _clrBlue,
-              backgroundColor: _clrBlueTint,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _InventoryStatusBanner extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  final Color color;
-  final Color backgroundColor;
-
-  const _InventoryStatusBanner({
-    required this.icon,
-    required this.message,
-    required this.color,
-    required this.backgroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-        boxShadow: const [],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Text(
-              message,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// DATA MODELS
-// -----------------------------------------------------------------------------
-
-class _DesktopInventoryViewData {
-  final String totalItems;
-  final String lowStockAlerts;
-  final String outOfStock;
-  final String inventoryValue;
-  final String monthlyUsage;
-  final List<MedicationData> medications;
-  final List<AlertData> alerts;
-
-  const _DesktopInventoryViewData({
-    required this.totalItems,
-    required this.lowStockAlerts,
-    required this.outOfStock,
-    required this.inventoryValue,
-    required this.monthlyUsage,
-    required this.medications,
-    required this.alerts,
-  });
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is _DesktopInventoryViewData &&
-            other.totalItems == totalItems &&
-            other.lowStockAlerts == lowStockAlerts &&
-            other.outOfStock == outOfStock &&
-            other.inventoryValue == inventoryValue &&
-            other.monthlyUsage == monthlyUsage &&
-            _listEquals(other.medications, medications) &&
-            _listEquals(other.alerts, alerts);
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    totalItems,
-    lowStockAlerts,
-    outOfStock,
-    inventoryValue,
-    monthlyUsage,
-    Object.hashAll(medications),
-    Object.hashAll(alerts),
-  );
-}
-
-bool _listEquals<T>(List<T> a, List<T> b) {
-  if (identical(a, b)) return true;
-  if (a.length != b.length) return false;
-
-  for (var i = 0; i < a.length; i += 1) {
-    if (a[i] != b[i]) return false;
-  }
-
-  return true;
-}
-
-_DesktopInventoryViewData _mapMedicinesToViewData(
-  List<MedicineModel> medicines,
-) {
-  final medications = <MedicationData>[];
-  final alerts = <AlertData>[];
-  int lowStockCount = 0;
-  int outOfStockCount = 0;
-  double inventoryTotal = 0;
-  bool hasAnyPrice = false;
-  final now = DateTime.now();
-
-  for (final medicine in medicines) {
-    final subtitle = medicine.category.isNotEmpty && medicine.unit.isNotEmpty
-        ? '${medicine.category} · ${medicine.unit}'
-        : '';
-    final isLowStock = medicine.isLowStock;
-    final isOutOfStock = medicine.currentStock == 0;
-    final isExpiringSoon = medicine.isExpiringSoon;
-    final reorderThreshold = medicine.reorderThreshold;
-    final progress = reorderThreshold > 0
-        ? (medicine.currentStock / reorderThreshold).clamp(0.0, 1.0)
-        : 0.0;
-    final progressColor = _stockLevelColor(medicine, progress);
-    final expiryDays = medicine.expiryDate?.difference(now).inDays;
-
-    medications.add(
-      MedicationData(
-        name: medicine.name,
-        subtitle: subtitle,
-        status: isExpiringSoon ? 'Expiring' : 'Active',
-        dose: '${medicine.currentStock} ${medicine.unit}',
-        daysLeft: medicine.expiryDate != null
-            ? '${expiryDays ?? 0} days left'
-            : '—',
-        progress: progress,
-        progressColor: progressColor,
-        synced: 'Inventory',
-        nextDose: '—',
-        isPaused: false,
-        buttonFilled: false,
-        originalMedicine: medicine,
-      ),
-    );
-
-    // Severity levels for alerts: an item that's fully out of stock or
-    // already expired is a critical alert; low stock / expiring-soon are
-    // warnings the doctor should act on but aren't yet urgent.
-    final bool isExpired = expiryDays != null && expiryDays < 0;
-
-    if (isLowStock) {
-      lowStockCount += 1;
-    }
-
-    if (isOutOfStock) {
-      outOfStockCount += 1;
-      alerts.add(
-        AlertData(
-          icon: Icons.remove_shopping_cart_rounded,
-          iconColor: _clrRed,
-          bgColor: Colors.red.shade50,
-          title: medicine.name,
-          subtitle: 'Out of stock · reorder now',
-          actionLabel: 'Restock',
-          level: AlertLevel.critical,
-        ),
-      );
-    } else if (isLowStock) {
-      alerts.add(
-        AlertData(
-          icon: Icons.warning_amber_rounded,
-          iconColor: _clrAmber,
-          bgColor: Colors.amber.shade50,
-          title: medicine.name,
-          subtitle: 'Low stock: ${medicine.currentStock} ${medicine.unit}',
-          actionLabel: 'Restock',
-          level: AlertLevel.warning,
-        ),
-      );
-    }
-
-    if (isExpired) {
-      final daysPast = -expiryDays;
-      alerts.add(
-        AlertData(
-          icon: Icons.event_busy_rounded,
-          iconColor: _clrRed,
-          bgColor: Colors.red.shade50,
-          title: medicine.name,
-          subtitle: daysPast == 0
-              ? 'Expired today'
-              : 'Expired $daysPast day${daysPast == 1 ? '' : 's'} ago',
-          actionLabel: 'View',
-          level: AlertLevel.critical,
-        ),
-      );
-    } else if (isExpiringSoon) {
-      alerts.add(
-        AlertData(
-          icon: Icons.timer_outlined,
-          iconColor: Colors.orange.shade700,
-          bgColor: Colors.orange.shade50,
-          title: medicine.name,
-          subtitle: expiryDays == 0
-              ? 'Expires today'
-              : 'Expires in $expiryDays day${expiryDays == 1 ? '' : 's'}',
-          actionLabel: 'View',
-          level: AlertLevel.warning,
-        ),
-      );
-    }
-
-    if (medicine.unitPrice != null) {
-      hasAnyPrice = true;
-      inventoryTotal += medicine.unitPrice! * medicine.currentStock;
-    }
-  }
-
-  final inventoryValue = hasAnyPrice ? _formatCurrency(inventoryTotal) : '₹0';
-
-  // Show the most urgent alerts first: critical (out of stock / expired)
-  // ahead of warnings (low stock / expiring soon).
-  alerts.sort((a, b) => a.level.index.compareTo(b.level.index));
-
-  return _DesktopInventoryViewData(
-    totalItems: medicines.length.toString(),
-    lowStockAlerts: lowStockCount.toString(),
-    outOfStock: outOfStockCount.toString(),
-    inventoryValue: inventoryValue,
-    monthlyUsage: '—',
-    medications: List.unmodifiable(medications),
-    alerts: List.unmodifiable(alerts.take(20)),
-  );
-}
-
-Color _stockLevelColor(MedicineModel medicine, double progress) {
-  if (medicine.isLowStock) {
-    return _clrRed;
-  }
-
-  if (progress < 0.6) {
-    return _clrAmber;
-  }
-
-  return _clrGreen;
-}
-
-// -----------------------------------------------------------------------------
-// MONTHLY USAGE STAT
-// -----------------------------------------------------------------------------
-
-class _MonthlyUsageStat {
-  final String value;
-  final String? growthLabel;
-  final bool growthPositive;
-
-  const _MonthlyUsageStat({
-    required this.value,
-    this.growthLabel,
-    this.growthPositive = true,
-  });
-}
-
-_MonthlyUsageStat _computeMonthlyUsageStat(
-  List<StockTransactionModel> transactions,
-  Map<String, MedicineModel> medicineById,
-) {
-  final now = DateTime.now();
-  final periodStart = now.subtract(const Duration(days: 30));
-  final priorPeriodStart = now.subtract(const Duration(days: 60));
-
-  double current = 0;
-  double prior = 0;
-
-  for (final tx in transactions) {
-    if (tx.type != StockTransactionType.dispense) continue;
-    final price = medicineById[tx.medicineId]?.unitPrice;
-    if (price == null) continue;
-    final value = price * tx.quantity;
-    if (!tx.createdAt.isBefore(periodStart)) {
-      current += value;
-    } else if (!tx.createdAt.isBefore(priorPeriodStart)) {
-      prior += value;
-    }
-  }
-
-  String? growthLabel;
-  bool growthPositive = true;
-  if (prior > 0) {
-    final change = ((current - prior) / prior) * 100;
-    growthPositive = change >= 0;
-    growthLabel = '${growthPositive ? '+' : ''}${change.toStringAsFixed(0)}%';
-  } else if (current > 0) {
-    growthLabel = 'New';
-    growthPositive = true;
-  }
-
-  return _MonthlyUsageStat(
-    value: _formatCurrency(current),
-    growthLabel: growthLabel,
-    growthPositive: growthPositive,
-  );
-}
-
-// -----------------------------------------------------------------------------
-// DATA MODELS
-// -----------------------------------------------------------------------------
-
+/// One medicine as the Orders, Vendors and Usage tabs list it.
 class MedicationData {
   final String name;
   final String subtitle;
@@ -516,11 +22,6 @@ class MedicationData {
   final String dose;
   final String daysLeft;
   final double progress;
-  final Color progressColor;
-  final String synced;
-  final String nextDose;
-  final bool isPaused;
-  final bool buttonFilled;
   final MedicineModel? originalMedicine;
 
   const MedicationData({
@@ -530,11 +31,6 @@ class MedicationData {
     required this.dose,
     required this.daysLeft,
     required this.progress,
-    required this.progressColor,
-    required this.synced,
-    required this.nextDose,
-    this.isPaused = false,
-    this.buttonFilled = false,
     this.originalMedicine,
   });
 
@@ -548,11 +44,6 @@ class MedicationData {
             other.dose == dose &&
             other.daysLeft == daysLeft &&
             other.progress == progress &&
-            other.progressColor == progressColor &&
-            other.synced == synced &&
-            other.nextDose == nextDose &&
-            other.isPaused == isPaused &&
-            other.buttonFilled == buttonFilled &&
             other.originalMedicine?.id == originalMedicine?.id;
   }
 
@@ -564,411 +55,45 @@ class MedicationData {
     dose,
     daysLeft,
     progress,
-    progressColor,
-    synced,
-    nextDose,
-    isPaused,
-    buttonFilled,
     originalMedicine?.id,
   );
 }
 
-/// Severity level for an inventory alert. Ordered from most to least
-/// urgent so alert lists can be sorted by `level.index`.
-enum AlertLevel { critical, warning, info }
-
-class AlertData {
-  final IconData icon;
-  final Color iconColor;
-  final Color bgColor;
-  final String title;
-  final String subtitle;
-  final String actionLabel;
-  final AlertLevel level;
-
-  const AlertData({
-    required this.icon,
-    required this.iconColor,
-    required this.bgColor,
-    required this.title,
-    required this.subtitle,
-    required this.actionLabel,
-    this.level = AlertLevel.warning,
-  });
-
-  String get levelLabel {
-    switch (level) {
-      case AlertLevel.critical:
-        return 'Critical';
-      case AlertLevel.warning:
-        return 'Warning';
-      case AlertLevel.info:
-        return 'Info';
-    }
-  }
-
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        other is AlertData &&
-            other.icon == icon &&
-            other.iconColor == iconColor &&
-            other.bgColor == bgColor &&
-            other.title == title &&
-            other.subtitle == subtitle &&
-            other.actionLabel == actionLabel &&
-            other.level == level;
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    icon,
-    iconColor,
-    bgColor,
-    title,
-    subtitle,
-    actionLabel,
-    level,
-  );
-}
-
-// ==============================================================================
-// MAIN DASHBOARD VIEW
-// ==============================================================================
-
-class _InventoryDashboardView extends StatefulWidget {
-  final String totalItems;
-  final String lowStockAlerts;
-  final String outOfStock;
-  final String inventoryValue;
-  final String monthlyUsage;
-  final String? monthlyUsageGrowthLabel;
-  final bool monthlyUsageGrowthPositive;
-  final List<MedicationData> medications;
-  final List<AlertData> alerts;
-  final List<StockTransactionModel> transactions;
-  final Map<String, MedicineModel> medicineById;
-  final InventoryRepository repository;
-  final VoidCallback onAddMedicine;
-  final ValueChanged<MedicineModel> onEditMedicine;
-  final ValueChanged<MedicineModel> onOpenMedicineDetail;
-
-  const _InventoryDashboardView({
-    required this.totalItems,
-    required this.lowStockAlerts,
-    required this.outOfStock,
-    required this.inventoryValue,
-    required this.monthlyUsage,
-    this.monthlyUsageGrowthLabel,
-    this.monthlyUsageGrowthPositive = true,
-    required this.medications,
-    required this.alerts,
-    required this.transactions,
-    required this.medicineById,
-    required this.repository,
-    required this.onAddMedicine,
-    required this.onEditMedicine,
-    required this.onOpenMedicineDetail,
-  });
-
-  @override
-  State<_InventoryDashboardView> createState() =>
-      _InventoryDashboardViewState();
-}
-
-class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
-  int _selectedTabIndex = 0;
-
-  static const _tabLabels = ['Items', 'Vendors', 'Orders', 'Usage analytics'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _InventoryHeaderSection(
-          totalItems: widget.totalItems,
-          lowStockAlerts: widget.lowStockAlerts,
-          outOfStock: widget.outOfStock,
-          inventoryValue: widget.inventoryValue,
-          monthlyUsage: widget.monthlyUsage,
-          monthlyUsageGrowthLabel: widget.monthlyUsageGrowthLabel,
-          monthlyUsageGrowthPositive: widget.monthlyUsageGrowthPositive,
-          selectedTabIndex: _selectedTabIndex,
-          tabLabels: _tabLabels,
-          onTabSelected: (index) => setState(() => _selectedTabIndex = index),
-        ),
-        const SizedBox(height: 32),
-        Expanded(child: _buildTabContent()),
-      ],
-    );
-  }
-
-  Widget _buildTabContent() {
-    switch (_selectedTabIndex) {
-      case 0:
-        return _buildItemsTab();
-      case 1:
-        return _VendorsTab(
-          medications: widget.medications,
-          onEditMedicine: widget.onEditMedicine,
-          onOpenMedicineDetail: widget.onOpenMedicineDetail,
+List<MedicationData> _medicationsFrom(List<MedicineModel> medicines) {
+  final now = DateTime.now();
+  return List.unmodifiable([
+    for (final medicine in medicines)
+      () {
+        final threshold = medicine.reorderThreshold;
+        final expiryDays = medicine.expiryDate?.difference(now).inDays;
+        return MedicationData(
+          name: medicine.name,
+          subtitle: medicine.category.isNotEmpty && medicine.unit.isNotEmpty
+              ? '${medicine.category} · ${medicine.unit}'
+              : '',
+          status: medicine.isExpiringSoon ? 'Expiring' : 'Active',
+          dose: '${medicine.currentStock} ${medicine.unit}',
+          daysLeft: medicine.expiryDate != null
+              ? '${expiryDays ?? 0} days left'
+              : '—',
+          progress: threshold > 0
+              ? (medicine.currentStock / threshold).clamp(0.0, 1.0)
+              : 0.0,
+          originalMedicine: medicine,
         );
-      case 2:
-        return _OrdersTab(
-          medications: widget.medications,
-          transactions: widget.transactions,
-          repository: widget.repository,
-          onOpenMedicineDetail: widget.onOpenMedicineDetail,
-        );
-      case 3:
-        return _UsageAnalyticsTab(
-          transactions: widget.transactions,
-          medicineById: widget.medicineById,
-        );
-      default:
-        return _buildItemsTab();
-    }
-  }
-
-  Widget _buildItemsTab() {
-    void openRestockDialog(MedicineModel medicine) {
-      showStockAdjustmentDialog(
-        context,
-        medicine: medicine,
-        repository: widget.repository,
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, bodyConstraints) {
-        final bool isWideScreen = bodyConstraints.maxWidth > 1100;
-
-        if (isWideScreen) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: _FilteredMedicationSection(
-                  medications: widget.medications,
-                  repository: widget.repository,
-                  onAddMedicine: widget.onAddMedicine,
-                  onEditMedicine: widget.onEditMedicine,
-                  onOpenMedicineDetail: widget.onOpenMedicineDetail,
-                  onRestockMedicine: openRestockDialog,
-                ),
-              ),
-              const SizedBox(width: 24),
-              Expanded(child: _ScrollableAlertsPanel(alerts: widget.alerts)),
-            ],
-          );
-        } else {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 3,
-                child: _FilteredMedicationSection(
-                  medications: widget.medications,
-                  repository: widget.repository,
-                  onAddMedicine: widget.onAddMedicine,
-                  onEditMedicine: widget.onEditMedicine,
-                  onOpenMedicineDetail: widget.onOpenMedicineDetail,
-                  onRestockMedicine: openRestockDialog,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                flex: 2,
-                child: _ScrollableAlertsPanel(alerts: widget.alerts),
-              ),
-            ],
-          );
-        }
-      },
-    );
-  }
-}
-
-// ==============================================================================
-// 1. HEADER
-// ==============================================================================
-
-class _InventoryHeaderSection extends StatelessWidget {
-  final String totalItems;
-  final String lowStockAlerts;
-  final String outOfStock;
-  final String inventoryValue;
-  final String monthlyUsage;
-  final String? monthlyUsageGrowthLabel;
-  final bool monthlyUsageGrowthPositive;
-  final int selectedTabIndex;
-  final List<String> tabLabels;
-  final ValueChanged<int> onTabSelected;
-
-  const _InventoryHeaderSection({
-    required this.totalItems,
-    required this.lowStockAlerts,
-    required this.outOfStock,
-    required this.inventoryValue,
-    required this.monthlyUsage,
-    this.monthlyUsageGrowthLabel,
-    this.monthlyUsageGrowthPositive = true,
-    required this.selectedTabIndex,
-    required this.tabLabels,
-    required this.onTabSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Inventory',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: _clrPrimary,
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.settings_outlined,
-                size: 20,
-                color: _clrIcon,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        Row(
-          children: List.generate(tabLabels.length, (index) {
-            return _TabItem(
-              label: tabLabels[index],
-              isActive: selectedTabIndex == index,
-              onTap: () => onTabSelected(index),
-            );
-          }),
-        ),
-        const SizedBox(height: 24),
-        if (selectedTabIndex == 0)
-          Row(
-            children: [
-              Expanded(
-                child: _NewStatCard(
-                  title: 'Total items',
-                  value: totalItems,
-                  subtext: 'across all locations',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _NewStatCard(
-                  title: 'Low stock alerts',
-                  value: lowStockAlerts,
-                  subtext: 'needs restocking soon',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _NewStatCard(
-                  title: 'Out of stock',
-                  value: outOfStock,
-                  subtext: 'immediate attention',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _NewStatCard(
-                  title: 'Inventory value',
-                  value: inventoryValue,
-                  subtext: 'estimated total value',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _NewStatCard(
-                  title: 'Monthly usage',
-                  value: monthlyUsage,
-                  subtext: 'dispensed value · 30d',
-                  growthLabel: monthlyUsageGrowthLabel,
-                  growthPositive: monthlyUsageGrowthPositive,
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
-  }
-}
-
-class _TabItem extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _TabItem({
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 24.0),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? _clrPrimary : _clrTextMedium,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              height: 2,
-              width: 24,
-              decoration: BoxDecoration(
-                color: isActive ? _clrPrimary : Colors.transparent,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+      }(),
+  ]);
 }
 
 class _NewStatCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtext;
-  final String? growthLabel;
-  final bool growthPositive;
 
   const _NewStatCard({
     required this.title,
     required this.value,
     required this.subtext,
-    this.growthLabel,
-    this.growthPositive = true,
   });
 
   @override
@@ -976,31 +101,17 @@ class _NewStatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.card),
+        border: Border.all(color: context.cru.label3),
         boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: _clrTextMedium,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(title, style: CruType.subhead.w500.tint(context.cru.label2)),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: _clrPrimary,
-            ),
-          ),
+          Text(value, style: CruType.title.w700.tint(context.cru.label)),
           const SizedBox(height: 6),
           Row(
             children: [
@@ -1008,28 +119,9 @@ class _NewStatCard extends StatelessWidget {
                 child: Text(
                   subtext,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: _clrTextMedium, fontSize: 12),
+                  style: CruType.caption.tint(context.cru.label2),
                 ),
               ),
-              if (growthLabel != null) ...[
-                const SizedBox(width: 8),
-                Icon(
-                  growthPositive
-                      ? Icons.arrow_upward_rounded
-                      : Icons.arrow_downward_rounded,
-                  size: 12,
-                  color: growthPositive ? _clrGreen : _clrRed,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  growthLabel!,
-                  style: TextStyle(
-                    color: growthPositive ? _clrGreen : _clrRed,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -1041,1481 +133,6 @@ class _NewStatCard extends StatelessWidget {
 // ==============================================================================
 // 2. ITEMS TAB
 // ==============================================================================
-
-enum _InventorySortOption { nameAsc, stockLowHigh, stockHighLow, expirySoonest }
-
-/// How the item list is laid out: a multi-column grid of compact cards,
-/// or a single-column list of full-width rows (like an Amazon listing).
-enum _InventoryViewMode { compact, fullWidth }
-
-const List<String> _inventoryFilterOptions = [
-  'All',
-  'In stock',
-  'Low stock',
-  'Out of stock',
-  'Expiring soon',
-];
-
-class _FilteredMedicationSection extends StatefulWidget {
-  final List<MedicationData> medications;
-  final InventoryRepository repository;
-  final VoidCallback onAddMedicine;
-  final ValueChanged<MedicineModel> onEditMedicine;
-  final ValueChanged<MedicineModel> onOpenMedicineDetail;
-  final ValueChanged<MedicineModel> onRestockMedicine;
-
-  const _FilteredMedicationSection({
-    required this.medications,
-    required this.repository,
-    required this.onAddMedicine,
-    required this.onEditMedicine,
-    required this.onOpenMedicineDetail,
-    required this.onRestockMedicine,
-  });
-
-  @override
-  State<_FilteredMedicationSection> createState() =>
-      _FilteredMedicationSectionState();
-}
-
-class _FilteredMedicationSectionState
-    extends State<_FilteredMedicationSection> {
-  final TextEditingController _searchController = TextEditingController();
-  String _selectedFilter = 'All';
-  String _searchQuery = '';
-  _InventorySortOption _sortOption = _InventorySortOption.nameAsc;
-  _InventoryViewMode _viewMode = _InventoryViewMode.compact;
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  bool _matchesFilter(MedicationData m) {
-    final original = m.originalMedicine;
-    switch (_selectedFilter) {
-      case 'In stock':
-        return original != null &&
-            !original.isLowStock &&
-            original.currentStock > 0;
-      case 'Low stock':
-        return original?.isLowStock ?? false;
-      case 'Out of stock':
-        return original?.currentStock == 0;
-      case 'Expiring soon':
-        return m.status == 'Expiring';
-      case 'All':
-      default:
-        return true;
-    }
-  }
-
-  bool _matchesSearch(MedicationData m) {
-    if (_searchQuery.isEmpty) return true;
-    final query = _searchQuery.toLowerCase();
-    return m.name.toLowerCase().contains(query) ||
-        m.subtitle.toLowerCase().contains(query) ||
-        (m.originalMedicine?.supplierName?.toLowerCase().contains(query) ??
-            false);
-  }
-
-  List<MedicationData> get _filteredMedications {
-    final result = widget.medications
-        .where(_matchesFilter)
-        .where(_matchesSearch)
-        .toList();
-    result.sort((a, b) {
-      switch (_sortOption) {
-        case _InventorySortOption.nameAsc:
-          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-        case _InventorySortOption.stockLowHigh:
-          return (a.originalMedicine?.currentStock ?? 0).compareTo(
-            b.originalMedicine?.currentStock ?? 0,
-          );
-        case _InventorySortOption.stockHighLow:
-          return (b.originalMedicine?.currentStock ?? 0).compareTo(
-            a.originalMedicine?.currentStock ?? 0,
-          );
-        case _InventorySortOption.expirySoonest:
-          final aDate = a.originalMedicine?.expiryDate;
-          final bDate = b.originalMedicine?.expiryDate;
-          if (aDate == null && bDate == null) return 0;
-          if (aDate == null) return 1;
-          if (bDate == null) return -1;
-          return aDate.compareTo(bDate);
-      }
-    });
-    return result;
-  }
-
-  void _onFilterChanged(String filter) =>
-      setState(() => _selectedFilter = filter);
-  void _onSearchChanged(String value) =>
-      setState(() => _searchQuery = value.trim());
-  void _clearSearch() {
-    _searchController.clear();
-    setState(() => _searchQuery = '');
-  }
-
-  void _clearAllFilters() {
-    _searchController.clear();
-    setState(() {
-      _searchQuery = '';
-      _selectedFilter = 'All';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.medications.isEmpty) {
-      return _PlaceholderScreen(
-        icon: Icons.inventory_2_outlined,
-        title: 'No items yet',
-        message: 'Add your first medicine to start tracking stock levels.',
-        actionLabel: 'Add item',
-        onAction: widget.onAddMedicine,
-      );
-    }
-
-    final filtered = _filteredMedications;
-    final int maxStock = widget.medications.fold<int>(
-      1,
-      (max, m) => (m.originalMedicine?.currentStock ?? 0) > max
-          ? (m.originalMedicine?.currentStock ?? 0)
-          : max,
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FilterRow(
-          selectedFilter: _selectedFilter,
-          onFilterChanged: _onFilterChanged,
-          searchController: _searchController,
-          searchQuery: _searchQuery,
-          onSearchChanged: _onSearchChanged,
-          onClearSearch: _clearSearch,
-          sortOption: _sortOption,
-          onSortChanged: (option) => setState(() => _sortOption = option),
-          onAddMedicine: widget.onAddMedicine,
-          viewMode: _viewMode,
-          onViewModeChanged: (mode) => setState(() => _viewMode = mode),
-          filteredCount: filtered.length,
-          totalCount: widget.medications.length,
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: filtered.isEmpty
-              ? _PlaceholderScreen(
-                  icon: Icons.search_off_rounded,
-                  title: 'No items match',
-                  message:
-                      'Try a different search term or clear the current filter.',
-                  actionLabel: 'Clear filters',
-                  onAction: _clearAllFilters,
-                )
-              : SingleChildScrollView(
-                  child: _MedicationGrid(
-                    medications: filtered,
-                    repository: widget.repository,
-                    maxStock: maxStock,
-                    onEditMedicine: widget.onEditMedicine,
-                    onOpenMedicineDetail: widget.onOpenMedicineDetail,
-                    onRestockMedicine: widget.onRestockMedicine,
-                    viewMode: _viewMode,
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FilterRow extends StatelessWidget {
-  final String selectedFilter;
-  final ValueChanged<String> onFilterChanged;
-  final TextEditingController searchController;
-  final String searchQuery;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onClearSearch;
-  final _InventorySortOption sortOption;
-  final ValueChanged<_InventorySortOption> onSortChanged;
-  final VoidCallback onAddMedicine;
-  final _InventoryViewMode viewMode;
-  final ValueChanged<_InventoryViewMode> onViewModeChanged;
-  final int filteredCount;
-  final int totalCount;
-
-  const _FilterRow({
-    required this.selectedFilter,
-    required this.onFilterChanged,
-    required this.searchController,
-    required this.searchQuery,
-    required this.onSearchChanged,
-    required this.onClearSearch,
-    required this.sortOption,
-    required this.onSortChanged,
-    required this.onAddMedicine,
-    required this.viewMode,
-    required this.onViewModeChanged,
-    required this.filteredCount,
-    required this.totalCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Row 1: search bar (with sort & filter tucked inside it) + view
-        // toggle + add item — kept together so "add" always sits right
-        // next to where the person is searching.
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final searchBar = Container(
-              constraints: const BoxConstraints(minWidth: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.search_rounded,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: searchController,
-                      onChanged: onSearchChanged,
-                      decoration: const InputDecoration(
-                        hintText: 'Search items or vendor...',
-                        filled: false,
-                        contentPadding: EdgeInsets.symmetric(vertical: 8),
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ),
-                  if (searchQuery.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.clear, size: 16, color: _clrSlate),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 24,
-                        minHeight: 24,
-                      ),
-                      onPressed: onClearSearch,
-                    ),
-                  Container(
-                    height: 20,
-                    width: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    color: Colors.grey.shade200,
-                  ),
-                  _ViewModeButton(
-                    icon: Icons.grid_view_rounded,
-                    tooltip: 'Compact grid view',
-                    isActive: viewMode == _InventoryViewMode.compact,
-                    onTap: () => onViewModeChanged(_InventoryViewMode.compact),
-                  ),
-                  const SizedBox(width: 4),
-                  _ViewModeButton(
-                    icon: Icons.view_agenda_outlined,
-                    tooltip: 'Full-width list view',
-                    isActive: viewMode == _InventoryViewMode.fullWidth,
-                    onTap: () =>
-                        onViewModeChanged(_InventoryViewMode.fullWidth),
-                  ),
-                  Container(
-                    height: 20,
-                    width: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    color: Colors.grey.shade200,
-                  ),
-                  _SortFilterButton(
-                    sortOption: sortOption,
-                    onSortChanged: onSortChanged,
-                    selectedFilter: selectedFilter,
-                    onFilterChanged: onFilterChanged,
-                  ),
-                ],
-              ),
-            );
-
-            final addButton = SizedBox(
-              height: 46,
-              child: ElevatedButton.icon(
-                onPressed: onAddMedicine,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _clrPrimary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text(
-                  'Add item',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
-            );
-
-            final bool isNarrow = constraints.maxWidth < 560;
-            if (isNarrow) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  searchBar,
-                  const SizedBox(height: 12),
-                  SizedBox(width: double.infinity, child: addButton),
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(child: searchBar),
-                const SizedBox(width: 12),
-                addButton,
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        // Row 2: quick status filters + showing count on the right.
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _clrFilterBorder),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final option in _inventoryFilterOptions)
-                    _FilterTab(
-                      label: option,
-                      isActive: selectedFilter == option,
-                      onTap: () => onFilterChanged(option),
-                    ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            Text(
-              'Showing $filteredCount of $totalCount item${totalCount == 1 ? '' : 's'}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.black,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// Small icon-only trigger tucked into the right edge of the search bar.
-/// Combines sort order and the same quick-status filters into one compact
-/// menu, so they're reachable without taking up extra row space.
-class _SortFilterButton extends StatelessWidget {
-  final _InventorySortOption sortOption;
-  final ValueChanged<_InventorySortOption> onSortChanged;
-  final String selectedFilter;
-  final ValueChanged<String> onFilterChanged;
-
-  const _SortFilterButton({
-    required this.sortOption,
-    required this.onSortChanged,
-    required this.selectedFilter,
-    required this.onFilterChanged,
-  });
-
-  static const Map<_InventorySortOption, String> _sortLabels = {
-    _InventorySortOption.nameAsc: 'Name A-Z',
-    _InventorySortOption.stockLowHigh: 'Stock: Low to High',
-    _InventorySortOption.stockHighLow: 'Stock: High to Low',
-    _InventorySortOption.expirySoonest: 'Expiry: Soonest first',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<Object>(
-      tooltip: 'Sort & filter',
-      offset: const Offset(0, 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onSelected: (value) {
-        if (value is _InventorySortOption) {
-          onSortChanged(value);
-        } else if (value is String) {
-          onFilterChanged(value);
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem<Object>(
-          enabled: false,
-          height: 26,
-          child: Text(
-            'SORT BY',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ),
-        for (final entry in _sortLabels.entries)
-          PopupMenuItem<Object>(
-            value: entry.key,
-            child: Row(
-              children: [
-                Icon(
-                  entry.key == sortOption
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  size: 16,
-                  color: entry.key == sortOption ? _clrPrimary : Colors.grey,
-                ),
-                const SizedBox(width: 10),
-                Text(entry.value, style: const TextStyle(fontSize: 13)),
-              ],
-            ),
-          ),
-        const PopupMenuDivider(),
-        const PopupMenuItem<Object>(
-          enabled: false,
-          height: 26,
-          child: Text(
-            'FILTER',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey,
-              letterSpacing: 0.4,
-            ),
-          ),
-        ),
-        for (final option in _inventoryFilterOptions)
-          PopupMenuItem<Object>(
-            value: option,
-            child: Row(
-              children: [
-                Icon(
-                  option == selectedFilter
-                      ? Icons.check_box_rounded
-                      : Icons.check_box_outline_blank_rounded,
-                  size: 16,
-                  color: option == selectedFilter ? _clrPrimary : Colors.grey,
-                ),
-                const SizedBox(width: 10),
-                Text(option, style: const TextStyle(fontSize: 13)),
-              ],
-            ),
-          ),
-      ],
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(7),
-          color: Colors.grey.shade100,
-        ),
-        child: const Icon(Icons.tune_rounded, size: 16, color: _clrIcon),
-      ),
-    );
-  }
-}
-
-class _ViewModeButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _ViewModeButton({
-    required this.icon,
-    required this.tooltip,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isActive ? Colors.grey.shade100 : Colors.transparent,
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            color: isActive ? _clrPrimary : Colors.grey[600],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterTab extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _FilterTab({
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? _clrBlue : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isActive ? Colors.white : Colors.grey[600],
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _pickImageForMedicine({
-  required BuildContext context,
-  required MedicineModel medicine,
-  required InventoryRepository repository,
-}) async {
-  try {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      await repository.updateMedicine(medicine.id, {'imageUrl': picked.path});
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated image for ${medicine.name}'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  } catch (e) {
-    debugPrint('Error picking image: $e');
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to pick image: $e'),
-        ),
-      );
-    }
-  }
-}
-
-class _MedicineImageWidget extends StatelessWidget {
-  final MedicineModel? medicine;
-  final InventoryRepository repository;
-  final double size;
-  final double? width; // ADDED
-  final double? height; // ADDED
-
-  const _MedicineImageWidget({
-    required this.medicine,
-    required this.repository,
-    this.size = 96,
-    this.width,
-    this.height,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final imageUrl = medicine?.imageUrl?.trim();
-    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
-
-    // Use width/height if provided, otherwise fallback to size
-    final double w = width ?? size;
-    final double h = height ?? size;
-
-    return Tooltip(
-      message: hasImage ? 'Click to change image' : 'Click to upload image',
-      child: GestureDetector(
-        onTap: medicine != null
-            ? () => _pickImageForMedicine(
-                context: context,
-                medicine: medicine!,
-                repository: repository,
-              )
-            : null,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: Container(
-            width: w,
-            height: h,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(11),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (hasImage) ...[
-                    if (kIsWeb || imageUrl.startsWith('http'))
-                      Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _buildPlaceholder(),
-                      )
-                    else
-                      Image.file(
-                        File(imageUrl),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _buildPlaceholder(),
-                      ),
-                    Positioned(
-                      bottom: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_outlined,
-                          size: 11,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ] else
-                    _buildPlaceholder(),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholder() {
-    return Container(
-      color: const Color(0xFFF8FAFC),
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_a_photo_outlined,
-            size: 24,
-            color: _clrBlue.withValues(alpha: 0.75),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Upload Image',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: _clrBlue.withValues(alpha: 0.85),
-              height: 1.1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MedicationGrid extends StatelessWidget {
-  final List<MedicationData> medications;
-  final InventoryRepository repository;
-  final int maxStock;
-  final ValueChanged<MedicineModel> onEditMedicine;
-  final ValueChanged<MedicineModel> onOpenMedicineDetail;
-  final ValueChanged<MedicineModel> onRestockMedicine;
-  final _InventoryViewMode viewMode;
-
-  const _MedicationGrid({
-    required this.medications,
-    required this.repository,
-    required this.maxStock,
-    required this.onEditMedicine,
-    required this.onOpenMedicineDetail,
-    required this.onRestockMedicine,
-    this.viewMode = _InventoryViewMode.compact,
-  });
-
-  static const double _spacing = 16;
-
-  int _columnsForWidth(double width) {
-    if (width >= 1400) return 3;
-    if (width >= 850) return 2;
-    return 1;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (viewMode == _InventoryViewMode.fullWidth) {
-      return Column(
-        children: [
-          for (int i = 0; i < medications.length; i++) ...[
-            if (i > 0) const SizedBox(height: 14),
-            _MedicationRowCard(
-              medication: medications[i],
-              repository: repository,
-              maxStock: maxStock,
-              onEdit: () {
-                final med = medications[i].originalMedicine;
-                if (med != null) onEditMedicine(med);
-              },
-              onTap: () {
-                final med = medications[i].originalMedicine;
-                if (med != null) onOpenMedicineDetail(med);
-              },
-              onRestock: () {
-                final med = medications[i].originalMedicine;
-                if (med != null) onRestockMedicine(med);
-              },
-            ),
-          ],
-        ],
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final int columns = _columnsForWidth(constraints.maxWidth);
-        final double cardWidth = columns > 1
-            ? (constraints.maxWidth - _spacing * (columns - 1)) / columns
-            : constraints.maxWidth;
-        return Wrap(
-          spacing: _spacing,
-          runSpacing: _spacing,
-          children: medications.map((med) {
-            return SizedBox(
-              width: cardWidth,
-              child: _MedicationCard(
-                medication: med,
-                repository: repository,
-                maxStock: maxStock,
-                onEdit: () {
-                  if (med.originalMedicine != null) {
-                    onEditMedicine(med.originalMedicine!);
-                  }
-                },
-                onTap: () {
-                  if (med.originalMedicine != null) {
-                    onOpenMedicineDetail(med.originalMedicine!);
-                  }
-                },
-                onRestock: () {
-                  if (med.originalMedicine != null) {
-                    onRestockMedicine(med.originalMedicine!);
-                  }
-                },
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-}
-
-/// Compact Grid Card layout — optimized for multi-column grid view
-class _MedicationCard extends StatelessWidget {
-  final MedicationData medication;
-  final InventoryRepository repository;
-  final int maxStock;
-  final VoidCallback onEdit;
-  final VoidCallback onTap;
-  final VoidCallback onRestock;
-
-  const _MedicationCard({
-    required this.medication,
-    required this.repository,
-    required this.maxStock,
-    required this.onEdit,
-    required this.onTap,
-    required this.onRestock,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final MedicineModel? original = medication.originalMedicine;
-    final String? supplier = original?.supplierName?.trim();
-    final String vendorValue = (supplier == null || supplier.isEmpty)
-        ? 'No supplier'
-        : supplier;
-    final String brandTypeValue =
-        (original?.category != null && original!.category.trim().isNotEmpty)
-        ? original.category.trim()
-        : 'General';
-    final int currentStock = original?.currentStock ?? 0;
-    final String unitText =
-        (original?.unit != null && original!.unit.trim().isNotEmpty)
-        ? original.unit.trim()
-        : 'units';
-    final bool isLowStock = original?.isLowStock ?? false;
-    final bool isOutOfStock = currentStock == 0;
-
-    final effectiveMaxStock = maxStock > 0 ? maxStock : 1;
-    final double stockRatio = (currentStock / effectiveMaxStock).clamp(
-      0.0,
-      1.0,
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: const [],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Top Horizontal Card Section
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Image placeholder on the left (supports custom uploads)
-                    _MedicineImageWidget(
-                      medicine: original,
-                      repository: repository,
-                      size: 74,
-                    ),
-                    const SizedBox(width: 12),
-                    // Right side stacked with: Product Name (Bold), Brand/Type, Supplier, Stock (prominent)
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  original?.name ?? medication.name,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: _clrTextDark,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit_outlined,
-                                  size: 14,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: onEdit,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 22,
-                                  minHeight: 22,
-                                ),
-                                tooltip: 'Edit item',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Text(
-                                'Brand/Type: ',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: _clrTextMedium,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  brandTypeValue,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: _clrTextDark,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Text(
-                                'Supplier: ',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: _clrTextMedium,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  vendorValue,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: _clrTextDark,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          // Stock (prominent) + mini Restock button
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isOutOfStock
-                                      ? Colors.red.shade50
-                                      : isLowStock
-                                      ? Colors.amber.shade50
-                                      : const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: isOutOfStock
-                                        ? Colors.red.shade200
-                                        : isLowStock
-                                        ? Colors.amber.shade200
-                                        : const Color(0xFFBFDBFE),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Stock: $currentStock $unitText',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: isOutOfStock
-                                        ? _clrRed
-                                        : isLowStock
-                                        ? const Color(0xFFB45309)
-                                        : _clrBlue,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              InkWell(
-                                onTap: onRestock,
-                                borderRadius: BorderRadius.circular(6),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _clrPrimary,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    'Restock',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Blue Progress Bar (At bottom of card)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Stock capacity',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                        Text(
-                          '${(stockRatio * 100).toStringAsFixed(0)}% (max $effectiveMaxStock)',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: _clrBlue,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: SizedBox(
-                        height: 5,
-                        child: Stack(
-                          children: [
-                            Container(color: const Color(0xFFE2E8F0)),
-                            FractionallySizedBox(
-                              widthFactor: stockRatio,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: _clrBlue,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Below Card: Detailed breakdown row with: Item, Price, Specifics (pack size), Supplier, and Stock
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(13),
-                  ),
-                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: Row(
-                  children: [
-                    _buildCompactColumn(
-                      'Item',
-                      original?.name ?? medication.name,
-                    ),
-                    _buildCompactColumn(
-                      'Price',
-                      original?.unitPrice != null
-                          ? _formatCurrency(original!.unitPrice!)
-                          : '—',
-                    ),
-                    _buildCompactColumn(
-                      'Specifics',
-                      (original?.unit != null && original!.unit.isNotEmpty)
-                          ? original.unit
-                          : '—',
-                    ),
-                    _buildCompactColumn('Supplier', vendorValue),
-                    _buildCompactColumn('Stock', '$currentStock $unitText'),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompactColumn(String label, String value) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 8.5,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade500,
-              letterSpacing: 0.3,
-            ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: _clrTextDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Full-Width List Row Card — optimized for full width row view
-class _MedicationRowCard extends StatelessWidget {
-  final MedicationData medication;
-  final InventoryRepository repository;
-  final int maxStock;
-  final VoidCallback onEdit;
-  final VoidCallback onTap;
-  final VoidCallback onRestock;
-
-  const _MedicationRowCard({
-    required this.medication,
-    required this.repository,
-    required this.maxStock,
-    required this.onEdit,
-    required this.onTap,
-    required this.onRestock,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final MedicineModel? original = medication.originalMedicine;
-    final String? supplier = original?.supplierName?.trim();
-    final String vendorValue = (supplier == null || supplier.isEmpty)
-        ? 'No supplier'
-        : supplier;
-    final int currentStock = original?.currentStock ?? 0;
-    final double? price = original?.unitPrice;
-    final String priceText = price != null ? price.toStringAsFixed(2) : '—';
-
-    // FM is a placeholder - replace with actual model field if it exists
-    final String fmValue = '76.5%';
-
-    // Stock logic
-    final int effectiveMaxStock = maxStock > 0 ? maxStock : 1;
-    final double stockRatio = (currentStock / effectiveMaxStock).clamp(
-      0.0,
-      1.0,
-    );
-
-    // MODIFY THIS anytime to change the card height (e.g. 150, 165, 180, 210, etc.)
-    final double cardHeight = 165;
-    const double paddingVal = 14;
-    final double imageDimension = (cardHeight - (paddingVal * 2)).clamp(
-      40.0,
-      500.0,
-    );
-
-    return Container(
-      width: double.infinity,
-      height: cardHeight,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: const [],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(paddingVal),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Square image that automatically scales with cardHeight
-                SizedBox(
-                  width: imageDimension,
-                  height: imageDimension,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _MedicineImageWidget(
-                      medicine: original,
-                      repository: repository,
-                      size: imageDimension,
-                      width: imageDimension,
-                      height: imageDimension,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Right side info that dynamically adapts to cardHeight without overflow
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SizedBox(
-                        height: constraints.maxHeight,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: SizedBox(
-                            width: constraints.maxWidth,
-                            height: constraints.maxHeight > 140
-                                ? constraints.maxHeight
-                                : 140,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                // Header Row: Medicine Name & Stock count
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        original?.name ?? medication.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: _clrTextDark,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          'Stock',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '$currentStock',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            color: _clrTextDark,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                // Meta Row 1: RRP & FM
-                                Row(
-                                  children: [
-                                    Text(
-                                      'RRP: $priceText',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    Text(
-                                      'FM: $fmValue',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // Meta Row 2: Supplier
-                                Row(
-                                  children: [
-                                    Text(
-                                      'Supplier: ',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                    Text(
-                                      vendorValue,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: _clrTextDark,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Divider(height: 1, color: Colors.grey.shade200),
-                                // Bottom Row: Stock Capacity Progress Bar & Restock Action Button
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                'Stock capacity',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.grey.shade500,
-                                                ),
-                                              ),
-                                              Text(
-                                                '${(stockRatio * 100).toStringAsFixed(0)}%',
-                                                style: const TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _clrBlue,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 5),
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                            child: SizedBox(
-                                              height: 6,
-                                              child: Stack(
-                                                children: [
-                                                  Container(
-                                                    color: const Color(
-                                                      0xFFE2E8F0,
-                                                    ),
-                                                  ),
-                                                  FractionallySizedBox(
-                                                    widthFactor: stockRatio,
-                                                    child: Container(
-                                                      decoration: BoxDecoration(
-                                                        color: _clrBlue,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              4,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 20),
-                                    SizedBox(
-                                      height: 32,
-                                      child: ElevatedButton.icon(
-                                        onPressed: onRestock,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: _clrPrimary,
-                                          foregroundColor: Colors.white,
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                          ),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                          ),
-                                        ),
-                                        icon: const Icon(
-                                          Icons.add_rounded,
-                                          size: 14,
-                                        ),
-                                        label: const Text(
-                                          'Restock',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _StripedProgressBar extends StatelessWidget {
   final double value;
@@ -2532,7 +149,7 @@ class _StripedProgressBar extends StatelessWidget {
         child: Stack(
           children: [
             Container(
-              color: Colors.grey[200],
+              color: context.cru.label3,
               child: CustomPaint(painter: _StripePainter()),
             ),
             FractionallySizedBox(
@@ -2564,133 +181,6 @@ class _StripePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _ScrollableAlertsPanel extends StatelessWidget {
-  final List<AlertData> alerts;
-
-  const _ScrollableAlertsPanel({required this.alerts});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Alerts',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _clrPrimary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: _clrSurfaceMid,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.more_horiz, size: 20, color: _clrIcon),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: ListView.builder(
-              itemCount: alerts.length,
-              itemBuilder: (context, index) {
-                final alert = alerts[index];
-                return Padding(
-                  padding: EdgeInsets.only(
-                    bottom: index < alerts.length - 1 ? 8 : 0,
-                  ),
-                  child: _AlertItem(alert: alert),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertItem extends StatelessWidget {
-  final AlertData alert;
-
-  const _AlertItem({required this.alert});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: _clrSurfaceLight,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: alert.bgColor,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(alert.icon, size: 16, color: alert.iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  alert.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: _clrPrimary,
-                  ),
-                ),
-                if (alert.subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    alert.subtitle,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: _clrPurpleTint,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              alert.actionLabel,
-              style: const TextStyle(
-                color: _clrPurple,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ==============================================================================
@@ -2729,10 +219,9 @@ List<_VendorSummary> _buildVendorSummaries(
     for (final med in medications)
       if (med.originalMedicine != null) med.originalMedicine!.id: med,
   };
-  final stock = stockBySupplier(
-    [for (final med in byId.values) med.originalMedicine!],
-    purchases,
-  );
+  final stock = stockBySupplier([
+    for (final med in byId.values) med.originalMedicine!,
+  ], purchases);
   final unassigned = [
     for (final med in medications)
       if (med.originalMedicine == null) med,
@@ -2811,10 +300,7 @@ class _VendorsTabState extends State<_VendorsTab> {
   @override
   Widget build(BuildContext context) {
     // 1. Vendor Dashboard Header
-    final vendors = _buildVendorSummaries(
-      widget.medications,
-      widget.purchases,
-    );
+    final vendors = _buildVendorSummaries(widget.medications, widget.purchases);
     final totalValue = vendors.fold<double>(0, (sum, v) => sum + v.stockValue);
     final totalItems = vendors.fold<int>(0, (sum, v) => sum + v.itemCount);
 
@@ -2874,26 +360,22 @@ class _VendorsTabState extends State<_VendorsTab> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _clrSurfaceLight,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            color: context.cru.inset,
+            borderRadius: BorderRadius.circular(CruRadius.card),
+            border: Border.all(color: context.cru.label3),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Vendor Health',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: _clrPrimary,
-                ),
+                style: CruType.body.w700.tint(context.cru.label),
               ),
               const SizedBox(height: 12),
               if (vendors.isEmpty)
-                const Text(
+                Text(
                   'No vendor data yet',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: context.cru.label3),
                 )
               else
                 ...vendors
@@ -2906,20 +388,14 @@ class _VendorsTabState extends State<_VendorsTab> {
                             Icon(
                               Icons.storefront,
                               size: 16,
-                              color: Colors.grey[600],
+                              color: context.cru.label2,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    v.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 12,
-                                    ),
-                                  ),
+                                  Text(v.name, style: CruType.caption.w600),
                                   const SizedBox(height: 4),
                                   _StripedProgressBar(
                                     value: totalValue > 0
@@ -2929,8 +405,8 @@ class _VendorsTabState extends State<_VendorsTab> {
                                           )
                                         : 0.0,
                                     color: v.lowStockCount > 0
-                                        ? Colors.orange
-                                        : _clrGreen,
+                                        ? context.cru.amberText
+                                        : context.cru.greenText,
                                   ),
                                 ],
                               ),
@@ -2938,10 +414,7 @@ class _VendorsTabState extends State<_VendorsTab> {
                             const SizedBox(width: 10),
                             Text(
                               _formatCurrency(v.stockValue),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
+                              style: CruType.caption.w700,
                             ),
                           ],
                         ),
@@ -2960,15 +433,15 @@ class _VendorsTabState extends State<_VendorsTab> {
               width: 300,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
+                color: context.cru.label3,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: context.cru.label3),
               ),
               child: TextField(
                 onChanged: (v) => setState(() => _searchQuery = v),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Search vendors...',
-                  icon: Icon(Icons.search, size: 18, color: Colors.grey),
+                  icon: Icon(Icons.search, size: 18, color: context.cru.label3),
                   filled: false,
                   contentPadding: EdgeInsets.symmetric(vertical: 8),
                   border: InputBorder.none,
@@ -3034,19 +507,18 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        // The Inventory filter-chip look: accent tint when selected.
         decoration: BoxDecoration(
-          color: active ? _clrPrimary : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: active ? context.cru.accentTint : context.cru.surface,
+          borderRadius: BorderRadius.circular(CruRadius.full),
           border: Border.all(
-            color: active ? Colors.transparent : Colors.grey.shade300,
+            color: active ? Colors.transparent : context.cru.hairline,
           ),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? Colors.white : _clrTextMedium,
+          style: CruType.caption.w600.tint(
+            active ? context.cru.accentText : context.cru.label,
           ),
         ),
       ),
@@ -3072,9 +544,9 @@ class _VendorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.card),
+        border: Border.all(color: context.cru.label3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3085,15 +557,17 @@ class _VendorCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: isUnassigned ? Colors.grey.shade100 : _clrBlueTint,
-                  borderRadius: BorderRadius.circular(10),
+                  color: isUnassigned
+                      ? context.cru.label3
+                      : context.cru.accentWash,
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
                 child: Icon(
                   isUnassigned
                       ? Icons.help_outline_rounded
                       : Icons.storefront_rounded,
                   size: 20,
-                  color: isUnassigned ? Colors.grey.shade500 : _clrBlue,
+                  color: isUnassigned ? context.cru.label3 : context.cru.accent,
                 ),
               ),
               const SizedBox(width: 12),
@@ -3103,16 +577,12 @@ class _VendorCard extends StatelessWidget {
                   children: [
                     Text(
                       isUnassigned ? 'No vendor assigned' : vendor.name,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: _clrPrimary,
-                      ),
+                      style: CruType.row.w700.tint(context.cru.label),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${vendor.itemCount} item${vendor.itemCount == 1 ? '' : 's'}${vendor.hasKnownValue ? ' · ${_formatCurrency(vendor.stockValue)} in stock' : ''}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: CruType.caption.tint(context.cru.label2),
                     ),
                   ],
                 ),
@@ -3120,16 +590,16 @@ class _VendorCard extends StatelessWidget {
               if (vendor.lowStockCount > 0) ...[
                 _VendorCountBadge(
                   label: '${vendor.lowStockCount} low',
-                  color: Colors.red.shade700,
-                  backgroundColor: Colors.red.shade50,
+                  color: context.cru.label2,
+                  backgroundColor: context.cru.inset,
                 ),
                 const SizedBox(width: 6),
               ],
               if (vendor.expiringCount > 0)
                 _VendorCountBadge(
                   label: '${vendor.expiringCount} exp',
-                  color: Colors.orange.shade700,
-                  backgroundColor: Colors.orange.shade50,
+                  color: context.cru.amberText,
+                  backgroundColor: context.cru.amberTint,
                 ),
             ],
           ),
@@ -3161,17 +631,15 @@ class _VendorCard extends StatelessWidget {
                 isUnassigned
                     ? 'Tap an item to add its vendor.'
                     : 'Tap an item to view details.',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                  fontStyle: FontStyle.italic,
-                ),
+                style: CruType.micro
+                    .tint(context.cru.label3)
+                    .copyWith(fontStyle: FontStyle.italic),
               ),
               if (!isUnassigned)
                 TextButton.icon(
                   onPressed: () {}, // Mock action for adding item to vendor
                   icon: const Icon(Icons.add_shopping_cart, size: 14),
-                  label: const Text('Add Item', style: TextStyle(fontSize: 12)),
+                  label: const Text('Add Item', style: CruType.caption),
                 ),
             ],
           ),
@@ -3198,16 +666,9 @@ class _VendorCountBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(CruRadius.card),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+      child: Text(label, style: CruType.caption.w600.tint(color)),
     );
   }
 }
@@ -3224,9 +685,9 @@ class _VendorMedicineChip extends StatelessWidget {
     final bool isLowStock = original?.isLowStock ?? false;
     final bool isExpiring = original?.isExpiringSoon ?? false;
     final Color? dotColor = isLowStock
-        ? Colors.red.shade600
+        ? context.cru.label2
         : isExpiring
-        ? Colors.orange.shade700
+        ? context.cru.amberText
         : null;
 
     return GestureDetector(
@@ -3234,8 +695,8 @@ class _VendorMedicineChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: _clrSurfaceLight,
-          borderRadius: BorderRadius.circular(20),
+          color: context.cru.inset,
+          borderRadius: BorderRadius.circular(CruRadius.card),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3253,7 +714,7 @@ class _VendorMedicineChip extends StatelessWidget {
             ],
             Text(
               medication.name,
-              style: const TextStyle(fontSize: 12, color: _clrTextSubtle),
+              style: CruType.caption.tint(context.cru.label),
             ),
           ],
         ),
@@ -3471,10 +932,10 @@ class _ReorderRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.control),
         border: Border.all(
-          color: isOut ? Colors.red.shade100 : Colors.grey.shade200,
+          color: isOut ? context.cru.inset : context.cru.label3,
         ),
       ),
       child: Row(
@@ -3490,11 +951,7 @@ class _ReorderRow extends StatelessWidget {
                       Flexible(
                         child: Text(
                           medicine.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: _clrPrimary,
-                          ),
+                          style: CruType.callout.w700.tint(context.cru.label),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -3505,19 +962,13 @@ class _ReorderRow extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: isOut
-                              ? Colors.red.shade50
-                              : Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(20),
+                          color: isOut ? context.cru.inset : context.cru.amber,
+                          borderRadius: BorderRadius.circular(CruRadius.card),
                         ),
                         child: Text(
                           isOut ? 'Out of stock' : 'Low stock',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: isOut
-                                ? Colors.red.shade700
-                                : Colors.amber.shade800,
+                          style: CruType.micro.w600.tint(
+                            isOut ? context.cru.label2 : context.cru.amber,
                           ),
                         ),
                       ),
@@ -3526,13 +977,13 @@ class _ReorderRow extends StatelessWidget {
                   const SizedBox(height: 6),
                   _StripedProgressBar(
                     value: reorderProgress,
-                    color: isOut ? _clrRed : _clrAmber,
+                    color: isOut ? context.cru.amberText : context.cru.amber,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '${medicine.currentStock} ${medicine.unit} left · Suggest +${suggestion.suggestedQty} ${medicine.unit}'
                     '${suggestion.estimatedCost != null ? ' (${_formatCurrency(suggestion.estimatedCost!)})' : ''}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: CruType.caption.tint(context.cru.label2),
                   ),
                   if (daysSinceRestock != null) ...[
                     const SizedBox(height: 6),
@@ -3541,17 +992,14 @@ class _ReorderRow extends StatelessWidget {
                         Icon(
                           Icons.history_rounded,
                           size: 12,
-                          color: Colors.grey[400],
+                          color: context.cru.label3,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           daysSinceRestock == 0
                               ? 'Restocked today'
                               : 'Restocked ${daysSinceRestock}d ago',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[400],
-                          ),
+                          style: CruType.micro.tint(context.cru.label3),
                         ),
                       ],
                     ),
@@ -3568,18 +1016,15 @@ class _ReorderRow extends StatelessWidget {
               repository: repository,
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _clrPrimary,
-              foregroundColor: Colors.white,
+              backgroundColor: context.cru.primaryButtonFill,
+              foregroundColor: context.cru.primaryButtonText,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(CruRadius.control),
               ),
             ),
-            child: const Text(
-              'Restock',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
+            child: Text('Restock', style: CruType.caption.w600),
           ),
         ],
       ),
@@ -3746,13 +1191,9 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Usage Analytics',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _clrPrimary,
-                ),
+                style: CruType.headline.w700.tint(context.cru.label),
               ),
               Row(
                 children: [
@@ -3845,20 +1286,16 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                color: context.cru.surface,
+                borderRadius: BorderRadius.circular(CruRadius.card),
+                border: Border.all(color: context.cru.label3),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Top Dispensed Items',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: _clrPrimary,
-                    ),
+                    style: CruType.callout.w700.tint(context.cru.label),
                   ),
                   const SizedBox(height: 12),
                   ...data.topMedicines.map(
@@ -3880,21 +1317,17 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
+              color: context.cru.surface,
+              borderRadius: BorderRadius.circular(CruRadius.card),
+              border: Border.all(color: context.cru.cardBorder, width: 0.75),
               boxShadow: const [],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Recent stock activity',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _clrPrimary,
-                  ),
+                  style: CruType.callout.w700.tint(context.cru.label),
                 ),
                 const SizedBox(height: 12),
                 ...data.recentTransactions.map(
@@ -3930,20 +1363,16 @@ class _WeeklyUsageChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.card),
+        border: Border.all(color: context.cru.label3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Dispensed Volume',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: _clrPrimary,
-            ),
+            style: CruType.callout.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 16),
           // Greatly expanded bars
@@ -3967,16 +1396,13 @@ class _WeeklyUsageChart extends StatelessWidget {
                       children: [
                         Text(
                           value > 0 ? value.toStringAsFixed(0) : '',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Colors.grey[500],
-                          ),
+                          style: CruType.micro.tint(context.cru.label3),
                         ),
                         const SizedBox(height: 4),
                         Container(
                           height: 120 * heightFactor + 4,
                           decoration: BoxDecoration(
-                            color: _clrBlue,
+                            color: context.cru.accent,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -3993,10 +1419,7 @@ class _WeeklyUsageChart extends StatelessWidget {
                                   'Today',
                                 ][index % 7]
                               : '${index + 1}',
-                          style: TextStyle(
-                            fontSize: 8,
-                            color: Colors.grey[500],
-                          ),
+                          style: CruType.micro.tint(context.cru.label3),
                         ),
                       ],
                     ),
@@ -4025,26 +1448,22 @@ class _CategoryBreakdownPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.card),
+        border: Border.all(color: context.cru.label3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Category Breakdown',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: _clrPrimary,
-            ),
+            style: CruType.callout.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 16),
           if (categories.isEmpty)
-            const Text(
+            Text(
               'No category data yet',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: context.cru.label3),
             )
           else
             ...categories.take(6).map((entry) {
@@ -4056,10 +1475,7 @@ class _CategoryBreakdownPanel extends StatelessWidget {
                       width: 120,
                       child: Text(
                         entry.key,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: CruType.caption.w600,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -4067,16 +1483,13 @@ class _CategoryBreakdownPanel extends StatelessWidget {
                     Expanded(
                       child: _StripedProgressBar(
                         value: (entry.value / maxValue).clamp(0.0, 1.0),
-                        color: Colors.purple.shade300,
+                        color: context.cru.ai,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Text(
                       _formatCurrency(entry.value),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: CruType.caption.w700,
                     ),
                   ],
                 ),
@@ -4104,35 +1517,18 @@ class _UsageStatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.control),
+        border: Border.all(color: context.cru.label3),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(label, style: CruType.caption.w500.tint(context.cru.label2)),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: _clrPrimary,
-            ),
-          ),
+          Text(value, style: CruType.headline.w700.tint(context.cru.label)),
           const SizedBox(height: 2),
-          Text(
-            sublabel,
-            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-          ),
+          Text(sublabel, style: CruType.micro.tint(context.cru.label3)),
         ],
       ),
     );
@@ -4165,22 +1561,18 @@ class _TopMedicineRow extends StatelessWidget {
               Flexible(
                 child: Text(
                   usage.name,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _clrPrimary,
-                  ),
+                  style: CruType.subhead.w600.tint(context.cru.label),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 '${usage.quantity} units · ${_formatCurrency(usage.quantity * unitValue)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: CruType.caption.tint(context.cru.label2),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          _StripedProgressBar(value: progress, color: _clrBlue),
+          _StripedProgressBar(value: progress, color: context.cru.accent),
         ],
       ),
     );
@@ -4215,7 +1607,7 @@ class _UsageTransactionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final dt = transaction.createdAt;
     final dateLabel = '${dt.day}/${dt.month}/${dt.year}';
-    final color = _isIncrease ? _clrGreen : Colors.grey.shade700;
+    final color = _isIncrease ? context.cru.greenText : context.cru.label2;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -4232,13 +1624,13 @@ class _UsageTransactionRow extends StatelessWidget {
           Expanded(
             child: Text(
               '${_label()} $medicineName',
-              style: const TextStyle(fontSize: 12, color: _clrPrimary),
+              style: CruType.caption.tint(context.cru.label),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           Text(
             '${_isIncrease ? '+' : '-'}${transaction.quantity} · $dateLabel',
-            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            style: CruType.micro.tint(context.cru.label3),
           ),
         ],
       ),
@@ -4250,15 +1642,11 @@ class _PlaceholderScreen extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
-  final String? actionLabel;
-  final VoidCallback? onAction;
 
   const _PlaceholderScreen({
     required this.icon,
     required this.title,
     required this.message,
-    this.actionLabel,
-    this.onAction,
   });
 
   @override
@@ -4267,47 +1655,15 @@ class _PlaceholderScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: Colors.grey.shade300),
+          Icon(icon, size: 64, color: context.cru.label3),
           const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: _clrPrimary,
-            ),
-          ),
+          Text(title, style: CruType.title2.tint(context.cru.label)),
           const SizedBox(height: 8),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            style: CruType.text.tint(context.cru.label3),
           ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: onAction,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _clrPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                actionLabel!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -4320,10 +1676,17 @@ class _PlaceholderScreen extends StatelessWidget {
 // InventoryScreen can mount them with no arguments. Behaviour unchanged.
 // =============================================================================
 
+final _inventoryMedicationsProvider =
+    Provider<AsyncValue<List<MedicationData>>>(
+      (ref) => ref.watch(
+        medicinesStreamProvider.select(
+          (async) => async.whenData(_medicationsFrom),
+        ),
+      ),
+    );
+
 List<MedicationData> _watchMedications(WidgetRef ref) =>
-    (ref.watch(_desktopInventoryViewProvider).value ??
-            _emptyDesktopInventoryViewData)
-        .medications;
+    ref.watch(_inventoryMedicationsProvider).value ?? const [];
 
 void _pushMedicineDetail(BuildContext context, MedicineModel medicine) {
   Navigator.push(

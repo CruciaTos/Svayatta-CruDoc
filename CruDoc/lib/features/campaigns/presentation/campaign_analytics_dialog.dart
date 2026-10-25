@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_recipient_log.dart';
 import '../data/models/campaign_enums.dart';
@@ -85,11 +86,9 @@ class _CampaignAnalyticsDialogState
     } catch (e) {
       if (mounted) {
         setState(() => _isRetrying = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Retry failed: $e'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Retry failed: $e')));
       }
     }
   }
@@ -98,12 +97,12 @@ class _CampaignAnalyticsDialogState
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.card),
         boxShadow: const [],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(CruRadius.card),
         child: Column(
           children: [
             // Modal Header
@@ -142,7 +141,7 @@ class _CampaignAnalyticsDialogState
                     return Center(
                       child: Text(
                         'No recipients match the selected filter "$_filter"',
-                        style: TextStyle(color: Colors.grey[600]),
+                        style: TextStyle(color: context.cru.label2),
                       ),
                     );
                   }
@@ -165,14 +164,14 @@ class _CampaignAnalyticsDialogState
     final cat = _currentCampaign.category;
     return Container(
       padding: const EdgeInsets.all(20),
-      color: const Color(0xFFF8FAFC),
+      color: context.cru.inset,
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: cat.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(CruRadius.control),
             ),
             child: Icon(cat.icon, color: cat.color, size: 22),
           ),
@@ -186,11 +185,7 @@ class _CampaignAnalyticsDialogState
                     Flexible(
                       child: Text(
                         _currentCampaign.title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                        ),
+                        style: CruType.headline.w700.tint(context.cru.label),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -201,18 +196,20 @@ class _CampaignAnalyticsDialogState
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: _currentCampaign.status.color.withValues(alpha: 0.12),
+                        color: _currentCampaign.status.color.withValues(
+                          alpha: 0.12,
+                        ),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: _currentCampaign.status.color.withValues(alpha: 0.3),
+                          color: _currentCampaign.status.color.withValues(
+                            alpha: 0.3,
+                          ),
                         ),
                       ),
                       child: Text(
                         _currentCampaign.status.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: _currentCampaign.status.color,
+                        style: CruType.micro.w700.tint(
+                          _currentCampaign.status.color,
                         ),
                       ),
                     ),
@@ -221,14 +218,14 @@ class _CampaignAnalyticsDialogState
                 const SizedBox(height: 2),
                 Text(
                   'Created: ${_currentCampaign.formattedCreatedAt} • Category: ${cat.label}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: CruType.caption.tint(context.cru.label2),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+            icon: Icon(Icons.close_rounded, color: context.cru.label2),
           ),
         ],
       ),
@@ -239,29 +236,29 @@ class _CampaignAnalyticsDialogState
     final successRate = _currentCampaign.successRate;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      color: Colors.white,
+      color: context.cru.surface,
       child: Row(
         children: [
           _buildKpiCard(
             'Total Targeted',
             '${_currentCampaign.totalRecipients}',
-            const Color(0xFF0F172A),
+            context.cru.label,
           ),
           _buildKpiCard(
             'Success Rate',
             '${successRate.toStringAsFixed(1)}%',
-            const Color(0xFF16A34A),
+            context.cru.greenText,
           ),
           _buildKpiCard(
             '📧 Emails Sent',
             '${_currentCampaign.emailsSent}',
-            const Color(0xFF2563EB),
+            context.cru.accent,
             failedCount: _currentCampaign.emailsFailed,
           ),
           _buildKpiCard(
             '💬 WhatsApp Sent',
             '${_currentCampaign.whatsAppSent}',
-            const Color(0xFF059669),
+            context.cru.greenText,
             failedCount: _currentCampaign.whatsAppFailed,
           ),
         ],
@@ -281,40 +278,22 @@ class _CampaignAnalyticsDialogState
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(CruRadius.control),
           border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
+            Text(label, style: CruType.micro.w600.tint(context.cru.label2)),
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-                ),
+                Text(value, style: CruType.headline.w700.tint(color)),
                 if (failedCount > 0) ...[
                   const SizedBox(width: 6),
                   Text(
                     '($failedCount failed)',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFFDC2626),
-                    ),
+                    style: CruType.micro.w600.tint(context.cru.label2),
                   ),
                 ],
               ],
@@ -328,7 +307,7 @@ class _CampaignAnalyticsDialogState
   Widget _buildFilterBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      color: const Color(0xFFF8FAFC),
+      color: context.cru.inset,
       child: Row(
         children: [
           Expanded(
@@ -342,14 +321,14 @@ class _CampaignAnalyticsDialogState
                       'Search recipients by patient name, phone, or email...',
                   prefixIcon: const Icon(Icons.search, size: 16),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: context.cru.surface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                     borderSide: const BorderSide(color: Colors.transparent),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                     borderSide: const BorderSide(color: Colors.transparent),
                   ),
                 ),
@@ -373,17 +352,16 @@ class _CampaignAnalyticsDialogState
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => setState(() => _filter = value),
-      selectedColor: const Color(0xFF2563EB),
-      labelStyle: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: isSelected ? Colors.white : const Color(0xFF334155),
+      showCheckmark: false,
+      selectedColor: context.cru.accentTint,
+      labelStyle: CruType.micro.w600.tint(
+        isSelected ? context.cru.accentText : context.cru.label,
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: context.cru.surface,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(CruRadius.control),
         side: BorderSide(
-          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+          color: isSelected ? context.cru.accent : context.cru.cardBorder,
         ),
       ),
     );
@@ -414,8 +392,7 @@ class _CampaignAnalyticsDialogState
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       itemCount: logs.length,
-      separatorBuilder: (_, _) =>
-          const Divider(height: 1),
+      separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final log = logs[index];
         return Padding(
@@ -425,16 +402,12 @@ class _CampaignAnalyticsDialogState
               // Patient Initials Avatar
               CircleAvatar(
                 radius: 16,
-                backgroundColor: const Color(0xFFEFF6FF),
+                backgroundColor: context.cru.accentWash,
                 child: Text(
                   log.patientName.isNotEmpty
                       ? log.patientName[0].toUpperCase()
                       : '?',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Color(0xFF2563EB),
-                  ),
+                  style: CruType.caption.w700.tint(context.cru.accent),
                 ),
               ),
               const SizedBox(width: 12),
@@ -447,15 +420,11 @@ class _CampaignAnalyticsDialogState
                   children: [
                     Text(
                       log.patientName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                        color: Color(0xFF0F172A),
-                      ),
+                      style: CruType.subhead.w700.tint(context.cru.label),
                     ),
                     Text(
                       '${log.phone}  •  ${log.email.isNotEmpty ? log.email : "No Email"}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: CruType.micro.tint(context.cru.label2),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
@@ -469,10 +438,10 @@ class _CampaignAnalyticsDialogState
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.email_outlined,
                         size: 14,
-                        color: Color(0xFF64748B),
+                        color: context.cru.label2,
                       ),
                       const SizedBox(width: 4),
                       _buildStatusBadge(
@@ -492,10 +461,10 @@ class _CampaignAnalyticsDialogState
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.chat_bubble_outline,
                         size: 14,
-                        color: Color(0xFF64748B),
+                        color: context.cru.label2,
                       ),
                       const SizedBox(width: 4),
                       _buildStatusBadge(
@@ -514,7 +483,7 @@ class _CampaignAnalyticsDialogState
                 child: Text(
                   log.formattedDispatchedAt,
                   textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  style: CruType.micro.tint(context.cru.label3),
                 ),
               ),
             ],
@@ -547,14 +516,7 @@ class _CampaignAnalyticsDialogState
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            status.label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: status.color,
-            ),
-          ),
+          Text(status.label, style: CruType.micro.w700.tint(status.color)),
         ],
       ),
     );
@@ -570,17 +532,14 @@ class _CampaignAnalyticsDialogState
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFFD97706).withValues(alpha: 0.12),
+              color: context.cru.amberText.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Text(
+            child: Text(
               'SIMULATED',
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.4,
-                color: Color(0xFFB45309),
-              ),
+              style: CruType.micro.w700
+                  .tint(context.cru.amberText)
+                  .copyWith(letterSpacing: 0.4),
             ),
           ),
         ),
@@ -592,11 +551,7 @@ class _CampaignAnalyticsDialogState
       children.add(
         Tooltip(
           message: 'Reason: $error',
-          child: const Icon(
-            Icons.info_outline,
-            size: 14,
-            color: Color(0xFFDC2626),
-          ),
+          child: Icon(Icons.info_outline, size: 14, color: context.cru.label2),
         ),
       );
     }
@@ -615,12 +570,12 @@ class _CampaignAnalyticsDialogState
             ElevatedButton.icon(
               onPressed: _isRetrying ? null : _handleRetry,
               icon: _isRetrying
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: context.cru.label,
                       ),
                     )
                   : const Icon(Icons.replay_rounded, size: 16),
@@ -630,10 +585,11 @@ class _CampaignAnalyticsDialogState
                     : 'Retry Failed Dispatches (${_currentCampaign.totalFailed})',
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white,
+                backgroundColor: context.cru.inset,
+                foregroundColor: context.cru.label,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
@@ -323,12 +324,12 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: context.cru.surface,
+        borderRadius: BorderRadius.circular(CruRadius.card),
         boxShadow: const [],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(CruRadius.card),
         child: Column(
           children: [
             // Modal Header with Steps Indicator
@@ -354,39 +355,25 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
   Widget _buildModalHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: const Color(0xFFF8FAFC),
+      color: context.cru.inset,
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.campaign_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
+          const CruIconTile(
+            icon: CruIcons.megaphone,
+            tone: CruTileTone.neutral,
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Post Patient Campaign & Broadcast',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
-                  ),
+                  style: CruType.headline.w700.tint(context.cru.label),
                 ),
                 Text(
                   'Send health advisories, checkup camps, and updates via Email & WhatsApp',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: CruType.caption.tint(context.cru.label2),
                 ),
               ],
             ),
@@ -404,7 +391,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           const SizedBox(width: 12),
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+            icon: Icon(Icons.close_rounded, color: context.cru.label2),
             tooltip: 'Cancel',
           ),
         ],
@@ -424,20 +411,16 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isDone
-                ? const Color(0xFF10B981)
-                : (isActive
-                      ? const Color(0xFF2563EB)
-                      : const Color(0xFFE2E8F0)),
+                ? context.cru.green
+                : (isActive ? context.cru.accent : context.cru.cardBorder),
           ),
           child: Center(
             child: isDone
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                ? CruIcon(CruIcons.check, color: context.cru.onAccent, size: 16)
                 : Text(
                     '${stepIndex + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: isActive ? Colors.white : const Color(0xFF64748B),
+                    style: CruType.caption.w700.tint(
+                      isActive ? context.cru.onAccent : context.cru.label2,
                     ),
                   ),
           ),
@@ -445,10 +428,8 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
         const SizedBox(width: 6),
         Text(
           title,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-            color: isActive ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+          style: CruType.caption.w700.tint(
+            isActive ? context.cru.label : context.cru.label2,
           ),
         ),
       ],
@@ -460,7 +441,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
       width: 20,
       height: 1,
       margin: const EdgeInsets.symmetric(horizontal: 6),
-      color: const Color(0xFFCBD5E1),
+      color: context.cru.separator,
     );
   }
 
@@ -489,13 +470,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Category selector pills
-          const Text(
+          Text(
             'Campaign Category',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+            style: CruType.subhead.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -510,26 +487,26 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                     Icon(
                       category.icon,
                       size: 16,
-                      color: isSelected ? Colors.white : category.color,
+                      color: isSelected
+                          ? context.cru.accentText
+                          : context.cru.label2,
                     ),
                     const SizedBox(width: 6),
                     Text(category.label),
                   ],
                 ),
                 selected: isSelected,
-                selectedColor: category.color,
-                labelStyle: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? Colors.white : const Color(0xFF334155),
+                showCheckmark: false,
+                selectedColor: context.cru.accentTint,
+                labelStyle: CruType.chip.w600.tint(
+                  isSelected ? context.cru.accentText : context.cru.label,
                 ),
-                backgroundColor: const Color(0xFFF1F5F9),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                backgroundColor: context.cru.surface,
+                shape: StadiumBorder(
                   side: BorderSide(
                     color: isSelected
-                        ? category.color
-                        : const Color(0xFFE2E8F0),
+                        ? Colors.transparent
+                        : context.cru.hairline,
                   ),
                 ),
                 onSelected: (_) => setState(() => _selectedCategory = category),
@@ -540,13 +517,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           const SizedBox(height: 20),
 
           // Title
-          const Text(
+          Text(
             'Campaign Title / Subject *',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+            style: CruType.subhead.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -555,13 +528,13 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               hintText:
                   'e.g. Free Blood Sugar & Diabetes Screening Camp this Sunday',
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: context.cru.inset,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: const BorderSide(color: Colors.transparent),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: const BorderSide(color: Colors.transparent),
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -576,22 +549,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           // Personalization Tags Toolbar
           Row(
             children: [
-              const Text(
+              Text(
                 'Campaign Message / Body *',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF334155),
-                ),
+                style: CruType.subhead.w700.tint(context.cru.label),
               ),
               const Spacer(),
-              const Text(
+              Text(
                 'Insert Tag: ',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
+                style: CruType.micro.w600.tint(context.cru.label2),
               ),
               _buildTagPill('+ Patient Name', '{{patient_name}}'),
               const SizedBox(width: 6),
@@ -608,13 +573,13 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               hintText:
                   'Dear {{patient_name}},\n\nWe are pleased to invite you to our comprehensive health checkup camp at {{clinic_name}}...\n\nStay healthy,\n{{doctor_name}}',
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: context.cru.inset,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: const BorderSide(color: Colors.transparent),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: const BorderSide(color: Colors.transparent),
               ),
               contentPadding: const EdgeInsets.all(16),
@@ -624,13 +589,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           const SizedBox(height: 16),
 
           // Banner Image URL (Optional)
-          const Text(
+          Text(
             'Banner Image URL (Optional)',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+            style: CruType.subhead.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 6),
           TextField(
@@ -638,19 +599,19 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
             decoration: InputDecoration(
               hintText:
                   'https://example.com/banner.jpg (Included in Email header & WhatsApp media)',
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.image_outlined,
                 size: 20,
-                color: Color(0xFF64748B),
+                color: context.cru.label2,
               ),
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor: context.cru.inset,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: const BorderSide(color: Colors.transparent),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: const BorderSide(color: Colors.transparent),
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -671,18 +632,11 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF),
+          color: context.cru.accentWash,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFBFDBFE)),
+          border: Border.all(color: context.cru.accentTint),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2563EB),
-          ),
-        ),
+        child: Text(label, style: CruType.micro.w700.tint(context.cru.accent)),
       ),
     );
   }
@@ -705,13 +659,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Cohort Selector
-          const Text(
+          Text(
             'Target Patient Cohort',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+            style: CruType.subhead.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -721,7 +671,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               final isSelected = _selectedAudienceType == type;
               return InkWell(
                 onTap: () => setState(() => _selectedAudienceType = type),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -729,13 +679,13 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? const Color(0xFFEFF6FF)
-                        : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
+                        ? context.cru.accentWash
+                        : context.cru.inset,
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                     border: Border.all(
                       color: isSelected
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFFE2E8F0),
+                          ? context.cru.accent
+                          : context.cru.cardBorder,
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -748,20 +698,16 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                             : Icons.radio_button_off,
                         size: 16,
                         color: isSelected
-                            ? const Color(0xFF2563EB)
-                            : const Color(0xFF94A3B8),
+                            ? context.cru.accent
+                            : context.cru.label3,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         type.label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? const Color(0xFF1E40AF)
-                              : const Color(0xFF334155),
+                        style: CruType.subhead.w700.tint(
+                          isSelected
+                              ? context.cru.accentText
+                              : context.cru.label,
                         ),
                       ),
                     ],
@@ -778,20 +724,16 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: context.cru.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: context.cru.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Filter by Diagnosis / Medical Tag:',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF334155),
-                    ),
+                    style: CruType.caption.w700.tint(context.cru.label),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -801,9 +743,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                       hintText: 'e.g. Diabetes, Hypertension, Asthma, Thyroid',
                       prefixIcon: const Icon(Icons.search_rounded, size: 18),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: context.cru.surface,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(CruRadius.control),
                         borderSide: const BorderSide(color: Colors.transparent),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
@@ -825,10 +767,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                         ].map((cond) {
                           return ActionChip(
                             label: Text(cond),
-                            labelStyle: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            labelStyle: CruType.micro.w600,
                             onPressed: () {
                               _conditionFilterController.text = cond;
                               setState(() {});
@@ -846,16 +785,13 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: context.cru.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: context.cru.cardBorder),
               ),
               child: Row(
                 children: [
-                  const Text(
-                    'Select Gender: ',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                  ),
+                  Text('Select Gender: ', style: CruType.caption.w700),
                   const SizedBox(width: 12),
                   DropdownButton<String>(
                     value: _selectedGender,
@@ -883,17 +819,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: context.cru.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: context.cru.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Select Age Bracket:',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                  ),
+                  Text('Select Age Bracket:', style: CruType.caption.w700),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -914,21 +847,18 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                color: context.cru.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: context.cru.cardBorder),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'Select Specific Patients:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
+                        style: CruType.caption.w700,
                       ),
                       const Spacer(),
                       TextButton(
@@ -961,7 +891,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                       hintText: 'Search patients by name or phone...',
                       prefixIcon: const Icon(Icons.search, size: 18),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: context.cru.surface,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 8,
@@ -994,17 +924,11 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                               value: isChecked,
                               title: Text(
                                 patient.fullName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
+                                style: CruType.subhead.w600,
                               ),
                               subtitle: Text(
                                 '${patient.phone} • ${patient.email.isNotEmpty ? patient.email : "No Email"}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
-                                ),
+                                style: CruType.micro.tint(context.cru.label2),
                               ),
                               onChanged: (val) {
                                 setState(() {
@@ -1030,17 +954,17 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFF0FDF4), Color(0xFFDCFCE7)],
+              gradient: LinearGradient(
+                colors: [context.cru.greenTint, context.cru.greenTint],
               ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFBBF7D0)),
+              borderRadius: BorderRadius.circular(CruRadius.control),
+              border: Border.all(color: context.cru.greenTint),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.groups_rounded,
-                  color: Color(0xFF16A34A),
+                  color: context.cru.greenText,
                   size: 28,
                 ),
                 const SizedBox(width: 14),
@@ -1050,20 +974,12 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                     children: [
                       Text(
                         '$eligibleCount Patients Targeted',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF14532D),
-                        ),
+                        style: CruType.row.w700.tint(context.cru.greenText),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '📧 $emailEligible with verified Email  •  💬 $waEligible with valid WhatsApp number',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF166534),
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: CruType.caption.w600.tint(context.cru.greenText),
                       ),
                     ],
                   ),
@@ -1075,13 +991,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           const SizedBox(height: 24),
 
           // Communication Channels
-          const Text(
+          Text(
             'Broadcast Channels *',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF334155),
-            ),
+            style: CruType.subhead.w700.tint(context.cru.label),
           ),
           const SizedBox(height: 10),
           Row(
@@ -1090,27 +1002,27 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                 child: CheckboxListTile(
                   value: _enableEmail,
                   tileColor: _enableEmail
-                      ? const Color(0xFFEFF6FF)
-                      : const Color(0xFFF8FAFC),
+                      ? context.cru.accentWash
+                      : context.cru.inset,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                     side: BorderSide(
                       color: _enableEmail
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFFE2E8F0),
+                          ? context.cru.accent
+                          : context.cru.cardBorder,
                     ),
                   ),
-                  secondary: const Icon(
+                  secondary: Icon(
                     Icons.email_rounded,
-                    color: Color(0xFF2563EB),
+                    color: context.cru.accent,
                   ),
-                  title: const Text(
+                  title: Text(
                     'Email Notification',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    style: CruType.subhead.w700,
                   ),
                   subtitle: const Text(
                     'Rich HTML email with clinic header',
-                    style: TextStyle(fontSize: 11),
+                    style: CruType.micro,
                   ),
                   onChanged: (val) {
                     if (val == false && !_enableWhatsApp) return;
@@ -1123,30 +1035,28 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                 child: CheckboxListTile(
                   value: _enableWhatsApp,
                   tileColor: _enableWhatsApp
-                      ? const Color(0xFFF0FDF4)
-                      : const Color(0xFFF8FAFC),
+                      ? context.cru.greenTint
+                      : context.cru.inset,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                     side: BorderSide(
                       color: _enableWhatsApp
-                          ? const Color(0xFF16A34A)
-                          : const Color(0xFFE2E8F0),
+                          ? context.cru.greenText
+                          : context.cru.cardBorder,
                     ),
                   ),
                   secondary: Icon(
                     Icons.chat_rounded,
                     color: kWhatsAppCampaignsEnabled
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFF94A3B8),
+                        ? context.cru.greenText
+                        : context.cru.label3,
                   ),
                   title: Text(
                     'WhatsApp Message',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: kWhatsAppCampaignsEnabled
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFF94A3B8),
+                    style: CruType.subhead.w700.tint(
+                      kWhatsAppCampaignsEnabled
+                          ? context.cru.label
+                          : context.cru.label3,
                     ),
                   ),
                   subtitle: Text(
@@ -1154,7 +1064,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                         ? 'Direct mobile chat notification'
                         : 'Available once your clinic connects its own '
                               'WhatsApp number. Use Email for now.',
-                    style: const TextStyle(fontSize: 11),
+                    style: CruType.micro,
                   ),
                   onChanged: kWhatsAppCampaignsEnabled
                       ? (val) {
@@ -1192,28 +1102,24 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
     // Preview is personalised against a real recipient. With no audience there
     // is nothing to preview — show guidance rather than a fabricated patient.
     if (_filteredAudience.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(40),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.groups_outlined, size: 48, color: Color(0xFF94A3B8)),
+              Icon(Icons.groups_outlined, size: 48, color: context.cru.label3),
               SizedBox(height: 14),
               Text(
                 'No recipients to preview',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: Color(0xFF334155),
-                ),
+                style: CruType.row.w700.tint(context.cru.label),
               ),
               SizedBox(height: 6),
               Text(
                 'Choose an audience with at least one patient to see how the '
                 'message will look.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                style: CruType.subhead.tint(context.cru.label2),
               ),
             ],
           ),
@@ -1241,11 +1147,11 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
       child: Column(
         children: [
           Container(
-            color: const Color(0xFFF1F5F9),
-            child: const TabBar(
-              labelColor: Color(0xFF2563EB),
-              unselectedLabelColor: Color(0xFF64748B),
-              indicatorColor: Color(0xFF2563EB),
+            color: context.cru.track,
+            child: TabBar(
+              labelColor: context.cru.accent,
+              unselectedLabelColor: context.cru.label2,
+              indicatorColor: context.cru.accent,
               indicatorWeight: 3,
               tabs: [
                 Tab(
@@ -1270,7 +1176,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                       constraints: const BoxConstraints(maxWidth: 580),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(CruRadius.card),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
                         boxShadow: const [],
                       ),
@@ -1433,7 +1339,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                         color: const Color(
                           0xFFE5DDD5,
                         ), // WhatsApp chat background
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(CruRadius.card),
                         border: Border.all(color: const Color(0xFFCBD5E1)),
                       ),
                       child: Column(
@@ -1446,7 +1352,9 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                               color: const Color(
                                 0xFFDCF8C6,
                               ), // WhatsApp bubble green
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.control,
+                              ),
                               boxShadow: const [],
                             ),
                             child: Column(
@@ -1512,38 +1420,32 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 60,
                 height: 60,
                 child: CircularProgressIndicator(
                   strokeWidth: 5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                  valueColor: AlwaysStoppedAnimation<Color>(context.cru.accent),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Broadcasting Campaign...',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
+                style: CruType.title2.w700.tint(context.cru.label),
               ),
               const SizedBox(height: 8),
               Text(
                 'Processing $_dispatchProcessed of $_dispatchTotal targeted patients',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: CruType.text.tint(context.cru.label2),
               ),
               const SizedBox(height: 20),
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 child: LinearProgressIndicator(
                   value: percent,
                   minHeight: 8,
-                  backgroundColor: const Color(0xFFE2E8F0),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFF10B981),
-                  ),
+                  backgroundColor: context.cru.cardBorder,
+                  valueColor: AlwaysStoppedAnimation<Color>(context.cru.green),
                 ),
               ),
             ],
@@ -1559,25 +1461,21 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline_rounded,
-                color: Color(0xFFDC2626),
+                color: context.cru.label2,
                 size: 56,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Dispatch Failed',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFDC2626),
-                ),
+                style: CruType.title2.w700.tint(context.cru.label2),
               ),
               const SizedBox(height: 8),
               Text(
                 _dispatchError!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[700]),
+                style: TextStyle(color: context.cru.label2),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -1600,29 +1498,25 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           children: [
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFDCFCE7),
+                color: context.cru.greenTint,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.check_circle_rounded,
-                color: Color(0xFF16A34A),
+                color: context.cru.greenText,
                 size: 54,
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Campaign Published Successfully! 🎉',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
-              ),
+              style: CruType.title.w700.tint(context.cru.label),
             ),
             const SizedBox(height: 8),
             Text(
               'Campaign broadcast dispatched to ${campaign?.totalRecipients ?? _dispatchTotal} eligible patients.',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              style: CruType.text.tint(context.cru.label2),
               textAlign: TextAlign.center,
             ),
             if (_whatsAppNote != null) ...[
@@ -1630,7 +1524,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               Text(
                 _whatsAppNote!,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+                style: CruType.caption.tint(context.cru.label2),
               ),
             ],
             const SizedBox(height: 24),
@@ -1640,13 +1534,13 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                 _buildMetricBadge(
                   '📧 Emails Sent',
                   '${campaign?.emailsSent ?? 0}',
-                  const Color(0xFF2563EB),
+                  context.cru.accent,
                 ),
                 const SizedBox(width: 16),
                 _buildMetricBadge(
                   '💬 WhatsApp Sent',
                   '${campaign?.whatsAppSent ?? 0}',
-                  const Color(0xFF16A34A),
+                  context.cru.greenText,
                 ),
               ],
             ),
@@ -1656,14 +1550,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               icon: const Icon(Icons.done_all_rounded, size: 18),
               label: const Text('Done & Return to Dashboard'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
+                backgroundColor: context.cru.accent,
+                foregroundColor: context.cru.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 14,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
             ),
@@ -1678,28 +1572,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(CruRadius.control),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
+          Text(label, style: CruType.caption.w600.tint(color)),
           const SizedBox(width: 8),
-          Text(
-            count,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
+          Text(count, style: CruType.callout.w700.tint(color)),
         ],
       ),
     );
@@ -1726,17 +1606,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
             ),
           const Spacer(),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Color(0xFF64748B)),
-            ),
+            child: Text('Cancel', style: TextStyle(color: context.cru.label2)),
           ),
           const SizedBox(width: 12),
           if (_currentStep < 2)
@@ -1765,14 +1642,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               icon: const Icon(Icons.arrow_forward_rounded, size: 16),
               label: const Text('Next Step'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
+                backgroundColor: context.cru.accent,
+                foregroundColor: context.cru.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 22,
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
             )
@@ -1782,14 +1659,14 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               icon: const Icon(Icons.send_rounded, size: 16),
               label: const Text('Publish & Send Campaign'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
-                foregroundColor: Colors.white,
+                backgroundColor: context.cru.accent,
+                foregroundColor: context.cru.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
             ),

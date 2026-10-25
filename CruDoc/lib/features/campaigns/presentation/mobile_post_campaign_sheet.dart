@@ -4,14 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
 import 'package:doctor_management_app/features/messaging/data/services/gmail_auth_service.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
-import 'package:crudoc_shared/theme/cru_colors.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_enums.dart';
 import '../data/providers/campaign_providers.dart';
@@ -265,7 +264,7 @@ class _MobilePostCampaignSheetState
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: c.accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
                 child: Icon(Icons.campaign_rounded, color: c.accent, size: 20),
               ),
@@ -276,21 +275,12 @@ class _MobilePostCampaignSheetState
                   children: [
                     Text(
                       stepTitles[_currentStep.clamp(0, 3)],
-                      style: TextStyle(
-                        fontFamily: AppColors.headingFontFamily,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: c.label,
-                      ),
+                      style: CruType.body.w700.tint(c.label),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       'Step ${_currentStep + 1} of 4',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 11.5,
-                        color: c.label2,
-                      ),
+                      style: CruType.micro.tint(c.label2),
                     ),
                   ],
                 ),
@@ -351,15 +341,7 @@ class _MobilePostCampaignSheetState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Campaign Category',
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: c.label,
-            ),
-          ),
+          Text('Campaign Category', style: CruType.subhead.w700.tint(c.label)),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -378,14 +360,10 @@ class _MobilePostCampaignSheetState
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? category.color
-                            : category.color.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
+                        color: isSelected ? c.accentTint : c.surface,
+                        borderRadius: BorderRadius.circular(CruRadius.full),
                         border: Border.all(
-                          color: isSelected
-                              ? category.color
-                              : category.color.withValues(alpha: 0.25),
+                          color: isSelected ? Colors.transparent : c.hairline,
                         ),
                       ),
                       child: Row(
@@ -394,18 +372,13 @@ class _MobilePostCampaignSheetState
                           Icon(
                             category.icon,
                             size: 14,
-                            color:
-                                isSelected ? Colors.white : category.color,
+                            color: isSelected ? c.accentText : c.label2,
                           ),
                           const SizedBox(width: 5),
                           Text(
                             category.label,
-                            style: TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  isSelected ? Colors.white : category.color,
+                            style: CruType.caption.w600.tint(
+                              isSelected ? c.accentText : c.label,
                             ),
                           ),
                         ],
@@ -418,38 +391,22 @@ class _MobilePostCampaignSheetState
           ),
           const SizedBox(height: 18),
 
-          Text(
-            'Campaign Title *',
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: c.label,
-            ),
-          ),
+          Text('Campaign Title *', style: CruType.subhead.w700.tint(c.label)),
           const SizedBox(height: 6),
           TextField(
             controller: _titleController,
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 14,
-              color: c.label,
-            ),
+            style: CruType.text.tint(c.label),
             decoration: InputDecoration(
               hintText: 'e.g. Free Diabetes Screening & Checkup Camp',
-              hintStyle: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 14,
-                color: c.label2,
-              ),
+              hintStyle: CruType.text.tint(c.label2),
               filled: true,
               fillColor: c.inset,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide(color: c.accent, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -462,15 +419,7 @@ class _MobilePostCampaignSheetState
 
           Row(
             children: [
-              Text(
-                'Message Body *',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: c.label,
-                ),
-              ),
+              Text('Message Body *', style: CruType.subhead.w700.tint(c.label)),
               const Spacer(),
               _buildTagChip(c, '+ Patient', '{{patient_name}}'),
               const SizedBox(width: 5),
@@ -483,27 +432,19 @@ class _MobilePostCampaignSheetState
           TextField(
             controller: _messageController,
             maxLines: 5,
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 14,
-              color: c.label,
-            ),
+            style: CruType.text.tint(c.label),
             decoration: InputDecoration(
               hintText:
                   'Dear {{patient_name}},\n\nWe are hosting a free health checkup camp at {{clinic_name}} this Sunday.\n\nBest regards,\n{{doctor_name}}',
-              hintStyle: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 14,
-                color: c.label2,
-              ),
+              hintStyle: CruType.text.tint(c.label2),
               filled: true,
               fillColor: c.inset,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide(color: c.accent, width: 1.5),
               ),
               contentPadding: const EdgeInsets.all(16),
@@ -513,38 +454,24 @@ class _MobilePostCampaignSheetState
 
           Text(
             'Banner Image URL (Optional)',
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: c.label,
-            ),
+            style: CruType.subhead.w700.tint(c.label),
           ),
           const SizedBox(height: 6),
           TextField(
             controller: _mediaUrlController,
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 14,
-              color: c.label,
-            ),
+            style: CruType.text.tint(c.label),
             decoration: InputDecoration(
               hintText: 'https://example.com/clinic-camp.jpg',
-              hintStyle: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 14,
-                color: c.label2,
-              ),
-              prefixIcon:
-                  Icon(Icons.image_outlined, size: 20, color: c.label2),
+              hintStyle: CruType.text.tint(c.label2),
+              prefixIcon: Icon(Icons.image_outlined, size: 20, color: c.label2),
               filled: true,
               fillColor: c.inset,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide(color: c.accent, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(
@@ -568,15 +495,7 @@ class _MobilePostCampaignSheetState
           color: c.accent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontFamily: AppColors.bodyFontFamily,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: c.accent,
-          ),
-        ),
+        child: Text(label, style: CruType.micro.w700.tint(c.accent)),
       ),
     );
   }
@@ -601,12 +520,7 @@ class _MobilePostCampaignSheetState
         children: [
           Text(
             'Target Patient Cohort',
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: c.label,
-            ),
+            style: CruType.subhead.w700.tint(c.label),
           ),
           const SizedBox(height: 8),
           ...AudienceType.values.map((type) {
@@ -615,7 +529,7 @@ class _MobilePostCampaignSheetState
               padding: const EdgeInsets.only(bottom: 8),
               child: InkWell(
                 onTap: () => setState(() => _selectedAudienceType = type),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(CruRadius.control),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
@@ -625,7 +539,7 @@ class _MobilePostCampaignSheetState
                     color: isSelected
                         ? c.accent.withValues(alpha: 0.08)
                         : c.inset,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                     border: Border.all(
                       color: isSelected ? c.accent : Colors.transparent,
                     ),
@@ -642,13 +556,8 @@ class _MobilePostCampaignSheetState
                       const SizedBox(width: 10),
                       Text(
                         type.label,
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          fontSize: 13.5,
-                          fontWeight: isSelected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                          color: isSelected ? c.accent : c.label,
+                        style: CruType.subhead.w700.tint(
+                          isSelected ? c.accent : c.label,
                         ),
                       ),
                     ],
@@ -663,26 +572,18 @@ class _MobilePostCampaignSheetState
             TextField(
               controller: _conditionFilterController,
               onChanged: (_) => setState(() {}),
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 14,
-                color: c.label,
-              ),
+              style: CruType.text.tint(c.label),
               decoration: InputDecoration(
                 hintText: 'Condition filter: Diabetes, Hypertension...',
-                hintStyle: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 14,
-                  color: c.label2,
-                ),
+                hintStyle: CruType.text.tint(c.label2),
                 filled: true,
                 fillColor: c.inset,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                   borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                   borderSide: BorderSide(color: c.accent, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
@@ -704,19 +605,12 @@ class _MobilePostCampaignSheetState
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.positiveGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: AppColors.positiveGreen.withValues(alpha: 0.3),
-              ),
+              color: c.inset,
+              borderRadius: BorderRadius.circular(CruRadius.control),
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.groups_rounded,
-                  color: AppColors.positiveGreen,
-                  size: 24,
-                ),
+                CruIcon(CruIcons.patients, color: c.label2),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -724,21 +618,12 @@ class _MobilePostCampaignSheetState
                     children: [
                       Text(
                         '$count Patients Targeted',
-                        style: const TextStyle(
-                          fontFamily: AppColors.headingFontFamily,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          color: AppColors.positiveGreen,
-                        ),
+                        style: CruType.callout.w700.tint(c.label),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '\u{1F4E7} $emailEligible with Email \u2022 \u{1F4AC} $waEligible with WhatsApp',
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          fontSize: 11.5,
-                          color: c.label2,
-                        ),
+                        style: CruType.micro.tint(c.label2),
                       ),
                     ],
                   ),
@@ -749,15 +634,7 @@ class _MobilePostCampaignSheetState
 
           const SizedBox(height: 18),
 
-          Text(
-            'Broadcast Channels',
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: c.label,
-            ),
-          ),
+          Text('Broadcast Channels', style: CruType.subhead.w700.tint(c.label)),
           const SizedBox(height: 6),
           SwitchListTile(
             dense: true,
@@ -766,24 +643,16 @@ class _MobilePostCampaignSheetState
             value: _enableEmail,
             title: Text(
               'Email Broadcast',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
-                color: c.label,
-              ),
+              style: CruType.subhead.w600.tint(c.label),
             ),
             subtitle: _connectedGmail != null
                 ? Text(
                     'Sending from: $_connectedGmail',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.positiveGreen,
-                    ),
+                    style: CruType.micro.tint(c.label2),
                   )
                 : Text(
                     'Connect Gmail in Profile to send live emails.',
-                    style: TextStyle(fontSize: 11, color: c.label2),
+                    style: CruType.micro.tint(c.label2),
                   ),
             onChanged: (v) {
               if (v == false && !_enableWhatsApp) return;
@@ -792,16 +661,13 @@ class _MobilePostCampaignSheetState
           ),
           SwitchListTile(
             dense: true,
-            activeThumbColor: const Color(0xFF10B981),
+            activeThumbColor: c.accent,
             contentPadding: EdgeInsets.zero,
             value: _enableWhatsApp,
             title: Text(
               'WhatsApp Broadcast',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontWeight: FontWeight.w600,
-                fontSize: 13.5,
-                color: kWhatsAppCampaignsEnabled ? c.label : c.label3,
+              style: CruType.subhead.w600.tint(
+                kWhatsAppCampaignsEnabled ? c.label : c.label3,
               ),
             ),
             subtitle: Text(
@@ -809,7 +675,7 @@ class _MobilePostCampaignSheetState
                   ? 'Delivers automatically via WhatsApp Business Cloud API.'
                   : 'Available once your clinic connects its own WhatsApp '
                         'number. Use Email for now.',
-              style: TextStyle(fontSize: 11, color: c.label2),
+              style: CruType.micro.tint(c.label2),
             ),
             onChanged: kWhatsAppCampaignsEnabled
                 ? (v) {
@@ -856,27 +722,19 @@ class _MobilePostCampaignSheetState
       children: [
         TextField(
           onChanged: (v) => setState(() => _patientPickerQuery = v),
-          style: TextStyle(
-            fontFamily: AppColors.bodyFontFamily,
-            fontSize: 14,
-            color: c.label,
-          ),
+          style: CruType.text.tint(c.label),
           decoration: InputDecoration(
             hintText: 'Search patients by name, email or phone',
-            hintStyle: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 14,
-              color: c.label2,
-            ),
+            hintStyle: CruType.text.tint(c.label2),
             prefixIcon: Icon(Icons.search_rounded, size: 18, color: c.label2),
             filled: true,
             fillColor: c.inset,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(CruRadius.control),
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(CruRadius.control),
               borderSide: BorderSide(color: c.accent, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(
@@ -891,11 +749,7 @@ class _MobilePostCampaignSheetState
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'No patients found.',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: c.label2,
-              ),
+              style: CruType.subhead.tint(c.label2),
             ),
           )
         else if (results.isEmpty)
@@ -903,11 +757,7 @@ class _MobilePostCampaignSheetState
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'No patients match your search.',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: c.label2,
-              ),
+              style: CruType.subhead.tint(c.label2),
             ),
           )
         else
@@ -915,7 +765,7 @@ class _MobilePostCampaignSheetState
             constraints: const BoxConstraints(maxHeight: 260),
             decoration: BoxDecoration(
               color: c.inset,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(CruRadius.control),
             ),
             child: ListView.builder(
               shrinkWrap: true,
@@ -961,21 +811,14 @@ class _MobilePostCampaignSheetState
                     p.fullName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: c.label,
-                    ),
+                    style: CruType.subhead.w600.tint(c.label),
                   ),
                   Text(
                     contact,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      fontSize: 11.5,
-                      color: p.email.isEmpty ? c.amber : c.label2,
+                    style: CruType.micro.tint(
+                      p.email.isEmpty ? c.amber : c.label2,
                     ),
                   ),
                 ],
@@ -1003,23 +846,14 @@ class _MobilePostCampaignSheetState
             const SizedBox(height: 12),
             Text(
               'No recipients to preview',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                color: c.label,
-              ),
+              style: CruType.callout.w700.tint(c.label),
             ),
             const SizedBox(height: 6),
             Text(
               'Choose an audience with at least one patient to see how the '
               'message will look.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 12.5,
-                color: c.label2,
-              ),
+              style: CruType.caption.tint(c.label2),
             ),
           ],
         ),
@@ -1063,16 +897,8 @@ class _MobilePostCampaignSheetState
             labelColor: c.accent,
             unselectedLabelColor: c.label2,
             indicatorColor: c.accent,
-            labelStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontWeight: FontWeight.w500,
-              fontSize: 13,
-            ),
+            labelStyle: CruType.subhead.w700,
+            unselectedLabelStyle: CruType.subhead.w500,
             tabs: const [
               Tab(text: 'Email Preview'),
               Tab(text: 'WhatsApp Preview'),
@@ -1112,12 +938,7 @@ class _MobilePostCampaignSheetState
                             const SizedBox(width: 8),
                             Text(
                               _clinicName,
-                              style: TextStyle(
-                                fontFamily: AppColors.headingFontFamily,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: c.label,
-                              ),
+                              style: CruType.callout.w700.tint(c.label),
                             ),
                           ],
                         ),
@@ -1126,12 +947,7 @@ class _MobilePostCampaignSheetState
                           _titleController.text.isNotEmpty
                               ? _titleController.text
                               : 'Campaign Title',
-                          style: TextStyle(
-                            fontFamily: AppColors.headingFontFamily,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                            color: c.label,
-                          ),
+                          style: CruType.body.w700.tint(c.label),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -1143,24 +959,16 @@ class _MobilePostCampaignSheetState
                             clinicName: _clinicName,
                             doctorName: _doctorName,
                           ),
-                          style: TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            fontSize: 13,
-                            height: 1.5,
-                            color: c.label,
-                          ),
+                          style: CruType.subhead
+                              .tint(c.label)
+                              .copyWith(height: 1.5),
                         ),
                         const SizedBox(height: 16),
                         Divider(height: 1, color: c.separator),
                         const SizedBox(height: 10),
                         Text(
                           'Warm regards,\n$_doctorName \u2022 $_clinicName',
-                          style: TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                            color: c.label2,
-                          ),
+                          style: CruType.caption.w600.tint(c.label2),
                         ),
                       ],
                     ),
@@ -1181,19 +989,16 @@ class _MobilePostCampaignSheetState
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: waBubble,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(CruRadius.control),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             whatsAppText,
-                            style: TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              fontSize: 13,
-                              height: 1.45,
-                              color: waText,
-                            ),
+                            style: CruType.subhead
+                                .tint(waText)
+                                .copyWith(height: 1.45),
                           ),
                           const SizedBox(height: 4),
                           Align(
@@ -1203,10 +1008,7 @@ class _MobilePostCampaignSheetState
                               children: [
                                 Text(
                                   'Just now',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: waTime,
-                                  ),
+                                  style: CruType.micro.tint(waTime),
                                 ),
                                 const SizedBox(width: 4),
                                 const Icon(
@@ -1235,8 +1037,9 @@ class _MobilePostCampaignSheetState
   // ===========================================================================
   Widget _buildStep4Dispatch(CruColors c) {
     if (_isDispatching) {
-      final percent =
-          _dispatchTotal > 0 ? (_dispatchProcessed / _dispatchTotal) : 0.0;
+      final percent = _dispatchTotal > 0
+          ? (_dispatchProcessed / _dispatchTotal)
+          : 0.0;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -1247,21 +1050,12 @@ class _MobilePostCampaignSheetState
               const SizedBox(height: 20),
               Text(
                 'Broadcasting Campaign...',
-                style: TextStyle(
-                  fontFamily: AppColors.headingFontFamily,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: c.label,
-                ),
+                style: CruType.headline.w700.tint(c.label),
               ),
               const SizedBox(height: 6),
               Text(
                 'Processed $_dispatchProcessed of $_dispatchTotal patients',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: c.label2,
-                  fontSize: 13,
-                ),
+                style: CruType.subhead.tint(c.label2),
               ),
               const SizedBox(height: 18),
               ClipRRect(
@@ -1270,9 +1064,7 @@ class _MobilePostCampaignSheetState
                   value: percent,
                   minHeight: 6,
                   backgroundColor: c.inset,
-                  valueColor: const AlwaysStoppedAnimation(
-                    AppColors.positiveGreen,
-                  ),
+                  valueColor: AlwaysStoppedAnimation(c.accent),
                 ),
               ),
             ],
@@ -1292,11 +1084,7 @@ class _MobilePostCampaignSheetState
               const SizedBox(height: 14),
               Text(
                 _dispatchError!,
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: c.redText,
-                  fontSize: 13,
-                ),
+                style: CruType.subhead.tint(c.redText),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -1306,7 +1094,7 @@ class _MobilePostCampaignSheetState
                   backgroundColor: c.accent,
                   foregroundColor: c.onAccent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                   ),
                 ),
                 child: const Text('Back to Review'),
@@ -1327,33 +1115,20 @@ class _MobilePostCampaignSheetState
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.positiveGreen.withValues(alpha: 0.12),
+                color: c.greenTint,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.positiveGreen,
-                size: 52,
-              ),
+              child: CruIcon(CruIcons.check, color: c.greenText, size: 52),
             ),
             const SizedBox(height: 16),
             Text(
               'Campaign Published! \u{1F389}',
-              style: TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-                color: c.label,
-              ),
+              style: CruType.headline.w700.tint(c.label),
             ),
             const SizedBox(height: 6),
             Text(
               'Dispatched to ${_dispatchedCampaign?.totalRecipients ?? _dispatchTotal} patients.',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: c.label2,
-                fontSize: 13,
-              ),
+              style: CruType.subhead.tint(c.label2),
               textAlign: TextAlign.center,
             ),
             if (_whatsAppNote != null) ...[
@@ -1361,11 +1136,7 @@ class _MobilePostCampaignSheetState
               Text(
                 _whatsAppNote!,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: c.label2,
-                  fontSize: 12,
-                ),
+                style: CruType.caption.tint(c.label2),
               ),
             ],
             const SizedBox(height: 24),
@@ -1382,15 +1153,12 @@ class _MobilePostCampaignSheetState
                   vertical: 13,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
               child: const Text(
                 'Done',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -1414,11 +1182,7 @@ class _MobilePostCampaignSheetState
               onPressed: () => setState(() => _currentStep--),
               child: Text(
                 'Back',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: c.accent,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(color: c.accent, fontWeight: FontWeight.w600),
               ),
             ),
           const Spacer(),
@@ -1447,15 +1211,12 @@ class _MobilePostCampaignSheetState
                   vertical: 13,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
               child: const Text(
                 'Next Step',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             )
           else
@@ -1464,20 +1225,17 @@ class _MobilePostCampaignSheetState
               icon: const Icon(Icons.send_rounded, size: 16),
               label: const Text(
                 'Publish & Send',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF16A34A),
-                foregroundColor: Colors.white,
+                backgroundColor: c.accent,
+                foregroundColor: c.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 22,
                   vertical: 13,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
               ),
             ),

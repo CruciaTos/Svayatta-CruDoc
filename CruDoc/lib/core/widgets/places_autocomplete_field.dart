@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/services/google_places_service.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 
@@ -42,29 +41,18 @@ class PlacesAutocompleteField extends ConsumerStatefulWidget {
   /// Fires when the user taps a suggestion and coordinates are resolved.
   final ValueChanged<PlaceSelection>? onPlaceSelected;
 
-  /// Label shown above / inside the field.
-  final String label;
-
   /// Hint text shown when the field is empty.
   final String? hint;
 
   /// Whether the field is enabled. Disabled during save operations.
   final bool enabled;
 
-  /// Decoration style variant — `'sheet'` uses the bottom-sheet white
-  /// style with rounded corners, `'dialog'` uses the dialog-style with
-  /// cardSurface fill, `'cru'` uses the Calm Clinical theme field (the
-  /// caller shows the label above it). Defaults to `'sheet'`.
-  final String style;
-
   const PlacesAutocompleteField({
     super.key,
     required this.controller,
     this.onPlaceSelected,
-    this.label = 'Address',
     this.hint,
     this.enabled = true,
-    this.style = 'sheet',
   });
 
   @override
@@ -167,110 +155,29 @@ class _PlacesAutocompleteFieldState
     }
   }
 
-  bool get _cru => widget.style == 'cru';
-
+  /// The Calm Clinical field (the caller shows the label above it). Dense
+  /// with a control-sized icon box, so 44 px like the other Cru fields.
   InputDecoration get _decoration {
-    if (_cru) {
-      final c = context.cru;
-      // Dense with a 40 px icon box: 44 px like the other Cru fields.
-      return InputDecoration(
-        hintText: widget.hint,
-        isDense: true,
-        suffixIconConstraints: const BoxConstraints(
-          minWidth: CruSize.control,
-          minHeight: CruSize.control,
-        ),
-        suffixIcon: _loading
-            ? Padding(
-                padding: const EdgeInsets.all(CruSpace.s12),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: c.accent,
-                  ),
-                ),
-              )
-            : const Icon(Icons.location_on_outlined, size: 20),
-      );
-    }
-    if (widget.style == 'dialog') {
-      final c = context.cru;
-      return InputDecoration(
-        labelText: widget.label,
-        hintText: widget.hint,
-        labelStyle: AppColors.bodyMedium.copyWith(color: c.label2),
-        hintStyle: AppColors.bodySmall.copyWith(color: c.label2.withValues(alpha: 0.6)),
-        filled: true,
-        fillColor: c.inset,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 14,
-        ),
-        suffixIcon: _loading
-            ? const Padding(
-                padding: EdgeInsets.all(12),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            : const Icon(
-                Icons.location_on_outlined,
-                size: 20,
-                color: AppColors.silver,
-              ),
-      );
-    }
-
-    // Default 'sheet' style — matches the existing bottom-sheet fields.
     final c = context.cru;
     return InputDecoration(
-      labelText: widget.label,
       hintText: widget.hint,
-      labelStyle: AppColors.bodyMedium.copyWith(
-        color: c.label2,
-        fontWeight: FontWeight.w600,
+      isDense: true,
+      suffixIconConstraints: const BoxConstraints(
+        minWidth: CruSize.control,
+        minHeight: CruSize.control,
       ),
-      hintStyle: AppColors.bodyMedium.copyWith(color: c.label2.withValues(alpha: 0.6)),
-      filled: true,
-      fillColor: c.inset,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(
-          color: AppColors.chartBarLight,
-          width: 1.5,
-        ),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       suffixIcon: _loading
-          ? const Padding(
-              padding: EdgeInsets.all(12),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+          ? Padding(
+              padding: const EdgeInsets.all(CruSpace.s12),
+              child: SizedBox.square(
+                dimension: CruSpace.s16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: c.accent,
+                ),
               ),
             )
-          : const Icon(
-              Icons.location_on_outlined,
-              size: 20,
-              color: AppColors.chartBarLight,
-            ),
+          : Icon(Icons.place_outlined, size: CruSpace.s20, color: c.label3),
     );
   }
 
@@ -280,6 +187,7 @@ class _PlacesAutocompleteFieldState
     ref.watch(addressSearchOriginProvider);
     final showSuggestions = _predictions.isNotEmpty && !_suppressSuggestions;
 
+    final c = context.cru;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,70 +196,43 @@ class _PlacesAutocompleteFieldState
           controller: widget.controller,
           focusNode: _focusNode,
           enabled: widget.enabled,
-          style: _cru
-              ? CruType.input.tint(context.cru.label)
-              : (widget.style == 'dialog'
-                  ? AppColors.bodyLarge
-                  : AppColors.bodyMedium).copyWith(color: context.cru.label),
+          style: CruType.input.tint(c.label),
           onChanged: _onChanged,
           decoration: _decoration,
         ),
         if (showSuggestions)
           Container(
-            margin: const EdgeInsets.only(top: 4),
+            margin: const EdgeInsets.only(top: CruSpace.s4),
             constraints: const BoxConstraints(maxHeight: 220),
-            decoration: _cru
-                ? BoxDecoration(
-                    color: context.cru.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: context.cru.cardBorder),
-                  )
-                : BoxDecoration(
-                    color: context.cru.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: context.cru.separator,
-                    ),
-                    boxShadow: const [],
-                  ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(CruRadius.control),
+              border: Border.all(color: c.cardBorder),
+            ),
             child: ListView.separated(
               padding: EdgeInsets.zero,
               shrinkWrap: true,
               itemCount: _predictions.length,
-              separatorBuilder: (_, _) => Divider(
-                height: 1,
-                color: _cru
-                    ? context.cru.separator
-                    : AppColors.textSecondary.withValues(alpha: 0.10),
-              ),
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, color: c.separator),
               itemBuilder: (context, index) {
                 final p = _predictions[index];
-                final c = context.cru;
                 return ListTile(
                   dense: true,
                   leading: Icon(
                     Icons.place_outlined,
-                    size: 18,
-                    color: _cru ? c.label3 : AppColors.chartBarLight,
+                    size: CruSpace.s18,
+                    color: c.label3,
                   ),
                   title: Text(
                     p.mainText,
-                    style: _cru
-                        ? CruType.callout.tint(c.label)
-                        : AppColors.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: c.label,
-                          ),
+                    style: CruType.callout.tint(c.label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
                     p.secondaryText,
-                    style: _cru
-                        ? CruType.caption.tint(c.label2)
-                        : AppColors.bodySmall.copyWith(
-                            color: c.label2,
-                          ),
+                    style: CruType.caption.tint(c.label2),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

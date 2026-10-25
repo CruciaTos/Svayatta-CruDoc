@@ -380,8 +380,7 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
                 child: PlacesAutocompleteField(
                   controller: _addressController,
                   enabled: !_isSaving,
-                  hint: 'Start typing to search places',
-                  style: 'cru',
+                  hint: 'Start typing to search places',
                   onPlaceSelected: (selection) {
                     setState(() {
                       _resolvedLat = selection.latitude;

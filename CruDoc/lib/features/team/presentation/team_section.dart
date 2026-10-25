@@ -18,10 +18,11 @@ import 'package:doctor_management_app/features/team/presentation/features_checkl
 import 'package:doctor_management_app/features/team/presentation/invite_sheet.dart';
 import 'package:doctor_management_app/features/team/presentation/member_sheet.dart';
 import 'package:doctor_management_app/features/team/presentation/roles_view.dart';
+import 'package:doctor_management_app/features/team/presentation/team_analytics_view.dart';
 import 'package:doctor_management_app/features/team/presentation/team_widgets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-enum _TeamTab { members, roles, activity }
+enum _TeamTab { members, roles, activity, analytics }
 
 /// Settings → Team: the clinic's doctors and staff, their roles, and what
 /// they did. Only for people with the `team` permission. An existing
@@ -100,6 +101,10 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
     }
     if (clinic == null || me == null) return const SizedBox.shrink();
 
+    // Someone who lost the admin role while on Analytics goes back to People.
+    final tab = _tab == _TeamTab.analytics && !me.isAdmin
+        ? _TeamTab.members
+        : _tab;
     final members = ref.watch(clinicMembersProvider).value ?? const [];
     final active = members.where((m) => m.active).toList();
     final doctors = active.where((m) => m.kind == MemberKind.doctor).length;
@@ -140,26 +145,30 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
               ),
               const SizedBox(height: CruSpace.s16),
               CruSegmentedControl<_TeamTab>(
-                segments: const [
-                  CruSegment(_TeamTab.members, 'People'),
-                  CruSegment(_TeamTab.roles, 'Roles'),
-                  CruSegment(_TeamTab.activity, 'Activity'),
+                segments: [
+                  const CruSegment(_TeamTab.members, 'People'),
+                  const CruSegment(_TeamTab.roles, 'Roles'),
+                  const CruSegment(_TeamTab.activity, 'Activity'),
+                  // How each person is doing: the owner and admins only.
+                  if (me.isAdmin)
+                    const CruSegment(_TeamTab.analytics, 'Analytics'),
                 ],
-                selected: _tab,
+                selected: tab,
                 onChanged: (t) => setState(() => _tab = t),
               ),
             ],
           ),
         ),
         const SizedBox(height: CruSpace.cardGap),
-        switch (_tab) {
+        switch (tab) {
           _TeamTab.members => _MembersView(me: me),
           _TeamTab.roles => const RolesView(),
           _TeamTab.activity => const ActivityLogView(),
+          _TeamTab.analytics => const TeamAnalyticsView(),
         },
         // Owner-only, and only once the clinic has an admin other than the
         // owner; the card hides itself otherwise.
-        if (_tab == _TeamTab.members) ...[
+        if (tab == _TeamTab.members) ...[
           const SizedBox(height: CruSpace.cardGap),
           AdminClinicalAccessCard(me: me, clinic: clinic, members: members),
         ],

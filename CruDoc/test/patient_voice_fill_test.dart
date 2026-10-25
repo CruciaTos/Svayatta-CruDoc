@@ -10,6 +10,7 @@ import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 final _today = DateTime(2026, 9, 25);
 
@@ -35,7 +36,11 @@ class _FakeVoiceFillService extends PatientVoiceFillService {
 }
 
 Future<void> _speak(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.mic_rounded).first);
+  await tester.tap(
+    find
+        .byWidgetPredicate((w) => w is CruIcon && w.icon == CruIcons.mic)
+        .first,
+  );
   await tester.pump();
   expect(find.textContaining('Listening'), findsOneWidget);
   await tester.tap(find.text('Done'));

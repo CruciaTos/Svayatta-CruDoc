@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum _Phase { idle, recording, processing, done, error }
 
@@ -23,14 +24,6 @@ class PatientVoiceFillBar extends StatefulWidget {
 }
 
 class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
-  static const _accent = Color(0xFF2563EB);
-  static const _accentSoft = Color(0xFFEFF6FF);
-  static const _recordRed = Color(0xFFDC2626);
-  static const _success = Color(0xFF15803D);
-  static const _warning = Color(0xFFB45309);
-  static const _ink = Color(0xFF0F172A);
-  static const _muted = Color(0xFF64748B);
-
   late final PatientVoiceFillService _service =
       widget.service ?? PatientVoiceFillService();
 
@@ -113,86 +106,83 @@ class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
         '${labels.last}';
   }
 
+  // Calm Clinical: the strip is an inset well. Ink Blue marks the mic and
+  // the "listening now" state, green a filled form; errors stay neutral
+  // (red is kept for allergies and patient safety).
   @override
   Widget build(BuildContext context) {
-    final recording = _phase == _Phase.recording;
+    final c = context.cru;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+      duration: CruMotion.of(context),
+      curve: CruMotion.curve,
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        CruSpace.s10,
+        CruSpace.s10,
+        CruSpace.s10,
+      ),
       decoration: BoxDecoration(
-        color: recording ? const Color(0xFFFEF2F2) : _accentSoft,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: (recording ? _recordRed : _accent).withValues(alpha: 0.25),
-        ),
+        color: _phase == _Phase.recording ? c.accentWash : c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.control),
       ),
       child: Row(
         children: [
-          _leading(),
-          const SizedBox(width: 12),
-          Expanded(child: _texts()),
-          const SizedBox(width: 8),
+          _leading(c),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(child: _texts(c)),
+          const SizedBox(width: CruSpace.s8),
           ..._actions(),
         ],
       ),
     );
   }
 
-  Widget _leading() {
+  Widget _leading(CruColors c) {
     switch (_phase) {
       case _Phase.processing:
-        return const SizedBox(
-          width: 40,
-          height: 40,
+        return SizedBox.square(
+          dimension: CruSize.control - CruSpace.s4,
           child: Padding(
-            padding: EdgeInsets.all(10),
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: _accent),
+            padding: const EdgeInsets.all(CruSpace.s10),
+            child: CircularProgressIndicator(strokeWidth: 2.4, color: c.accent),
           ),
         );
       case _Phase.recording:
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: _recordRed,
-            shape: BoxShape.circle,
-            boxShadow: const [],
-          ),
-          child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
-        );
+        return _disc(CruIcons.mic, fill: c.accent, color: c.onAccent);
       case _Phase.done:
-        return _iconDisc(Icons.check_rounded, _success);
+        return _disc(CruIcons.check, fill: c.greenTint, color: c.greenText);
       case _Phase.error:
-        return _iconDisc(Icons.error_outline_rounded, _warning);
+        return _disc(CruIcons.warning, fill: c.track, color: c.label2);
       case _Phase.idle:
         return Material(
-          color: _accent,
+          color: c.accent,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
             onTap: _start,
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(Icons.mic_rounded, color: Colors.white, size: 22),
+            child: SizedBox.square(
+              dimension: CruSize.control - CruSpace.s4,
+              child: Center(
+                child: CruIcon(CruIcons.mic, color: c.onAccent),
+              ),
             ),
           ),
         );
     }
   }
 
-  Widget _iconDisc(IconData icon, Color color) => Container(
-    width: 40,
-    height: 40,
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.12),
-      shape: BoxShape.circle,
-    ),
-    child: Icon(icon, color: color, size: 22),
+  Widget _disc(
+    CruIconData icon, {
+    required Color fill,
+    required Color color,
+  }) => Container(
+    width: CruSize.control - CruSpace.s4,
+    height: CruSize.control - CruSpace.s4,
+    decoration: BoxDecoration(color: fill, shape: BoxShape.circle),
+    child: Center(child: CruIcon(icon, color: color)),
   );
 
-  Widget _texts() {
+  Widget _texts(CruColors c) {
     final (title, subtitle) = switch (_phase) {
       _Phase.idle => (
         'Fill by voice',
@@ -210,19 +200,9 @@ class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: _ink,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          subtitle,
-          style: const TextStyle(fontSize: 12.5, height: 1.35, color: _muted),
-        ),
+        Text(title, style: CruType.callout.w600.tabular.tint(c.label)),
+        const SizedBox(height: CruSpace.s2),
+        Text(subtitle, style: CruType.caption.tint(c.label2)),
       ],
     );
   }
@@ -231,25 +211,17 @@ class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
     switch (_phase) {
       case _Phase.recording:
         return [
-          TextButton(
-            onPressed: _cancel,
-            style: TextButton.styleFrom(foregroundColor: _muted),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: _finish,
-            style: FilledButton.styleFrom(backgroundColor: _recordRed),
-            child: const Text('Done'),
-          ),
+          CruCapsuleButton(label: 'Cancel', onPressed: _cancel),
+          const SizedBox(width: CruSpace.s8),
+          CruButton(label: 'Done', onPressed: _finish),
         ];
       case _Phase.done:
       case _Phase.error:
         return [
-          TextButton.icon(
+          CruCapsuleButton(
+            label: _phase == _Phase.done ? 'Again' : 'Try again',
+            icon: CruIcons.mic,
             onPressed: _start,
-            icon: const Icon(Icons.mic_rounded, size: 18),
-            label: Text(_phase == _Phase.done ? 'Again' : 'Try again'),
-            style: TextButton.styleFrom(foregroundColor: _accent),
           ),
         ];
       case _Phase.idle:

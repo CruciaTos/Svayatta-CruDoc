@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
-import 'package:crudoc_shared/theme/cru_colors.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Checkout for a month of paid modules, paid by UPI on CruDoc's own payment
 /// gateway.
@@ -52,14 +51,6 @@ class PaymentCheckoutSheet extends StatefulWidget {
 class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   final DoctorSubscriptionService _subscriptionService =
       DoctorSubscriptionService();
-
-  CruColors get _c =>
-      Theme.of(context).extension<CruColors>() ??
-      (Theme.of(context).brightness == Brightness.dark
-          ? CruColors.evening
-          : CruColors.day);
-
-  static const _green = Color(0xFF16A34A);
 
   bool _opening = false;
   bool _cancelling = false;
@@ -171,190 +162,142 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final status = _status;
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: BoxDecoration(
-        color: _c.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
       child: status == PlanPaymentStatus.paid
-          ? _buildSuccessReceipt()
+          ? _receipt(c)
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildHandle(),
-                _buildHeader(),
-                Divider(height: 1, color: _c.separator),
+                _handle(c),
+                _header(c),
+                Divider(height: 1, color: c.separator),
                 Flexible(
                   child: ListView(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                    padding: const EdgeInsets.fromLTRB(
+                      CruSpace.s20,
+                      CruSpace.s16,
+                      CruSpace.s20,
+                      CruSpace.s24,
+                    ),
                     children: [
-                      _buildOrderSummaryBox(),
-                      const SizedBox(height: 16),
-                      _buildStatusPanel(status),
+                      _orderSummary(c),
+                      const SizedBox(height: CruSpace.s16),
+                      _statusPanel(c, status),
                     ],
                   ),
                 ),
-                _buildActionBar(status),
+                _actionBar(c, status),
               ],
             ),
     );
   }
 
-  Widget _buildHandle() {
-    return Center(
-      child: Container(
-        width: 44,
-        height: 4,
-        margin: const EdgeInsets.only(top: 12, bottom: 8),
-        decoration: BoxDecoration(
-          color: _c.separator,
-          borderRadius: BorderRadius.circular(999),
-        ),
+  Widget _handle(CruColors c) => Center(
+    child: Container(
+      width: CruSpace.s32 + CruSpace.s12,
+      height: CruSpace.s4,
+      margin: const EdgeInsets.only(top: CruSpace.s12, bottom: CruSpace.s8),
+      decoration: BoxDecoration(
+        color: c.track,
+        borderRadius: BorderRadius.circular(CruRadius.full),
       ),
-    );
-  }
+    ),
+  );
 
-  Widget _buildHeader() {
+  Widget _header(CruColors c) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s20,
+        CruSpace.s8,
+        CruSpace.s20,
+        CruSpace.s12,
+      ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _green.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.qr_code_2_rounded, color: _green, size: 22),
-          ),
-          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Pay by UPI',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: _c.label,
-                    fontFamily: AppColors.headingFontFamily,
-                  ),
-                ),
-                const SizedBox(height: 2),
+                Text('Pay by UPI', style: CruType.title2.tint(c.label)),
+                const SizedBox(height: CruSpace.s2),
                 Text(
                   'Google Pay, PhonePe, Paytm, BHIM or any UPI app',
-                  style: TextStyle(fontSize: 12, color: _c.label2),
+                  style: CruType.caption.tint(c.label2),
                 ),
               ],
             ),
           ),
-          IconButton(
+          CruIconButton(
+            icon: CruIcons.close,
             onPressed: _opening ? null : () => Navigator.pop(context),
-            icon: Icon(Icons.close_rounded, color: _c.label2),
+            semanticLabel: 'Close',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOrderSummaryBox() {
+  Widget _orderSummary(CruColors c) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(CruSpace.s16),
       decoration: BoxDecoration(
-        color: _c.inset,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _c.separator),
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.control),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Order Summary',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: _c.label,
-                ),
+              Expanded(
+                child: Text('Your order', style: CruType.callout.w600.tint(c.label)),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _green.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  '30 DAYS PLAN',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: _green,
-                  ),
-                ),
-              ),
+              CruPill(text: '30 days', background: c.track, foreground: c.label2),
             ],
           ),
-          const SizedBox(height: 10),
-          ...widget.selectedModules.map((modKey) {
-            final price = _getModulePrice(modKey);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2.5),
+          const SizedBox(height: CruSpace.s10),
+          for (final key in widget.selectedModules)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: CruSpace.s2),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    size: 15,
-                    color: _green,
-                  ),
-                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _getModuleTitle(modKey),
-                      style: TextStyle(fontSize: 12.5, color: _c.label),
+                      _getModuleTitle(key),
+                      style: CruType.text.tint(c.label),
                     ),
                   ),
-                  if (price != null)
+                  if (_getModulePrice(key) case final price?)
                     Text(
                       _currency.format(price),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _c.label2,
-                      ),
+                      style: CruType.caption.tabular.tint(c.label2),
                     ),
                 ],
               ),
-            );
-          }),
-          const SizedBox(height: 12),
-          Divider(height: 1, color: _c.separator),
-          const SizedBox(height: 10),
+            ),
+          const SizedBox(height: CruSpace.s12),
+          Divider(height: 1, color: c.separator),
+          const SizedBox(height: CruSpace.s10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total Payable Amount:',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: _c.label,
-                ),
+              Expanded(
+                child: Text('Total', style: CruType.callout.w600.tint(c.label)),
               ),
               Text(
                 _currency.format(_amountInr),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: _c.accent,
-                ),
+                style: CruType.amount.tabular.tint(c.label),
               ),
             ],
           ),
@@ -363,90 +306,88 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     );
   }
 
-  /// What is happening now, in a sentence or two.
-  Widget _buildStatusPanel(PlanPaymentStatus? status) {
-    final (IconData icon, Color tone, String title, String body) = switch (status) {
-      null => (
-        Icons.lock_outline_rounded,
-        _c.accent,
-        'How it works',
-        'We open CruDoc\'s secure payment page. Scan the QR code or pick your '
-            'UPI app there, and pay. Your features switch on by themselves as '
-            'soon as your bank confirms, usually within a minute.',
-      ),
-      PlanPaymentStatus.starting || PlanPaymentStatus.pending => (
-        Icons.hourglass_top_rounded,
-        _c.accent,
-        'Waiting for your payment',
-        [
-          if ((_checkout?.queuePosition ?? 0) > 0)
-            'Someone else is paying right now. You\'re number '
-                '${_checkout!.queuePosition} in line on the payment page.',
-          'Finish paying on the payment page. This updates by itself once '
-              'your bank confirms. You can close it; your features still '
-              'switch on.',
-        ].join('\n\n'),
-      ),
-      PlanPaymentStatus.expired => (
-        Icons.timer_off_rounded,
-        Colors.orange,
-        'The payment page timed out',
-        'Nothing was charged. If money did leave your account, it will be '
-            'matched and your features switched on; otherwise try again.',
-      ),
-      PlanPaymentStatus.failed => (
-        Icons.error_outline_rounded,
-        Colors.redAccent,
-        'We couldn\'t confirm a payment',
-        'If money left your account, contact CruDoc support with your UPI '
-            'reference number and we\'ll sort it out.',
-      ),
-      PlanPaymentStatus.cancelled => (
-        Icons.cancel_outlined,
-        _c.label2,
-        'Payment cancelled',
-        'If you had already paid, your features will still switch on.',
-      ),
-      PlanPaymentStatus.review => (
-        Icons.manage_search_rounded,
-        Colors.orange,
-        'We\'re checking your payment',
-        'A payment arrived that we need to check by hand before switching your '
-            'features on. This usually takes under a working day. Your '
-            'reference: ${_checkout?.orderId ?? _payment?.orderId ?? ''}',
-      ),
-      PlanPaymentStatus.paid => (Icons.check_rounded, _green, '', ''),
-    };
+  /// What is happening now, in a sentence or two. Amber while we wait on
+  /// the bank or a manual check; everything else stays neutral.
+  Widget _statusPanel(CruColors c, PlanPaymentStatus? status) {
+    final (CruIconData icon, bool waiting, String title, String body) =
+        switch (status) {
+          null => (
+            CruIcons.wallet,
+            false,
+            'How it works',
+            "We open CruDoc's secure payment page. Scan the QR code or pick "
+                'your UPI app there, and pay. Your features switch on by '
+                'themselves as soon as your bank confirms, usually within a '
+                'minute.',
+          ),
+          PlanPaymentStatus.starting || PlanPaymentStatus.pending => (
+            CruIcons.clock,
+            true,
+            'Waiting for your payment',
+            [
+              if ((_checkout?.queuePosition ?? 0) > 0)
+                "Someone else is paying right now. You're number "
+                    '${_checkout!.queuePosition} in line on the payment page.',
+              'Finish paying on the payment page. This updates by itself once '
+                  'your bank confirms. You can close it; your features still '
+                  'switch on.',
+            ].join('\n\n'),
+          ),
+          PlanPaymentStatus.expired => (
+            CruIcons.clock,
+            false,
+            'The payment page timed out',
+            'Nothing was charged. If money did leave your account, it will be '
+                'matched and your features switched on; otherwise try again.',
+          ),
+          PlanPaymentStatus.failed => (
+            CruIcons.warning,
+            false,
+            "We couldn't confirm a payment",
+            'If money left your account, contact CruDoc support with your UPI '
+                "reference number and we'll sort it out.",
+          ),
+          PlanPaymentStatus.cancelled => (
+            CruIcons.close,
+            false,
+            'Payment cancelled',
+            'If you had already paid, your features will still switch on.',
+          ),
+          PlanPaymentStatus.review => (
+            CruIcons.search,
+            true,
+            "We're checking your payment",
+            'A payment arrived that we need to check by hand before switching '
+                'your features on. This usually takes under a working day. '
+                'Your reference: '
+                '${_checkout?.orderId ?? _payment?.orderId ?? ''}',
+          ),
+          PlanPaymentStatus.paid => (CruIcons.check, false, '', ''),
+        };
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(CruSpace.s14),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tone.withValues(alpha: 0.25)),
+        color: waiting ? c.amberTint : c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.control),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: tone),
-          const SizedBox(width: 10),
+          CruIcon(icon, color: waiting ? c.amberText : c.label2),
+          const SizedBox(width: CruSpace.s10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: _c.label,
+                  style: CruType.callout.w600.tint(
+                    waiting ? c.amberText : c.label,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  body,
-                  style: TextStyle(fontSize: 12.5, height: 1.4, color: _c.label2),
-                ),
+                const SizedBox(height: CruSpace.s4),
+                Text(body, style: CruType.caption.tint(c.label2)),
               ],
             ),
           ),
@@ -455,56 +396,62 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     );
   }
 
-  Widget _buildActionBar(PlanPaymentStatus? status) {
+  Widget _actionBar(CruColors c, PlanPaymentStatus? status) {
     final List<Widget> buttons = switch (status) {
       null => [
-        _primaryButton(
+        CruButton(
           label: _opening
-              ? 'Opening payment page...'
+              ? 'Opening the payment page…'
               : 'Pay ${_currency.format(_amountInr)} by UPI',
-          icon: Icons.lock_rounded,
-          busy: _opening,
+          expand: true,
+          large: true,
           onPressed: _opening ? null : _startCheckout,
         ),
       ],
       PlanPaymentStatus.starting || PlanPaymentStatus.pending => [
-        _primaryButton(
-          label: 'Open payment page again',
-          icon: Icons.open_in_new_rounded,
+        CruButton(
+          label: 'Open the payment page again',
+          icon: CruIcons.arrowUpRight,
+          expand: true,
+          large: true,
           onPressed: _openPaymentPage,
         ),
-        const SizedBox(height: 8),
-        TextButton(
+        const SizedBox(height: CruSpace.s8),
+        CruLink(
+          label: _cancelling ? 'Cancelling…' : 'Cancel payment',
           onPressed: _cancelling ? null : _cancel,
-          child: Text(
-            _cancelling ? 'Cancelling...' : 'Cancel payment',
-            style: TextStyle(color: _c.label2),
-          ),
         ),
       ],
       PlanPaymentStatus.expired ||
       PlanPaymentStatus.failed ||
       PlanPaymentStatus.cancelled => [
-        _primaryButton(
+        CruButton(
           label: 'Try again',
-          icon: Icons.refresh_rounded,
+          expand: true,
+          large: true,
           onPressed: _tryAgain,
         ),
       ],
       PlanPaymentStatus.review || PlanPaymentStatus.paid => [
-        _primaryButton(
+        CruButton(
           label: 'Close',
-          icon: Icons.check_rounded,
+          expand: true,
+          large: true,
           onPressed: () => Navigator.pop(context, false),
         ),
       ],
     };
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s20,
+        CruSpace.s14,
+        CruSpace.s20,
+        CruSpace.s24,
+      ),
       decoration: BoxDecoration(
-        color: _c.surface,
-        border: Border(top: BorderSide(color: _c.separator)),
+        color: c.surface,
+        border: Border(top: BorderSide(color: c.hairline)),
       ),
       child: SafeArea(
         top: false,
@@ -513,159 +460,107 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     );
   }
 
-  Widget _primaryButton({
-    required String label,
-    required IconData icon,
-    required VoidCallback? onPressed,
-    bool busy = false,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1E78FF),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        icon: busy
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : Icon(icon, size: 18),
-        label: Text(
-          label,
-          style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSuccessReceipt() {
+  Widget _receipt(CruColors c) {
     final payment = _payment;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(CruSpace.s24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 76,
-            height: 76,
-            decoration: const BoxDecoration(
-              color: Color(0xFFDCFCE7),
+            width: CruSpace.s32 * 2,
+            height: CruSpace.s32 * 2,
+            decoration: BoxDecoration(
+              color: c.greenTint,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.check_circle_rounded,
-              color: _green,
-              size: 48,
+            child: Center(
+              child: CruIcon(
+                CruIcons.check,
+                size: CruSpace.s32,
+                color: c.greenText,
+              ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CruSpace.s20),
+          Text('Payment received', style: CruType.title2.tint(c.label)),
+          const SizedBox(height: CruSpace.s6),
           Text(
-            'Payment Successful!',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: _c.label,
-              fontFamily: AppColors.headingFontFamily,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Your bank confirmed the payment. Your selected modules are now active.',
+            'Your bank confirmed the payment. Your modules are on now.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, color: _c.label2),
+            style: CruType.text.tint(c.label2),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CruSpace.s20),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(CruSpace.s16),
             decoration: BoxDecoration(
-              color: _c.inset,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _c.separator),
+              color: c.inset,
+              borderRadius: BorderRadius.circular(CruRadius.control),
             ),
             child: Column(
               children: [
-                _buildReceiptRow(
-                  'Amount Paid:',
+                _receiptRow(
+                  c,
+                  'Amount paid',
                   _currency.format((payment?.amountPaise ?? 0) / 100),
-                  isBold: true,
+                  strong: true,
                 ),
-                const SizedBox(height: 6),
-                _buildReceiptRow('UPI Reference (UTR):', payment?.utr ?? '—'),
-                const SizedBox(height: 6),
-                _buildReceiptRow(
-                  'Transaction ID:',
+                const SizedBox(height: CruSpace.s6),
+                _receiptRow(c, 'UPI reference (UTR)', payment?.utr ?? '—'),
+                const SizedBox(height: CruSpace.s6),
+                _receiptRow(
+                  c,
+                  'Transaction ID',
                   payment?.transactionId ?? '—',
                 ),
-                const SizedBox(height: 6),
-                _buildReceiptRow(
-                  'Activated Features:',
-                  '${widget.selectedModules.length} Modules',
+                const SizedBox(height: CruSpace.s6),
+                _receiptRow(
+                  c,
+                  'Modules',
+                  '${widget.selectedModules.length}',
                 ),
-                const SizedBox(height: 6),
-                _buildReceiptRow(
-                  'Plan Valid Until:',
+                const SizedBox(height: CruSpace.s6),
+                _receiptRow(
+                  c,
+                  'Valid until',
                   payment?.validUntil != null
-                      ? DateFormat('dd MMM yyyy').format(payment!.validUntil!)
-                      : '30 Days',
-                  isBold: true,
+                      ? DateFormat('d MMM yyyy').format(payment!.validUntil!)
+                      : '30 days',
+                  strong: true,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 26),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _green,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(Icons.rocket_launch_rounded, size: 18),
-              label: const Text(
-                'Start Using Unlocked Features',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            ),
+          const SizedBox(height: CruSpace.s24),
+          CruButton(
+            label: 'Start using them',
+            expand: true,
+            large: true,
+            onPressed: () => Navigator.pop(context, true),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReceiptRow(String label, String value, {bool isBold = false}) {
+  Widget _receiptRow(
+    CruColors c,
+    String label,
+    String value, {
+    bool strong = false,
+  }) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: _c.label2)),
-        const SizedBox(width: 12),
-        Flexible(
+        Text(label, style: CruType.caption.tint(c.label2)),
+        const SizedBox(width: CruSpace.s12),
+        Expanded(
           child: Text(
             value,
             textAlign: TextAlign.end,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-              color: isBold ? _c.label : _c.label2,
-            ),
+            style: (strong ? CruType.callout.w600 : CruType.caption).tabular
+                .tint(strong ? c.label : c.label2),
           ),
         ),
       ],

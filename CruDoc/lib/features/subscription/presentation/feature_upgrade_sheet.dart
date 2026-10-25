@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
 import 'package:doctor_management_app/features/subscription/data/upgrade_request_model.dart';
 import 'package:doctor_management_app/features/subscription/presentation/payment_checkout_sheet.dart';
-import 'package:crudoc_shared/theme/cru_colors.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Modal bottom sheet that lets doctors view available features,
 /// calculate monthly totals, and submit an upgrade request.
@@ -33,13 +32,6 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
   final DoctorSubscriptionService _subscriptionService =
       DoctorSubscriptionService();
   final Set<String> _selectedModuleKeys = {};
-  String? _successMessage;
-
-  CruColors get _c =>
-      Theme.of(context).extension<CruColors>() ??
-      (Theme.of(context).brightness == Brightness.dark
-          ? CruColors.evening
-          : CruColors.day);
 
   @override
   void initState() {
@@ -63,32 +55,18 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     return total;
   }
 
-  IconData _getIconForName(String name) {
-    switch (name) {
-      case 'dashboard':
-        return Icons.grid_view_rounded;
-      case 'groups':
-        return Icons.groups_rounded;
-      case 'calendar':
-        return Icons.calendar_today_rounded;
-      case 'inventory':
-        return Icons.inventory_2_rounded;
-      case 'payments':
-        return Icons.payments_rounded;
-      case 'home':
-        return Icons.home_work_rounded;
-      case 'chat':
-        return Icons.mark_chat_unread_rounded;
-      case 'smart_toy':
-        return Icons.smart_toy_rounded;
-      case 'phone':
-        return Icons.phone_in_talk_rounded;
-      case 'devices':
-        return Icons.devices_rounded;
-      default:
-        return Icons.stars_rounded;
-    }
-  }
+  CruIconData _iconFor(String name) => switch (name) {
+    'dashboard' => CruIcons.dashboard,
+    'groups' => CruIcons.patients,
+    'calendar' => CruIcons.calendar,
+    'inventory' => CruIcons.box,
+    'payments' => CruIcons.rupee,
+    'home' => CruIcons.home,
+    'chat' => CruIcons.whatsapp,
+    'smart_toy' => CruIcons.sparkle,
+    'phone' => CruIcons.phone,
+    _ => CruIcons.plus,
+  };
 
   Future<void> _launchPaymentCheckout() async {
     if (_selectedModuleKeys.isEmpty) return;
@@ -111,410 +89,272 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     }
   }
 
+  static final _rupees = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
+
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '₹',
-      decimalDigits: 0,
-    );
-
+    final c = context.cru;
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       decoration: BoxDecoration(
-        color: _c.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
       child: Column(
         children: [
-          // Drag handle
           Center(
             child: Container(
-              width: 44,
-              height: 4,
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: CruSpace.s32 + CruSpace.s12,
+              height: CruSpace.s4,
+              margin: const EdgeInsets.only(
+                top: CruSpace.s12,
+                bottom: CruSpace.s8,
+              ),
               decoration: BoxDecoration(
-                color: _c.separator,
-                borderRadius: BorderRadius.circular(999),
+                color: c.track,
+                borderRadius: BorderRadius.circular(CruRadius.full),
               ),
             ),
           ),
-
-          // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              CruSpace.s8,
+              CruSpace.s20,
+              CruSpace.s12,
+            ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _c.accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    Icons.workspace_premium_rounded,
-                    color: _c.accent,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Customize & Upgrade Plan',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: _c.label,
-                          fontFamily: AppColors.headingFontFamily,
-                        ),
+                        'Choose your features',
+                        style: CruType.title2.tint(c.label),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: CruSpace.s2),
                       Text(
-                        'Select modules you need for your clinical practice',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _c.label2,
-                        ),
+                        'Pick the modules your practice needs.',
+                        style: CruType.caption.tint(c.label2),
                       ),
                     ],
                   ),
                 ),
-                IconButton(
+                CruIconButton(
+                  icon: CruIcons.close,
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: _c.label2,
-                  ),
+                  semanticLabel: 'Close',
                 ),
               ],
             ),
           ),
-          Divider(height: 1, color: _c.separator),
-
-          // Content body
+          Divider(height: 1, color: c.separator),
           Expanded(
-            child: _successMessage != null
-                ? _buildSuccessView()
-                : StreamBuilder<List<UpgradeRequest>>(
-                    stream: _subscriptionService.watchMyUpgradeRequests(),
-                    builder: (context, snapshot) {
-                      final requests = snapshot.data ?? [];
-                      final pendingRequest = requests
-                          .cast<UpgradeRequest?>()
-                          .firstWhere(
-                            (r) => r?.status == UpgradeRequestStatus.pending,
-                            orElse: () => null,
-                          );
+            child: StreamBuilder<List<UpgradeRequest>>(
+              stream: _subscriptionService.watchMyUpgradeRequests(),
+              builder: (context, snapshot) {
+                final requests = snapshot.data ?? [];
+                final pendingRequest = requests
+                    .cast<UpgradeRequest?>()
+                    .firstWhere(
+                      (r) => r?.status == UpgradeRequestStatus.pending,
+                      orElse: () => null,
+                    );
 
-                      return ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-                        children: [
-                          if (pendingRequest != null)
-                            _buildPendingRequestBanner(
-                              pendingRequest,
-                              currencyFormatter,
-                            ),
-
-                          _buildCurrentPlanCard(),
-                          const SizedBox(height: 18),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'AVAILABLE CLINICAL MODULES',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.1,
-                                  color: _c.label2,
-                                ),
-                              ),
-                              Text(
-                                '${_selectedModuleKeys.length} Selected',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _c.accent,
-                                ),
-                              ),
-                            ],
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    CruSpace.s20,
+                    CruSpace.s16,
+                    CruSpace.s20,
+                    CruSpace.s24,
+                  ),
+                  children: [
+                    if (pendingRequest != null) _pendingBanner(c, pendingRequest),
+                    _currentPlan(c),
+                    const SizedBox(height: CruSpace.s20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'MODULES',
+                            style: CruType.groupLabel.tint(c.label3),
                           ),
-                          const SizedBox(height: 10),
-
-                          ...DoctorSubscriptionService.availableFeatures.map(
-                            (item) => _buildModuleCard(item, currencyFormatter),
-                          ),
-
-                          const SizedBox(height: 16),
-                          _buildOfflinePaymentInfoCard(),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-
-          // Bottom Bar with Subtotal & Submit
-          if (_successMessage == null) _buildBottomBar(currencyFormatter),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentPlanCard() {
-    final info = widget.subscriptionInfo;
-    final isExp = info.isExpired;
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isExp ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isExp ? const Color(0xFFFCA5A5) : const Color(0xFF86EFAC),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isExp
-                ? Icons.error_outline_rounded
-                : Icons.check_circle_outline_rounded,
-            color: isExp ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Current Plan: ${info.planName.toUpperCase()} (${isExp ? 'EXPIRED' : 'ACTIVE'})',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: isExp
-                        ? const Color(0xFF991B1B)
-                        : const Color(0xFF166534),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  info.expiresDate != null
-                      ? (isExp
-                            ? 'Expired on ${DateFormat('dd MMM yyyy').format(info.expiresDate!)}'
-                            : 'Valid until ${DateFormat('dd MMM yyyy').format(info.expiresDate!)} (${info.daysRemaining ?? 0} days remaining)')
-                      : 'Standard account configuration',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: isExp
-                        ? const Color(0xFFB91C1C)
-                        : const Color(0xFF15803D),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPendingRequestBanner(
-    UpgradeRequest request,
-    NumberFormat currencyFormatter,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFCD34D)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.hourglass_top_rounded,
-            color: Color(0xFFD97706),
-            size: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Pending Upgrade Request',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF92400E),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Submitted for ${currencyFormatter.format(request.totalMonthlyPrice)}/mo (${request.requestedModules.length} features). Awaiting Super Admin activation.',
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    color: Color(0xFFB45309),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModuleCard(
-    FeaturePricingItem item,
-    NumberFormat currencyFormatter,
-  ) {
-    final isSelected = _selectedModuleKeys.contains(item.moduleKey);
-    final isBase = item.isBaseModule;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: isSelected ? _c.accent.withValues(alpha: 0.1) : _c.inset,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isSelected ? _c.accent : _c.separator,
-          width: isSelected ? 1.5 : 1.0,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: isBase
-            ? null
-            : () {
-                setState(() {
-                  if (isSelected) {
-                    _selectedModuleKeys.remove(item.moduleKey);
-                  } else {
-                    _selectedModuleKeys.add(item.moduleKey);
-                  }
-                });
+                        ),
+                        Text(
+                          '${_selectedModuleKeys.length} selected',
+                          style: CruType.caption.w600.tabular.tint(c.label2),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: CruSpace.s10),
+                    for (final item in DoctorSubscriptionService.availableFeatures)
+                      _moduleRow(c, item),
+                    const SizedBox(height: CruSpace.s16),
+                    _howItWorks(c),
+                  ],
+                );
               },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+          _bottomBar(c),
+        ],
+      ),
+    );
+  }
+
+  Widget _currentPlan(CruColors c) {
+    final info = widget.subscriptionInfo;
+    final expired = info.isExpired;
+    final date = info.expiresDate == null
+        ? null
+        : DateFormat('d MMM yyyy').format(info.expiresDate!);
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s14),
+      decoration: BoxDecoration(
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current plan: ${info.planName}',
+                  style: CruType.callout.w600.tint(c.label),
+                ),
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  date == null
+                      ? 'Standard account'
+                      : expired
+                      ? 'Ended on $date'
+                      : 'Valid until $date · ${info.daysRemaining ?? 0} days left',
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
+              ],
+            ),
+          ),
+          CruPill(
+            text: expired ? 'Ended' : 'Active',
+            background: expired ? c.track : c.greenTint,
+            foreground: expired ? c.label2 : c.greenText,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Amber: a request still waiting on the team.
+  Widget _pendingBanner(CruColors c, UpgradeRequest request) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: CruSpace.s16),
+      padding: const EdgeInsets.all(CruSpace.s14),
+      decoration: BoxDecoration(
+        color: c.amberTint,
+        borderRadius: BorderRadius.circular(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          CruIcon(CruIcons.clock, color: c.amberText),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Upgrade request waiting',
+                  style: CruType.callout.w600.tint(c.amberText),
+                ),
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  '${_rupees.format(request.totalMonthlyPrice)}/month for '
+                  '${request.requestedModules.length} features. We turn them '
+                  'on once the payment is checked.',
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _moduleRow(CruColors c, FeaturePricingItem item) {
+    final selected = _selectedModuleKeys.contains(item.moduleKey);
+    final included = item.isBaseModule;
+    void toggle() => setState(() {
+      if (selected) {
+        _selectedModuleKeys.remove(item.moduleKey);
+      } else {
+        _selectedModuleKeys.add(item.moduleKey);
+      }
+    });
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s8),
+      child: CruPressable(
+        onTap: included ? null : toggle,
+        builder: (context, hovered) => Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s14,
+            vertical: CruSpace.s12,
+          ),
+          decoration: BoxDecoration(
+            color: hovered && !included ? c.hoverFill : c.surface,
+            borderRadius: BorderRadius.circular(CruRadius.control),
+            border: Border.all(color: selected ? c.inkBorder : c.cardBorder),
+          ),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? _c.accent
-                      : _c.separator.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  _getIconForName(item.iconName),
-                  color: isSelected ? _c.onAccent : _c.label2,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
+              CruIconTile(icon: _iconFor(item.iconName), tone: CruTileTone.neutral),
+              const SizedBox(width: CruSpace.s12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            item.title,
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: _c.label,
-                            ),
-                          ),
-                        ),
-                        if (isBase) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'ALWAYS FREE',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF16A34A),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
+                    Text(item.title, style: CruType.callout.w600.tint(c.label)),
+                    const SizedBox(height: CruSpace.s2),
                     Text(
                       item.description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _c.label2,
-                      ),
+                      style: CruType.caption.tint(c.label2),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    isBase
-                        ? 'Included'
-                        : '${currencyFormatter.format(item.monthlyPriceInr)}/mo',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isBase
-                          ? const Color(0xFF16A34A)
-                          : (isSelected
-                                ? _c.accent
-                                : _c.label),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Checkbox(
-                    value: isBase ? true : isSelected,
-                    onChanged: isBase
-                        ? null
-                        : (val) {
-                            setState(() {
-                              if (val == true) {
-                                _selectedModuleKeys.add(item.moduleKey);
-                              } else {
-                                _selectedModuleKeys.remove(item.moduleKey);
-                              }
-                            });
-                          },
-                    activeColor: _c.accent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ],
+              const SizedBox(width: CruSpace.s8),
+              Text(
+                included
+                    ? 'Included'
+                    : '${_rupees.format(item.monthlyPriceInr)}/mo',
+                style: CruType.callout.w600.tabular.tint(
+                  included ? c.label2 : c.label,
+                ),
+              ),
+              Checkbox(
+                value: included || selected,
+                onChanged: included ? null : (_) => toggle(),
+                activeColor: c.accent,
+                checkColor: c.onAccent,
+                side: BorderSide(color: c.separator, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(CruSpace.s4),
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),
@@ -523,57 +363,40 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     );
   }
 
-  Widget _buildOfflinePaymentInfoCard() {
+  Widget _howItWorks(CruColors c) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(CruSpace.s14),
       decoration: BoxDecoration(
-        color: _c.inset,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _c.separator),
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.control),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.info_outline_rounded,
-                size: 18,
-                color: _c.label2,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'How Activation Works',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: _c.label,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
+          Text('How it works', style: CruType.caption.w600.tint(c.label)),
+          const SizedBox(height: CruSpace.s4),
           Text(
-            '1. Select desired modules and tap "Submit Upgrade Request".\n'
-            '2. Complete the payment offline via UPI (PhonePe / GPay / Paytm) or Bank Transfer.\n'
-            '3. Super Admin verifies payment and unlocks the selected modules in real time for 1 month.',
-            style: TextStyle(
-              fontSize: 11.5,
-              color: _c.label2,
-              height: 1.4,
-            ),
+            'Pick your modules, then pay by UPI. They turn on as soon as the '
+            'payment is confirmed and stay on for 30 days.',
+            style: CruType.caption.tint(c.label2),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomBar(NumberFormat currencyFormatter) {
+  Widget _bottomBar(CruColors c) {
+    final count = _selectedModuleKeys.length;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s20,
+        CruSpace.s14,
+        CruSpace.s20,
+        CruSpace.s24,
+      ),
       decoration: BoxDecoration(
-        color: _c.surface,
-        border: Border(top: BorderSide(color: _c.separator)),
+        color: c.surface,
+        border: Border(top: BorderSide(color: c.hairline)),
       ),
       child: SafeArea(
         top: false,
@@ -583,119 +406,25 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Text('PER MONTH', style: CruType.groupLabel.tint(c.label3)),
+                const SizedBox(height: CruSpace.s2),
                 Text(
-                  'MONTHLY TOTAL',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: _c.label2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  currencyFormatter.format(_calculatedTotal),
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: _c.accent,
-                    fontFamily: AppColors.headingFontFamily,
-                  ),
+                  _rupees.format(_calculatedTotal),
+                  style: CruType.amount.tabular.tint(c.label),
                 ),
               ],
             ),
-            const SizedBox(width: 18),
+            const SizedBox(width: CruSpace.s20),
             Expanded(
-              child: SizedBox(
-                height: 48,
-                child: ElevatedButton.icon(
-                  onPressed: _selectedModuleKeys.isEmpty
-                      ? null
-                      : _launchPaymentCheckout,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF16A34A),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  icon: const Icon(Icons.bolt_rounded, size: 20),
-                  label: Text(
-                    'Pay & Activate Features (${_selectedModuleKeys.length})',
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
+              child: CruButton(
+                label: count == 0 ? 'Pick a module' : 'Pay and turn on ($count)',
+                expand: true,
+                large: true,
+                onPressed: count == 0 ? null : _launchPaymentCheckout,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildSuccessView() {
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: const BoxDecoration(
-              color: Color(0xFFDCFCE7),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.check_circle_rounded,
-              color: Color(0xFF16A34A),
-              size: 44,
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Request Submitted!',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              fontFamily: AppColors.headingFontFamily,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _successMessage!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13.5,
-              color: Color(0xFF64748B),
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 28),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1E78FF),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Text(
-                'Done',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -7,7 +7,6 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/month/month_day_panel.dart';
 import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 void main() {
   final testPatient = Patient(

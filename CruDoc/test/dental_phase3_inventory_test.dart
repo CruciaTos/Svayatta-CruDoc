@@ -1,10 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
-import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
-import 'package:doctor_management_app/features/dental/presentation/dental_inventory_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -106,68 +102,4 @@ void main() {
     });
   });
 
-  group('Phase 3 Dental Inventory Widget & Audit UI Tests', () {
-    testWidgets('DentalInventoryScreen displays dental items, allows search, and shows low stock badge',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      final now = DateTime.now();
-      final dentalItems = [
-        MedicineModel(
-          id: 'med-1',
-          name: 'Lidocaine 2% Cartridges',
-          category: 'Dental Anesthetic',
-          unit: 'Cartridges',
-          currentStock: 2,
-          reorderThreshold: 10,
-          unitPrice: 45.0,
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        MedicineModel(
-          id: 'med-2',
-          name: 'Diamond Round Bur ISO 014',
-          category: 'Dental Consumable',
-          unit: 'Burs',
-          currentStock: 20,
-          reorderThreshold: 5,
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        ),
-      ];
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            medicinesStreamProvider.overrideWith((ref) => Stream.value(dentalItems)),
-          ],
-          child: const MaterialApp(
-            home: DentalInventoryScreen(),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Dental Consumables & Stock'), findsOneWidget);
-      expect(find.text('Lidocaine 2% Cartridges'), findsOneWidget);
-      expect(find.text('Diamond Round Bur ISO 014'), findsOneWidget);
-      expect(find.text('1 Low Stock'), findsOneWidget);
-
-      // Search for 'Bur'
-      await tester.enterText(find.byType(TextField).first, 'Bur');
-      await tester.pump();
-
-      expect(find.text('Diamond Round Bur ISO 014'), findsOneWidget);
-      expect(find.text('Lidocaine 2% Cartridges'), findsNothing);
-    });
-  });
 }

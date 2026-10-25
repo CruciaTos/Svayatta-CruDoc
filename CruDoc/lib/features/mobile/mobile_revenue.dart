@@ -18,7 +18,8 @@ import 'package:doctor_management_app/features/revenue/presentation/transaction_
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
-import 'package:doctor_management_app/features/revenue/presentation/invoices_screen.dart';
+import 'package:doctor_management_app/features/mobile/mobile_invoices.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 
 /// Revenue: what came in for the period, who still owes, and every
 /// transaction. Recording money is one tap from the header.
@@ -68,11 +69,51 @@ class MobileRevenueScreen extends ConsumerWidget {
     ],
   );
 
+  /// "‹ More" above the page when it was opened from More.
+  Widget _backRow(BuildContext context) => Padding(
+    padding: EdgeInsets.fromLTRB(
+      MobileMetrics.gutter - CruSpace.s4,
+      MobileMetrics.top(context),
+      MobileMetrics.gutter,
+      0,
+    ),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: CruPressable(
+        onTap: onBack!,
+        semanticLabel: 'Back to More',
+        builder: (context, _) => SizedBox(
+          height: 36,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CruIcon(
+                CruIcons.chevronLeft,
+                size: 18,
+                strokeWidth: 2.2,
+                color: mobileInk(context),
+              ),
+              const SizedBox(width: CruSpace.s4),
+              Text('More', style: MobileType.callout.tint(mobileInk(context))),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Billing staff without revenue see invoices only: no totals or charts.
     if (!ref.watch(clinicCanProvider(ClinicPermission.revenue))) {
-      return const InvoicesScreen();
+      if (onBack == null) return const MobileInvoicesScreen();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _backRow(context),
+          const Expanded(child: MobileInvoicesScreen()),
+        ],
+      );
     }
     final c = context.cru;
     final view = ref.watch(revenueViewControllerProvider);
@@ -95,41 +136,7 @@ class MobileRevenueScreen extends ConsumerWidget {
             ),
     );
     final kids = <Widget>[
-      if (onBack != null)
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            MobileMetrics.gutter - CruSpace.s4,
-            MobileMetrics.top(context),
-            MobileMetrics.gutter,
-            0,
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: CruPressable(
-              onTap: onBack!,
-              semanticLabel: 'Back to More',
-              builder: (context, _) => SizedBox(
-                height: 36,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CruIcon(
-                      CruIcons.chevronLeft,
-                      size: 18,
-                      strokeWidth: 2.2,
-                      color: mobileInk(context),
-                    ),
-                    const SizedBox(width: CruSpace.s4),
-                    Text(
-                      'More',
-                      style: MobileType.callout.tint(mobileInk(context)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+      if (onBack != null) _backRow(context),
       MobileHeader(
         pushed: onBack != null,
         title: 'Revenue',

@@ -193,8 +193,8 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: c.redText,
-              foregroundColor: Colors.white,
+              backgroundColor: c.primaryButtonFill,
+              foregroundColor: c.primaryButtonText,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(CruRadius.control),
               ),
@@ -568,7 +568,7 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
               onPressed: (_noteDirty && !_savingNote) ? _saveNote : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: c.accent,
-                foregroundColor: Colors.white,
+                foregroundColor: c.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: CruSpace.s20,
                   vertical: CruSpace.s10,
@@ -578,12 +578,12 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 ),
               ),
               child: _savingNote
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: c.onAccent,
                       ),
                     )
                   : const Text('Save Note'),
@@ -903,45 +903,45 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
         patient?.phone != null &&
         WhatsAppTemplateService.isValidWhatsAppPhone(patient?.phone);
 
-    Color badgeColor = const Color(0xFF25D366);
+    Color badgeColor = context.cru.label2;
     IconData badgeIcon = Icons.check_circle_outline;
     String badgeLabel = 'WhatsApp Notified';
 
     if (log != null) {
       switch (log.status) {
         case WhatsAppNotificationStatus.delivered:
-          badgeColor = const Color(0xFF10B981);
+          badgeColor = context.cru.green;
           badgeIcon = Icons.done_all_rounded;
           badgeLabel = 'WhatsApp: Delivered';
           break;
         case WhatsAppNotificationStatus.read:
-          badgeColor = const Color(0xFF2D9CDB);
+          badgeColor = context.cru.green;
           badgeIcon = Icons.done_all_rounded;
           badgeLabel = 'WhatsApp: Read by Patient';
           break;
         case WhatsAppNotificationStatus.sent:
-          badgeColor = const Color(0xFF25D366);
+          badgeColor = context.cru.label2;
           badgeIcon = Icons.check_rounded;
           badgeLabel = 'WhatsApp: Sent';
           break;
         case WhatsAppNotificationStatus.pending:
-          badgeColor = const Color(0xFFF59E0B);
+          badgeColor = context.cru.amber;
           badgeIcon = Icons.hourglass_top_rounded;
           badgeLabel = 'WhatsApp: Sending...';
           break;
         case WhatsAppNotificationStatus.failed:
-          badgeColor = const Color(0xFFEF4444);
+          badgeColor = context.cru.label2;
           badgeIcon = Icons.error_outline_rounded;
           badgeLabel = 'WhatsApp: Delivery Failed';
           break;
         case WhatsAppNotificationStatus.skipped:
-          badgeColor = const Color(0xFF6B7280);
+          badgeColor = context.cru.label2;
           badgeIcon = Icons.phone_disabled_outlined;
           badgeLabel = 'WhatsApp: Skipped (No Mobile)';
           break;
       }
     } else if (!hasPhone) {
-      badgeColor = const Color(0xFF6B7280);
+      badgeColor = context.cru.label2;
       badgeIcon = Icons.phone_disabled_outlined;
       badgeLabel = 'WhatsApp: No Mobile Number';
     }
@@ -995,24 +995,12 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
             const SizedBox(height: CruSpace.s12),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
+              child: CruButton(
+                label: 'Chat or resend on WhatsApp',
+                icon: CruIcons.whatsapp,
+                kind: CruButtonKind.secondary,
+                expand: true,
                 onPressed: () => _openDirectWhatsApp(context),
-                icon: const Icon(
-                  Icons.chat_outlined,
-                  size: 16,
-                  color: Colors.white,
-                ),
-                label: Text(
-                  'Chat / Resend via WhatsApp',
-                  style: CruType.subhead.w600.tint(Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF25D366),
-                  padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                  ),
-                ),
               ),
             ),
           ],

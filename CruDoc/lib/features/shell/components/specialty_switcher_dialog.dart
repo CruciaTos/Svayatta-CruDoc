@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 
 /// Opens a rich modal dialog to switch between clinical specialties.
 Future<void> showSpecialtySwitcherDialog(BuildContext context) async {
@@ -58,8 +58,8 @@ class _SpecialtySwitcherDialogState
             maxHeight: MediaQuery.of(context).size.height * 0.85,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            color: context.cru.surface,
+            borderRadius: BorderRadius.circular(CruRadius.card),
             boxShadow: const [],
           ),
           child: Column(
@@ -72,25 +72,24 @@ class _SpecialtySwitcherDialogState
                   horizontal: 24,
                   vertical: 20,
                 ),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
+                    bottom: BorderSide(color: context.cru.track, width: 1.2),
                   ),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      width: CruSize.iconTile,
+                      height: CruSize.iconTile,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0D422C), Color(0xFF156B47)],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
+                        color: context.cru.inset,
+                        borderRadius: BorderRadius.circular(CruRadius.iconTile),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.swap_horiz_rounded,
-                        color: Colors.white,
-                        size: 22,
+                        color: context.cru.label2,
+                        size: CruSpace.s20,
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -103,13 +102,10 @@ class _SpecialtySwitcherDialogState
                             spacing: 8,
                             runSpacing: 4,
                             children: [
-                              const Text(
+                              Text(
                                 'Switch Clinical Specialty',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0F172A),
-                                  fontFamily: AppColors.headingFontFamily,
+                                style: CruType.headline.w700.tint(
+                                  context.cru.label,
                                 ),
                               ),
                               Container(
@@ -123,14 +119,11 @@ class _SpecialtySwitcherDialogState
                                   ).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text(
+                                child: Text(
                                   'DEV / TRIAL MODE',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF059669),
-                                    letterSpacing: 0.5,
-                                  ),
+                                  style: CruType.micro.w700
+                                      .tint(context.cru.greenText)
+                                      .copyWith(letterSpacing: 0.5),
                                 ),
                               ),
                             ],
@@ -138,18 +131,15 @@ class _SpecialtySwitcherDialogState
                           const SizedBox(height: 2),
                           Text(
                             'Switch specialty features dynamically without logging out.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
+                            style: CruType.caption.tint(context.cru.label2),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close_rounded,
-                        color: Color(0xFF64748B),
+                        color: context.cru.label2,
                       ),
                       onPressed: () => Navigator.of(context).pop(),
                       splashRadius: 20,
@@ -166,43 +156,28 @@ class _SpecialtySwitcherDialogState
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: activeSpec.accentColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: activeSpec.accentColor.withValues(alpha: 0.25),
-                  ),
+                  color: context.cru.inset,
+                  borderRadius: BorderRadius.circular(CruRadius.control),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      activeSpec.icon,
-                      size: 18,
-                      color: activeSpec.accentColor,
-                    ),
+                    Icon(activeSpec.icon, size: 18, color: context.cru.label2),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text.rich(
                         TextSpan(
                           text: 'Currently Active: ',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: CruType.caption.w500.tint(context.cru.label2),
                           children: [
                             TextSpan(
                               text: activeSpec.label,
-                              style: TextStyle(
-                                color: activeSpec.accentColor,
-                                fontWeight: FontWeight.w800,
+                              style: CruType.caption.w600.tint(
+                                context.cru.label,
                               ),
                             ),
                             TextSpan(
                               text: ' • ${activeSpec.tagline}',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 11,
-                              ),
+                              style: CruType.micro.tint(context.cru.label2),
                             ),
                           ],
                         ),
@@ -267,30 +242,27 @@ class _SpecialtySwitcherDialogState
                   horizontal: 24,
                   vertical: 14,
                 ),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8FAFC),
+                decoration: BoxDecoration(
+                  color: context.cru.inset,
                   borderRadius: BorderRadius.vertical(
                     bottom: Radius.circular(24),
                   ),
                   border: Border(
-                    top: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
+                    top: BorderSide(color: context.cru.track, width: 1.2),
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline_rounded,
                       size: 15,
-                      color: Color(0xFF94A3B8),
+                      color: context.cru.label3,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Switches custom toolsets, tooth charts, case sheets, and specialty workflows instantly.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                        style: CruType.micro.tint(context.cru.label2),
                       ),
                     ),
                     TextButton(
@@ -345,18 +317,11 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isActive
-                ? spec.accentColor.withValues(alpha: 0.08)
-                : (_isHovered
-                      ? spec.accentColor.withValues(alpha: 0.04)
-                      : Colors.white),
-            borderRadius: BorderRadius.circular(16),
+                ? context.cru.accentWash
+                : (_isHovered ? context.cru.hoverFill : context.cru.surface),
+            borderRadius: BorderRadius.circular(CruRadius.card),
             border: Border.all(
-              color: isActive
-                  ? spec.accentColor
-                  : (_isHovered
-                        ? spec.accentColor.withValues(alpha: 0.4)
-                        : const Color(0xFFE2E8F0)),
-              width: isActive ? 2.0 : 1.2,
+              color: isActive ? context.cru.inkBorder : context.cru.cardBorder,
             ),
             boxShadow: const [],
           ),
@@ -368,10 +333,10 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: spec.accentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: context.cru.inset,
+                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
                 ),
-                child: Icon(spec.icon, color: spec.accentColor, size: 22),
+                child: Icon(spec.icon, color: context.cru.label2, size: 22),
               ),
               const SizedBox(width: 12),
               // Specialty Info
@@ -384,14 +349,7 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                         Expanded(
                           child: Text(
                             spec.label,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: isActive
-                                  ? spec.accentColor
-                                  : const Color(0xFF0F172A),
-                              fontFamily: AppColors.headingFontFamily,
-                            ),
+                            style: CruType.callout.w600.tint(context.cru.label),
                           ),
                         ),
                         if (widget.isLoading)
@@ -400,7 +358,7 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: spec.accentColor,
+                              color: context.cru.accent,
                             ),
                           )
                         else if (isActive)
@@ -410,15 +368,15 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: spec.accentColor,
-                              borderRadius: BorderRadius.circular(10),
+                              color: context.cru.accentTint,
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.full,
+                              ),
                             ),
-                            child: const Text(
-                              'ACTIVE',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                            child: Text(
+                              'Active',
+                              style: CruType.micro.w600.tint(
+                                context.cru.accentText,
                               ),
                             ),
                           ),
@@ -429,10 +387,7 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                       spec.tagline,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
+                      style: CruType.micro.tint(context.cru.label2),
                     ),
                     const SizedBox(height: 8),
                     // Quick Action tags preview
@@ -446,16 +401,12 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: context.cru.track,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             act,
-                            style: const TextStyle(
-                              fontSize: 9.5,
-                              color: Color(0xFF475569),
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: CruType.micro.w600.tint(context.cru.label2),
                           ),
                         );
                       }).toList(),

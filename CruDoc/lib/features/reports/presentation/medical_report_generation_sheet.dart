@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/pdf/data/doc_numbering.dart';
@@ -7,10 +8,8 @@ import 'package:doctor_management_app/core/pdf/models/pdf_document_models.dart';
 import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
 import 'package:doctor_management_app/core/pdf/render/doc_context_builder.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:crudoc_shared/theme/cru_colors.dart';
 
 /// Lightweight medical report generator that reuses the shared CruDoc
 /// letterhead PDF layer for clinical summaries, investigation reports,
@@ -189,12 +188,7 @@ class _MedicalReportGenerationSheetState
                   const SizedBox(width: 10),
                   Text(
                     'Generate Medical Report',
-                    style: TextStyle(
-                      fontFamily: AppColors.headingFontFamily,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: _c.label,
-                    ),
+                    style: CruType.headline.w700.tint(_c.label),
                   ),
                 ],
               ),
@@ -233,10 +227,10 @@ class _MedicalReportGenerationSheetState
                       width: 54,
                       height: 54,
                       fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => const Icon(
+                      errorWidget: (_, _, _) => Icon(
                         Icons.local_hospital_rounded,
                         size: 36,
-                        color: Color(0xFF1E78FF),
+                        color: context.cru.accent,
                       ),
                     ),
                   ),
@@ -247,13 +241,13 @@ class _MedicalReportGenerationSheetState
                   height: 54,
                   margin: const EdgeInsets.only(right: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E78FF).withValues(alpha: 0.1),
+                    color: context.cru.accent.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.local_hospital_rounded,
                     size: 30,
-                    color: Color(0xFF1E78FF),
+                    color: context.cru.accent,
                   ),
                 ),
               Expanded(
@@ -262,35 +256,21 @@ class _MedicalReportGenerationSheetState
                   children: [
                     Text(
                       cfg.clinicName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
+                      style: CruType.body.w700.tint(context.cru.label),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${cfg.doctorName} • ${cfg.qualifications}',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E78FF),
-                      ),
+                      style: CruType.subhead.w700.tint(context.cru.accent),
                     ),
                     Text(
                       '${cfg.specialty} | Reg. No: ${cfg.registrationNumber}',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: Colors.grey.shade700,
-                      ),
+                      style: CruType.micro.tint(context.cru.label2),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
+                      style: CruType.micro.tint(context.cru.label3),
                     ),
                   ],
                 ),
@@ -301,9 +281,9 @@ class _MedicalReportGenerationSheetState
           Container(
             width: double.infinity,
             height: 2,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF1E78FF), Color(0xFF475569)],
+                colors: [context.cru.accent, context.cru.label2],
               ),
             ),
           ),
@@ -325,11 +305,7 @@ class _MedicalReportGenerationSheetState
         children: [
           Text(
             'Report Details & Patient Info',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: _c.label,
-            ),
+            style: CruType.callout.w700.tint(_c.label),
           ),
           const SizedBox(height: 12),
           Row(
@@ -400,15 +376,11 @@ class _MedicalReportGenerationSheetState
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.calendar_today_rounded,
-              size: 16,
-              color: _c.accent,
-            ),
+            Icon(Icons.calendar_today_rounded, size: 16, color: _c.accent),
             const SizedBox(width: 8),
             Text(
               DateFormat('dd MMM yyyy').format(_reportDate),
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _c.label),
+              style: CruType.subhead.w600.tint(_c.label),
             ),
           ],
         ),
@@ -429,11 +401,7 @@ class _MedicalReportGenerationSheetState
         children: [
           Text(
             'Structured Report Sections',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: _c.label,
-            ),
+            style: CruType.callout.w700.tint(_c.label),
           ),
           const SizedBox(height: 12),
           _buildInput(
@@ -496,29 +464,18 @@ class _MedicalReportGenerationSheetState
           Expanded(
             child: Text(
               cfg.footerDisclaimer,
-              style: TextStyle(fontSize: 11, color: _c.label2),
+              style: CruType.micro.tint(_c.label2),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Icon(
-                Icons.draw_rounded,
-                color: _c.accent,
-                size: 24,
-              ),
+              Icon(Icons.draw_rounded, color: _c.accent, size: 24),
               const SizedBox(height: 4),
-              Text(
-                cfg.doctorName,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: _c.label,
-                ),
-              ),
+              Text(cfg.doctorName, style: CruType.caption.w700.tint(_c.label)),
               Text(
                 'Reg: ${cfg.registrationNumber}',
-                style: TextStyle(fontSize: 10, color: _c.label2),
+                style: CruType.micro.tint(_c.label2),
               ),
             ],
           ),
@@ -562,10 +519,10 @@ class _MedicalReportGenerationSheetState
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      style: TextStyle(color: _c.label, fontSize: 13.5),
+      style: CruType.subhead.tint(_c.label),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: _c.label2, fontSize: 13),
+        labelStyle: CruType.subhead.tint(_c.label2),
         prefixIcon: Icon(icon, size: 16, color: _c.accent),
         filled: true,
         fillColor: _c.surface,

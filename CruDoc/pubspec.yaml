@@ -149,9 +149,6 @@ flutter:
     # - assets/voice/whisper/   # uncomment for on-device Whisper (see tool/voice_server/README.md)
 
   fonts:
-    - family: PlusJakartaSans
-      fonts:
-        - asset: assets/fonts/Plus_Jakarta_Sans/PlusJakartaSans-VariableFont_wght.ttf
     # Calm Clinical design font. Bundled (never fetched at runtime) because
     # the app is local-first. See design/dashboard-redesign/DESIGN_SPEC.md.
     - family: Geist

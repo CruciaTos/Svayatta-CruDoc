@@ -14,7 +14,9 @@ function getGeminiApiKey(): string {
   return envVal.trim();
 }
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+// gemini-2.0-flash was shut down on 1 Jun 2026; the app uses the same model
+// (GeminiJsonClient.fallbackModel).
+const GEMINI_MODEL = "gemini-3.5-flash";
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /**

@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/core/services/api_usage_service.dart';
+import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 
 /// Exception thrown when audio recording or transcription fails.
 class VoiceTranscriptionException implements Exception {
@@ -30,7 +31,8 @@ class VoiceTranscriptionService {
   String? _currentAudioPath;
   DateTime? _recordingStartTime;
 
-  static const String _model = 'gemini-2.0-flash';
+  // gemini-2.0-flash was shut down on 1 Jun 2026; every call to it failed.
+  static const String _model = GeminiJsonClient.fallbackModel;
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 

@@ -5,6 +5,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/core/services/api_usage_service.dart';
+import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 
 /// Service that leverages Gemini 2.0 Flash to extract structured homeopathic case
 /// data (Chief complaint, Modalities, Generals, Physicals, Mind, Totality, Remedy)
@@ -13,7 +14,8 @@ class HomeopathyVoiceScribeService {
   HomeopathyVoiceScribeService._();
   static final instance = HomeopathyVoiceScribeService._();
 
-  static const String _model = 'gemini-2.0-flash';
+  // gemini-2.0-flash was shut down on 1 Jun 2026; every call to it failed.
+  static const String _model = GeminiJsonClient.fallbackModel;
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 

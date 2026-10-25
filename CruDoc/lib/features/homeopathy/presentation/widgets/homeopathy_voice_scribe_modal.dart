@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/services/voice_transcription_service.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/services/homeopathy_voice_scribe_service.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Full case consultation voice scribe modal.
 ///
-/// Records consultation narrative, transcribes via Gemini 2.0 Flash,
+/// Records consultation narrative, transcribes it with Gemini,
 /// extracts homeopathic clinical totality, and returns a populated
 /// [HomeopathyCaseSheet].
 class HomeopathyVoiceScribeModal extends StatefulWidget {
@@ -208,233 +209,179 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.cru;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: const [],
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
-      padding: EdgeInsets.fromLTRB(24, 16, 24, 28 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        CruSpace.s24,
+        CruSpace.s16,
+        CruSpace.s24,
+        CruSpace.s24 + bottomInset,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Drag handle
           Center(
             child: Container(
-              width: 48,
-              height: 4,
+              width: CruSpace.s32 + CruSpace.s16,
+              height: CruSpace.s4,
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(2),
+                color: c.track,
+                borderRadius: BorderRadius.circular(CruRadius.full),
               ),
             ),
           ),
-          const SizedBox(height: 18),
-
-          // Header
+          const SizedBox(height: CruSpace.s16),
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                width: CruSize.iconTile,
+                height: CruSize.iconTile,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF059669), Color(0xFF34D399)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  color: c.aiTint,
+                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
                 ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
+                child: Center(child: CruIcon(CruIcons.sparkle, color: c.ai)),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: CruSpace.s12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'AI Voice Case Scribe',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF059669),
-                      ),
+                      'AI case scribe',
+                      style: CruType.headline.tint(c.label),
                     ),
+                    const SizedBox(height: CruSpace.s2),
                     Text(
-                      'Speak entire consultation or case story in one go',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
+                      'Speak the whole consultation or case story in one go.',
+                      style: CruType.caption.tint(c.label2),
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
+              CruIconButton(
+                icon: CruIcons.close,
                 onPressed: _cancelRecording,
+                semanticLabel: 'Close',
               ),
             ],
           ),
-
-          const SizedBox(height: 24),
-
-          if (_isRecording) ...[
-            _buildRecordingUI(theme),
-          ] else if (_isProcessing) ...[
-            _buildProcessingUI(theme),
-          ] else if (_errorMessage != null) ...[
-            _buildErrorUI(theme),
-          ],
+          const SizedBox(height: CruSpace.s24),
+          if (_isRecording)
+            _buildRecordingUI(c)
+          else if (_isProcessing)
+            _buildProcessingUI(c)
+          else if (_errorMessage != null)
+            _buildErrorUI(c),
         ],
       ),
     );
   }
 
-  Widget _buildRecordingUI(ThemeData theme) {
+  Widget _buildRecordingUI(CruColors c) {
     return Column(
       children: [
-        // Waveform
-        Container(
+        // Live level bars in Ink Blue, the "now" colour.
+        SizedBox(
           height: 72,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: List.generate(9, (i) {
-              final barHeight = 16.0 + (_amplitudeBars[i] * 50.0);
+              final barHeight = CruSpace.s16 + (_amplitudeBars[i] * 50.0);
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 90),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: 7,
+                margin: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
+                width: CruSpace.s6,
                 height: barHeight,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF059669), Color(0xFF6EE7B7)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                  borderRadius: BorderRadius.circular(4),
+                  color: c.accent,
+                  borderRadius: BorderRadius.circular(CruRadius.full),
                 ),
               );
             }),
           ),
         ),
-        const SizedBox(height: 16),
-
-        // Live recording badge
+        const SizedBox(height: CruSpace.s16),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s16,
+            vertical: CruSpace.s8,
+          ),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+            color: c.accentWash,
+            borderRadius: BorderRadius.circular(CruRadius.full),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.red,
+                width: CruSize.statusDot,
+                height: CruSize.statusDot,
+                decoration: BoxDecoration(
+                  color: c.accent,
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: CruSpace.s8),
               Text(
-                'Recording Consultation • $_formattedTimer',
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+                'Recording · $_formattedTimer',
+                style: CruType.callout.w600.tabular.tint(c.accentText),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-
-        // Spoken guide tips
+        const SizedBox(height: CruSpace.s16),
         Container(
-          padding: const EdgeInsets.all(12),
+          width: double.infinity,
+          padding: const EdgeInsets.all(CruSpace.s12),
           decoration: BoxDecoration(
-            color: const Color(0xFF059669).withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: const Color(0xFF059669).withValues(alpha: 0.15),
-            ),
+            color: c.inset,
+            borderRadius: BorderRadius.circular(CruRadius.control),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Tip: Mention any of the following naturally:',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.green.shade800,
-                ),
+                'Mention any of these naturally:',
+                style: CruType.caption.w600.tint(c.label),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: CruSpace.s4),
               Text(
-                '• Chief complaints, sensations, locations & durations\n'
-                '• Modalities (worse at 3 PM, heat, cold drinks)\n'
-                '• Thermals (chilly / hot), thirst manner & food cravings\n'
-                '• Mind, fears, anxiety, family/work stress\n'
-                '• Remedy considered, potency & dose',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.green.shade900.withValues(alpha: 0.8),
-                  height: 1.4,
-                ),
+                [
+                  '• Chief complaints, sensations, locations and durations',
+                  '• Modalities (worse at 3 PM, heat, cold drinks)',
+                  '• Thermals (chilly or hot), thirst and food cravings',
+                  '• Mind, fears, anxiety, family or work stress',
+                  '• Remedy considered, potency and dose',
+                ].join('\n'),
+                style: CruType.caption.tint(c.label2),
               ),
             ],
           ),
         ),
-
-        const SizedBox(height: 24),
-
+        const SizedBox(height: CruSpace.s24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton.icon(
+            CruButton(
+              label: 'Cancel',
+              kind: CruButtonKind.secondary,
               onPressed: _cancelRecording,
-              icon: const Icon(Icons.close_rounded, size: 18),
-              label: const Text('Cancel'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
+            const SizedBox(width: CruSpace.s12),
+            CruButton(
+              label: 'Finish and fill',
+              icon: CruIcons.sparkle,
               onPressed: _stopAndProcess,
-              icon: const Icon(Icons.auto_awesome_rounded, size: 20),
-              label: const Text('Finish & Auto-Fill'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF059669),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                elevation: 0,
-              ),
             ),
           ],
         ),
@@ -442,41 +389,30 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
     );
   }
 
-  Widget _buildProcessingUI(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 36),
+  Widget _buildProcessingUI(CruColors c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: CruSpace.s32),
       child: Column(
         children: [
-          const SizedBox(
-            width: 52,
-            height: 52,
-            child: CircularProgressIndicator(
-              strokeWidth: 4,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
-            ),
+          SizedBox.square(
+            dimension: CruSpace.s32 + CruSpace.s16,
+            child: CircularProgressIndicator(strokeWidth: 3, color: c.ai),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: CruSpace.s24),
           Text(
-            'Analyzing with Gemini 2.0 Flash',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            'Reading the consultation',
+            style: CruType.headline.tint(c.label),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CruSpace.s8),
           Text(
             _processingStage,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF059669),
-              fontWeight: FontWeight.w500,
-            ),
+            style: CruType.caption.w500.tint(c.ai),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: CruSpace.s6),
           Text(
-            'Synthesizing totality, modalities, generals, and mental rubrics...',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.6),
-            ),
+            'Totality, modalities, generals and mental rubrics.',
+            style: CruType.caption.tint(c.label2),
             textAlign: TextAlign.center,
           ),
         ],
@@ -484,50 +420,43 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
     );
   }
 
-  Widget _buildErrorUI(ThemeData theme) {
+  Widget _buildErrorUI(CruColors c) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          width: double.infinity,
+          padding: const EdgeInsets.all(CruSpace.s14),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+            color: c.inset,
+            borderRadius: BorderRadius.circular(CruRadius.control),
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                color: Colors.red,
-                size: 22,
-              ),
-              const SizedBox(width: 10),
+              CruIcon(CruIcons.warning, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Text(
-                  _errorMessage ?? 'An error occurred during processing.',
-                  style: const TextStyle(fontSize: 13, color: Colors.red),
+                  _errorMessage ?? 'Something went wrong while processing.',
+                  style: CruType.text.tint(c.label),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: CruSpace.s20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton(
+            CruButton(
+              label: 'Cancel',
+              kind: CruButtonKind.secondary,
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
+            const SizedBox(width: CruSpace.s12),
+            CruButton(
+              label: 'Try again',
+              icon: CruIcons.mic,
               onPressed: _startRecording,
-              icon: const Icon(Icons.mic_rounded, size: 18),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF059669),
-                foregroundColor: Colors.white,
-              ),
             ),
           ],
         ),

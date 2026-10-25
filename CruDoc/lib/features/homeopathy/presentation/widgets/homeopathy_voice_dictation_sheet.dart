@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/services/voice_transcription_service.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Modal bottom sheet for hands-free voice dictation into a specific clinical field.
 class HomeopathyVoiceDictationSheet extends StatefulWidget {
@@ -38,9 +39,6 @@ class HomeopathyVoiceDictationSheet extends StatefulWidget {
 class _HomeopathyVoiceDictationSheetState
     extends State<HomeopathyVoiceDictationSheet>
     with TickerProviderStateMixin {
-  static const Color _primaryGreen = Color(0xFF059669);
-  static const Color _lightGreen = Color(0xFF6EE7B7);
-
   final _transcriptionService = VoiceTranscriptionService.instance;
   final TextEditingController _textController = TextEditingController();
 
@@ -210,207 +208,156 @@ class _HomeopathyVoiceDictationSheetState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.cru;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: const [],
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
-      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        CruSpace.s20,
+        CruSpace.s16,
+        CruSpace.s20,
+        CruSpace.s20 + bottomInset,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Drag handle
           Center(
             child: Container(
-              width: 44,
-              height: 4,
+              width: CruSpace.s32 + CruSpace.s12,
+              height: CruSpace.s4,
               decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(2),
+                color: c.track,
+                borderRadius: BorderRadius.circular(CruRadius.full),
               ),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Header
+          const SizedBox(height: CruSpace.s16),
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: CruSize.iconTile,
+                height: CruSize.iconTile,
                 decoration: BoxDecoration(
-                  color: _primaryGreen.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  color: c.inset,
+                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
                 ),
-                child: const Icon(
-                  Icons.mic_rounded,
-                  color: _primaryGreen,
-                  size: 20,
-                ),
+                child: Center(child: CruIcon(CruIcons.mic, color: c.label2)),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: CruSpace.s12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Voice Dictation',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: _primaryGreen,
-                      ),
-                    ),
+                    Text('Dictate', style: CruType.headline.tint(c.label)),
                     Text(
                       widget.fieldName,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color?.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
+                      style: CruType.caption.tint(c.label2),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded),
+              CruIconButton(
+                icon: CruIcons.close,
                 onPressed: _cancelRecording,
-                tooltip: 'Close',
+                semanticLabel: 'Close',
               ),
             ],
           ),
-
-          const SizedBox(height: 20),
-
-          // State-specific UI
-          if (_isListening) ...[
-            // Listening mode
-            _buildListeningUI(theme),
-          ] else if (_isTranscribing) ...[
-            // Transcribing mode
-            _buildTranscribingUI(theme),
-          ] else if (_errorMessage != null) ...[
-            // Error mode
-            _buildErrorUI(theme),
-          ] else ...[
-            // Review & edit mode
-            _buildReviewUI(theme),
-          ],
+          const SizedBox(height: CruSpace.s20),
+          if (_isListening)
+            _buildListeningUI(c)
+          else if (_isTranscribing)
+            _buildTranscribingUI(c)
+          else if (_errorMessage != null)
+            _buildErrorUI(c)
+          else
+            _buildReviewUI(c),
         ],
       ),
     );
   }
 
-  Widget _buildListeningUI(ThemeData theme) {
+  Widget _buildListeningUI(CruColors c) {
     return Column(
       children: [
-        // Waveform bars
-        Container(
+        // Live level bars in Ink Blue, the "now" colour.
+        SizedBox(
           height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: List.generate(7, (i) {
-              final barHeight = 14.0 + (_amplitudeBars[i] * 42.0);
+              final barHeight = CruSpace.s14 + (_amplitudeBars[i] * 42.0);
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 90),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: 6,
+                margin: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
+                width: CruSpace.s6,
                 height: barHeight,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [_primaryGreen, _lightGreen],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
-                  borderRadius: BorderRadius.circular(3),
+                  color: c.accent,
+                  borderRadius: BorderRadius.circular(CruRadius.full),
                 ),
               );
             }),
           ),
         ),
-        const SizedBox(height: 12),
-
-        // Live timer
+        const SizedBox(height: CruSpace.s12),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s14,
+            vertical: CruSpace.s6,
+          ),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.25)),
+            color: c.accentWash,
+            borderRadius: BorderRadius.circular(CruRadius.full),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.red,
+                width: CruSize.smallDot,
+                height: CruSize.smallDot,
+                decoration: BoxDecoration(
+                  color: c.accent,
                   shape: BoxShape.circle,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: CruSpace.s8),
               Text(
-                'Listening • $_formattedTimer',
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+                'Listening · $_formattedTimer',
+                style: CruType.caption.w600.tabular.tint(c.accentText),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s10),
         Text(
-          'Speak clinical symptoms, modalities, or mental rubrics clearly...',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.65),
-          ),
+          'Speak symptoms, modalities or mental rubrics clearly.',
+          style: CruType.caption.tint(c.label2),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 20),
-
-        // Done button
+        const SizedBox(height: CruSpace.s20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton.icon(
+            CruButton(
+              label: 'Cancel',
+              kind: CruButtonKind.secondary,
               onPressed: _cancelRecording,
-              icon: const Icon(Icons.close_rounded, size: 18),
-              label: const Text('Cancel'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
+            const SizedBox(width: CruSpace.s12),
+            CruButton(
+              label: 'Done',
+              icon: CruIcons.check,
               onPressed: _stopAndTranscribe,
-              icon: const Icon(Icons.check_rounded, size: 20),
-              label: const Text('Done Speaking'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
           ],
         ),
@@ -418,82 +365,64 @@ class _HomeopathyVoiceDictationSheetState
     );
   }
 
-  Widget _buildTranscribingUI(ThemeData theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+  Widget _buildTranscribingUI(CruColors c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: CruSpace.s32),
       child: Column(
         children: [
-          const SizedBox(
-            width: 44,
-            height: 44,
-            child: CircularProgressIndicator(
-              strokeWidth: 3.5,
-              valueColor: AlwaysStoppedAnimation<Color>(_primaryGreen),
-            ),
+          SizedBox.square(
+            dimension: CruSpace.s32 + CruSpace.s12,
+            child: CircularProgressIndicator(strokeWidth: 3, color: c.ai),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: CruSpace.s20),
+          Text('Writing it down…', style: CruType.callout.w600.tint(c.label)),
+          const SizedBox(height: CruSpace.s6),
           Text(
-            'Transcribing with Gemini AI...',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Converting speech to precise clinical terminology',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.65),
-            ),
+            'Turning speech into clinical wording.',
+            style: CruType.caption.tint(c.label2),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorUI(ThemeData theme) {
+  Widget _buildErrorUI(CruColors c) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          width: double.infinity,
+          padding: const EdgeInsets.all(CruSpace.s14),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+            color: c.inset,
+            borderRadius: BorderRadius.circular(CruRadius.control),
           ),
           child: Row(
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                color: Colors.red,
-                size: 22,
-              ),
-              const SizedBox(width: 10),
+              CruIcon(CruIcons.warning, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Text(
-                  _errorMessage ?? 'An error occurred during transcription.',
-                  style: const TextStyle(fontSize: 13, color: Colors.red),
+                  _errorMessage ?? 'Something went wrong while writing it down.',
+                  style: CruType.text.tint(c.label),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: CruSpace.s20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            OutlinedButton(
+            CruButton(
+              label: 'Cancel',
+              kind: CruButtonKind.secondary,
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
+            const SizedBox(width: CruSpace.s12),
+            CruButton(
+              label: 'Try again',
+              icon: CruIcons.mic,
               onPressed: _startListening,
-              icon: const Icon(Icons.mic_rounded, size: 18),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
-                foregroundColor: Colors.white,
-              ),
             ),
           ],
         ),
@@ -501,78 +430,37 @@ class _HomeopathyVoiceDictationSheetState
     );
   }
 
-  Widget _buildReviewUI(ThemeData theme) {
+  Widget _buildReviewUI(CruColors c) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Transcribed Clinical Note',
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: _primaryGreen,
-          ),
+          'What was heard',
+          style: CruType.caption.w600.tint(c.label2),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: CruSpace.s8),
         TextField(
           controller: _textController,
           maxLines: 4,
-          style: const TextStyle(fontSize: 14),
-          decoration: InputDecoration(
-            hintText: 'Transcribed symptom text...',
-            filled: true,
-            fillColor: theme.cardColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey.withValues(alpha: 0.25),
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey.withValues(alpha: 0.25),
-              ),
-            ),
-            focusedBorder: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(color: _primaryGreen, width: 1.5),
-            ),
-          ),
+          style: CruType.input.tint(c.label),
+          decoration: const InputDecoration(hintText: 'Dictated text'),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: CruSpace.s16),
         Row(
           children: [
-            IconButton(
+            CruCapsuleButton(
+              label: 'Record again',
+              icon: CruIcons.mic,
               onPressed: _startListening,
-              icon: const Icon(Icons.mic_rounded),
-              tooltip: 'Re-record',
-              style: IconButton.styleFrom(
-                backgroundColor: _primaryGreen.withValues(alpha: 0.1),
-                foregroundColor: _primaryGreen,
-              ),
             ),
             const Spacer(),
-            TextButton(
+            CruButton(
+              label: 'Discard',
+              kind: CruButtonKind.secondary,
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Discard'),
             ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: _confirmInsert,
-              icon: const Icon(Icons.done_rounded, size: 18),
-              label: const Text('Insert into Field'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primaryGreen,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-              ),
-            ),
+            const SizedBox(width: CruSpace.s8),
+            CruButton(label: 'Insert', onPressed: _confirmInsert),
           ],
         ),
       ],

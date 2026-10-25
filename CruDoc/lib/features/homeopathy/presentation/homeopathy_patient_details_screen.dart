@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/services/access_audit_service.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
-import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/schedule_visit_sheet.dart';
@@ -16,20 +14,12 @@ import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_case_taking_sheet.dart';
 import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/session_history_card.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 
-const Color _accentEmerald = Color(0xFF059669);
-const Color _accentEmeraldLight = Color(0xFFD1FAE5);
-
-BoxDecoration _cardDecoration(CruColors c, {BorderRadius? radius}) {
-  return BoxDecoration(
-    color: c.surface,
-    borderRadius: radius ?? BorderRadius.circular(16),
-    border: Border.all(color: c.separator),
-    boxShadow: const [],
-  );
-}
+/// Widest the page grows on desktop; it reads as a column, not a sheet.
+const double _maxWidth = 760;
 
 class HomeopathyPatientDetailsScreen extends ConsumerStatefulWidget {
   final Patient patient;
@@ -60,14 +50,16 @@ class _HomeopathyPatientDetailsScreenState
       useSafeArea: true,
       backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 14,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          left: CruSpace.s20,
+          right: CruSpace.s20,
+          top: CruSpace.s14,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + CruSpace.s20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -75,83 +67,31 @@ class _HomeopathyPatientDetailsScreenState
           children: [
             Center(
               child: Container(
-                width: 44,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
+                width: CruSpace.s32 + CruSpace.s12,
+                height: CruSpace.s4,
+                margin: const EdgeInsets.only(bottom: CruSpace.s16),
                 decoration: ShapeDecoration(
                   color: c.track,
                   shape: cruShape(CruRadius.full),
                 ),
               ),
             ),
-            Text(
-              "Doctor's Note",
-              style: CruType.title2.tint(c.label),
-            ),
-            const SizedBox(height: 12),
+            Text("Doctor's note", style: CruType.title2.tint(c.label)),
+            const SizedBox(height: CruSpace.s12),
             TextField(
               controller: controller,
               maxLines: 5,
               autofocus: true,
-              style: TextStyle(color: c.label, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Add general clinical observations...',
-                hintStyle: TextStyle(color: c.label2.withValues(alpha: 0.6)),
-                filled: true,
-                fillColor: c.inset,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: c.separator),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: c.separator),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: c.accent, width: 1.5),
-                ),
+              style: CruType.input.tint(c.label),
+              decoration: const InputDecoration(
+                hintText: 'General clinical observations',
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2563EB).withValues(alpha: 0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                  onTap: () => Navigator.pop(ctx, controller.text.trim()),
-                  child: const Center(
-                    child: Text(
-                      'Save Note',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            const SizedBox(height: CruSpace.s16),
+            CruButton(
+              label: 'Save note',
+              expand: true,
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
             ),
           ],
         ),
@@ -197,24 +137,22 @@ class _HomeopathyPatientDetailsScreenState
   Future<void> _deletePatient(Patient currentPatient) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.cru.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Delete Patient Record'),
-        content: Text(
-          'Are you sure you want to delete ${currentPatient.fullName}?',
+      builder: (ctx) => CruFormDialog(
+        title: 'Delete ${currentPatient.fullName}?',
+        leading: const CruIconTile(
+          icon: CruIcons.warning,
+          tone: CruTileTone.neutral,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+        submitLabel: 'Delete',
+        onSubmit: () => Navigator.of(ctx).pop(true),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+          child: Text(
+            'Their record, case sheet and visit history are removed from '
+            'this clinic.',
+            style: CruType.text.tint(ctx.cru.label2),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -247,197 +185,199 @@ class _HomeopathyPatientDetailsScreenState
     final sessions =
         ref.watch(sessionHistoryProvider(patient.id)).value ?? const [];
 
+    Widget centred(Widget child) => Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _maxWidth),
+        child: child,
+      ),
+    );
+
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: ShellBackground(
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              // Top Bar
+      backgroundColor: c.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            centred(
               _HomeopathyTopBar(
-                patient: patient,
                 onEdit: () => _editPatient(patient),
                 onDelete: () => _deletePatient(patient),
               ),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 108),
-                  physics: const ClampingScrollPhysics(),
-                  children: [
-                    // Shared Patient Header
-                    _PatientHeaderCard(patient: patient),
-                    const SizedBox(height: 16),
-
-                    // Homeopathy Clinical Case Sheet Highlight Card
-                    caseSheetAsync.when(
-                      loading: () => Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: _cardDecoration(c),
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      error: (err, _) => Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: _cardDecoration(c),
-                        child: Text(
-                          'Error loading case sheet: $err',
-                          style: TextStyle(color: c.label),
-                        ),
-                      ),
-                      data: (caseSheet) => _HomeopathyCaseSheetCard(
-                        patient: patient,
-                        caseSheet: caseSheet,
-                        onOpenCaseTaking: () async {
-                          final updated = await HomeopathyCaseTakingSheet.show(
-                            context,
-                            patient: patient,
-                            initialCaseSheet: caseSheet,
-                          );
-                          if (updated == true && mounted) {
-                            ref.invalidate(
-                              homeopathyCaseSheetProvider(patient.id),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Consultations recorded with the AI scribe.
-                    if (sessions.isNotEmpty) ...[
-                      SessionHistoryCard(patient: patient, sessions: sessions),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Doctor's Common Note
-                    _HomeoDoctorsNoteCard(note: _note, onTap: _openNoteEditor),
-                    // Every file and report added for this patient.
-                    const SizedBox(height: 16),
-                    PatientFilesCard(patient: patient),
-                    const SizedBox(height: 20),
-
-                    // Contact Section
-                    const _SectionHeading(title: 'CONTACT & COMMUNICATION'),
-                    const SizedBox(height: 10),
-                    _ContactCard(phone: patient.phone, email: patient.email),
-                    const SizedBox(height: 20),
-
-                    // Session / Appointment History
-                    const _SectionHeading(title: 'CONSULTATION HISTORY'),
-                    const SizedBox(height: 10),
-                    visitsAsync.when(
-                      loading: () => Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: _cardDecoration(c),
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                      error: (e, st) => Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: _cardDecoration(c),
-                        child: Text(
-                          'Could not load consultation history',
-                          style: TextStyle(color: c.label),
-                        ),
-                      ),
-                      data: (visits) {
-                        if (visits.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 28,
-                              horizontal: 20,
-                            ),
-                            decoration: _cardDecoration(c),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.event_note_outlined,
-                                  size: 36,
-                                  color: c.label3,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'No Consultations Logged',
-                                  style: TextStyle(
-                                    fontFamily: AppColors.headingFontFamily,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: c.label,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Schedule the patient\'s first homeopathic consultation below.',
-                                  style: TextStyle(fontSize: 12, color: c.label2),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-
-                        return Column(
-                          children: visits.map((v) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: _VisitItemCard(
-                                visit: v,
-                                onTap: () => showSessionDetailsSheet(
-                                  context,
-                                  VisitWithPatient(visit: v, patient: patient),
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    ),
-                  ],
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  CruSpace.s20,
+                  CruSpace.s8,
+                  CruSpace.s20,
+                  108,
                 ),
+                physics: const ClampingScrollPhysics(),
+                children: [
+                  centred(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _PatientHeaderCard(patient: patient),
+                        const SizedBox(height: CruSpace.cardGap),
+                        caseSheetAsync.when(
+                          loading: () => const CruCard(
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          error: (err, _) => CruCard(
+                            child: Text(
+                              "Couldn't load the case sheet.",
+                              style: CruType.text.tint(c.label2),
+                            ),
+                          ),
+                          data: (caseSheet) => _HomeopathyCaseSheetCard(
+                            patient: patient,
+                            caseSheet: caseSheet,
+                            onOpenCaseTaking: () async {
+                              final updated =
+                                  await HomeopathyCaseTakingSheet.show(
+                                    context,
+                                    patient: patient,
+                                    initialCaseSheet: caseSheet,
+                                  );
+                              if (updated == true && mounted) {
+                                ref.invalidate(
+                                  homeopathyCaseSheetProvider(patient.id),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        // Consultations recorded with the AI scribe.
+                        if (sessions.isNotEmpty) ...[
+                          SessionHistoryCard(
+                            patient: patient,
+                            sessions: sessions,
+                          ),
+                          const SizedBox(height: CruSpace.cardGap),
+                        ],
+                        _HomeoDoctorsNoteCard(
+                          note: _note,
+                          onTap: _openNoteEditor,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        // Every file and report added for this patient.
+                        PatientFilesCard(patient: patient),
+                        const SizedBox(height: CruSpace.s20),
+                        const _SectionHeading(title: 'Contact'),
+                        const SizedBox(height: CruSpace.s10),
+                        _ContactCard(
+                          phone: patient.phone,
+                          email: patient.email,
+                        ),
+                        const SizedBox(height: CruSpace.s20),
+                        const _SectionHeading(title: 'Consultations'),
+                        const SizedBox(height: CruSpace.s10),
+                        visitsAsync.when(
+                          loading: () => const CruCard(
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                          error: (e, st) => CruCard(
+                            child: Text(
+                              "Couldn't load consultations.",
+                              style: CruType.text.tint(c.label2),
+                            ),
+                          ),
+                          data: (visits) {
+                            if (visits.isEmpty) {
+                              return CruCard(
+                                child: Column(
+                                  children: [
+                                    CruIcon(
+                                      CruIcons.calendar,
+                                      size: CruSpace.s32,
+                                      color: c.label3,
+                                    ),
+                                    const SizedBox(height: CruSpace.s8),
+                                    Text(
+                                      'No consultations yet',
+                                      style: CruType.callout.w600.tint(c.label),
+                                    ),
+                                    const SizedBox(height: CruSpace.s4),
+                                    Text(
+                                      'Book the first one below.',
+                                      style: CruType.caption.tint(c.label2),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return Column(
+                              children: [
+                                for (final v in visits)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: CruSpace.s8,
+                                    ),
+                                    child: _VisitItemCard(
+                                      visit: v,
+                                      onTap: () => showSessionDetailsSheet(
+                                        context,
+                                        VisitWithPatient(
+                                          visit: v,
+                                          patient: patient,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       bottomSheet: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(color: c.surface, boxShadow: const []),
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s16,
+          CruSpace.s12,
+          CruSpace.s16,
+          CruSpace.s16,
+        ),
+        decoration: BoxDecoration(
+          color: c.surface,
+          border: Border(top: BorderSide(color: c.hairline)),
+        ),
         child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    side: const BorderSide(color: Colors.transparent),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+          child: centred(
+            Row(
+              children: [
+                Expanded(
+                  child: CruButton(
+                    label: 'Add note',
+                    kind: CruButtonKind.secondary,
+                    expand: true,
+                    onPressed: _openNoteEditor,
                   ),
-                  icon: const Icon(Icons.note_add_outlined, size: 18),
-                  label: const Text('Add Note'),
-                  onPressed: _openNoteEditor,
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _accentEmerald,
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                const SizedBox(width: CruSpace.s10),
+                Expanded(
+                  child: CruButton(
+                    label: 'Book consultation',
+                    icon: CruIcons.calendar,
+                    expand: true,
+                    onPressed: _scheduleSession,
                   ),
-                  icon: const Icon(Icons.calendar_today_rounded, size: 18),
-                  label: const Text('Consultation'),
-                  onPressed: _scheduleSession,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -446,80 +386,45 @@ class _HomeopathyPatientDetailsScreenState
 }
 
 class _HomeopathyTopBar extends StatelessWidget {
-  final Patient patient;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _HomeopathyTopBar({
-    required this.patient,
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const _HomeopathyTopBar({required this.onEdit, required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s12,
+        vertical: CruSpace.s8,
+      ),
       child: Row(
         children: [
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back_rounded,
-              color: c.label,
-            ),
+          CruIconButton(
+            icon: CruIcons.chevronLeft,
             onPressed: () => Navigator.pop(context),
+            semanticLabel: 'Back',
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: CruSpace.s4),
           Expanded(
-            child: Text(
-              'Patient Details',
-              style: TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: c.label,
-              ),
-            ),
+            child: Text('Case sheet', style: CruType.title2.tint(c.label)),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: _accentEmeraldLight,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.spa_rounded, size: 14, color: _accentEmerald),
-                SizedBox(width: 4),
-                Text(
-                  'Homeopathy',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: _accentEmerald,
-                  ),
-                ),
-              ],
-            ),
+          CruPill(
+            text: 'Homeopathy',
+            background: c.inset,
+            foreground: c.label2,
           ),
-          const SizedBox(width: 6),
-          IconButton(
-            icon: Icon(
-              Icons.edit_outlined,
-              size: 20,
-              color: c.label2,
-            ),
+          const SizedBox(width: CruSpace.s6),
+          CruIconButton(
+            icon: CruIcons.pen,
             onPressed: onEdit,
+            semanticLabel: 'Edit patient',
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.delete_outline,
-              size: 20,
-              color: Colors.redAccent,
-            ),
+          CruIconButton(
+            icon: FileIcons.trash,
             onPressed: onDelete,
+            semanticLabel: 'Delete patient',
           ),
         ],
       ),
@@ -535,68 +440,40 @@ class _PatientHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(c),
+    return CruCard(
+      padding: const EdgeInsets.all(CruSpace.s16),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: _accentEmeraldLight,
-            child: Text(
-              patient.fullName.isNotEmpty
-                  ? patient.fullName[0].toUpperCase()
-                  : 'P',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: _accentEmerald,
-              ),
-            ),
+          CruMonogram(
+            name: patient.fullName,
+            size: CruSize.monogramUpNext,
+            background: c.track,
+            foreground: c.label2,
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: CruSpace.s14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(patient.fullName, style: CruType.headline.tint(c.label)),
+                const SizedBox(height: CruSpace.s2),
                 Text(
-                  patient.fullName,
-                  style: TextStyle(
-                    fontFamily: AppColors.headingFontFamily,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: c.label,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${patient.age} years • ${patient.gender}',
-                  style: TextStyle(fontSize: 12, color: c.label2),
+                  '${patient.age} years · ${patient.gender}',
+                  style: CruType.caption.tabular.tint(c.label2),
                 ),
                 if (patient.diagnosis.isNotEmpty) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: CruSpace.s6),
                   Wrap(
-                    spacing: 4,
-                    children: patient.diagnosis.map((d) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
+                    spacing: CruSpace.s4,
+                    runSpacing: CruSpace.s4,
+                    children: [
+                      for (final d in patient.diagnosis)
+                        CruPill(
+                          text: d,
+                          background: c.inset,
+                          foreground: c.label2,
                         ),
-                        decoration: BoxDecoration(
-                          color: c.inset,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          d,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: c.label3,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                    ],
                   ),
                 ],
               ],
@@ -623,191 +500,81 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final isFemale = patient.gender.toLowerCase().trim() == 'female';
-    final hasSheet = caseSheet != null;
-    final completedSections = hasSheet
-        ? caseSheet!.completedSectionsCount(isFemale: isFemale)
-        : 0;
-    final totalSections = hasSheet
-        ? caseSheet!.totalSectionsCount(isFemale: isFemale)
-        : (isFemale ? 15 : 14);
-    final remedy = caseSheet?.prescriptionNotes.prescribedRemedy.trim() ?? '';
+    final sheet = caseSheet;
+    final completedSections =
+        sheet?.completedSectionsCount(isFemale: isFemale) ?? 0;
+    final totalSections =
+        sheet?.totalSectionsCount(isFemale: isFemale) ?? (isFemale ? 15 : 14);
+    final remedy = sheet?.prescriptionNotes.prescribedRemedy.trim() ?? '';
     final thermal =
-        caseSheet?.generalSymptoms.thermalState ??
+        sheet?.generalSymptoms.thermalState ??
         HomeopathyThermalState.unspecified;
+    final done = sheet?.isCompleted ?? false;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: hasSheet
-              ? _accentEmerald.withValues(alpha: 0.35)
-              : c.separator,
-        ),
-        boxShadow: const [],
-      ),
+    Widget tag(String text) =>
+        CruPill(text: text, background: c.inset, foreground: c.label2);
+
+    return CruCard(
+      padding: const EdgeInsets.all(CruSpace.s16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: _accentEmeraldLight,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.menu_book_rounded,
-                      size: 18,
-                      color: _accentEmerald,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Clinical Case Sheet',
-                    style: TextStyle(
-                      fontFamily: AppColors.headingFontFamily,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: c.label,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color:
-                      hasSheet &&
-                          (caseSheet!.isCompleted || completedSections >= 8)
-                      ? _accentEmeraldLight
-                      : const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(6),
-                ),
+              CruIconTile(icon: CruIcons.fileText, tone: CruTileTone.neutral),
+              const SizedBox(width: CruSpace.s10),
+              Expanded(
                 child: Text(
-                  hasSheet
-                      ? (caseSheet!.isCompleted
-                            ? 'Complete'
-                            : '$completedSections/$totalSections Sections')
-                      : 'Not Started',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color:
-                        hasSheet &&
-                            (caseSheet!.isCompleted || completedSections >= 8)
-                        ? _accentEmerald
-                        : const Color(0xFFD97706),
-                  ),
+                  'Clinical case sheet',
+                  style: CruType.headline.tint(c.label),
                 ),
+              ),
+              CruPill(
+                text: sheet == null
+                    ? 'Not started'
+                    : done
+                    ? 'Complete'
+                    : '$completedSections of $totalSections sections',
+                // Green means done; anything short of that stays neutral.
+                background: done ? c.greenTint : c.inset,
+                foreground: done ? c.greenText : c.label2,
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (hasSheet && caseSheet!.overview.chiefProblem.isNotEmpty) ...[
+          const SizedBox(height: CruSpace.s12),
+          if (sheet != null && sheet.overview.chiefProblem.isNotEmpty) ...[
             Text(
-              'Chief Complaint: ${caseSheet!.overview.chiefProblem}',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.label,
-              ),
+              'Chief complaint: ${sheet.overview.chiefProblem}',
+              style: CruType.callout.w600.tint(c.label),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: CruSpace.s6),
           ],
           Wrap(
-            spacing: 6,
-            runSpacing: 4,
+            spacing: CruSpace.s6,
+            runSpacing: CruSpace.s4,
             children: [
-              if (hasSheet)
-                _buildMiniBadge(
-                  caseSheet!.overview.caseType.label,
-                  const Color(0xFFE0E7FF),
-                  const Color(0xFF4F46E5),
-                ),
+              if (sheet != null) tag(sheet.overview.caseType.label),
               if (thermal != HomeopathyThermalState.unspecified)
-                _buildMiniBadge(
-                  thermal.label,
-                  const Color(0xFFFEF3C7),
-                  const Color(0xFFB45309),
-                ),
-              if (remedy.isNotEmpty)
-                _buildMiniBadge(
-                  'Rx: $remedy',
-                  _accentEmeraldLight,
-                  _accentEmerald,
-                ),
-              if (hasSheet && caseSheet!.followUp.responseRating.isNotEmpty)
-                _buildMiniBadge(
-                  caseSheet!.followUp.responseRating,
-                  const Color(0xFFDCFCE7),
-                  const Color(0xFF15803D),
-                ),
-              if (hasSheet &&
-                  caseSheet!.followUp.nextPrescriptionPlan.isNotEmpty)
-                _buildMiniBadge(
-                  caseSheet!.followUp.nextPrescriptionPlan,
-                  const Color(0xFFF3E8FF),
-                  const Color(0xFF7E22CE),
-                ),
-              if (hasSheet &&
-                  caseSheet!.prescriptionNotes.totalityOfSymptoms.isNotEmpty)
-                _buildMiniBadge(
-                  'Totality Synthesized',
-                  const Color(0xFFFEE2E2),
-                  const Color(0xFFB91C1C),
-                ),
+                tag(thermal.label),
+              if (remedy.isNotEmpty) tag('Rx: $remedy'),
+              if (sheet != null && sheet.followUp.responseRating.isNotEmpty)
+                tag(sheet.followUp.responseRating),
+              if (sheet != null &&
+                  sheet.followUp.nextPrescriptionPlan.isNotEmpty)
+                tag(sheet.followUp.nextPrescriptionPlan),
+              if (sheet != null &&
+                  sheet.prescriptionNotes.totalityOfSymptoms.isNotEmpty)
+                tag('Totality written'),
             ],
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: _accentEmerald,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              icon: Icon(
-                hasSheet
-                    ? Icons.edit_note_rounded
-                    : Icons.add_circle_outline_rounded,
-                size: 18,
-              ),
-              label: Text(
-                hasSheet ? 'Review & Edit Case Sheet' : '📋 Start Case Taking',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              onPressed: onOpenCaseTaking,
-            ),
+          const SizedBox(height: CruSpace.s14),
+          CruButton(
+            label: sheet != null ? 'Review case sheet' : 'Start case taking',
+            icon: sheet != null ? CruIcons.pen : CruIcons.plus,
+            expand: true,
+            onPressed: onOpenCaseTaking,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildMiniBadge(String text, Color bg, Color textCol) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: textCol,
-        ),
       ),
     );
   }
@@ -824,46 +591,32 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
     final c = context.cru;
     final hasNote = note.trim().isNotEmpty;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
+    return CruPressable(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(c),
+      builder: (context, hovered) => CruCard(
+        padding: const EdgeInsets.all(CruSpace.s16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'DOCTOR\'S NOTE',
-                  style: TextStyle(
-                    fontFamily: AppColors.headingFontFamily,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: c.label2,
+                Expanded(
+                  child: Text(
+                    "DOCTOR'S NOTE",
+                    style: CruType.groupLabel.tint(c.label3),
                   ),
                 ),
-                Icon(
-                  hasNote ? Icons.edit_outlined : Icons.add_rounded,
-                  size: 16,
+                CruIcon(
+                  hasNote ? CruIcons.pen : CruIcons.plus,
+                  size: CruSpace.s16,
                   color: c.label2,
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: CruSpace.s8),
             Text(
-              hasNote
-                  ? note
-                  : 'Tap to add clinical notes or general observations...',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: hasNote ? c.label : c.label3,
-                fontStyle: hasNote ? FontStyle.normal : FontStyle.italic,
-              ),
+              hasNote ? note : 'Tap to add notes or general observations.',
+              style: CruType.text.tint(hasNote ? c.label : c.label3),
             ),
           ],
         ),
@@ -881,45 +634,27 @@ class _ContactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(c),
+    return CruCard(
+      padding: const EdgeInsets.all(CruSpace.s16),
       child: Column(
         children: [
           Row(
             children: [
-              Icon(
-                Icons.phone_outlined,
-                size: 18,
-                color: c.label3,
-              ),
-              const SizedBox(width: 10),
+              CruIcon(CruIcons.phone, size: CruSpace.s18, color: c.label3),
+              const SizedBox(width: CruSpace.s10),
               Text(
                 phone.isNotEmpty ? phone : 'No phone number',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: c.label,
-                ),
+                style: CruType.text.tabular.tint(c.label),
               ),
             ],
           ),
           if (email.isNotEmpty) ...[
-            Divider(height: 20, color: c.separator),
+            Divider(height: CruSpace.s20, color: c.separator),
             Row(
               children: [
-                Icon(
-                  Icons.email_outlined,
-                  size: 18,
-                  color: c.label3,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  email,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: c.label,
-                  ),
-                ),
+                Icon(Icons.email_outlined, size: CruSpace.s18, color: c.label3),
+                const SizedBox(width: CruSpace.s10),
+                Text(email, style: CruType.text.tint(c.label)),
               ],
             ),
           ],
@@ -938,65 +673,41 @@ class _VisitItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final dateFormat = DateFormat('EEE, d MMM yyyy • h:mm a');
-    final formattedDate = dateFormat.format(visit.scheduledStart);
+    final when = DateFormat(
+      'EEE, d MMM yyyy · h:mm a',
+    ).format(visit.scheduledStart);
+    final type = visit.treatmentType?.trim() ?? '';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    return CruPressable(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s14,
+          vertical: CruSpace.s12,
+        ),
         decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: c.separator),
+          color: hovered ? c.hoverFill : c.surface,
+          borderRadius: BorderRadius.circular(CruRadius.control),
+          border: Border.all(color: c.cardBorder),
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _accentEmeraldLight,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.medical_services_outlined,
-                size: 18,
-                color: _accentEmerald,
-              ),
-            ),
-            const SizedBox(width: 12),
+            CruIconTile(icon: CruIcons.calendar, tone: CruTileTone.neutral),
+            const SizedBox(width: CruSpace.s12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    (visit.treatmentType != null &&
-                            visit.treatmentType!.trim().isNotEmpty)
-                        ? visit.treatmentType!
-                        : 'Homeopathic Consultation',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: c.label,
-                    ),
+                    type.isNotEmpty ? type : 'Consultation',
+                    style: CruType.callout.w600.tint(c.label),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    formattedDate,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: c.label2,
-                    ),
-                  ),
+                  const SizedBox(height: CruSpace.s2),
+                  Text(when, style: CruType.caption.tabular.tint(c.label2)),
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: c.label2,
-              size: 18,
-            ),
+            CruIcon(CruIcons.chevronRight, size: CruSpace.s18, color: c.label3),
           ],
         ),
       ),
@@ -1011,16 +722,9 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     return Text(
-      title,
-      style: TextStyle(
-        fontFamily: AppColors.headingFontFamily,
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.0,
-        color: c.label2,
-      ),
+      title.toUpperCase(),
+      style: CruType.groupLabel.tint(context.cru.label3),
     );
   }
 }

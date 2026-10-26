@@ -14,6 +14,7 @@ import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
+import 'package:doctor_management_app/core/services/firestore_account_reset.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -123,6 +124,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _isLoading = true);
     User? user;
     try {
+      await FirestoreAccountReset.done;
       try {
         user = (await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: spec.demoEmail,
@@ -337,6 +339,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final startTime = DateTime.now();
 
     try {
+      // The previous person's Firestore must be gone first (Windows).
+      await FirestoreAccountReset.done;
       final userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -522,6 +526,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _isLoading = true);
 
     try {
+      await FirestoreAccountReset.done;
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
       if (credential.user != null) {
@@ -550,6 +555,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     setState(() => _isLoading = true);
 
     try {
+      await FirestoreAccountReset.done;
       final userCredential = await _authService.signInWithGoogle();
       final user = userCredential.user;
       if (user != null) {

@@ -214,7 +214,7 @@ class _DetailsBody extends ConsumerWidget {
             onRecordPayment: recordPayment,
           )
         : PaymentsCard(summary: s, onRecordPayment: recordPayment);
-    final notes = ClinicalNotesCard(summary: s, now: now);
+    final notes = clinical ? ClinicalNotesCard(summary: s, now: now) : null;
     // Dentists: the tooth chart, their procedures, and a way into a plan.
     final chart = isDentist ? ToothChartCard(patient: p) : null;
     final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
@@ -238,11 +238,9 @@ class _DetailsBody extends ConsumerWidget {
       now: now,
       onUpdate: (v) => PatientActions.updateVisit(context, v, p),
     );
-    final history = MedicalHistoryCard(
-      summary: s,
-      caseSheet: caseSheet,
-      onEdit: edit,
-    );
+    final history = clinical
+        ? MedicalHistoryCard(summary: s, caseSheet: caseSheet, onEdit: edit)
+        : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -264,9 +262,9 @@ class _DetailsBody extends ConsumerWidget {
                 onNewVisit: canBook ? newVisit : null,
                 onNewBill: canBill
                     ? () => showDesktopCreateInvoiceDialog(
-                          context,
-                          initialPatient: p,
-                        )
+                        context,
+                        initialPatient: p,
+                      )
                     : null,
                 onPrescription: canClinicalEdit
                     ? () {
@@ -352,7 +350,7 @@ class _DetailsBody extends ConsumerWidget {
                         ?muscleChart,
                         ?noPlan,
                         planOrPayments,
-                        notes,
+                        ?notes,
                       ]),
                     ),
                     const SizedBox(width: CruSpace.cardGap),
@@ -365,7 +363,7 @@ class _DetailsBody extends ConsumerWidget {
                         ?files,
                         ?physioPhotos,
                         visits,
-                        history,
+                        ?history,
                       ]),
                     ),
                   ],
@@ -384,8 +382,8 @@ class _DetailsBody extends ConsumerWidget {
                   ?files,
                   ?physioPhotos,
                   visits,
-                  notes,
-                  history,
+                  ?notes,
+                  ?history,
                 ]),
             ],
           ),

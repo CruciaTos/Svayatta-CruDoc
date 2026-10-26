@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/voice/domain/medical_conditions.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
@@ -114,6 +115,12 @@ class _DesktopAddEditPatientDialogState
   String? _notice;
 
   bool get _isEditing => widget.patient != null;
+
+  /// Conditions and notes, for people who may hold them. The front desk
+  /// enters them when registering someone, but doesn't see a patient's
+  /// existing ones (see ClinicSession.holdsClinicalFields).
+  bool get _showsClinical =>
+      !_isEditing || ClinicSession.instance.holdsClinicalFields;
 
   @override
   void initState() {
@@ -719,40 +726,41 @@ class _DesktopAddEditPatientDialogState
                 const _ReminderNotice(),
               ],
             ),
-            CruFormSection(
-              title: 'Clinical',
-              description: 'Shown on the profile and at every visit.',
-              children: [
-                CruTagField(
-                  label: 'Conditions',
-                  optional: true,
-                  values: _conditions,
-                  max: Patient.maxDiagnoses,
-                  hint: 'Type a condition and press Enter',
-                  suggestions: _commonConditions,
-                  onChanged: (v) {
-                    _conditions = v;
-                    _baseConditions = List.of(_conditions);
-                    _edited();
-                  },
-                  aiRevealKey: _revealConditions,
-                  aiPending: _pendingConditions,
-                  aiStagger: const Duration(milliseconds: 360),
-                ),
-                CruTextField(
-                  label: 'Notes',
-                  optional: true,
-                  controller: _notes,
-                  maxLines: 4,
-                  hint: 'Allergies, regular medicines, past surgeries…',
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: _edited,
-                  aiRevealKey: _revealNotes,
-                  aiPending: _pendingNotes,
-                  aiStagger: const Duration(milliseconds: 420),
-                ),
-              ],
-            ),
+            if (_showsClinical)
+              CruFormSection(
+                title: 'Clinical',
+                description: 'Shown on the profile and at every visit.',
+                children: [
+                  CruTagField(
+                    label: 'Conditions',
+                    optional: true,
+                    values: _conditions,
+                    max: Patient.maxDiagnoses,
+                    hint: 'Type a condition and press Enter',
+                    suggestions: _commonConditions,
+                    onChanged: (v) {
+                      _conditions = v;
+                      _baseConditions = List.of(_conditions);
+                      _edited();
+                    },
+                    aiRevealKey: _revealConditions,
+                    aiPending: _pendingConditions,
+                    aiStagger: const Duration(milliseconds: 360),
+                  ),
+                  CruTextField(
+                    label: 'Notes',
+                    optional: true,
+                    controller: _notes,
+                    maxLines: 4,
+                    hint: 'Allergies, regular medicines, past surgeries…',
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: _edited,
+                    aiRevealKey: _revealNotes,
+                    aiPending: _pendingNotes,
+                    aiStagger: const Duration(milliseconds: 420),
+                  ),
+                ],
+              ),
             CruFormSection(
               title: 'Account',
               description: 'Prepaid package or advance paid by the patient.',

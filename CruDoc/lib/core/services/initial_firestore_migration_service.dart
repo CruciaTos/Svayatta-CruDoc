@@ -268,8 +268,13 @@ class InitialFirestoreMigrationService {
           'email': data['email'] as String? ?? '',
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          'diagnosis': _decryptDiagnosisForSqlite(data['diagnosis']),
-          'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
+          // Kept off the device of anyone without clinical access.
+          'diagnosis': ClinicSession.instance.holdsClinicalFields
+              ? _decryptDiagnosisForSqlite(data['diagnosis'])
+              : '[]',
+          'notes': ClinicSession.instance.holdsClinicalFields
+              ? FieldCipher.decrypt(data['notes'] as String? ?? '')
+              : '',
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

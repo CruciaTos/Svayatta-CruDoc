@@ -166,6 +166,14 @@ class PatientRepository {
       ..['updatedAt'] = DateTime.now()
       // doctorId is set once at creation and must never change on update.
       ..remove('doctorId');
+    // Someone without clinical access never sees the real notes and
+    // conditions, so whatever their form holds for them would overwrite
+    // the patient's (see ClinicSession.holdsClinicalFields).
+    if (!ClinicSession.instance.holdsClinicalFields) {
+      localData
+        ..remove('diagnosis')
+        ..remove('notes');
+    }
 
     if (kIsWeb) {
       if (!FieldCipher.isReady) {

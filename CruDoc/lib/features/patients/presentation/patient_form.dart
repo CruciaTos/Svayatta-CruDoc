@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
@@ -61,9 +62,14 @@ class PatientForm extends StatefulWidget {
     this.initialPackageBalance,
     this.enableVoiceFill = false,
     this.voiceFillService,
+    this.showDiagnosis = true,
   });
 
   final GlobalKey<FormState> formKey;
+
+  /// False hides the diagnosis fields and hands back [initialDiagnoses]
+  /// untouched, for someone editing a patient without clinical access.
+  final bool showDiagnosis;
 
   /// Shows the "Fill by voice" mic strip above the fields.
   final bool enableVoiceFill;
@@ -219,7 +225,7 @@ class PatientFormState extends State<PatientForm> {
         .take(_maxDiagnoses)
         .toList();
 
-    if (diagnoses.isEmpty) {
+    if (diagnoses.isEmpty && widget.showDiagnosis) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter at least one diagnosis')),
       );
@@ -234,7 +240,9 @@ class PatientFormState extends State<PatientForm> {
         email: _emailController.text.trim(),
         gender: _gender,
         dateOfBirth: _dateOfBirth!,
-        diagnosis: diagnoses,
+        diagnosis: widget.showDiagnosis
+            ? diagnoses
+            : List.of(widget.initialDiagnoses ?? const <String>[]),
         packageBalance:
             double.tryParse(_packageBalanceController.text.trim()) ?? 0.0,
       ),
@@ -332,28 +340,30 @@ class PatientFormState extends State<PatientForm> {
           const _SectionLabel(text: 'Date of Birth'),
           const SizedBox(height: 8),
           _DateOfBirthField(date: _dateOfBirth, onTap: _pickDateOfBirth),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const _SectionLabel(text: 'Diagnosis'),
-              Text(
-                '${_diagnosisControllers.length}/$_maxDiagnoses',
-                style: CruType.caption.tabular.tint(context.cru.label3),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (var i = 0; i < _diagnosisControllers.length; i++)
-            _DiagnosisFieldRow(
-              index: i,
-              controller: _diagnosisControllers[i],
-              canRemove: _diagnosisControllers.length > 1,
-              onRemove: () => _removeDiagnosisField(i),
+          if (widget.showDiagnosis) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const _SectionLabel(text: 'Diagnosis'),
+                Text(
+                  '${_diagnosisControllers.length}/$_maxDiagnoses',
+                  style: CruType.caption.tabular.tint(context.cru.label3),
+                ),
+              ],
             ),
-          if (_diagnosisControllers.length < _maxDiagnoses) ...[
-            const SizedBox(height: 4),
-            _AddDiagnosisButton(onTap: _addDiagnosisField),
+            const SizedBox(height: 8),
+            for (var i = 0; i < _diagnosisControllers.length; i++)
+              _DiagnosisFieldRow(
+                index: i,
+                controller: _diagnosisControllers[i],
+                canRemove: _diagnosisControllers.length > 1,
+                onRemove: () => _removeDiagnosisField(i),
+              ),
+            if (_diagnosisControllers.length < _maxDiagnoses) ...[
+              const SizedBox(height: 4),
+              _AddDiagnosisButton(onTap: _addDiagnosisField),
+            ],
           ],
           const SizedBox(height: 16),
           _FormField(
@@ -568,7 +578,12 @@ class _DateOfBirthField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CruIcon(CruIcons.calendar, size: 17, strokeWidth: 2, color: c.label3),
+            CruIcon(
+              CruIcons.calendar,
+              size: 17,
+              strokeWidth: 2,
+              color: c.label3,
+            ),
             const SizedBox(width: CruSpace.s10),
             Expanded(
               child: Text(
@@ -606,9 +621,7 @@ Future<bool?> showAddPatientSheet(
     useSafeArea: true,
     backgroundColor: Colors.transparent,
     shape: const RoundedSuperellipseBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(CruRadius.card),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(CruRadius.card)),
     ),
     builder: (_) => AddPatientSheet(repository: repository),
   );
@@ -633,9 +646,7 @@ Future<bool?> showEditPatientSheet(
     useSafeArea: true,
     backgroundColor: Colors.transparent,
     shape: const RoundedSuperellipseBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(CruRadius.card),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(CruRadius.card)),
     ),
     builder: (_) => EditPatientSheet(patient: patient, repository: repository),
   );
@@ -809,9 +820,7 @@ class _SheetHeader extends StatelessWidget {
           child: CruIcon(icon, size: 18, color: c.label2),
         ),
         const SizedBox(width: CruSpace.s12),
-        Expanded(
-          child: Text(title, style: CruType.title2.tint(c.label)),
-        ),
+        Expanded(child: Text(title, style: CruType.title2.tint(c.label))),
         CruIconButton(
           icon: CruIcons.close,
           semanticLabel: 'Close',
@@ -935,6 +944,8 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                           initialGender: widget.patient.gender,
                           initialDateOfBirth: widget.patient.dateOfBirth,
                           initialDiagnoses: widget.patient.diagnosis,
+                          showDiagnosis:
+                              ClinicSession.instance.holdsClinicalFields,
                           initialPackageBalance: widget.patient.packageBalance,
                           onSubmit: _handleSubmit,
                         ),

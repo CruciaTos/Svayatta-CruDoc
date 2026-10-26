@@ -197,6 +197,7 @@ class FirestoreSyncService {
       }
     });
 
+    await _scrubClinicalFields();
     final doctorId = _currentDoctorId;
     if (doctorId != null) {
       _startLiveSubscriptions(doctorId);
@@ -215,7 +216,9 @@ class FirestoreSyncService {
       // Drop what this person may no longer read before listening again, so
       // a demotion takes effect on this device and not just on the server.
       unawaited(
-        _purgeUnreadableCollections().then((_) {
+        _purgeUnreadableCollections()
+            .then((_) => _scrubClinicalFields())
+            .then((_) {
           _startLiveSubscriptions(id);
           return synchronize();
         }),
@@ -303,6 +306,37 @@ class FirestoreSyncService {
         if (!serverIds.contains(row['id']) && row['syncStatus'] == 'synced')
           row['id']! as String,
     };
+  }
+
+  /// Whether a patient upload leaves out notes and conditions.
+  ///
+  /// Someone without clinical access never holds the real values (see
+  /// ClinicSession.holdsClinicalFields), so sending theirs would blank the
+  /// patient's on the server; the upload is a merge, so leaving them out
+  /// keeps the server's. Except a patient's first upload: the front desk
+  /// enters the condition when registering someone.
+  @visibleForTesting
+  static bool omitsClinicalFields(
+    Map<String, Object?> row,
+    bool holdsClinicalFields,
+  ) => !holdsClinicalFields && row['lastSyncedAt'] != null;
+
+  /// Blanks notes and conditions already on this device when the signed-in
+  /// person may not hold them, keeping a new patient's that hasn't gone up.
+  Future<void> _scrubClinicalFields() async {
+    if (ClinicSession.instance.holdsClinicalFields) return;
+    try {
+      final db = await _databaseService.localDatabase;
+      final changed = await db.update(
+        'patients',
+        {'diagnosis': '[]', 'notes': ''},
+        where:
+            "lastSyncedAt IS NOT NULL AND (notes != '' OR diagnosis != '[]')",
+      );
+      if (changed > 0) _notifyTableChanged('patients');
+    } catch (e) {
+      debugPrint('Clearing clinical fields from this device failed: $e');
+    }
   }
 
   /// The assignment to send with a patient row, if any.
@@ -771,7 +805,14 @@ class FirestoreSyncService {
           // that tries), so it goes up only with a patient's very first
           // upload — a doctor's own new patient, assigned to themselves.
           ...firstUploadAssignment(row, ClinicSession.instance.access?.uid),
-        };
+        }..removeWhere(
+          (key, _) =>
+              (key == 'diagnosis' || key == 'notes') &&
+              omitsClinicalFields(
+                row,
+                ClinicSession.instance.holdsClinicalFields,
+              ),
+        );
       // appointments (VisitType.clinic) and visitations (VisitType.home) share
       // the same document shape. visitType is stored in the document so the
       // collection a document lives in can always be verified, and mapsLink is
@@ -1138,8 +1179,13 @@ class FirestoreSyncService {
           'email': data['email'] as String? ?? '',
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          'diagnosis': _decryptDiagnosisForSqlite(data['diagnosis']),
-          'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
+          // Kept off the device of anyone without clinical access.
+          'diagnosis': ClinicSession.instance.holdsClinicalFields
+              ? _decryptDiagnosisForSqlite(data['diagnosis'])
+              : '[]',
+          'notes': ClinicSession.instance.holdsClinicalFields
+              ? FieldCipher.decrypt(data['notes'] as String? ?? '')
+              : '',
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

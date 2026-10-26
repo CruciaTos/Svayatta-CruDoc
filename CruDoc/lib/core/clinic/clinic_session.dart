@@ -58,6 +58,15 @@ class ClinicSession {
     }
   }
 
+  /// Whether this person may hold a patient's notes and conditions.
+  ///
+  /// Those live on the patient record itself, which the front desk and
+  /// admins read too, so for anyone without clinical access they are kept
+  /// off the device, hidden, and never sent up from an edit. No access yet
+  /// (a solo doctor, the demo) holds them, like every other permission here.
+  bool get holdsClinicalFields =>
+      access?.can(ClinicPermission.clinicalView) ?? true;
+
   @visibleForTesting
   void setAccessForTesting(ClinicAccess? access) {
     _access = access;

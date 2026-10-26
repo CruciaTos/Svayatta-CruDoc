@@ -17,12 +17,20 @@ class FirestoreAccountReset {
 
   static Future<void> _last = Future<void>.value();
 
-  /// Starts a reset after the last one. Does nothing off Windows.
-  static Future<void> start() {
+  /// Starts a reset after the last one, once [after] (what still uses
+  /// Firestore) has finished. Does nothing off Windows.
+  static Future<void> start({Future<void>? after}) {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
       return _last;
     }
-    return _last = _last.then((_) => _reset());
+    return _last = _last.then((_) async {
+      try {
+        await after?.timeout(const Duration(seconds: 15));
+      } catch (error) {
+        debugPrint('Shutting down Firestore without waiting: $error');
+      }
+      await _reset();
+    });
   }
 
   /// Completes once every reset started so far has finished. Await this
@@ -33,6 +41,9 @@ class FirestoreAccountReset {
   static Future<void> _reset() async {
     final firestore = FirebaseFirestore.instance;
     final started = DateTime.now();
+    // The signed-out person's screens are still closing and dropping their
+    // listeners.
+    await Future<void>.delayed(_settle);
     try {
       await firestore.terminate().timeout(const Duration(seconds: 10));
     } catch (error) {

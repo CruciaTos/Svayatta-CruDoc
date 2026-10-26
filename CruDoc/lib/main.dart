@@ -267,7 +267,16 @@ void _followClinic({
         DeviceSessionService.instance.stopSessionMonitoring();
         await DeviceSessionService.instance.clearSessionToken();
         ClinicSession.instance.clear();
-        if (signedInUid != null) await FirestoreAccountReset.start();
+        if (signedInUid != null) {
+          // Firestore is shut down only once the clinic's data layer has
+          // stopped (the clear above queues that): shutting it down under a
+          // running sync, say an edit still uploading, crashed the app.
+          // Registered now so a quick sign-in waits; `queue` is read after
+          // the clear has reached it.
+          await FirestoreAccountReset.start(
+            after: Future<void>.delayed(Duration.zero).then((_) => queue),
+          );
+        }
         signedInUid = null;
         return;
       }

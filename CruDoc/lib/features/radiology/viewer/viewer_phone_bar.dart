@@ -178,19 +178,53 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: compact ? 64 : 68,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
-        children: [for (final i in items) _Button(item: i)],
-      ),
+    final height = compact ? 64.0 : 68.0;
+    return LayoutBuilder(
+      builder: (context, box) {
+        // Every button stays on screen: when they don't fit on one line they
+        // wrap onto more rows instead of scrolling out of sight.
+        const pad = CruSpace.s8;
+        final room = box.maxWidth - pad * 2;
+        final rows = (items.length * _Button.width / room).ceil().clamp(
+          1,
+          items.length,
+        );
+        final perRow = (items.length / rows).ceil();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: pad),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var r = 0; r * perRow < items.length; r++)
+                SizedBox(
+                  height: height,
+                  child: Row(
+                    children: [
+                      for (final i in items.skip(r * perRow).take(perRow))
+                        Expanded(child: _Button(item: i)),
+                      // Keep a short last row's buttons the same width.
+                      for (
+                        var k = items.skip(r * perRow).take(perRow).length;
+                        k < perRow;
+                        k++
+                      )
+                        const Spacer(),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
 class _Button extends StatelessWidget {
   const _Button({required this.item});
+
+  /// The narrowest a button gets before the row wraps.
+  static const double width = 64;
 
   final RadPhoneBarItem item;
 
@@ -207,7 +241,7 @@ class _Button extends StatelessWidget {
         semanticLabel: item.label,
         scaleOnPress: false,
         builder: (context, _) => SizedBox(
-          width: 64,
+          width: double.infinity,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

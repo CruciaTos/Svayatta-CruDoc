@@ -2389,6 +2389,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         enabled: has,
       ),
       act(RadViewerIcons.panel, 'Details', _togglePanel, selected: _phonePanel),
+      // No thumbnail strip on a phone: pick the image from a list instead.
+      if (_slots(s).length > 1)
+        act(RadViewerIcons.thumbnails, 'Images', () => _imagesSheet(s)),
       act(
         RadViewerIcons.export,
         'Export',
@@ -2520,6 +2523,28 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       onUndo: _undo.isEmpty ? null : _undoStep,
       onRedo: _redo.isEmpty ? null : _redoStep,
     );
+  }
+
+  /// The study's images as a list, for the phone; opens the one picked.
+  Future<void> _imagesSheet(RadStudy s) async {
+    final slots = _slots(s);
+    final byId = {for (final i in s.images) i.id: i};
+    final id = await _sheet<String>('Images', [
+      for (var n = 0; n < slots.length; n++)
+        (
+          slots[n],
+          [
+            'Image ${n + 1}',
+            if (byId[slots[n]]?.seriesDescription.trim().isNotEmpty ?? false)
+              byId[slots[n]]!.seriesDescription.trim(),
+            if (_paneShows(_pane, slots[n])) 'showing',
+          ].join(' · '),
+        ),
+    ]);
+    if (id == null || !mounted) return;
+    setState(() {
+      unawaited(_show(_pane, s.id, id));
+    });
   }
 
   /// A bottom sheet of choices; returns the picked value.
@@ -2728,7 +2753,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     return Scaffold(
       backgroundColor: c.canvas,
       body: SafeArea(
-        top: phone,
+        // Phones in landscape have a status bar too (zero on desktop).
         bottom: false,
         left: false,
         right: false,

@@ -29,6 +29,10 @@ const _prefOpen = 'report.leftOpen';
 const _minPanel = 240.0;
 const _maxPanel = 460.0;
 
+/// Below this width (phones) the study panel can't sit beside the report,
+/// so it takes the whole screen when shown instead.
+const _compactWidth = 760.0;
+
 /// One heading of the report being written.
 class _Section {
   _Section(RadReportSection s)
@@ -99,6 +103,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   String? _dictating;
   double _panelWidth = 300;
   bool _panelOpen = true;
+
+  /// On a phone the panel replaces the report while shown; not saved.
+  bool _compactPanel = false;
+  bool _compact = false;
   bool _prefsRead = false;
 
   bool get _locked => _report?.isSigned ?? false;
@@ -135,7 +143,8 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     if (dob == null) return null;
     final now = DateTime.now();
     var y = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
       y--;
     }
     return y;
@@ -556,6 +565,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   }
 
   void _togglePanel() {
+    if (_compact) {
+      setState(() => _compactPanel = !_compactPanel);
+      return;
+    }
     setState(() => _panelOpen = !_panelOpen);
     unawaited(_rad.saveViewerPrefs({_prefOpen: _panelOpen}));
   }
@@ -653,6 +666,69 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     final referrer = referrers[study.referrerId];
     final rows = radMeasurementRows(study);
     final templates = templatesAsync.value ?? const <RadTemplate>[];
+    final compact = MediaQuery.sizeOf(context).width < _compactWidth;
+    _compact = compact;
+
+    final panel = ColoredBox(
+      color: c.surface,
+      child: RadStudyContextPanel(
+        study: study,
+        referrer: referrer,
+        rows: rows,
+        keyImageIds: _keyIds,
+        measurementIds: _measureIds,
+        readOnly: _locked,
+        onToggleKeyImage: (id) => setState(() {
+          _keyIds = _keyIds.contains(id)
+              ? _keyIds.where((e) => e != id).toList()
+              : [..._keyIds, id];
+          _markDirty();
+        }),
+        onToggleMeasurement: (id) => setState(() {
+          _measureIds = _measureIds.contains(id)
+              ? _measureIds.where((e) => e != id).toList()
+              : [..._measureIds, id];
+          _markDirty();
+        }),
+        onIncludeAllMeasurements: () => setState(() {
+          _measureIds = {..._measureIds, ...rows.map((r) => r.id)}.toList();
+          _markDirty();
+        }),
+        onOpenViewer: (imageId) =>
+            openRadStudy(context, ref, study, imageId: imageId),
+      ),
+    );
+
+    final page = compact ? CruSpace.s12 : CruSpace.s32;
+    final report = Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              page,
+              compact ? CruSpace.s12 : CruSpace.s24,
+              page,
+              page,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 880),
+                child: _document(
+                  c,
+                  study,
+                  referrer,
+                  settings,
+                  templates,
+                  phrases,
+                  rows,
+                ),
+              ),
+            ),
+          ),
+        ),
+        _footer(c),
+      ],
+    );
 
     return PopScope(
       canPop: !_dirty,
@@ -671,97 +747,31 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
             backgroundColor: c.canvas,
             body: Column(
               children: [
-                _topBar(c, study, referrer),
+                _topBar(c, study, referrer, compact),
                 Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_panelOpen) ...[
-                        SizedBox(
-                          width: _panelWidth,
-                          child: ColoredBox(
-                            color: c.surface,
-                            child: RadStudyContextPanel(
-                              study: study,
-                              referrer: referrer,
-                              rows: rows,
-                              keyImageIds: _keyIds,
-                              measurementIds: _measureIds,
-                              readOnly: _locked,
-                              onToggleKeyImage: (id) => setState(() {
-                                _keyIds = _keyIds.contains(id)
-                                    ? _keyIds.where((e) => e != id).toList()
-                                    : [..._keyIds, id];
-                                _markDirty();
-                              }),
-                              onToggleMeasurement: (id) => setState(() {
-                                _measureIds = _measureIds.contains(id)
-                                    ? _measureIds.where((e) => e != id).toList()
-                                    : [..._measureIds, id];
-                                _markDirty();
-                              }),
-                              onIncludeAllMeasurements: () => setState(() {
-                                _measureIds = {
-                                  ..._measureIds,
-                                  ...rows.map((r) => r.id),
-                                }.toList();
-                                _markDirty();
-                              }),
-                              onOpenViewer: (imageId) => openRadStudy(
-                                context,
-                                ref,
-                                study,
-                                imageId: imageId,
-                              ),
-                            ),
-                          ),
-                        ),
-                        _Resizer(
-                          onDrag: (dx) => setState(
-                            () => _panelWidth = (_panelWidth + dx).clamp(
-                              _minPanel,
-                              _maxPanel,
-                            ),
-                          ),
-                          onEnd: () =>
-                              _rad.saveViewerPrefs({_prefWidth: _panelWidth}),
-                        ),
-                      ],
-                      Expanded(
-                        child: Column(
+                  child: compact
+                      // Phone: the panel and the report take turns.
+                      ? (_compactPanel ? panel : report)
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Expanded(
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.fromLTRB(
-                                  CruSpace.s32,
-                                  CruSpace.s24,
-                                  CruSpace.s32,
-                                  CruSpace.s32,
-                                ),
-                                child: Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 880,
-                                    ),
-                                    child: _document(
-                                      c,
-                                      study,
-                                      referrer,
-                                      settings,
-                                      templates,
-                                      phrases,
-                                      rows,
-                                    ),
+                            if (_panelOpen) ...[
+                              SizedBox(width: _panelWidth, child: panel),
+                              _Resizer(
+                                onDrag: (dx) => setState(
+                                  () => _panelWidth = (_panelWidth + dx).clamp(
+                                    _minPanel,
+                                    _maxPanel,
                                   ),
                                 ),
+                                onEnd: () => _rad.saveViewerPrefs({
+                                  _prefWidth: _panelWidth,
+                                }),
                               ),
-                            ),
-                            _footer(c),
+                            ],
+                            Expanded(child: report),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -779,7 +789,7 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
         Center(child: child),
         Positioned(
           left: CruSpace.s16,
-          top: CruSpace.s12,
+          top: CruSpace.s12 + MediaQuery.paddingOf(context).top,
           child: CruIconButton(
             icon: CruIcons.chevronLeft,
             size: CruSize.control,
@@ -792,15 +802,25 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     ),
   );
 
-  Widget _topBar(CruColors c, RadStudy s, RadReferrer? referrer) {
+  Widget _topBar(CruColors c, RadStudy s, RadReferrer? referrer, bool compact) {
+    final panelShown = compact ? _compactPanel : _panelOpen;
+    void critical() =>
+        showRadCriticalDialog(context, studyId: s.id, referrer: referrer);
+    // Clear the phone's status bar / camera cutout (zero on desktop).
+    final inset = MediaQuery.paddingOf(context).top;
     final line = [
       RadFormat.patientLine(s, DateTime.now()),
       RadFormat.date(s.studyDate),
       if (referrer != null) 'from ${referrer.name}',
     ].where((e) => e.isNotEmpty).join(' · ');
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s16),
+      height: 64 + inset,
+      padding: EdgeInsets.fromLTRB(
+        compact ? CruSpace.s8 : CruSpace.s16,
+        inset,
+        compact ? CruSpace.s8 : CruSpace.s16,
+        0,
+      ),
       decoration: BoxDecoration(
         color: c.surface,
         border: Border(bottom: BorderSide(color: c.hairline)),
@@ -814,16 +834,16 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
             tooltip: 'Back',
             onPressed: _leave,
           ),
-          const SizedBox(width: CruSpace.s4),
+          if (!compact) const SizedBox(width: CruSpace.s4),
           CruIconButton(
             icon: CruIcons.sidebar,
             size: CruSize.control,
             iconSize: 18,
-            semanticLabel: _panelOpen ? 'Hide study panel' : 'Show study panel',
-            tooltip: _panelOpen ? 'Hide study panel' : 'Show study panel',
+            semanticLabel: panelShown ? 'Hide study panel' : 'Show study panel',
+            tooltip: panelShown ? 'Hide study panel' : 'Show study panel',
             onPressed: _togglePanel,
           ),
-          const SizedBox(width: CruSpace.s12),
+          SizedBox(width: compact ? CruSpace.s4 : CruSpace.s12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -855,32 +875,51 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
               ],
             ),
           ),
-          const SizedBox(width: CruSpace.s12),
-          _saveStatus(c),
-          const SizedBox(width: CruSpace.s16),
-          _CriticalButton(
-            critical: s.critical,
-            onPressed: () => showRadCriticalDialog(
-              context,
-              studyId: s.id,
-              referrer: referrer,
+          if (compact) ...[
+            // Save state moves to the footer; actions lose their labels.
+            const SizedBox(width: CruSpace.s4),
+            _CriticalButton(
+              critical: s.critical,
+              compact: true,
+              onPressed: critical,
             ),
-          ),
-          const SizedBox(width: CruSpace.s8),
-          CruButton(
-            label: 'History',
-            icon: RadIcons.history,
-            kind: CruButtonKind.secondary,
-            onPressed: () => showRadVersionHistory(context, _report!),
-          ),
-          const SizedBox(width: CruSpace.s8),
-          // Same place in every state; the one filled action once signed.
-          CruButton(
-            label: 'Share',
-            icon: RadIcons.share,
-            kind: _locked ? CruButtonKind.primary : CruButtonKind.secondary,
-            onPressed: () => _share(s, referrer),
-          ),
+            CruIconButton(
+              icon: RadIcons.history,
+              size: CruSize.control,
+              iconSize: 18,
+              semanticLabel: 'History',
+              tooltip: 'History',
+              onPressed: () => showRadVersionHistory(context, _report!),
+            ),
+            CruIconButton(
+              icon: RadIcons.share,
+              size: CruSize.control,
+              iconSize: 18,
+              semanticLabel: 'Share',
+              tooltip: 'Share',
+              onPressed: () => _share(s, referrer),
+            ),
+          ] else ...[
+            const SizedBox(width: CruSpace.s12),
+            _saveStatus(c),
+            const SizedBox(width: CruSpace.s16),
+            _CriticalButton(critical: s.critical, onPressed: critical),
+            const SizedBox(width: CruSpace.s8),
+            CruButton(
+              label: 'History',
+              icon: RadIcons.history,
+              kind: CruButtonKind.secondary,
+              onPressed: () => showRadVersionHistory(context, _report!),
+            ),
+            const SizedBox(width: CruSpace.s8),
+            // Same place in every state; the one filled action once signed.
+            CruButton(
+              label: 'Share',
+              icon: RadIcons.share,
+              kind: _locked ? CruButtonKind.primary : CruButtonKind.secondary,
+              onPressed: () => _share(s, referrer),
+            ),
+          ],
         ],
       ),
     );
@@ -920,6 +959,7 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       RadReportStatus.finalised =>
         '${['Signed', if (r.signedBy.isNotEmpty) 'by ${r.signedBy}', if (r.signedAt != null) RadFormat.dateTime(r.signedAt!)].join(' ')}. Locked; an addendum adds to it.',
     };
+    if (_compact) return _compactFooter(c, r, text);
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: CruSpace.s24),
@@ -971,6 +1011,84 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
               onPressed: _addendum,
             ),
         ],
+      ),
+    );
+  }
+
+  /// Phone footer: status and save state on one line, the actions below
+  /// sharing the width.
+  Widget _compactFooter(CruColors c, RadReport r, String text) {
+    final status = _locked
+        ? Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: CruType.caption.tabular.tint(c.label2),
+          )
+        : _saveStatus(c);
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s12),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(top: BorderSide(color: c.hairline)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                radReportStatusPill(c, r.status),
+                const SizedBox(width: CruSpace.s8),
+                if (_locked) ...[
+                  CruIcon(
+                    RadReportIcons.lock,
+                    size: 15,
+                    strokeWidth: 1.9,
+                    color: c.label3,
+                  ),
+                  const SizedBox(width: CruSpace.s6),
+                ],
+                Expanded(child: status),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s8),
+            Row(
+              children: [
+                if (r.status == RadReportStatus.draft) ...[
+                  Expanded(
+                    child: CruButton(
+                      label: 'Preliminary',
+                      semanticLabel: 'Mark preliminary',
+                      kind: CruButtonKind.inset,
+                      expand: true,
+                      onPressed: _markPreliminary,
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s8),
+                ],
+                Expanded(
+                  child: _locked
+                      ? CruButton(
+                          label: 'Add addendum',
+                          icon: RadReportIcons.addendum,
+                          kind: CruButtonKind.inset,
+                          expand: true,
+                          onPressed: _addendum,
+                        )
+                      : CruButton(
+                          label: 'Sign & finalise',
+                          icon: RadIcons.signature,
+                          expand: true,
+                          onPressed: _sign,
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1199,10 +1317,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
     return CruCard(
       semanticLabel: 'Report',
-      padding: const EdgeInsets.fromLTRB(
-        CruSpace.s32,
-        CruSpace.s24,
-        CruSpace.s32,
+      padding: EdgeInsets.fromLTRB(
+        _compact ? CruSpace.s16 : CruSpace.s32,
+        _compact ? CruSpace.s16 : CruSpace.s24,
+        _compact ? CruSpace.s16 : CruSpace.s32,
         CruSpace.s12,
       ),
       child: Column(
@@ -1214,9 +1332,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           ],
           if (!locked) ...[
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _templatePicker(c, study, templates),
-                const Spacer(),
+                Flexible(child: _templatePicker(c, study, templates)),
+                const SizedBox(width: CruSpace.s12),
                 if (settings.ai('draft'))
                   const RadAiPending(
                     label: 'Draft with AI',
@@ -1392,13 +1511,15 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
               color: c.label3,
             ),
             const SizedBox(width: CruSpace.s8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 320),
-              child: Text(
-                current?.name ?? 'No template',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: CruType.subhead.w500.tint(c.label),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Text(
+                  current?.name ?? 'No template',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.subhead.w500.tint(c.label),
+                ),
               ),
             ),
             const SizedBox(width: CruSpace.s6),
@@ -1452,10 +1573,17 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
 /// Flag critical (quiet) or Critical (red: patient safety) in the top bar.
 class _CriticalButton extends StatelessWidget {
-  const _CriticalButton({required this.critical, required this.onPressed});
+  const _CriticalButton({
+    required this.critical,
+    required this.onPressed,
+    this.compact = false,
+  });
 
   final bool critical;
   final VoidCallback onPressed;
+
+  /// Icon only (phones); stays red when critical.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -1473,17 +1601,23 @@ class _CriticalButton extends StatelessWidget {
           duration: CruMotion.of(context, CruMotion.fast),
           curve: CruMotion.curve,
           height: CruSize.control,
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+          width: compact ? CruSize.control : null,
+          padding: compact
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: CruSpace.s14),
           decoration: ShapeDecoration(
             color: hovered ? cruHoverShade(fill, c) : fill,
             shape: cruShape(
               CruRadius.control,
-              side: critical ? BorderSide.none : BorderSide(color: c.hairline),
+              side: critical || compact
+                  ? BorderSide.none
+                  : BorderSide(color: c.hairline),
             ),
             shadows: const [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CruIcon(
                 RadIcons.flag,
@@ -1491,13 +1625,14 @@ class _CriticalButton extends StatelessWidget {
                 strokeWidth: 1.9,
                 color: critical ? c.redText : c.label2,
               ),
-              const SizedBox(width: CruSpace.s6),
-              Text(
-                critical ? 'Critical' : 'Flag critical',
-                style: (critical ? CruType.text.w600 : CruType.text.w500).tint(
-                  fg,
+              if (!compact) ...[
+                const SizedBox(width: CruSpace.s6),
+                Text(
+                  critical ? 'Critical' : 'Flag critical',
+                  style: (critical ? CruType.text.w600 : CruType.text.w500)
+                      .tint(fg),
                 ),
-              ),
+              ],
             ],
           ),
         );

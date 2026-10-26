@@ -73,10 +73,15 @@ class InitialFirestoreMigrationService {
     // this call would download every doctor's patients/visits/revenue onto
     // this device — which is exactly the cross-doctor leak this migration
     // is being patched to prevent.
-    final snapshot = await _firestore
-        .collection(collection)
-        .where('doctorId', isEqualTo: doctorId)
-        .get();
+    //
+    // Narrowed to the doctor's own patients the same way as the live sync,
+    // or the rules refuse it. From the server only: answered from the
+    // cache, this once saved the previous person's patients on this device.
+    final snapshot = await FirestoreSyncService.scopedQueryFor(
+      _firestore,
+      collection,
+      doctorId,
+    ).get(const GetOptions(source: Source.server));
     var newestUpdatedAt = 0;
 
     // Visit Firestore collections (appointments, visitations) both land in
@@ -195,7 +200,10 @@ class InitialFirestoreMigrationService {
     if (existing.isNotEmpty) return;
 
     try {
-      final doc = await _firestore.collection('patients').doc(patientId).get();
+      final doc = await _firestore
+          .collection('patients')
+          .doc(patientId)
+          .get(const GetOptions(source: Source.server));
       if (doc.exists && doc.data() != null) {
         final patientRow = _sqliteRowFor(
           'patients',
@@ -265,6 +273,10 @@ class InitialFirestoreMigrationService {
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
+          // Without it a scoped doctor's purge can't tell this row is theirs.
+          'assignedDoctorUids': Patient.assignedToStored(
+            Patient.assignedFromStored(data['assignedDoctorUids']),
+          ),
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',

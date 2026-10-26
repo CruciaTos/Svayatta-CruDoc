@@ -249,8 +249,16 @@ class FirestoreSyncService {
   Query<Map<String, dynamic>> _scopedQuery(
     String collection,
     String doctorId,
+  ) => scopedQueryFor(_firestore, collection, doctorId);
+
+  /// [_scopedQuery] for other services that read the same collections
+  /// (InitialFirestoreMigrationService), so they narrow the same way.
+  static Query<Map<String, dynamic>> scopedQueryFor(
+    FirebaseFirestore firestore,
+    String collection,
+    String doctorId,
   ) {
-    final query = _firestore
+    final query = firestore
         .collection(collection)
         .where('doctorId', isEqualTo: doctorId);
     final access = ClinicSession.instance.access;
@@ -979,7 +987,10 @@ class FirestoreSyncService {
     if (existing.isNotEmpty) return;
 
     try {
-      final doc = await _firestore.collection('patients').doc(patientId).get();
+      final doc = await _firestore
+          .collection('patients')
+          .doc(patientId)
+          .get(const GetOptions(source: Source.server));
       if (doc.exists && doc.data() != null) {
         final patientRow = _sqliteRowFor(
           'patients',

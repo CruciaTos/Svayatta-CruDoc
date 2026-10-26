@@ -503,8 +503,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       return;
     }
 
-    // Email format validation
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    // Loose shape check (name@domain.tld): allows plus addresses and long
+    // endings like .health or .clinic. Firebase does the real check.
+    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$');
     if (!emailRegex.hasMatch(email)) {
       _showError('Please enter a valid email address');
       return;

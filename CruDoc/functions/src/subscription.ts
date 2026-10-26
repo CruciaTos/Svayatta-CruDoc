@@ -148,6 +148,12 @@ export const startDoctorTrial = onCall(
     const snap = await userRef.get();
     const existing = snap.data() || {};
 
+    // Clinic staff work under the clinic's plan and are not doctors: no
+    // doctor role, trial or claims for them. Older apps still ask.
+    if (existing.memberKind === "staff") {
+      return {started: false, alreadyActive: false, staff: true};
+    }
+
     // Don't re-grant or extend an already active plan/trial.
     const status = String(existing.status ?? "").toLowerCase();
     const rawExpires = existing.expiresDate;

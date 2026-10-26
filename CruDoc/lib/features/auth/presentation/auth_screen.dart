@@ -212,6 +212,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         await user.updateDisplayName(derivedName);
       }
 
+      final isStaff = snap.data()?['memberKind'] == 'staff';
       if (!snap.exists) {
         await ref.set({
           'uid': user.uid,
@@ -228,7 +229,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         final data = snap.data() ?? {};
         final updates = <String, dynamic>{};
 
-        if (data['role'] != 'doctor') {
+        // Clinic staff (front desk, accountant…) are not doctors; marking
+        // them as one also started a doctor trial for them below.
+        if (data['role'] != 'doctor' && !isStaff) {
           updates['role'] = 'doctor';
         }
         if (data['isDeleted'] != false) {
@@ -256,7 +259,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       try {
         // Parenthesised: `a ? b?['x'] : c` parses `?[` as another `?`.
         final existingStatus = snap.exists ? (snap.data()?['status']) : null;
-        if (existingStatus == null) {
+        if (existingStatus == null && !isStaff) {
           // CallableClient: the cloud_functions plugin has no Windows build.
           await CallableClient().call('startDoctorTrial', {
             'modules': DoctorFeatureGuard.baseModules,

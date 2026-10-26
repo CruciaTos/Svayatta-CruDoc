@@ -255,8 +255,9 @@ class ClinicSession {
     }
   }
 
-  static ({bool adminClinicalAccess, String clinicalAccessScope})
-  _settingsFrom(Map<String, dynamic>? data) => (
+  static ({bool adminClinicalAccess, String clinicalAccessScope}) _settingsFrom(
+    Map<String, dynamic>? data,
+  ) => (
     adminClinicalAccess: data?['adminClinicalAccess'] != false,
     clinicalAccessScope: data?['clinicalAccessScope'] == 'assigned'
         ? 'assigned'
@@ -332,21 +333,13 @@ class ClinicSession {
         .listen(
           (snap) async {
             if (!snap.exists || snap.data() == null) {
-              _member = null;
-              final fallback = ClinicAccess.owner(uid);
-              _access = fallback;
-              _streamController.add(fallback);
-              _removedController.add(null);
+              _leaveClinic(uid);
               return;
             }
 
             final m = ClinicMember.fromMap(uid, snap.data()!);
             if (!m.active) {
-              _member = null;
-              final fallback = ClinicAccess.owner(uid);
-              _access = fallback;
-              _streamController.add(fallback);
-              _removedController.add(null);
+              _leaveClinic(uid);
               return;
             }
 
@@ -354,10 +347,36 @@ class ClinicSession {
             _clinicSettings ??= await _readClinicSettings(clinicId);
             _emitMemberAccess(clinicId);
           },
-          onError: (_) {
-            _removedController.add(null);
+          onError: (Object error) {
+            // The rules hide a member doc as soon as it is switched off or
+            // deleted, so that change arrives as a refusal rather than a
+            // snapshot. Before this, a deactivated person stayed in the
+            // clinic until they restarted the app.
+            if (error is FirebaseException &&
+                error.code == 'permission-denied') {
+              _leaveClinic(uid);
+            } else {
+              _removedController.add(null);
+            }
           },
         );
+  }
+
+  /// This person no longer works in the clinic: fall back to their own
+  /// practice, which signs them out of the clinic (see main.dart), and keep
+  /// the offline cache in step so a restart without a connection doesn't
+  /// bring the clinic back.
+  void _leaveClinic(String uid) {
+    _member = null;
+    final fallback = ClinicAccess.owner(uid);
+    _access = fallback;
+    _streamController.add(fallback);
+    _removedController.add(null);
+    unawaited(
+      SharedPreferences.getInstance()
+          .then((prefs) => _saveCache(prefs, uid, uid, fallback))
+          .catchError((_) {}),
+    );
   }
 
   void _setPreviousClinicId(String? cachedBefore, String loadedClinicId) {

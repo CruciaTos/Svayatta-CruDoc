@@ -12,11 +12,15 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/week/appointments_week_view.dart';
 import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
-import 'package:flutter/gestures.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 /// The Schedule tab. Live is today's queue board (it has its own header);
 /// Day, Week, Month and Agenda share the calendar header. Pads itself
 /// with [CruSpace.mainPadding] (the shell doesn't).
+///
+/// The views sit side by side as [SwipePages] (Live, Week, Month, Agenda,
+/// Visits); Day shares Week's page, so a day opened from Week swipes
+/// exactly as Week does. Week ⇄ Day stays on its page and keeps its fold.
 ///
 /// Keyboard (calendar views): ← and → step one day, week or month; T
 /// jumps to today (not while a text field has focus).
@@ -36,6 +40,8 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     super.dispose();
   }
 
+  bool get _live => ref.read(effectiveApptsViewProvider) == ApptsView.live;
+
   static bool _textFieldFocused() {
     final ctx = FocusManager.instance.primaryFocus?.context;
     if (ctx == null) return false;
@@ -47,6 +53,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    if (_live) return KeyEventResult.ignored;
     final keyboard = HardwareKeyboard.instance;
     if (keyboard.isControlPressed ||
         keyboard.isMetaPressed ||
@@ -75,26 +82,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   @override
   Widget build(BuildContext context) {
     final view = ref.watch(effectiveApptsViewProvider);
-    return AnimatedSwitcher(
-      duration: CruMotion.of(context, CruMotion.fast),
-      switchInCurve: CruMotion.curve,
-      switchOutCurve: CruMotion.curve,
-      layoutBuilder: (current, previous) =>
-          Stack(fit: StackFit.expand, children: [...previous, ?current]),
-      child: view == ApptsView.live
-          ? const DesktopQueueScreen(key: ValueKey('live'))
-          : KeyedSubtree(
-              key: const ValueKey('calendar'),
-              child: _calendar(context, view),
-            ),
-    );
-  }
-
-  Widget _calendar(BuildContext context, ApptsView view) {
-    final width = MediaQuery.sizeOf(context).width;
-    final padding = width < CruBreakpoint.compact
-        ? CruSpace.mainPaddingCompact
-        : CruSpace.mainPadding;
+    final controller = ref.read(apptsControllerProvider.notifier);
 
     return Focus(
       focusNode: _keys,
@@ -105,78 +93,57 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         // Listener, so it never competes with taps below).
         behavior: HitTestBehavior.translucent,
         onPointerDown: (_) {
-          if (!_textFieldFocused()) _keys.requestFocus();
+          if (!_live && !_textFieldFocused()) _keys.requestFocus();
         },
-        child: Padding(
-          padding: padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const ApptsHeader(),
-              const SizedBox(height: CruSpace.cardGap),
-              Expanded(
-                child: _SwipeToStep(
-                  onStep: ref.read(apptsControllerProvider.notifier).step,
-                  child: AnimatedSwitcher(
-                    duration: CruMotion.of(context, CruMotion.fast),
-                    switchInCurve: CruMotion.curve,
-                    switchOutCurve: CruMotion.curve,
-                    // Views fill the body (the default layout loosens it).
-                    layoutBuilder: (current, previous) => Stack(
-                      fit: StackFit.expand,
-                      children: [...previous, ?current],
-                    ),
-                    child: KeyedSubtree(
-                      key: ValueKey(view),
-                      child: switch (view) {
-                        // Shown above instead (never reached).
-                        ApptsView.live => const SizedBox.shrink(),
-                        ApptsView.day => const AppointmentsDayView(),
-                        ApptsView.week => const AppointmentsWeekView(),
-                        ApptsView.month => const AppointmentsMonthView(),
-                        ApptsView.agenda => const AppointmentsAgendaView(),
-                        ApptsView.visits => const AppointmentsHomeVisitsView(),
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
+        child: SwipePages<ApptsView>(
+          values: ref.watch(availableApptsViewsProvider),
+          value: view,
+          pageOf: (v) => v == ApptsView.day ? ApptsView.week : v,
+          // Week ⇄ Day from a date folds in place instead.
+          slides: (_, _) => !controller.isWeekDayMorph,
+          onChanged: (v) {
+            controller.setView(v, fold: false);
+            if (v != ApptsView.live && !_textFieldFocused()) {
+              _keys.requestFocus();
+            }
+          },
+          builder: (context, v) => ScheduleViewPage(
+            view: v,
+            child: v == ApptsView.live
+                ? const DesktopQueueScreen()
+                : _calendar(context, v),
           ),
         ),
       ),
     );
   }
-}
 
-/// Fling velocity (logical px/s) that counts as a swipe.
-const double _kSwipeVelocity = 300;
+  Widget _calendar(BuildContext context, ApptsView view) {
+    final width = MediaQuery.sizeOf(context).width;
+    final padding = width < CruBreakpoint.compact
+        ? CruSpace.mainPaddingCompact
+        : CruSpace.mainPadding;
 
-/// Tablets: swipe left for the next day, week or month, right for the
-/// previous one. Touch and stylus only, so dragging with a mouse on the
-/// desktop does nothing new.
-class _SwipeToStep extends StatelessWidget {
-  const _SwipeToStep({required this.onStep, required this.child});
-
-  final ValueChanged<int> onStep;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      supportedDevices: const {
-        PointerDeviceKind.touch,
-        PointerDeviceKind.stylus,
-        PointerDeviceKind.invertedStylus,
-      },
-      onHorizontalDragEnd: (details) {
-        final v = details.primaryVelocity ?? 0;
-        if (v.abs() < _kSwipeVelocity) return;
-        HapticFeedback.selectionClick();
-        onStep(v < 0 ? 1 : -1);
-      },
-      child: child,
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const ApptsHeader(),
+          const SizedBox(height: CruSpace.cardGap),
+          Expanded(
+            child: switch (view) {
+              // Shown above instead (never reached).
+              ApptsView.live => const SizedBox.shrink(),
+              ApptsView.day => const AppointmentsDayView(),
+              ApptsView.week => const AppointmentsWeekView(),
+              ApptsView.month => const AppointmentsMonthView(),
+              ApptsView.agenda => const AppointmentsAgendaView(),
+              ApptsView.visits => const AppointmentsHomeVisitsView(),
+            },
+          ),
+        ],
+      ),
     );
   }
 }

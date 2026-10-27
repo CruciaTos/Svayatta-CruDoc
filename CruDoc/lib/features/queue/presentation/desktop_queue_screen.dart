@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appts_header.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
@@ -549,8 +550,9 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
               ];
               final search = <Widget>[
                 Expanded(
-                  child: _QueueSearchField(
+                  child: DentalSearchField(
                     controller: _searchController,
+                    hint: 'Search patient or token #',
                     onChanged: (val) =>
                         setState(() => _searchQuery = val.trim().toLowerCase()),
                   ),
@@ -577,9 +579,11 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                 icon: CruIcons.userPlus,
                 onPressed: _openCheckIn,
               );
+              // Rows holding the search are its height (the search box
+              // every list shares).
               if (constraints.maxWidth >= kScheduleHeaderOneRow) {
                 return SizedBox(
-                  height: CruSize.control,
+                  height: CruSize.searchBar,
                   child: Row(
                     children: [
                       ...chips,
@@ -614,7 +618,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                   ),
                   const SizedBox(height: CruSpace.s12),
                   SizedBox(
-                    height: CruSize.control,
+                    height: CruSize.searchBar,
                     child: Row(
                       children: [
                         ...search,
@@ -1413,70 +1417,6 @@ class _MenuSelect<T> extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// "Search patient or token #", 40 px to line up with the filter row.
-class _QueueSearchField extends StatelessWidget {
-  const _QueueSearchField({required this.controller, required this.onChanged});
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return Container(
-      height: CruSize.control,
-      padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s6, 0),
-      decoration: ShapeDecoration(
-        color: c.surface,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-        shadows: const [],
-      ),
-      child: Row(
-        children: [
-          CruIcon(CruIcons.search, size: 16, strokeWidth: 2, color: c.label3),
-          const SizedBox(width: CruSpace.s8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              style: CruType.subhead.tint(c.label),
-              cursorColor: c.accent,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                isCollapsed: true,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                hint: Text(
-                  'Search patient or token #',
-                  style: CruType.subhead.tint(c.label3),
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.clip,
-                ),
-              ),
-            ),
-          ),
-          if (controller.text.isNotEmpty)
-            CruIconButton(
-              icon: CruIcons.close,
-              size: CruSize.rowCapsule,
-              iconSize: 14,
-              semanticLabel: 'Clear search',
-              tooltip: 'Clear search',
-              onPressed: () {
-                controller.clear();
-                onChanged('');
-              },
-            )
-          else
-            const SizedBox(width: CruSpace.s8),
-        ],
       ),
     );
   }

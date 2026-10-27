@@ -6,7 +6,9 @@ import 'package:doctor_management_app/features/dental/data/models/sterilization_
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/page_search.dart';
 import 'package:doctor_management_app/shared/widgets/search_lift.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 import 'package:doctor_management_app/shared/widgets/page_tabs_scope.dart';
 
 /// Dates and times on the dental screens.
@@ -316,6 +318,13 @@ class DentalPageHeader extends StatelessWidget {
     final c = context.cru;
     final pageHeading = PageTabsScope.titleOf(context);
     final pageTabs = PageTabsScope.tabsOf(context);
+    // Under a page switch the header stays still while the pages slide:
+    // the heading and switch are pinned, and this page's own summary and
+    // buttons fade in place.
+    Widget own(Widget child) =>
+        pageTabs == null ? child : SwipePinned.fade(child: child);
+    // Opened from another page: a back button before the title.
+    final back = PageBackScope.of(context);
 
     if (cruIsPhone(context)) {
       // Phone: title and subtitle on their own lines, the buttons in one
@@ -324,38 +333,60 @@ class DentalPageHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (back != null) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CruLink(
+                label: back.label,
+                leading: CruIcon(
+                  CruIcons.chevronLeft,
+                  size: 16,
+                  color: c.accent,
+                ),
+                onPressed: back.onBack,
+              ),
+            ),
+            const SizedBox(height: CruSpace.s8),
+          ],
           if (pageHeading != null) ...[
+            SwipePinned(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  pageHeading,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.largeTitle
+                      .copyWith(fontSize: 28)
+                      .tint(c.label),
+                ),
+              ),
+            ),
+            if (subtitle.isNotEmpty) ...[
+              const SizedBox(height: CruSpace.s2),
+              own(
+                Text(
+                  subtitle,
+                  style: CruType.subhead.tabular.tint(c.accentText),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+            const SizedBox(height: CruSpace.s12),
+          ],
+          if (pageTabs != null)
+            SwipePinned(child: pageTabs)
+          else
             Semantics(
               header: true,
               child: Text(
-                pageHeading,
+                title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
               ),
             ),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: CruSpace.s2),
-              Text(
-                subtitle,
-                style: CruType.subhead.tabular.tint(c.accentText),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            const SizedBox(height: CruSpace.s12),
-          ],
-          pageTabs ??
-              Semantics(
-                header: true,
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
-                ),
-              ),
           if (subtitle.isNotEmpty && pageTabs == null) ...[
             const SizedBox(height: CruSpace.s2),
             Text(
@@ -367,16 +398,18 @@ class DentalPageHeader extends StatelessWidget {
           ],
           if (actions.isNotEmpty) ...[
             const SizedBox(height: CruSpace.s14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              child: Row(
-                children: [
-                  for (var i = 0; i < actions.length; i++) ...[
-                    if (i > 0) const SizedBox(width: CruSpace.s8),
-                    actions[i],
+            own(
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < actions.length; i++) ...[
+                      if (i > 0) const SizedBox(width: CruSpace.s8),
+                      actions[i],
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ],
@@ -387,16 +420,31 @@ class DentalPageHeader extends StatelessWidget {
     final headerRow = Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        // The back button sits level with the header's own buttons, the
+        // title keeping its height on every page.
+        if (back != null && pageTabs == null) ...[
+          CruSquareButton(
+            icon: CruIcons.chevronLeft,
+            iconSize: 18,
+            secondary: true,
+            semanticLabel: 'Back to ${back.label}',
+            tooltip: 'Back to ${back.label}',
+            onPressed: back.onBack,
+          ),
+          const SizedBox(width: CruSpace.s16),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              pageTabs ??
-                  Semantics(
-                    header: true,
-                    child: Text(title, style: CruType.largeTitle.tint(c.label)),
-                  ),
+              if (pageTabs != null)
+                SwipePinned(child: pageTabs)
+              else
+                Semantics(
+                  header: true,
+                  child: Text(title, style: CruType.largeTitle.tint(c.label)),
+                ),
               // Under a page switch the switch says enough.
               if (pageTabs == null) ...[
                 const SizedBox(height: CruSpace.s2),
@@ -412,7 +460,7 @@ class DentalPageHeader extends StatelessWidget {
         ),
         for (var i = 0; i < actions.length; i++) ...[
           SizedBox(width: i == 0 ? CruSpace.s24 : CruSpace.s10),
-          actions[i],
+          own(actions[i]),
         ],
       ],
     );
@@ -422,21 +470,25 @@ class DentalPageHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Semantics(
-            header: true,
-            child: Text(pageHeading, style: CruType.largeTitle.tint(c.label)),
+          SwipePinned(
+            child: Semantics(
+              header: true,
+              child: Text(pageHeading, style: CruType.largeTitle.tint(c.label)),
+            ),
           ),
           // The open page's summary under the heading ("3 files · 1
           // folder" on Files), since the switch takes the title's line.
-          if (subtitle.isNotEmpty) ...[
-            const SizedBox(height: CruSpace.s2),
+          // Kept even when empty, so the switch sits at the same height
+          // on every page.
+          const SizedBox(height: CruSpace.s2),
+          own(
             Text(
               subtitle,
               style: CruType.text.tabular.tint(c.accentText),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
           // The page switch sits as far below the heading as the content
           // sits below the switch: one rhythm down the page.
           const SizedBox(height: CruSpace.cardGap),
@@ -449,41 +501,44 @@ class DentalPageHeader extends StatelessWidget {
   }
 }
 
-/// The controls over a list: [filters] (segments, a type menu) on the
-/// left and [search] on the right. On a phone they stack: the filters
-/// slide sideways and the search takes the full width.
+/// The row right above a list, laid out as on Patients, Inventory and
+/// Files: [filters] (segments, a type menu) on the left, [search] filling
+/// the rest, and [trailing] (the list's own button) at the right end. On
+/// a phone they stack: the filters and trailing slide sideways and the
+/// search takes the full width.
 class DentalFilterBar extends StatelessWidget {
   const DentalFilterBar({
     super.key,
     this.filters = const [],
     this.search,
-    this.searchWidth = 280,
+    this.trailing = const [],
   });
 
   final List<Widget> filters;
   final Widget? search;
-  final double searchWidth;
+  final List<Widget> trailing;
 
   @override
   Widget build(BuildContext context) {
     if (cruIsPhone(context)) {
+      final row = [...filters, ...trailing];
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (filters.isNotEmpty)
+          if (row.isNotEmpty)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (var i = 0; i < filters.length; i++) ...[
+                  for (var i = 0; i < row.length; i++) ...[
                     if (i > 0) const SizedBox(width: CruSpace.s8),
-                    filters[i],
+                    row[i],
                   ],
                 ],
               ),
             ),
-          if (filters.isNotEmpty && search != null)
+          if (row.isNotEmpty && search != null)
             const SizedBox(height: CruSpace.s10),
           ?search,
         ],
@@ -495,15 +550,23 @@ class DentalFilterBar extends StatelessWidget {
           if (i > 0) const SizedBox(width: CruSpace.s12),
           filters[i],
         ],
-        const Spacer(),
-        if (search != null) SizedBox(width: searchWidth, child: search),
+        if (search != null) ...[
+          if (filters.isNotEmpty) const SizedBox(width: CruSpace.s12),
+          Expanded(child: search!),
+        ] else
+          const Spacer(),
+        for (final t in trailing) ...[const SizedBox(width: CruSpace.s12), t],
       ],
     );
   }
 }
 
-/// A search box that sits on the canvas beside the filters.
-class DentalSearchField extends StatelessWidget {
+/// A search box that sits on the canvas beside the filters. On the
+/// desktop it is the same box as Patients', Inventory's and Files' (44 px,
+/// 18 px glass, input text, the Ctrl F keycap: Ctrl F focuses it from
+/// anywhere, see [PageSearch]); on a phone it stays the compact 40 px one.
+/// In a dialog it is just a box (Ctrl F belongs to the page behind).
+class DentalSearchField extends StatefulWidget {
   const DentalSearchField({
     super.key,
     required this.controller,
@@ -516,8 +579,41 @@ class DentalSearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
 
   @override
+  State<DentalSearchField> createState() => _DentalSearchFieldState();
+}
+
+class _DentalSearchFieldState extends State<DentalSearchField> {
+  final _focus = FocusNode(debugLabel: 'Page search');
+
+  /// In a dialog, not the page's search.
+  bool _inDialog = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _inDialog = ModalRoute.of(context) is PopupRoute;
+    if (_inDialog) {
+      PageSearch.remove(_focus);
+    } else {
+      PageSearch.add(_focus);
+    }
+  }
+
+  @override
+  void dispose() {
+    PageSearch.remove(_focus);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
+    final hint = widget.hint;
+    final onChanged = widget.onChanged;
     final c = context.cru;
+    final phone = cruIsPhone(context);
+    final text = phone ? CruType.subhead : CruType.input;
     return SearchLiftField(
       controller: controller,
       onClear: () {
@@ -525,8 +621,10 @@ class DentalSearchField extends StatelessWidget {
         onChanged('');
       },
       child: Container(
-        height: CruSize.control,
-        padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s6, 0),
+        height: phone ? CruSize.control : CruSize.searchBar,
+        padding: phone
+            ? const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s6, 0)
+            : const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s10, 0),
         decoration: ShapeDecoration(
           color: c.surface,
           shape: cruShape(
@@ -537,13 +635,19 @@ class DentalSearchField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CruIcon(CruIcons.search, size: 16, strokeWidth: 2, color: c.label3),
-            const SizedBox(width: CruSpace.s8),
+            CruIcon(
+              CruIcons.search,
+              size: phone ? 16 : 18,
+              strokeWidth: 2,
+              color: c.label3,
+            ),
+            SizedBox(width: phone ? CruSpace.s8 : CruSpace.s10),
             Expanded(
               child: TextField(
                 controller: controller,
+                focusNode: _focus,
                 onChanged: onChanged,
-                style: CruType.subhead.tint(c.label),
+                style: text.tint(c.label),
                 cursorColor: c.accent,
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
@@ -553,7 +657,7 @@ class DentalSearchField extends StatelessWidget {
                   border: InputBorder.none,
                   hint: Text(
                     hint,
-                    style: CruType.subhead.tint(c.label3),
+                    style: text.tint(c.label3),
                     maxLines: 1,
                     softWrap: false,
                     overflow: TextOverflow.clip,
@@ -564,8 +668,8 @@ class DentalSearchField extends StatelessWidget {
             if (controller.text.isNotEmpty)
               CruIconButton(
                 icon: CruIcons.close,
-                size: CruSize.rowCapsule,
-                iconSize: 14,
+                size: phone ? CruSize.rowCapsule : CruSize.capsule,
+                iconSize: phone ? 14 : 16,
                 semanticLabel: 'Clear search',
                 tooltip: 'Clear search',
                 onPressed: () {
@@ -573,7 +677,10 @@ class DentalSearchField extends StatelessWidget {
                   onChanged('');
                 },
               )
-            else
+            else if (!phone && !_inDialog) ...[
+              const SizedBox(width: CruSpace.s10),
+              CruKeycap(PageSearch.shortcut),
+            ] else
               const SizedBox(width: CruSpace.s8),
           ],
         ),

@@ -24,6 +24,7 @@ import 'package:doctor_management_app/features/inventory/presentation/widgets/in
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 /// The Inventory tab: header, Items / Orders / Vendors / Usage, and on
 /// Items the list or grid with the 384 px item panel (a sheet below
@@ -307,44 +308,48 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       dental: ref.watch(dentalFeaturesProvider),
       access: ref.watch(clinicAccessProvider).value,
     ).any((t) => t.tab == DesktopTab.sterilization);
-    final header = InventoryHeader(
-      view: view,
-      onNewOrder: () => _controller.setTab(InventoryTab.orders),
-      onAddItem: () => InventoryActions.addItem(context, ref),
-      onScan: () => InventoryActions.scanItem(context, ref),
-      onSterilization: sterilization ? _openSterilization : null,
+    // The same on every section, so it stays put while they slide.
+    final header = SwipePinned(
+      child: InventoryHeader(
+        view: view,
+        onNewOrder: () => _controller.setTab(InventoryTab.orders),
+        onAddItem: () => InventoryActions.addItem(context, ref),
+        onScan: () => InventoryActions.scanItem(context, ref),
+        onSterilization: sterilization ? _openSterilization : null,
+      ),
     );
-    final toolbar = InventoryToolbar(
-      tab: state.tab,
+    Widget toolbar(InventoryTab tab) => InventoryToolbar(
+      tab: tab,
       searchFocus: _searchFocus,
       viewMode: state.viewMode,
       sort: view?.sort ?? state.sort,
       hasUsage: view?.hasUsage ?? true,
     );
 
-    Widget body;
-    if (state.tab != InventoryTab.items) {
-      body = Padding(
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            header,
-            const SizedBox(height: CruSpace.s20),
-            toolbar,
-            const SizedBox(height: CruSpace.s20),
-            Expanded(
-              child: switch (state.tab) {
-                InventoryTab.orders => const InventoryOrdersTab(),
-                InventoryTab.vendors => const InventoryVendorsTab(),
-                _ => const InventoryUsageTab(),
-              },
-            ),
-          ],
-        ),
-      );
-    } else {
-      body = _items(
+    // The sections side by side: drag sideways to the next one.
+    Widget page(InventoryTab tab) {
+      if (tab != InventoryTab.items) {
+        return Padding(
+          padding: padding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              header,
+              const SizedBox(height: CruSpace.s20),
+              toolbar(tab),
+              const SizedBox(height: CruSpace.s20),
+              Expanded(
+                child: switch (tab) {
+                  InventoryTab.orders => const InventoryOrdersTab(),
+                  InventoryTab.vendors => const InventoryVendorsTab(),
+                  _ => const InventoryUsageTab(),
+                },
+              ),
+            ],
+          ),
+        );
+      }
+      return _items(
         context,
         state: state,
         async: async,
@@ -354,7 +359,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         top: [
           header,
           const SizedBox(height: CruSpace.s20),
-          toolbar,
+          toolbar(tab),
           if (view != null && view.all.isNotEmpty) ...[
             const SizedBox(height: CruSpace.s20),
             InventoryFilterChips(chips: view.chips, active: view.filter),
@@ -367,7 +372,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       shortcuts: _shortcuts,
       child: Actions(
         actions: _actions,
-        child: Focus(focusNode: _keysFocus, child: body),
+        child: Focus(
+          focusNode: _keysFocus,
+          child: SwipePages<InventoryTab>(
+            values: InventoryTab.values,
+            value: state.tab,
+            onChanged: _controller.setTab,
+            builder: (context, tab) => page(tab),
+          ),
+        ),
       ),
     );
   }
@@ -454,6 +467,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
         final scrollView = CustomScrollView(
           controller: _scroll,
+          // The header stays put while the sections slide (pinned), so it
+          // may sit outside this page's box mid-swipe: don't clip it. The
+          // sections' pager clips at the screen's edge.
+          clipBehavior: Clip.none,
           slivers: [
             SliverToBoxAdapter(
               child: Padding(

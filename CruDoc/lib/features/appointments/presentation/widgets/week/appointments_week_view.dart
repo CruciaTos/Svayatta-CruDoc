@@ -275,6 +275,11 @@ class _AppointmentsWeekViewState extends ConsumerState<AppointmentsWeekView>
                                       today: today,
                                       focus: focus,
                                       onOpenDay: _openDay,
+                                      onStep: ref
+                                          .read(
+                                            apptsControllerProvider.notifier,
+                                          )
+                                          .step,
                                     ),
                                     const SizedBox(height: CruSpace.s10),
                                     const CruSeparator(),

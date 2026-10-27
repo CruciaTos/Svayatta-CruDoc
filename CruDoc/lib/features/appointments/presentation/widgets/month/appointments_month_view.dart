@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 import 'month_day_panel.dart';
 import 'month_grid.dart';
@@ -45,17 +46,35 @@ class _MonthBodyState extends ConsumerState<_MonthBody> {
     final wide = MediaQuery.sizeOf(context).width >= CruBreakpoint.splitPane;
     final controller = ref.read(apptsControllerProvider.notifier);
 
-    final grid = SingleChildScrollView(
-      child: MonthGrid(
-        month: DateTime(state.anchor.year, state.anchor.month),
-        today: today,
-        selected: selected,
-        loading: loading,
-        onSelect: (d) {
-          controller.selectMonthDay(d);
-          if (!wide) setState(() => _sheetOpen = true);
-        },
-        onOpen: (d) => controller.openDay(d),
+    // The months stacked: swipe (or scroll the wheel) up for the next one,
+    // down for the one before. The day panel beside them stays put.
+    final month = DateTime(state.anchor.year, state.anchor.month);
+    final grid = SwipePages<DateTime>(
+      axis: Axis.vertical,
+      values: [
+        DateTime(month.year, month.month - 1),
+        month,
+        DateTime(month.year, month.month + 1),
+      ],
+      value: month,
+      onChanged: controller.goTo,
+      // Six-week months shrink their tiles to fit, so the grid never
+      // scrolls and the swipe always reaches the next month.
+      builder: (context, m) => LayoutBuilder(
+        builder: (context, box) => SingleChildScrollView(
+          child: MonthGrid(
+            month: m,
+            today: today,
+            selected: selected,
+            loading: loading,
+            tileHeight: MonthGrid.fitTile(m, box.maxHeight),
+            onSelect: (d) {
+              controller.selectMonthDay(d);
+              if (!wide) setState(() => _sheetOpen = true);
+            },
+            onOpen: (d) => controller.openDay(d),
+          ),
+        ),
       ),
     );
 

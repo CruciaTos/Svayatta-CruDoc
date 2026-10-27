@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/revenue/presentation/desktop_invo
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_header.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_overview_body.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
@@ -63,22 +64,17 @@ class _RevenueOverviewScreenState extends ConsumerState<RevenueOverviewScreen> {
             ),
             const SizedBox(height: CruSpace.cardGap),
           ],
+          // Overview and Invoices side by side: drag sideways to switch.
           Expanded(
-            child: AnimatedSwitcher(
-              duration: CruMotion.of(context, CruMotion.fast),
-              switchInCurve: CruMotion.curve,
-              switchOutCurve: CruMotion.curve,
-              // Fill the space so the Overview stays top-aligned.
-              layoutBuilder: (current, previous) => Stack(
-                fit: StackFit.expand,
-                children: [...previous, ?current],
-              ),
-              child: tab == RevenueTab.overview
-                  ? const RevenueOverviewBody(key: ValueKey('overview'))
-                  : const DesktopInvoicesScreen(
-                      key: ValueKey('invoices'),
-                      isSubScreen: true,
-                    ),
+            child: SwipePages<RevenueTab>(
+              values: seesRevenue
+                  ? RevenueTab.values
+                  : const [RevenueTab.invoices],
+              value: tab,
+              onChanged: controller.setTab,
+              builder: (context, t) => t == RevenueTab.overview
+                  ? const RevenueOverviewBody()
+                  : const DesktopInvoicesScreen(isSubScreen: true),
             ),
           ),
         ],

@@ -27,6 +27,28 @@ class PageTabsScope extends InheritedWidget {
       oldWidget.tabs != tabs || oldWidget.title != title;
 }
 
+/// A page opened from another page (Recalls from Patients, Procedures
+/// from Settings): its header puts a back button before the title,
+/// "Back to [label]".
+class PageBackScope extends InheritedWidget {
+  const PageBackScope({
+    super.key,
+    required this.label,
+    required this.onBack,
+    required super.child,
+  });
+
+  final String label;
+  final VoidCallback onBack;
+
+  static PageBackScope? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PageBackScope>();
+
+  @override
+  bool updateShouldNotify(PageBackScope oldWidget) =>
+      oldWidget.label != label || oldWidget.onBack != onBack;
+}
+
 /// [title], or the page switch in its place.
 Widget pageTitleOrTabs(BuildContext context, Widget title) =>
     PageTabsScope.of(context) ?? title;

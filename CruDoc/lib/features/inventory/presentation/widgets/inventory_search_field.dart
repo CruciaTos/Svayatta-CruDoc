@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_view_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/page_search.dart';
 
 /// Filters live while typing without rebuilding on every keystroke.
 const Duration _debounce = Duration(milliseconds: 150);
@@ -35,10 +36,13 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
     _text = TextEditingController(
       text: ref.read(inventoryControllerProvider).query,
     );
+    // Ctrl F from anywhere on the desktop.
+    PageSearch.add(widget.focusNode);
   }
 
   @override
   void dispose() {
+    PageSearch.remove(widget.focusNode);
     _timer?.cancel();
     _text.dispose();
     super.dispose();

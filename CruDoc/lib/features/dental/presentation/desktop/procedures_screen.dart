@@ -117,15 +117,18 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
     final q = _query.trim().toLowerCase();
 
     if (cruIsPhone(context)) {
-      final phoneItems = active
-          .where(
-            (p) =>
-                q.isEmpty ||
-                p.name.toLowerCase().contains(q) ||
-                p.code.toLowerCase().contains(q),
-          )
-          .toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      final phoneItems =
+          active
+              .where(
+                (p) =>
+                    q.isEmpty ||
+                    p.name.toLowerCase().contains(q) ||
+                    p.code.toLowerCase().contains(q),
+              )
+              .toList()
+            ..sort(
+              (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+            );
 
       return PopScope(
         canPop: _selected.isEmpty,
@@ -284,9 +287,7 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
                                             ),
                                           ),
                                           if (item.code.isNotEmpty) ...[
-                                            const SizedBox(
-                                              height: CruSpace.s2,
-                                            ),
+                                            const SizedBox(height: CruSpace.s2),
                                             Text(
                                               item.code,
                                               maxLines: 1,
@@ -368,66 +369,56 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
             ],
           ),
           const SizedBox(height: CruSpace.cardGap),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          // Search across the row, the categories under it (as Inventory's
+          // search and chips).
+          DentalSearchField(
+            controller: _search,
+            hint: 'Search name or code',
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          const SizedBox(height: CruSpace.s16),
+          Wrap(
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: CruSpace.s8,
-                  runSpacing: CruSpace.s8,
-                  children: [
-                    DentalChoiceChip(
-                      label: 'All · ${active.length}',
-                      tabular: true,
-                      selected: _category == null && !_archived,
-                      onTap: () => setState(() {
-                        _category = null;
-                        _archived = false;
-                      }),
-                    ),
-                    for (final k in kProcedureCategories.where(
-                      counts.containsKey,
-                    ))
-                      DentalChoiceChip(
-                        label: '${categoryLabel(k)} · ${counts[k]}',
-                        tabular: true,
-                        selected: _category == k && !_archived,
-                        onTap: () => setState(() {
-                          _category = k;
-                          _archived = false;
-                        }),
-                      ),
-                    for (final k in counts.keys.where(
-                      (k) => !kProcedureCategories.contains(k),
-                    ))
-                      DentalChoiceChip(
-                        label: '${categoryLabel(k)} · ${counts[k]}',
-                        tabular: true,
-                        selected: _category == k && !_archived,
-                        onTap: () => setState(() {
-                          _category = k;
-                          _archived = false;
-                        }),
-                      ),
-                    if (archived.isNotEmpty)
-                      DentalChoiceChip(
-                        label: 'Archived · ${archived.length}',
-                        tabular: true,
-                        selected: _archived,
-                        onTap: () => setState(() => _archived = !_archived),
-                      ),
-                  ],
-                ),
+              DentalChoiceChip(
+                label: 'All · ${active.length}',
+                tabular: true,
+                selected: _category == null && !_archived,
+                onTap: () => setState(() {
+                  _category = null;
+                  _archived = false;
+                }),
               ),
-              const SizedBox(width: CruSpace.s16),
-              SizedBox(
-                width: 260,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search name or code',
-                  onChanged: (v) => setState(() => _query = v),
+              for (final k in kProcedureCategories.where(counts.containsKey))
+                DentalChoiceChip(
+                  label: '${categoryLabel(k)} · ${counts[k]}',
+                  tabular: true,
+                  selected: _category == k && !_archived,
+                  onTap: () => setState(() {
+                    _category = k;
+                    _archived = false;
+                  }),
                 ),
-              ),
+              for (final k in counts.keys.where(
+                (k) => !kProcedureCategories.contains(k),
+              ))
+                DentalChoiceChip(
+                  label: '${categoryLabel(k)} · ${counts[k]}',
+                  tabular: true,
+                  selected: _category == k && !_archived,
+                  onTap: () => setState(() {
+                    _category = k;
+                    _archived = false;
+                  }),
+                ),
+              if (archived.isNotEmpty)
+                DentalChoiceChip(
+                  label: 'Archived · ${archived.length}',
+                  tabular: true,
+                  selected: _archived,
+                  onTap: () => setState(() => _archived = !_archived),
+                ),
             ],
           ),
           const SizedBox(height: CruSpace.cardGap),

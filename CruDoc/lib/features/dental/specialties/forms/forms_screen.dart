@@ -263,6 +263,11 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
                     );
                   }
 
+                  final search = DentalSearchField(
+                    hint: 'Search form templates...',
+                    controller: _searchCtrl,
+                    onChanged: (_) => setState(() {}),
+                  );
                   return SingleChildScrollView(
                     padding: EdgeInsets.only(
                       top: phone ? CruSpace.s16 : CruSpace.cardGap,
@@ -280,15 +285,15 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
                               '${filtered.length} ${filtered.length == 1 ? 'Template' : 'Templates'}',
                               style: CruType.callout.w600.tint(c.label),
                             ),
-                            const Spacer(),
-                            SizedBox(
-                              width: 280,
-                              child: DentalSearchField(
-                                hint: 'Search form templates...',
-                                controller: _searchCtrl,
-                                onChanged: (_) => setState(() {}),
-                              ),
-                            ),
+                            // On the desktop the search fills the row, as on
+                            // every list.
+                            if (phone) ...[
+                              const Spacer(),
+                              SizedBox(width: 280, child: search),
+                            ] else ...[
+                              const SizedBox(width: CruSpace.s16),
+                              Expanded(child: search),
+                            ],
                           ],
                         ),
                         const SizedBox(height: CruSpace.s16),

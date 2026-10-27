@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
@@ -294,8 +295,15 @@ class _VendorsTab extends StatefulWidget {
 }
 
 class _VendorsTabState extends State<_VendorsTab> {
+  final _search = TextEditingController();
   String _searchQuery = '';
   String _filter = 'All';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -425,51 +433,21 @@ class _VendorsTabState extends State<_VendorsTab> {
         ),
         const SizedBox(height: 20),
 
-        // Controls
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              width: 300,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: context.cru.label3,
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                border: Border.all(color: context.cru.label3),
+        // Filters, then the search filling the row (as on every list).
+        DentalFilterBar(
+          filters: [
+            for (final f in const ['All', 'Low Stock', 'Expiring'])
+              _FilterChip(
+                label: f,
+                active: _filter == f,
+                onTap: () => setState(() => _filter = f),
               ),
-              child: TextField(
-                onChanged: (v) => setState(() => _searchQuery = v),
-                decoration: InputDecoration(
-                  hintText: 'Search vendors...',
-                  icon: Icon(Icons.search, size: 18, color: context.cru.label3),
-                  filled: false,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                _FilterChip(
-                  label: 'All',
-                  active: _filter == 'All',
-                  onTap: () => setState(() => _filter = 'All'),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Low Stock',
-                  active: _filter == 'Low Stock',
-                  onTap: () => setState(() => _filter = 'Low Stock'),
-                ),
-                const SizedBox(width: 8),
-                _FilterChip(
-                  label: 'Expiring',
-                  active: _filter == 'Expiring',
-                  onTap: () => setState(() => _filter = 'Expiring'),
-                ),
-              ],
-            ),
           ],
+          search: DentalSearchField(
+            controller: _search,
+            hint: 'Search vendors',
+            onChanged: (v) => setState(() => _searchQuery = v),
+          ),
         ),
         const SizedBox(height: 16),
 

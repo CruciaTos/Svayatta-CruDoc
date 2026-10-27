@@ -10,13 +10,16 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'week_focus.dart';
 import 'week_metrics.dart';
 
-/// Column headers Mon–Sun above the Week grid, lined up with its columns.
+/// Column headers Mon–Sun above the Week grid, lined up with its columns,
+/// with ‹ (over the hour column) and › (at the end of Sunday) to step a
+/// week back or on.
 class WeekHeaderRow extends StatelessWidget {
   const WeekHeaderRow({
     super.key,
     required this.days,
     required this.today,
     required this.onOpenDay,
+    this.onStep,
     this.focus = WeekFocus.none,
   });
 
@@ -26,12 +29,15 @@ class WeekHeaderRow extends StatelessWidget {
   /// Opens column [index]'s day.
   final void Function(int index, DateTime day) onOpenDay;
 
+  /// -1: the week before, 1: the week after.
+  final ValueChanged<int>? onStep;
+
   /// A column opening into its Day.
   final WeekFocus focus;
 
   @override
   Widget build(BuildContext context) {
-    return WeekColumnsRow(
+    final row = WeekColumnsRow(
       focus: focus,
       crossAxisAlignment: CrossAxisAlignment.end,
       columns: [
@@ -41,6 +47,29 @@ class WeekHeaderRow extends StatelessWidget {
             today: today,
             onOpen: () => onOpenDay(i, days[i]),
           ),
+      ],
+    );
+    final step = onStep;
+    if (step == null) return row;
+    Widget arrow(int delta) => CruIconButton(
+      icon: delta < 0 ? CruIcons.chevronLeft : CruIcons.chevronRight,
+      size: CruSize.capsule,
+      iconSize: 18,
+      semanticLabel: delta < 0 ? 'Previous week' : 'Next week',
+      tooltip: delta < 0 ? 'Previous week' : 'Next week',
+      onPressed: () => step(delta),
+    );
+    return Stack(
+      children: [
+        row,
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: focus.gutter,
+          child: Center(child: arrow(-1)),
+        ),
+        Positioned(right: 0, top: 0, bottom: 0, child: Center(child: arrow(1))),
       ],
     );
   }

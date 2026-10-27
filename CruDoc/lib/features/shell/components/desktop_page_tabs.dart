@@ -7,10 +7,13 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/page_tabs_scope.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 /// Several sidebar pages shown as one, with a segmented control in place of
 /// the page title (Tasks: worklist, reports, treatment plans, lab cases;
-/// Referrals: sent and referrers).
+/// Referrals: sent and referrers). The pages sit side by side as
+/// [SwipePages]: drag sideways to the next one. The heading and the switch
+/// stay put (pinned in [DentalPageHeader]); the rest of the page slides.
 /// Each tab is still its own DesktopTab, so voice, shortcuts and saved
 /// tabs keep working; only the tabs this login has are shown.
 class DesktopPageTabs extends ConsumerWidget {
@@ -19,7 +22,7 @@ class DesktopPageTabs extends ConsumerWidget {
     this.title,
     required this.current,
     required this.pages,
-    required this.child,
+    required this.builder,
   });
 
   /// An optional overall heading (e.g. 'Tasks') shown above the page tabs.
@@ -31,8 +34,8 @@ class DesktopPageTabs extends ConsumerWidget {
   /// Every possible tab, in order: (DesktopTab, label).
   final List<(int, String)> pages;
 
-  /// The screen for [current].
-  final Widget child;
+  /// The screen for a tab.
+  final Widget Function(int tab) builder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,18 +51,23 @@ class DesktopPageTabs extends ConsumerWidget {
         if (allowed.contains(p.$1)) p,
     ];
     if (shown.length < 2) {
+      final child = builder(current);
       if (title == null) return child;
       return PageTabsScope(title: title, tabs: null, child: child);
     }
 
-    return PageTabsScope(
-      title: title,
-      tabs: _PageSwitcher(
-        pages: shown,
-        current: current,
-        onSelect: (tab) => ref.read(shellNavigatorProvider)?.call(tab),
+    void select(int tab) => ref.read(shellNavigatorProvider)?.call(tab);
+    return SwipePages<int>(
+      values: [for (final (tab, _) in shown) tab],
+      value: current,
+      onChanged: select,
+      builder: (context, tab) => PageTabsScope(
+        title: title,
+        // Every page's switch shows the selected tab: it's pinned, so the
+        // copies must match.
+        tabs: _PageSwitcher(pages: shown, current: current, onSelect: select),
+        child: builder(tab),
       ),
-      child: child,
     );
   }
 }
@@ -91,8 +99,9 @@ class _PageSwitcher extends StatelessWidget {
 }
 
 /// A page opened from another page rather than the sidebar (Procedures
-/// and form templates, from Settings › Dental), with a "‹ Settings" link
-/// in its top margin to go back.
+/// and form templates from Settings › Dental, Recalls from Patients). Its
+/// header shows a back button before the title (see [PageBackScope]), so
+/// the title stays at the same height as on every other page.
 class DesktopBackPage extends ConsumerWidget {
   const DesktopBackPage({
     super.key,
@@ -103,31 +112,16 @@ class DesktopBackPage extends ConsumerWidget {
 
   final String backLabel;
 
-  /// The DesktopTab the link returns to.
+  /// The DesktopTab the back button returns to.
   final int backTab;
   final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final padding = MediaQuery.sizeOf(context).width < CruBreakpoint.compact
-        ? CruSpace.mainPaddingCompact
-        : CruSpace.mainPadding;
-    // The link sits in the page's top margin, so the title below it stays
-    // at the same height as on every other page.
-    return Stack(
-      children: [
-        Positioned.fill(child: child),
-        Positioned(
-          left: padding.left,
-          top: (padding.top - CruSpace.s24).clamp(0, padding.top),
-          child: CruLink(
-            label: backLabel,
-            leading: CruIcon(CruIcons.chevronLeft, size: 16, color: c.accent),
-            onPressed: () => ref.read(shellNavigatorProvider)?.call(backTab),
-          ),
-        ),
-      ],
+    return PageBackScope(
+      label: backLabel,
+      onBack: () => ref.read(shellNavigatorProvider)?.call(backTab),
+      child: child,
     );
   }
 }

@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/files/presentation/files_actions.
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/page_search.dart';
 
 String _count(int n, String one) => n == 1 ? '1 $one' : '$n ${one}s';
 
@@ -225,7 +226,15 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
   Timer? _timer;
 
   @override
+  void initState() {
+    super.initState();
+    // Ctrl F from anywhere on the desktop.
+    PageSearch.add(widget.focusNode);
+  }
+
+  @override
   void dispose() {
+    PageSearch.remove(widget.focusNode);
     _timer?.cancel();
     _text.dispose();
     super.dispose();

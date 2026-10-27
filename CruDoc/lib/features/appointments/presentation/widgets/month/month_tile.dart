@@ -23,11 +23,15 @@ class MonthDayTile extends ConsumerStatefulWidget {
     required this.selected,
     required this.onSelect,
     required this.onOpen,
+    this.height = MonthMetrics.tileHeight,
   });
 
   final DateTime date;
   final MonthTileKind kind;
   final bool selected;
+
+  /// Less than the 112 px design when six weeks must fit the screen.
+  final double height;
 
   /// Click: select the tile.
   final VoidCallback onSelect;
@@ -89,7 +93,7 @@ class _MonthDayTileState extends ConsumerState<MonthDayTile> {
         return AnimatedContainer(
           duration: CruMotion.of(context, CruMotion.fast),
           curve: CruMotion.curve,
-          height: MonthMetrics.tileHeight,
+          height: widget.height,
           padding: MonthMetrics.tilePadding,
           decoration: ShapeDecoration(
             color: hovered ? cruHoverShade(fill, c) : fill,

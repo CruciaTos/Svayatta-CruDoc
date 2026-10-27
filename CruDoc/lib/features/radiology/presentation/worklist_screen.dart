@@ -189,7 +189,8 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                 Consumer(
                   builder: (context, ref, _) {
                     final settings = ref.watch(radSettingsProvider).value;
-                    final cursorOffset = settings != null &&
+                    final cursorOffset =
+                        settings != null &&
                         RadViewerPrefs.from(settings.viewer).cursorOffset;
                     return CruButton(
                       label: cursorOffset ? 'Offset on' : 'Offset off',
@@ -311,7 +312,6 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
             const SizedBox(height: CruSpace.cardGap),
           ],
           DentalFilterBar(
-            searchWidth: 300,
             filters: [
               CruSegmentedControl<_Show>(
                 semanticLabel: 'Show',

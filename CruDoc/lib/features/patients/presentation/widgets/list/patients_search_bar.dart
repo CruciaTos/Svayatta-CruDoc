@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/page_search.dart';
 
 /// Search debounce: filters live while typing without rebuilding the
 /// list on every keystroke.
@@ -50,10 +51,13 @@ class _PatientsSearchBarState extends ConsumerState<PatientsSearchBar> {
     _text = TextEditingController(
       text: ref.read(patientsListControllerProvider).query,
     );
+    // Ctrl F from anywhere on the desktop.
+    PageSearch.add(widget.focusNode);
   }
 
   @override
   void dispose() {
+    PageSearch.remove(widget.focusNode);
     _timer?.cancel();
     _text.dispose();
     super.dispose();
@@ -332,11 +336,11 @@ class _FilterMenuButton extends ConsumerWidget {
                       color: c.accentText,
                     )
                   : (counts[f] != null && f != PatientFilter.all
-                      ? Text(
-                          '${counts[f]}',
-                          style: CruType.caption.tabular.tint(c.label3),
-                        )
-                      : null),
+                        ? Text(
+                            '${counts[f]}',
+                            style: CruType.caption.tabular.tint(c.label3),
+                          )
+                        : null),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -398,10 +402,7 @@ class _FilterMenuButton extends ConsumerWidget {
               ),
               if (isActive) ...[
                 const SizedBox(width: CruSpace.s6),
-                Text(
-                  filter.label,
-                  style: CruType.text.w600.tint(c.accentText),
-                ),
+                Text(filter.label, style: CruType.text.w600.tint(c.accentText)),
               ],
               const SizedBox(width: CruSpace.s6),
               CruIcon(

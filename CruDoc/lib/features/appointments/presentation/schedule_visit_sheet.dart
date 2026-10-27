@@ -36,14 +36,10 @@ Future<bool> showScheduleVisitSheet(
     useSafeArea: true,
     backgroundColor: context.cru.surface,
     shape: const RoundedSuperellipseBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(CruRadius.card),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(CruRadius.card)),
     ),
-    builder: (_) => ScheduleVisitSheet(
-      patient: patient,
-      visitRepository: visitRepository,
-    ),
+    builder: (_) =>
+        ScheduleVisitSheet(patient: patient, visitRepository: visitRepository),
   ).then((value) => value ?? false);
 }
 
@@ -139,7 +135,9 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
       address: _addressController.text.trim(),
       latitude: _resolvedLat,
       longitude: _resolvedLng,
-      mapsLink: _mapsLinkController.text.trim().isEmpty
+      mapsLink:
+          _selectedType != VisitType.home ||
+              _mapsLinkController.text.trim().isEmpty
           ? null
           : _mapsLinkController.text.trim(),
       visitType: _selectedType,
@@ -170,10 +168,7 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
             CruRadius.card,
             side: BorderSide(color: c.cardBorder),
           ),
-          title: Text(
-            'Overlapping visit',
-            style: CruType.title2.tint(c.label),
-          ),
+          title: Text('Overlapping visit', style: CruType.title2.tint(c.label)),
           content: Text(
             'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
             style: CruType.text.tint(c.label2),
@@ -228,7 +223,7 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
                 onTap: _isSaving
                     ? null
                     : () => setState(() => _selectedType = type),
-                child: AnimatedContainer( 
+                child: AnimatedContainer(
                   duration: CruMotion.of(context, CruMotion.fast),
                   curve: CruMotion.curve,
                   height: CruSize.segmentItem + CruSpace.s8,
@@ -269,7 +264,8 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
     if (doctors.length > 1 && _attendingDoctorUid == null) {
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
-      _attendingDoctorUid = (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
+      _attendingDoctorUid =
+          (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
           ? currentAuthUid
           : doctors.first.uid;
     }
@@ -365,7 +361,10 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
                 value: _attendingDoctorUid,
                 items: [for (final d in doctors) d.uid],
                 itemLabel: (uid) => doctors
-                    .firstWhere((d) => d.uid == uid, orElse: () => doctors.first)
+                    .firstWhere(
+                      (d) => d.uid == uid,
+                      orElse: () => doctors.first,
+                    )
                     .name,
                 onChanged: _isSaving
                     ? null
@@ -380,26 +379,27 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
                 child: PlacesAutocompleteField(
                   controller: _addressController,
                   enabled: !_isSaving,
-                  hint: 'Start typing to search places',
+                  hint: 'Start typing to search places',
                   onPlaceSelected: (selection) {
                     setState(() {
                       _resolvedLat = selection.latitude;
                       _resolvedLng = selection.longitude;
-                      _mapsLinkController.text = 'https://www.google.com/maps/search/?api=1&query=${selection.latitude},${selection.longitude}';
+                      _mapsLinkController.text =
+                          'https://www.google.com/maps/search/?api=1&query=${selection.latitude},${selection.longitude}';
                     });
                   },
                 ),
               ),
+              const SizedBox(height: CruSpace.s16),
+              CruTextField(
+                label: 'Google Maps link',
+                optional: true,
+                controller: _mapsLinkController,
+                enabled: !_isSaving,
+                keyboardType: TextInputType.url,
+                hint: 'https://maps.google.com/...',
+              ),
             ],
-            const SizedBox(height: CruSpace.s16),
-            CruTextField(
-              label: 'Google Maps link',
-              optional: true,
-              controller: _mapsLinkController,
-              enabled: !_isSaving,
-              keyboardType: TextInputType.url,
-              hint: 'https://maps.google.com/...',
-            ),
             if (_errorText != null) CruFieldError(_errorText!),
             const SizedBox(height: CruSpace.s20),
             Row(

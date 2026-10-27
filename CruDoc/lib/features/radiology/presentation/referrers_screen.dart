@@ -148,7 +148,6 @@ class _RadReferrersScreenState extends ConsumerState<RadReferrersScreen> {
             ),
           const SizedBox(height: CruSpace.cardGap),
           DentalFilterBar(
-            searchWidth: 300,
             search: DentalSearchField(
               controller: _search,
               hint: 'Search name, clinic or city',

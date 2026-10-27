@@ -32,6 +32,7 @@ import 'package:doctor_management_app/features/appointments/data/providers/appoi
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/subscription/presentation/feature_upgrade_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/page_search.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/dental_features.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
@@ -69,6 +70,20 @@ class _NavigateToTabIntent extends Intent {
 /// Ctrl/⌘ K: focus "Search patients".
 class _FocusSearchIntent extends Intent {
   const _FocusSearchIntent();
+}
+
+/// Ctrl/⌘ F: focus the open page's own search box.
+class _FocusPageSearchIntent extends Intent {
+  const _FocusPageSearchIntent();
+}
+
+/// Only takes Ctrl F when the page has a search box (see [PageSearch]).
+class _FocusPageSearchAction extends Action<_FocusPageSearchIntent> {
+  @override
+  bool isEnabled(_FocusPageSearchIntent intent) => PageSearch.available;
+
+  @override
+  Object? invoke(_FocusPageSearchIntent intent) => PageSearch.focus();
 }
 
 /// Enter on the dashboard: start the Up next consultation.
@@ -258,6 +273,16 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     });
   }
 
+  /// Tabs shown as one page (Tasks, Consults) count as that page, so
+  /// moving between them slides inside it instead of fading in anew.
+  static int _pageOf(int tab) => switch (tab) {
+    DesktopTab.reports ||
+    DesktopTab.treatmentPlans ||
+    DesktopTab.labCases => DesktopTab.worklist,
+    DesktopTab.referrers => DesktopTab.dentalReferrals,
+    _ => tab,
+  };
+
   /// Builds only the screen that's actually selected.
   Widget _buildScreen(int index) {
     switch (index) {
@@ -306,7 +331,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             (DesktopTab.treatmentPlans, 'Treatment plans'),
             (DesktopTab.labCases, 'Lab cases'),
           ],
-          child: switch (index) {
+          builder: (tab) => switch (tab) {
             DesktopTab.worklist => const RadWorklistScreen(),
             DesktopTab.reports => const RadReportsScreen(),
             DesktopTab.labCases => const LabCasesScreen(),
@@ -323,7 +348,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             (DesktopTab.dentalReferrals, 'Referrals'),
             (DesktopTab.referrers, 'Referrers'),
           ],
-          child: index == DesktopTab.referrers
+          builder: (tab) => tab == DesktopTab.referrers
               ? const RadReferrersScreen()
               : const ReferralsScreen(),
         );
@@ -364,8 +389,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   }
 
   /// Keyboard shortcuts scoped to the desktop shell: Ctrl+B toggles the
-  /// sidebar, Ctrl+1..Ctrl+8 jump to a tab, Ctrl/⌘ K focuses search and
-  /// Enter on the dashboard starts the Up next consultation.
+  /// sidebar, Ctrl+1..Ctrl+8 jump to a tab, Ctrl/⌘ K focuses search, Ctrl/⌘
+  /// F focuses the open page's search and Enter on the dashboard starts
+  /// the Up next consultation.
   Map<ShortcutActivator, Intent> get _keyboardShortcuts => {
     const SingleActivator(LogicalKeyboardKey.keyB, control: true):
         const _ToggleSidebarIntent(),
@@ -376,6 +402,11 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     if (defaultTargetPlatform == TargetPlatform.macOS)
       const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
           const _FocusSearchIntent(),
+    const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+        const _FocusPageSearchIntent(),
+    if (defaultTargetPlatform == TargetPlatform.macOS)
+      const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+          const _FocusPageSearchIntent(),
     const SingleActivator(LogicalKeyboardKey.enter): const _StartUpNextIntent(),
   };
 
@@ -417,6 +448,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               return null;
             },
           ),
+          _FocusPageSearchIntent: _FocusPageSearchAction(),
           _StartUpNextIntent: _StartUpNextAction(this),
         },
         child: Focus(
@@ -578,7 +610,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               child: child,
             ),
           ),
-          child: KeyedSubtree(key: ValueKey(shown), child: content),
+          child: KeyedSubtree(key: ValueKey(_pageOf(shown)), child: content),
         );
 
         // Day or Evening for the shell chrome, the dashboard and the

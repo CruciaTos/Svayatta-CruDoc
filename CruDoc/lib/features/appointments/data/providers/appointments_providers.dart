@@ -152,8 +152,11 @@ class ApptsController extends Notifier<ApptsState> {
     anchor: ApptsBuilder.dateOnly(ref.read(apptsNowProvider)),
   );
 
-  void setView(ApptsView view) {
-    _weekFromDay = state.view == ApptsView.day && view == ApptsView.week;
+  /// [fold]: Day → Week folds the day back into the week. A swipe passes
+  /// false, since its pages have already slid into place.
+  void setView(ApptsView view, {bool fold = true}) {
+    _weekFromDay =
+        fold && state.view == ApptsView.day && view == ApptsView.week;
     state = state.copyWith(view: view);
   }
 
@@ -178,6 +181,9 @@ class ApptsController extends Notifier<ApptsState> {
     handoffScroll = null;
     return v;
   }
+
+  /// True while Week ⇄ Day is playing the in-place morph transition.
+  bool get isWeekDayMorph => handoffScroll != null || _weekFromDay;
 
   /// ← / → : one day, week or month.
   void step(int delta) {
@@ -264,6 +270,21 @@ final effectiveApptsViewProvider = Provider<ApptsView>((ref) {
   if (view == ApptsView.live && !queueOn) return ApptsView.week;
   if (view != ApptsView.live && !apptsOn && queueOn) return ApptsView.live;
   return view;
+});
+
+/// Schedule's pages in swipe order. Day isn't one: it opens from a date
+/// and shares Week's page.
+final availableApptsViewsProvider = Provider<List<ApptsView>>((ref) {
+  final queueOn = ref.watch(isQueueFeatureEnabledProvider);
+  final apptsOn = ref.watch(isAppointmentsFeatureEnabledProvider);
+  final physio = ref.watch(isPhysiotherapyProvider);
+  return [
+    if (queueOn) ApptsView.live,
+    if (apptsOn) ApptsView.week,
+    if (apptsOn) ApptsView.month,
+    if (apptsOn) ApptsView.agenda,
+    if (apptsOn && physio) ApptsView.visits,
+  ];
 });
 
 /// The other patients booked with a visit (same group), for "Seen with

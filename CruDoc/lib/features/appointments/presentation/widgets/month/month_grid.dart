@@ -19,7 +19,25 @@ class MonthGrid extends StatelessWidget {
     required this.loading,
     required this.onSelect,
     required this.onOpen,
+    this.tileHeight = MonthMetrics.tileHeight,
   });
+
+  /// The labels' height over the tiles (weekday name and its gap).
+  static double get labelsHeight =>
+      CruType.groupLabel.fontSize! * (CruType.groupLabel.height ?? 1.2) +
+      CruSpace.s8;
+
+  /// The tile height that fits [month] in [height] without scrolling:
+  /// the 112 px design when there's room, shorter (to [minTile]) for six
+  /// weeks on a short screen.
+  static double fitTile(DateTime month, double height) {
+    const minTile = 84.0;
+    final rows = ApptsBuilder.monthGrid(month).length ~/ 7;
+    // A few px spare, so rounding never leaves it scrollable.
+    final fit =
+        (height - labelsHeight - (rows - 1) * MonthMetrics.gap - 6) / rows;
+    return fit.floorToDouble().clamp(minTile, MonthMetrics.tileHeight);
+  }
 
   /// Any date in the month shown.
   final DateTime month;
@@ -30,6 +48,7 @@ class MonthGrid extends StatelessWidget {
   final bool loading;
   final ValueChanged<DateTime> onSelect;
   final ValueChanged<DateTime> onOpen;
+  final double tileHeight;
 
   MonthTileKind _kind(DateTime d) {
     if (d.month != month.month || d.year != month.year) {
@@ -82,19 +101,20 @@ class MonthGrid extends StatelessWidget {
           spaced([
             for (final d in weeks[w])
               SizedBox(
-                height: MonthMetrics.tileHeight,
+                height: tileHeight,
                 child: _kind(d) == MonthTileKind.otherMonth
                     ? const SizedBox.shrink()
                     : loading
-                        ? const _TileSkeleton()
-                        : MonthDayTile(
-                            key: ValueKey(d),
-                            date: d,
-                            kind: _kind(d),
-                            selected: d == selected,
-                            onSelect: () => onSelect(d),
-                            onOpen: () => onOpen(d),
-                          ),
+                    ? const _TileSkeleton()
+                    : MonthDayTile(
+                        key: ValueKey(d),
+                        date: d,
+                        kind: _kind(d),
+                        selected: d == selected,
+                        height: tileHeight,
+                        onSelect: () => onSelect(d),
+                        onOpen: () => onOpen(d),
+                      ),
               ),
           ]),
         ],

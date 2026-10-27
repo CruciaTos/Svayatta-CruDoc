@@ -249,13 +249,14 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
                 selected: _filter,
                 onChanged: (f) => setState(() => _filter = f),
               );
+              final field = DentalSearchField(
+                controller: _search,
+                hint: 'Search patient or procedure',
+                onChanged: (v) => setState(() => _query = v),
+              );
               final search = SizedBox(
                 width: cruIsPhone(context) ? double.infinity : 280,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search patient or procedure',
-                  onChanged: (v) => setState(() => _query = v),
-                ),
+                child: field,
               );
               if (constraints.maxWidth < 900) {
                 return Column(
@@ -270,7 +271,14 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
                   ],
                 );
               }
-              return Row(children: [filter, const Spacer(), search]);
+              // The search fills the row after the filter, as on every list.
+              return Row(
+                children: [
+                  filter,
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(child: field),
+                ],
+              );
             },
           ),
           const SizedBox(height: CruSpace.cardGap),

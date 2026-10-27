@@ -100,6 +100,11 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
     );
 
     final phone = cruIsPhone(context);
+    final search = DentalSearchField(
+      hint: 'Search patient, lab, restoration…',
+      controller: _search,
+      onChanged: (_) => setState(() {}),
+    );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Padding(
@@ -207,15 +212,16 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
                           ),
                         ),
                       ],
-                      const Spacer(),
-                      SizedBox(
-                        width: 280,
-                        child: DentalSearchField(
-                          hint: 'Search patient, lab, restoration…',
-                          controller: _search,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
+                      // On the desktop the search fills the row, as on
+                      // every list.
+                      if (phone) ...[
+                        const Spacer(),
+                        SizedBox(width: 280, child: search),
+                      ] else ...[
+                        if (_view == _CaseViewMode.list)
+                          const SizedBox(width: CruSpace.s12),
+                        Expanded(child: search),
+                      ],
                     ],
                   ),
                   const SizedBox(height: CruSpace.cardGap),

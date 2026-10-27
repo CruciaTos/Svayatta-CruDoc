@@ -104,15 +104,13 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
   }
 
   void _edit(InvoiceModel invoice) {
-    showDesktopCreateInvoiceDialog(
-      context,
-      initialInvoice: invoice,
-    );
+    showDesktopCreateInvoiceDialog(context, initialInvoice: invoice);
   }
 
   Future<void> _cancel(InvoiceModel invoice) async {
-    final num =
-        invoice.invoiceNumber.isNotEmpty ? invoice.invoiceNumber : invoice.id;
+    final num = invoice.invoiceNumber.isNotEmpty
+        ? invoice.invoiceNumber
+        : invoice.id;
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -201,6 +199,13 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
                   selected: _filter,
                   onChanged: (f) => setState(() => _filter = f),
                 ),
+              ],
+              search: DentalSearchField(
+                controller: _search,
+                hint: 'Search patient, service or invoice no.',
+                onChanged: (_) => setState(() {}),
+              ),
+              trailing: [
                 CruButton(
                   label: 'New invoice',
                   icon: CruIcons.plus,
@@ -208,11 +213,6 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
                   onPressed: _newInvoice,
                 ),
               ],
-              search: DentalSearchField(
-                controller: _search,
-                hint: 'Search patient, service or invoice no.',
-                onChanged: (_) => setState(() {}),
-              ),
             ),
             const SizedBox(height: CruSpace.cardGap),
             Expanded(
@@ -638,11 +638,7 @@ class _MessageCard extends StatelessWidget {
       padding: const EdgeInsets.all(CruSpace.s12),
       child: Center(
         child: SingleChildScrollView(
-          child: DentalEmptyState(
-            icon: icon,
-            title: title,
-            body: body,
-          ),
+          child: DentalEmptyState(icon: icon, title: title, body: body),
         ),
       ),
     );

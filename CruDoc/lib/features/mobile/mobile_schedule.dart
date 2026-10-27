@@ -374,21 +374,25 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
           ],
           AsyncData(:final value) => [
             SliverToBoxAdapter(
-              child: MobileRowGroup(
-                indent: 76,
-                header: _dayHeader(c, day, now, isToday, value, walkIns),
-                children: [
-                  // Booked visits and walk-ins, in time order.
-                  for (final (_, row) in [
-                    for (final item in value)
-                      (
-                        item.start,
-                        _ApptRow(item: item, today: isToday) as Widget,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MobileMetrics.gutter,
+                ),
+                child: MobileCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _dayHeader(c, day, now, isToday, value, walkIns),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: CruSpace.s8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: _timeline(value, walkIns, isToday, now),
+                        ),
                       ),
-                    for (final w in walkIns) (w.time, _WalkInRow(item: w)),
-                  ]..sort((a, b) => a.$1.compareTo(b.$1)))
-                    row,
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -453,13 +457,392 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
         if (isToday && (items.isNotEmpty || walkIns.isNotEmpty)) ...[
           const SizedBox(height: CruSpace.s8),
           Text(
-            'Swipe a row right to move them along. Hold it for more.',
+            'Swipe a visit right to move them along. Hold it for more.',
             style: MobileType.caption.tint(c.label3),
           ),
         ],
       ],
     ),
   );
+
+  /// The day as a timeline: visits and walk-ins in time order, the free
+  /// time between them, and (today) where now falls.
+  List<Widget> _timeline(
+    List<ApptItem> items,
+    List<ScheduleItem> walkIns,
+    bool isToday,
+    DateTime now,
+  ) {
+    // Walk-ins have no length; a short slot keeps the gaps honest.
+    const walkInSlot = Duration(minutes: 15);
+    final slots =
+        <
+            ({
+              DateTime start,
+              DateTime end,
+              ApptItem? appt,
+              ScheduleItem? walkIn,
+            })
+          >[
+            for (final i in items)
+              (start: i.start, end: i.end, appt: i, walkIn: null),
+            for (final w in walkIns)
+              (
+                start: w.time,
+                end: w.time.add(walkInSlot),
+                appt: null,
+                walkIn: w,
+              ),
+          ]
+          ..sort((a, b) => a.start.compareTo(b.start));
+
+    // Now goes before the first slot that has not started yet.
+    final upcoming = slots.indexWhere((s) => s.start.isAfter(now));
+    final nowAt = !isToday ? -1 : (upcoming < 0 ? slots.length : upcoming);
+
+    final out = <Widget>[];
+    DateTime? busyUntil;
+    for (var i = 0; i < slots.length; i++) {
+      final s = slots[i];
+      if (i == nowAt) out.add(_NowMarker(now: now, first: i == 0));
+      final gap = busyUntil == null ? null : s.start.difference(busyUntil);
+      final free = gap != null && gap.inMinutes >= 30
+          ? '${DashFormat.minutes(gap.inMinutes)} free'
+          : null;
+      final first = i == 0 && nowAt != 0;
+      final last = i == slots.length - 1 && nowAt != slots.length;
+      // A hairline only between two visits that sit right next to each
+      // other; the free time and the now line already split the rest.
+      final divider = i > 0 && free == null && i != nowAt;
+      out.add(
+        s.appt != null
+            ? _ApptRow(
+                item: s.appt!,
+                today: isToday,
+                first: first,
+                last: last,
+                divider: divider,
+                gapLabel: free,
+              )
+            : _WalkInRow(
+                item: s.walkIn!,
+                first: first,
+                last: last,
+                divider: divider,
+                gapLabel: free,
+              ),
+      );
+      if (busyUntil == null || s.end.isAfter(busyUntil)) busyUntil = s.end;
+    }
+    if (nowAt == slots.length && slots.isNotEmpty) {
+      out.add(_NowMarker(now: now, first: false, last: true));
+    }
+    return out;
+  }
+}
+
+/// The timeline's left edge for one stop: the track line through the
+/// middle (the halves above and below drawn on their own, so the line
+/// starts at the first stop and ends at the last) and, when [dot] is set,
+/// the status dot from Today's schedule, ringed in the card's surface so
+/// the line stops short of it.
+class _Rail extends StatelessWidget {
+  const _Rail({required this.top, required this.bottom, this.dot});
+
+  final bool top;
+  final bool bottom;
+  final CruDotKind? dot;
+
+  static const double width = CruSpace.s24;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    Widget half(bool on) => Expanded(
+      child: on
+          ? Center(
+              child: SizedBox(
+                width: 1.5,
+                height: double.infinity,
+                child: ColoredBox(color: c.separator),
+              ),
+            )
+          : const SizedBox.shrink(),
+    );
+    return SizedBox(
+      width: width,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Column(children: [half(top), half(bottom)]),
+          if (dot != null)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: c.surface,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(CruSpace.s4),
+                child: CruStatusDot(dot!, size: CruSpace.s12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Left padding of every timeline row, before the rail.
+const double _rowLead = CruSpace.s8;
+
+/// Space between the time and the name.
+const double _timeGap = CruSpace.s12;
+
+/// Where a row's text starts; the hairlines between visits start here.
+const double _textInset =
+    _rowLead + _Rail.width + CruSize.timeColumn + _timeGap;
+
+/// One stop on the timeline, as a flat row like the rest of the phone's
+/// cards: an optional "1 h free" line above, then the dot, the time, the
+/// name and reason, the status on the right and the more button. The
+/// visit with the doctor is washed in the accent, as on the dashboard.
+class _TimelineTile extends StatelessWidget {
+  const _TimelineTile({
+    required this.time,
+    required this.dot,
+    required this.title,
+    required this.detail,
+    required this.first,
+    required this.last,
+    required this.divider,
+    required this.onTap,
+    required this.onMore,
+    this.status,
+    this.struck = false,
+    this.gapLabel,
+    this.swipe,
+  });
+
+  final DateTime time;
+  final CruDotKind dot;
+  final String title;
+  final String? detail;
+
+  /// The pill (or quiet "Booked") on the right.
+  final Widget? status;
+  final bool struck;
+  final bool first;
+  final bool last;
+
+  /// A hairline above this row, from the text column to the edge.
+  final bool divider;
+  final VoidCallback onTap;
+  final VoidCallback onMore;
+  final String? gapLabel;
+  final MobileSwipeAction? swipe;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final (hm, meridiem) = DashFormat.timeParts(time);
+    final now = dot == CruDotKind.now;
+    final quiet = dot == CruDotKind.done || dot == CruDotKind.inactive;
+
+    final row = Material(
+      color: now ? c.accentWash : c.surface,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: () {
+          MobileHaptics.commit();
+          onMore();
+        },
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: c.hoverFill,
+        child: Stack(
+          children: [
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(width: _rowLead),
+                  _Rail(top: !first, bottom: !last, dot: dot),
+                  SizedBox(
+                    width: CruSize.timeColumn,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: hm,
+                                style: MobileType.callout.tabular.tint(
+                                  now
+                                      ? c.accentText
+                                      : (quiet ? c.label2 : c.label),
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' $meridiem',
+                                style: MobileType.micro.tint(c.label3),
+                              ),
+                            ],
+                          ),
+                          maxLines: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: _timeGap),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CruSpace.s12,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: MobileType.row.copyWith(
+                              color: struck
+                                  ? c.label3
+                                  : (quiet ? c.label2 : c.label),
+                              decoration: struck
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              decorationColor: c.label3,
+                            ),
+                          ),
+                          if (detail != null) ...[
+                            const SizedBox(height: CruSpace.s2),
+                            Text(
+                              detail!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: MobileType.caption.tabular.tint(c.label2),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (status != null) ...[
+                    const SizedBox(width: CruSpace.s8),
+                    Center(child: status),
+                  ],
+                  Center(
+                    child: CruIconButton(
+                      icon: CruIcons.more,
+                      semanticLabel: 'More for $title',
+                      size: CruSize.squareButton,
+                      iconSize: 18,
+                      onPressed: () {
+                        MobileHaptics.tap();
+                        onMore();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s4),
+                ],
+              ),
+            ),
+            if (divider)
+              const Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: CruSeparator(indent: _textInset),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (gapLabel != null)
+          SizedBox(
+            height: CruSpace.s32,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(width: _rowLead),
+                const _Rail(top: true, bottom: true),
+                const SizedBox(width: CruSize.timeColumn + _timeGap),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    children: [
+                      CruIcon(
+                        CruIcons.clock,
+                        size: 12,
+                        strokeWidth: 2,
+                        color: c.label3,
+                      ),
+                      const SizedBox(width: CruSpace.s4),
+                      Text(
+                        gapLabel!,
+                        style: MobileType.micro.tabular.tint(c.label3),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        MobileSwipeRow(action: swipe, child: row),
+      ],
+    );
+  }
+}
+
+/// Where now falls between today's visits: the "now" dot and the time,
+/// with a line across like the Day view's now line.
+class _NowMarker extends StatelessWidget {
+  const _NowMarker({required this.now, required this.first, this.last = false});
+
+  final DateTime now;
+  final bool first;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return SizedBox(
+      height: CruSpace.s32,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(width: _rowLead),
+          _Rail(top: !first, bottom: !last, dot: CruDotKind.now),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Now · ${DashFormat.time(now)}',
+              style: MobileType.micro.w600.tabular.tint(c.accentText),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          Expanded(
+            child: Center(
+              child: SizedBox(
+                height: 1,
+                width: double.infinity,
+                child: ColoredBox(color: c.accent),
+              ),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s16),
+        ],
+      ),
+    );
+  }
 }
 
 /// Weekday initials above the week strip and the month grid. They stay put
@@ -647,9 +1030,19 @@ class _Summary extends StatelessWidget {
 /// A walk-in on today's queue (a token with no booked visit). Swipe
 /// right to call them in when they are next, or to finish with them.
 class _WalkInRow extends ConsumerWidget {
-  const _WalkInRow({required this.item});
+  const _WalkInRow({
+    required this.item,
+    required this.first,
+    required this.last,
+    required this.divider,
+    this.gapLabel,
+  });
 
   final ScheduleItem item;
+  final bool first;
+  final bool last;
+  final bool divider;
+  final String? gapLabel;
 
   Future<void> _run(
     BuildContext context,
@@ -754,78 +1147,90 @@ class _WalkInRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final (time, meridiem) = DashFormat.timeParts(item.time);
-    final done = item.status == ScheduleStatus.done;
-    final pill = switch (item.status) {
-      ScheduleStatus.inConsultation => const MobilePill(
-        'With you',
-        tone: MobileTone.blue,
-      ),
-      ScheduleStatus.called => const MobilePill(
-        'Called',
-        tone: MobileTone.blue,
-      ),
-      ScheduleStatus.waiting => MobilePill(
-        item.waitMinutes == null
-            ? 'Waiting'
-            : DashFormat.minutes(item.waitMinutes!),
-        tone: MobileTone.amber,
-        icon: CruIcons.clock,
-      ),
-      ScheduleStatus.done => const MobilePill(
-        'Done',
-        tone: MobileTone.green,
-        icon: CruIcons.check,
-      ),
-      ScheduleStatus.skipped => const MobilePill(
-        'Not here',
-        tone: MobileTone.slate,
-      ),
-      _ => null,
+    final (dot, status) = switch (item.status) {
+      ScheduleStatus.inConsultation => (CruDotKind.now, _Status.withYou),
+      ScheduleStatus.called => (CruDotKind.now, _Status.called),
+      ScheduleStatus.waiting => (CruDotKind.waiting, _Status.waiting),
+      ScheduleStatus.booked => (CruDotKind.booked, _Status.booked),
+      ScheduleStatus.done => (CruDotKind.done, _Status.done),
+      ScheduleStatus.missed => (CruDotKind.inactive, _Status.missed),
+      ScheduleStatus.skipped => (CruDotKind.inactive, _Status.notHere),
     };
-    return MobileSwipeRow(
-      action: _swipe(context, ref),
-      child: MobileRow(
-        padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
-        leading: SizedBox(
-          width: 48,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                time,
-                style: MobileType.callout.tabular.tint(
-                  done ? c.label3 : c.label,
-                ),
-              ),
-              Text(meridiem, style: MobileType.micro.tint(c.label3)),
-            ],
-          ),
-        ),
-        title: item.name,
-        titleStyle: MobileType.row.tint(done ? c.label2 : c.label),
-        subtitle: [
-          'Walk-in',
-          if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
-          ?item.reason,
-        ].join(' · '),
-        trailing: pill,
-        onTap: item.patient == null
-            ? null
-            : () => openMobilePatient(context, item.patient!),
-        onLongPress: () => _sheet(context, ref),
-      ),
+    return _TimelineTile(
+      time: item.time,
+      dot: dot,
+      title: item.name,
+      status: _StatusPill(status, waitMinutes: item.waitMinutes),
+      struck: item.status == ScheduleStatus.missed,
+      detail: [
+        'Walk-in',
+        if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
+        ?item.reason,
+      ].join(' · '),
+      first: first,
+      last: last,
+      divider: divider,
+      gapLabel: gapLabel,
+      swipe: _swipe(context, ref),
+      onTap: item.patient == null
+          ? () => _sheet(context, ref)
+          : () => openMobilePatient(context, item.patient!),
+      onMore: () => _sheet(context, ref),
     );
   }
 }
 
+enum _Status { withYou, called, waiting, booked, done, missed, notHere }
+
+/// A row's status on the right: the phone's pills (blue only while with
+/// the doctor, amber waiting, green done, grey missed) and a quiet
+/// "Booked" when nothing has happened yet.
+class _StatusPill extends StatelessWidget {
+  const _StatusPill(this.status, {this.waitMinutes});
+
+  final _Status status;
+  final int? waitMinutes;
+
+  @override
+  Widget build(BuildContext context) => switch (status) {
+    _Status.withYou => const MobilePill('With you', tone: MobileTone.blue),
+    _Status.called => const MobilePill('Called', tone: MobileTone.blue),
+    _Status.waiting => MobilePill(
+      waitMinutes == null ? 'Waiting' : DashFormat.minutes(waitMinutes!),
+      tone: MobileTone.amber,
+      icon: CruIcons.clock,
+    ),
+    _Status.done => const MobilePill(
+      'Done',
+      tone: MobileTone.green,
+      icon: CruIcons.check,
+    ),
+    _Status.missed => const MobilePill('Missed', tone: MobileTone.slate),
+    _Status.notHere => const MobilePill('Not here', tone: MobileTone.slate),
+    _Status.booked => Text(
+      'Booked',
+      style: MobileType.caption.tint(context.cru.label3),
+    ),
+  };
+}
+
 /// One visit. Today's rows can be swiped right to take the next step.
 class _ApptRow extends ConsumerWidget {
-  const _ApptRow({required this.item, required this.today});
+  const _ApptRow({
+    required this.item,
+    required this.today,
+    required this.first,
+    required this.last,
+    required this.divider,
+    this.gapLabel,
+  });
 
   final ApptItem item;
   final bool today;
+  final bool first;
+  final bool last;
+  final bool divider;
+  final String? gapLabel;
 
   QueueEntry? _entry(WidgetRef ref) {
     for (final e in ref.read(todaysQueueProvider).value ?? const []) {
@@ -959,74 +1364,40 @@ class _ApptRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final (time, meridiem) = DashFormat.timeParts(item.start);
-    final done = item.status == ApptStatus.done;
-    final missed = item.status == ApptStatus.missed;
-    final pill = switch (item.status) {
-      ApptStatus.inConsultation => const MobilePill(
-        'With you',
-        tone: MobileTone.blue,
-      ),
-      ApptStatus.waiting => MobilePill(
-        item.waitMinutes == null
-            ? 'Waiting'
-            : DashFormat.minutes(item.waitMinutes!),
-        tone: MobileTone.amber,
-        icon: CruIcons.clock,
-      ),
-      ApptStatus.done => const MobilePill(
-        'Done',
-        tone: MobileTone.green,
-        icon: CruIcons.check,
-      ),
-      ApptStatus.missed => const MobilePill('Missed', tone: MobileTone.slate),
-      ApptStatus.booked when item.isNewPatient => const MobilePill(
-        'New',
-        tone: MobileTone.sky,
-      ),
-      _ => null,
+    final (dot, status) = switch (item.status) {
+      ApptStatus.inConsultation => (CruDotKind.now, _Status.withYou),
+      ApptStatus.waiting => (CruDotKind.waiting, _Status.waiting),
+      ApptStatus.done => (CruDotKind.done, _Status.done),
+      ApptStatus.missed => (CruDotKind.inactive, _Status.missed),
+      ApptStatus.booked => (CruDotKind.booked, _Status.booked),
     };
-    return MobileSwipeRow(
-      action: _swipe(context, ref),
-      child: MobileRow(
-        padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
-        leading: SizedBox(
-          width: 48,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                time,
-                style: MobileType.callout.tabular.tint(
-                  done || missed ? c.label3 : c.label,
-                ),
-              ),
-              Text(meridiem, style: MobileType.micro.tint(c.label3)),
-            ],
-          ),
-        ),
-        title: item.name,
-        titleStyle: MobileType.row.copyWith(
-          color: done || missed ? c.label2 : c.label,
-          decoration: missed ? TextDecoration.lineThrough : null,
-          decorationColor: c.label3,
-        ),
-        subtitle: [
-          if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
-          if (item.isHomeVisit) 'Home visit',
-          ?item.detailLine,
-        ].join(' · ').ifEmpty(DashFormat.minutes(item.durationMinutes)),
-        trailing: pill,
-        onTap: () => ApptActions.openVisit(context, item),
-        onLongPress: () => _sheet(context, ref),
-      ),
+    return _TimelineTile(
+      time: item.start,
+      dot: dot,
+      title: item.name,
+      status: _StatusPill(status, waitMinutes: item.waitMinutes),
+      struck: item.status == ApptStatus.missed,
+      detail:
+          [
+            if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
+            if (item.isHomeVisit) 'Home visit',
+            if (item.isNewPatient) 'New patient',
+            ?item.detailLine,
+          ].join(' · ').nullIfEmpty ??
+          DashFormat.minutes(item.durationMinutes),
+      first: first,
+      last: last,
+      divider: divider,
+      gapLabel: gapLabel,
+      swipe: _swipe(context, ref),
+      onTap: () => ApptActions.openVisit(context, item),
+      onMore: () => _sheet(context, ref),
     );
   }
 }
 
 extension on String {
-  String ifEmpty(String other) => isEmpty ? other : this;
+  String? get nullIfEmpty => isEmpty ? null : this;
 }
 
 /// The dropdown pill beside "Schedule": toggles between Week and Month view.

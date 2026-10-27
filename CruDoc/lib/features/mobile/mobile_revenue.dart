@@ -540,7 +540,9 @@ class _Hero extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: CruSpace.s14),
-                    _Bars(chart: o.chart, onCard: true),
+                    // The card's height is fixed, so the bars take what the
+                    // text leaves them and the footer never spills out.
+                    Expanded(child: _Bars(chart: o.chart, onCard: true)),
                     const SizedBox(height: CruSpace.s16),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -603,12 +605,30 @@ class _Bars extends StatelessWidget {
   /// On a coloured period card: white bars, softer for past days.
   final bool onCard;
 
+  /// Tallest bar on a period card, when the card has room for it.
+  static const double _cardBar = 48;
+
   @override
   Widget build(BuildContext context) {
+    if (!onCard) return _build(context, 60);
+    // On a card the bars fill the height they are given (up to
+    // [_cardBar]), sitting on the bottom edge.
+    return LayoutBuilder(
+      builder: (context, box) => Align(
+        alignment: Alignment.bottomCenter,
+        child: _build(
+          context,
+          (box.maxHeight - 4).clamp(0.0, _cardBar).toDouble(),
+        ),
+      ),
+    );
+  }
+
+  /// The bars with [h] for the tallest one (plus a 4 px stub under all).
+  Widget _build(BuildContext context, double h) {
     final c = context.cru;
     final bars = chart.bars;
-    if (bars.isEmpty) return SizedBox(height: onCard ? 52 : 64);
-    final h = onCard ? 48.0 : 60.0;
+    if (bars.isEmpty) return SizedBox(height: h + 4);
     final max = chart.scaleMax <= 0 ? 1.0 : chart.scaleMax;
     final dense = bars.length > 16;
     return SizedBox(

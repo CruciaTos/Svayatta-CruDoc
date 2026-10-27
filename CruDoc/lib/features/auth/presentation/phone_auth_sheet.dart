@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -41,29 +43,40 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   bool _otpSent = false;
   String? _errorText;
 
-  // Resend cooldown
+  /// A code is being checked, by the Verify button or Android reading the
+  /// SMS on its own. Only one may run, so the code isn't used twice.
+  bool _verifying = false;
+
+  // Resend cooldown. One timer at a time, so changing the number and
+  // sending again doesn't leave an old countdown running alongside.
   int _resendCountdown = 0;
+  Timer? _resendTimer;
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _phoneController.dispose();
     _otpController.dispose();
     super.dispose();
   }
 
   void _startResendTimer() {
+    _resendTimer?.cancel();
     setState(() => _resendCountdown = 60);
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       setState(() => _resendCountdown--);
-      return _resendCountdown > 0;
+      if (_resendCountdown <= 0) timer.cancel();
     });
   }
 
   Future<void> _sendOTP({bool resend = false}) async {
+    if (_isLoading) return;
     final phone = _phoneController.text.trim();
-    if (phone.isEmpty || phone.length < 7) {
+    if (phone.length != 10) {
       setState(() => _errorText = 'Enter your 10-digit mobile number.');
       return;
     }
@@ -88,7 +101,14 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
           _startResendTimer();
         },
         onAutoVerified: (credential) async {
-          // Android auto-retrieval — sign in automatically
+          // Android auto-retrieval — sign in automatically, unless the
+          // person already tapped Verify.
+          if (!mounted || _verifying) return;
+          setState(() {
+            _verifying = true;
+            _isLoading = true;
+            _errorText = null;
+          });
           try {
             final userCredential = widget.linkToCurrentUser
                 ? await widget.authService.linkPhoneCredential(credential)
@@ -102,12 +122,14 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                   ? phoneLinkErrorMessage(e)
                   : 'Auto-verification failed: ${e.message}';
               _isLoading = false;
+              _verifying = false;
             });
           } catch (e) {
             if (!mounted) return;
             setState(() {
               _errorText = 'Auto-verification failed: $e';
               _isLoading = false;
+              _verifying = false;
             });
           }
         },
@@ -129,6 +151,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   }
 
   Future<void> _verifyOTP() async {
+    if (_isLoading || _verifying) return;
     final code = _otpController.text.trim();
     if (code.length != 6) {
       setState(() => _errorText = 'Enter the 6-digit code.');
@@ -136,6 +159,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
     }
 
     setState(() {
+      _verifying = true;
       _isLoading = true;
       _errorText = null;
     });
@@ -159,17 +183,21 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
             ? phoneLinkErrorMessage(e)
             : e.message ?? "That code didn't work. Check it and try again.";
         _isLoading = false;
+        _verifying = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _errorText = "Couldn't check the code. Try again.";
         _isLoading = false;
+        _verifying = false;
       });
     }
   }
 
   void _changeNumber() => setState(() {
+    _resendTimer?.cancel();
+    _resendCountdown = 0;
     _otpSent = false;
     _verificationId = null;
     _otpController.clear();
@@ -277,7 +305,9 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                       else
                         CruLink(
                           label: 'Resend code',
-                          onPressed: () => _sendOTP(resend: true),
+                          onPressed: _isLoading
+                              ? null
+                              : () => _sendOTP(resend: true),
                         ),
                       const Spacer(),
                       CruLink(

@@ -644,6 +644,13 @@ class FilesRepository {
       where: "doctorId = ? AND ownerUid = ? AND isDeleted = 0 AND sha256 != '' AND storagePath = ''",
       whereArgs: [clinic, me],
     );
+    if (rows.isEmpty) return;
+    // Files already in the upload queue (waiting, uploading or failed): this
+    // runs every time Files opens, and must not queue a second full copy.
+    final queued = {
+      for (final l in await StorageSyncQueue.instance.openLinks(linkHandler))
+        l.docId,
+    };
 
     for (final r in rows) {
       final f = PatientFile.fromLocalMap(r);
@@ -665,6 +672,7 @@ class FilesRepository {
           });
         } else if (f.receivedFromUid.isNotEmpty &&
                    f.localPath.isNotEmpty &&
+                   !queued.contains(f.id) &&
                    DateTime.now().difference(f.createdAt).inHours >= 2) {
           // Task N7: 2-hour delay passed; sender did not upload to cloud, recipient uploads now
           final diskFile = await localCopy(f);

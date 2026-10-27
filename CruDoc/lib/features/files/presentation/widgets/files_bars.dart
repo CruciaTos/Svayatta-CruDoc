@@ -23,6 +23,8 @@ class FilesHeader extends StatelessWidget {
     required this.view,
     required this.onNewFolder,
     required this.onAddFiles,
+    this.onTransfers,
+    this.waitingTransfers = 0,
   });
 
   /// Null while loading (the subtitle shows a skeleton).
@@ -31,6 +33,15 @@ class FilesHeader extends StatelessWidget {
   /// Null for people who may only look (no clinical edit): no buttons.
   final VoidCallback? onNewFolder;
   final VoidCallback? onAddFiles;
+
+  /// Opens received and sent files. Null with no colleagues (solo doctor).
+  final VoidCallback? onTransfers;
+
+  /// Received files waiting for Accept, shown on the button.
+  final int waitingTransfers;
+
+  String get _transfersLabel =>
+      waitingTransfers > 0 ? 'Transfers · $waitingTransfers' : 'Transfers';
 
   @override
   Widget build(BuildContext context) {
@@ -85,12 +96,26 @@ class FilesHeader extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Files',
-              style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    'Files',
+                    style: CruType.largeTitle
+                        .copyWith(fontSize: 28)
+                        .tint(c.label),
+                  ),
+                ),
+              ),
+              if (onTransfers != null)
+                CruCapsuleButton(
+                  label: _transfersLabel,
+                  icon: CruIcons.importExport,
+                  onPressed: onTransfers,
+                ),
+            ],
           ),
           const SizedBox(height: CruSpace.s2),
           sub,
@@ -139,8 +164,17 @@ class FilesHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (onAddFiles != null) ...[
+        if (onTransfers != null) ...[
           const SizedBox(width: CruSpace.s24),
+          CruButton(
+            label: _transfersLabel,
+            kind: CruButtonKind.secondary,
+            icon: CruIcons.importExport,
+            onPressed: onTransfers,
+          ),
+        ],
+        if (onAddFiles != null) ...[
+          SizedBox(width: onTransfers != null ? CruSpace.s10 : CruSpace.s24),
           newFolder,
           const SizedBox(width: CruSpace.s10),
           addFiles,

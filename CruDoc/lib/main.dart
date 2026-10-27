@@ -8,10 +8,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 import 'core/clinic/clinic_access.dart';
 import 'core/clinic/clinic_models.dart';
+import 'core/clinic/clinic_permission.dart';
 import 'core/clinic/clinic_session.dart';
 import 'core/models/doctor_specialty.dart';
 import 'core/providers/specialty_provider.dart';
@@ -191,15 +193,8 @@ void _wireDoctorScopedStartup() {
       unawaited(RadiologyCloudSync.catchUp());
       // Keeps this device within the storage limit set in Settings.
       LocalStorageManager.instance.start();
-      // Start LAN HTTPS server, register presence, start offline queue & mDNS broadcast
-      final lanPort = await LanServer.instance.start();
-      await DeviceRegistryService.instance.start(
-        clinicId: access.clinicId,
-        myUid: user.uid,
-        port: lanPort,
-      );
-      OfflineOfferQueue.instance.start(clinicId: access.clinicId);
-      unawaited(LanMdnsService.instance.startBroadcast(port: lanPort));
+      // Start LAN HTTPS server, register presence, start offline queue & mDNS in background
+      unawaited(_startLanServices(access, user.uid));
     },
     close: () async {
       await LanMdnsService.instance.stopBroadcast();
@@ -213,6 +208,52 @@ void _wireDoctorScopedStartup() {
       EncryptionKeyManager.instance.clear();
     },
   );
+}
+
+Future<void> _startLanServices(ClinicAccess access, String myUid) async {
+  final clinicId = access.clinicId;
+  try {
+    if (!await _nearbySharingApplies(access, myUid)) return;
+    final lanPort = await LanServer.instance.start();
+    await DeviceRegistryService.instance.start(
+      clinicId: clinicId,
+      myUid: myUid,
+      port: lanPort,
+    );
+    OfflineOfferQueue.instance.start(clinicId: clinicId);
+    unawaited(LanMdnsService.instance.startBroadcast(port: lanPort));
+  } catch (e) {
+    debugPrint('[LanStartup] Non-critical LAN startup notice: $e');
+  }
+}
+
+/// Nearby sharing runs only where it can be used: switched on in Settings
+/// (on by default), for someone who may see clinical records, in a clinic
+/// with more than one person. Anywhere else the server would only bring up
+/// a Windows Firewall prompt. The team answer is remembered for starts
+/// without internet.
+Future<bool> _nearbySharingApplies(ClinicAccess access, String myUid) async {
+  if (!access.can(ClinicPermission.clinicalView)) return false;
+  final prefs = await SharedPreferences.getInstance();
+  if (!(prefs.getBool('crudoc.lan.enabled') ?? true)) return false;
+  // A member always has at least the owner as a colleague.
+  if (access.clinicId != myUid) return true;
+  final key = 'crudoc.lan.team.${access.clinicId}';
+  try {
+    final snap = await FirebaseFirestore.instance
+        .collection('clinics')
+        .doc(access.clinicId)
+        .collection('members')
+        .where('active', isEqualTo: true)
+        .limit(2)
+        .get()
+        .timeout(const Duration(seconds: 10));
+    final team = snap.docs.any((d) => d.id != myUid);
+    await prefs.setBool(key, team);
+    return team;
+  } catch (_) {
+    return prefs.getBool(key) ?? false;
+  }
 }
 
 /// Signs people in and out of their clinic's data. On sign-in it loads

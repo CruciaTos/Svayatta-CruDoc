@@ -39,7 +39,9 @@ export const onFileOfferCreated = onDocumentCreated(
         const rawName = userDoc.data()?.name || userDoc.data()?.displayName;
         if (rawName) senderName = drName(rawName);
       }
-    } catch (_) {}
+    } catch (_) {
+      // Keep the generic sender name.
+    }
 
     await pushTo(
       toUid,

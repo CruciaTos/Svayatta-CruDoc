@@ -137,6 +137,18 @@ class FileOffer {
     if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
   };
 
+  /// [toFirestore] as plain JSON (dates in milliseconds, which
+  /// [FileOffer.fromFirestore] reads too) plus the id, for sending over
+  /// Wi-Fi and for the offline queue. A Firestore Timestamp can't be
+  /// JSON-encoded.
+  Map<String, Object?> toJson() => {
+    ...toFirestore(),
+    'id': id,
+    'createdAt': createdAt.millisecondsSinceEpoch,
+    'expireAt': expireAt.millisecondsSinceEpoch,
+    if (updatedAt != null) 'updatedAt': updatedAt!.millisecondsSinceEpoch,
+  };
+
   /// Constructs a FileOffer from a Firestore snapshot, decrypting name and thumb.
   factory FileOffer.fromFirestore({
     required String id,

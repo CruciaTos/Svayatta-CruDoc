@@ -110,6 +110,40 @@ class FileOffersRepository {
             }).toList());
   }
 
+  /// Every offer [myUid] sent (any status; offers expire after 30 days),
+  /// newest first. One equality filter, so it needs no composite index.
+  Stream<List<FileOffer>> watchSentOffers({
+    required String clinicId,
+    required String myUid,
+  }) => _watchMine(clinicId, 'from', myUid);
+
+  /// Every offer sent to [myUid] (any status), newest first.
+  Stream<List<FileOffer>> watchReceivedOffers({
+    required String clinicId,
+    required String myUid,
+  }) => _watchMine(clinicId, 'to', myUid);
+
+  Stream<List<FileOffer>> _watchMine(
+    String clinicId,
+    String field,
+    String myUid,
+  ) {
+    if (clinicId.isEmpty || myUid.isEmpty) return Stream.value(const []);
+    return _offersCollection(clinicId)
+        .where(field, isEqualTo: myUid)
+        .snapshots()
+        .map(
+          (snap) => [
+            for (final d in snap.docs)
+              FileOffer.fromFirestore(
+                id: d.id,
+                clinicId: clinicId,
+                data: d.data(),
+              ),
+          ]..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+        );
+  }
+
   /// Accepts an incoming offer: creates recipient's record and updates status.
   Future<void> acceptOffer(FileOffer offer) async {
     final myUid = _currentUid;

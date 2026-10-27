@@ -18,6 +18,7 @@ class DeviceRegistryService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  StreamSubscription<List<LanDevice>>? _devicesSub;
   String _activeClinicId = '';
   int _activePort = 0;
   List<LanDevice> _cachedDevices = [];
@@ -38,6 +39,14 @@ class DeviceRegistryService {
 
     await ensureRegistered(clinicId: clinicId, myUid: myUid);
     await updatePresence(clinicId: clinicId, port: port);
+
+    // Keeps [cachedDevices] current in the background: the Wi-Fi server
+    // checks callers against it, and Send looks colleagues' devices up in it.
+    await _devicesSub?.cancel();
+    _devicesSub = watchDevices(clinicId).listen(
+      (_) {},
+      onError: (Object e) => debugPrint('[DeviceRegistry] devices: $e'),
+    );
 
     // Watch connectivity changes
     await _connectivitySub?.cancel();
@@ -242,5 +251,7 @@ class DeviceRegistryService {
   Future<void> stop() async {
     await _connectivitySub?.cancel();
     _connectivitySub = null;
+    await _devicesSub?.cancel();
+    _devicesSub = null;
   }
 }

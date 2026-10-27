@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:crypto/crypto.dart' as crypto;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -902,6 +901,11 @@ class StorageSyncQueue {
     };
   }
 
+  /// A Files original goes to the clinic's shared copy for its fingerprint
+  /// (or links the copy already there). The old per-file path is used when
+  /// the upload carries no fingerprint (files added before fingerprints: a
+  /// shared path would not match their record), and when the server refuses
+  /// the shared path with no copy there (its rules are not deployed yet).
   static Future<StoredFile> _uploadPatientFileDeduplicated({
     required MedicalStorageService service,
     required PendingUpload item,
@@ -909,42 +913,24 @@ class StorageSyncQueue {
   }) async {
     final doctorId = item.doctorId;
     final type = item.contentType;
-    var sha = (item.link?.args['sha256'] as String?)?.trim().toLowerCase() ?? '';
-    if (sha.isEmpty) {
-      sha = crypto.sha256.convert(bytes).toString();
-    }
+    final sha = _fingerprintArg(item);
+    Future<StoredFile> perFile() => service.uploadPatientFile(
+      doctorId: doctorId,
+      patientId: item.patientId ?? '',
+      fileId: item.link?.docId ?? '',
+      bytes: bytes,
+      contentType: type,
+    );
+    if (doctorId.isEmpty || sha.isEmpty) return perFile();
 
-    if (doctorId.isEmpty || sha.isEmpty) {
-      return service.uploadPatientFile(
-        doctorId: doctorId,
-        patientId: item.patientId ?? '',
-        fileId: item.link?.docId ?? '',
-        bytes: bytes,
+    final path = MedicalStorageService.blobOriginalPath(doctorId, sha);
+    if (await _blobHas(doctorId, sha, 'state', 'ready')) {
+      return StoredFile(
+        path: path,
         contentType: type,
+        sizeBytes: bytes.lengthInBytes,
       );
     }
-
-    // 1. Check if the blob already exists in Firestore and is ready
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(doctorId)
-          .collection('blobs')
-          .doc(sha)
-          .get()
-          .timeout(const Duration(seconds: 10));
-      if (doc.exists && doc.data()?['state'] == 'ready') {
-        return StoredFile(
-          path: MedicalStorageService.blobOriginalPath(doctorId, sha),
-          contentType: type,
-          sizeBytes: bytes.lengthInBytes,
-        );
-      }
-    } catch (_) {
-      // Offline, timeout, or Firestore permission issue - proceed with upload attempt
-    }
-
-    // 2. Upload to blob storage
     try {
       return await service.uploadBlobOriginal(
         clinicId: doctorId,
@@ -953,22 +939,59 @@ class StorageSyncQueue {
         contentType: type,
       );
     } on FirebaseException catch (e) {
-      // If another client won the upload race, rules return unauthorized/permission-denied
-      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
-        try {
-          final size = await service.cloudSize(
-            MedicalStorageService.blobOriginalPath(doctorId, sha),
-          );
-          if (size != null && size > 0) {
-            return StoredFile(
-              path: MedicalStorageService.blobOriginalPath(doctorId, sha),
-              contentType: type,
-              sizeBytes: size,
-            );
-          }
-        } catch (_) {}
+      if (!_isRefused(e)) rethrow;
+      // Another device stored it first (no overwriting), or the shared-copy
+      // rules aren't live and nothing is there.
+      final size = await _storedSize(service, path);
+      if (size != null && size > 0) {
+        return StoredFile(path: path, contentType: type, sizeBytes: size);
       }
-      rethrow;
+      return perFile();
+    }
+  }
+
+  /// The original's fingerprint the upload was queued with, or '' when
+  /// there is none or it isn't a SHA-256.
+  static String _fingerprintArg(PendingUpload item) {
+    final sha = (item.link?.args['sha256'] as String? ?? '')
+        .trim()
+        .toLowerCase();
+    return RegExp(r'^[0-9a-f]{64}$').hasMatch(sha) ? sha : '';
+  }
+
+  /// Whether the clinic's record of shared copy [sha] has [field] ==
+  /// [value]. False when offline or unreadable: the upload then decides.
+  static Future<bool> _blobHas(
+    String clinicId,
+    String sha,
+    String field,
+    Object value,
+  ) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(clinicId)
+          .collection('blobs')
+          .doc(sha)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      return doc.data()?[field] == value;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static bool _isRefused(FirebaseException e) =>
+      e.code == 'unauthorized' || e.code == 'permission-denied';
+
+  static Future<int?> _storedSize(
+    MedicalStorageService service,
+    String path,
+  ) async {
+    try {
+      return await service.cloudSize(path);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -978,39 +1001,24 @@ class StorageSyncQueue {
     required Uint8List bytes,
   }) async {
     final doctorId = item.doctorId;
-    var sha = (item.link?.args['sha256'] as String?)?.trim().toLowerCase() ?? '';
-    if (sha.isEmpty) {
-      sha = crypto.sha256.convert(bytes).toString();
-    }
+    // The view is stored under its ORIGINAL's fingerprint, never its own.
+    final sha = _fingerprintArg(item);
+    Future<StoredFile> perFile() => service.uploadPatientFileView(
+      doctorId: doctorId,
+      patientId: item.patientId ?? '',
+      fileId: item.link?.docId ?? '',
+      bytes: bytes,
+    );
+    if (doctorId.isEmpty || sha.isEmpty) return perFile();
 
-    if (doctorId.isEmpty || sha.isEmpty) {
-      return service.uploadPatientFileView(
-        doctorId: doctorId,
-        patientId: item.patientId ?? '',
-        fileId: item.link?.docId ?? '',
-        bytes: bytes,
+    final path = MedicalStorageService.blobViewPath(doctorId, sha);
+    if (await _blobHas(doctorId, sha, 'hasView', true)) {
+      return StoredFile(
+        path: path,
+        contentType: 'image/jpeg',
+        sizeBytes: bytes.lengthInBytes,
       );
     }
-
-    // 1. Check if view already exists on blob
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(doctorId)
-          .collection('blobs')
-          .doc(sha)
-          .get()
-          .timeout(const Duration(seconds: 10));
-      if (doc.exists && doc.data()?['hasView'] == true) {
-        return StoredFile(
-          path: MedicalStorageService.blobViewPath(doctorId, sha),
-          contentType: 'image/jpeg',
-          sizeBytes: bytes.lengthInBytes,
-        );
-      }
-    } catch (_) {}
-
-    // 2. Upload view to blob storage
     try {
       return await service.uploadBlobView(
         clinicId: doctorId,
@@ -1018,21 +1026,12 @@ class StorageSyncQueue {
         bytes: bytes,
       );
     } on FirebaseException catch (e) {
-      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
-        try {
-          final size = await service.cloudSize(
-            MedicalStorageService.blobViewPath(doctorId, sha),
-          );
-          if (size != null && size > 0) {
-            return StoredFile(
-              path: MedicalStorageService.blobViewPath(doctorId, sha),
-              contentType: 'image/jpeg',
-              sizeBytes: size,
-            );
-          }
-        } catch (_) {}
+      if (!_isRefused(e)) rethrow;
+      final size = await _storedSize(service, path);
+      if (size != null && size > 0) {
+        return StoredFile(path: path, contentType: 'image/jpeg', sizeBytes: size);
       }
-      rethrow;
+      return perFile();
     }
   }
 }

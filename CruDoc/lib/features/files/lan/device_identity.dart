@@ -35,15 +35,25 @@ class DeviceIdentity {
   late String _certPem;
   late String _certSha256;
 
-  String get deviceId => _deviceId;
-  String get deviceName => _deviceName;
-  String get platform => _platform;
-  String get certPem => _certPem;
-  String get certSha256 => _certSha256;
+  // '' until [initialize] has finished, instead of a LateInitializationError
+  // (a screen can build before the identity has loaded).
+  String get deviceId => _initialized ? _deviceId : '';
+  String get deviceName => _initialized ? _deviceName : '';
+  String get platform => _initialized ? _platform : '';
+  String get certPem => _initialized ? _certPem : '';
+  String get certSha256 => _initialized ? _certSha256 : '';
   bool get isInitialized => _initialized;
 
-  /// Loads or generates the device identity on first use.
-  Future<void> initialize() async {
+  Future<void>? _initializing;
+
+  /// Loads or generates the device identity on first use. Callers at the
+  /// same time share one run, so two can never make two different keys.
+  Future<void> initialize() {
+    if (_initialized) return Future.value();
+    return _initializing ??= _load().whenComplete(() => _initializing = null);
+  }
+
+  Future<void> _load() async {
     if (_initialized) return;
 
     _platform = Platform.isAndroid ? 'android' : (Platform.isWindows ? 'windows' : Platform.operatingSystem);

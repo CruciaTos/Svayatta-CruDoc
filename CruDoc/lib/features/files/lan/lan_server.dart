@@ -5,6 +5,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/files/data/file_offer_model.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'device_identity.dart';
@@ -45,8 +47,9 @@ class LanServer {
   final Map<String, DateTime> _nonces = {};
   final Map<String, _LanSession> _sessions = {};
 
-  /// Open offers sent from this device to peers.
-  /// Map of `sha256 -> FileOffer`.
+  /// Open offers sent from this device to peers, by offer id. Keyed by
+  /// offer (not by fingerprint) so the same file offered to two colleagues
+  /// stays downloadable by both.
   final Map<String, FileOffer> _openOffers = {};
 
   /// Tracks active incoming transfer subscriptions/listeners.
@@ -90,11 +93,11 @@ class LanServer {
 
   /// Registers an open offer so recipient can pull the blob bytes.
   void registerOpenOffer(FileOffer offer) {
-    _openOffers[offer.sha256] = offer;
+    _openOffers[offer.id] = offer;
   }
 
-  void unregisterOpenOffer(String sha256) {
-    _openOffers.remove(sha256);
+  void unregisterOpenOffer(String offerId) {
+    _openOffers.remove(offerId);
   }
 
   Future<void> _handleRequest(HttpRequest request) async {
@@ -249,9 +252,28 @@ class LanServer {
     final bodyStr = await utf8.decoder.bind(request).join();
     final map = jsonDecode(bodyStr) as Map<String, dynamic>;
 
+    // Only offers addressed to the person signed in here, and only while
+    // they may keep patient files (see, and write, clinical records).
+    final me = FilesRepository.instance.uid;
+    final access = ClinicSession.instance.access;
+    final mayReceive =
+        access == null ||
+        (access.can(ClinicPermission.clinicalView) &&
+            access.can(ClinicPermission.clinicalEdit));
+    if (me.isEmpty || map['to'] != me || !mayReceive) {
+      request.response
+        ..statusCode = HttpStatus.forbidden
+        ..write(jsonEncode({'error': 'This device does not take this offer'}))
+        ..close();
+      return;
+    }
+
+    // Who sent it is the verified device's owner, never what the body says;
+    // the clinic is this device's own.
+    map['from'] = session.clientUid;
     final offer = FileOffer.fromFirestore(
       id: map['id'] as String? ?? _generateRandomHex(16),
-      clinicId: map['clinicId'] as String? ?? FilesRepository.instance.doctorId,
+      clinicId: FilesRepository.instance.doctorId,
       data: map,
     );
 
@@ -268,8 +290,10 @@ class LanServer {
     final sha256 = request.uri.pathSegments.last;
 
     // Check caller has an open offer for this fingerprint
-    final openOffer = _openOffers[sha256];
-    if (openOffer == null || openOffer.to != session.clientUid) {
+    final openOffer = _openOffers.values
+        .where((o) => o.sha256 == sha256 && o.to == session.clientUid)
+        .firstOrNull;
+    if (openOffer == null) {
       request.response
         ..statusCode = HttpStatus.forbidden
         ..write(jsonEncode({'error': 'No open offer for this file fingerprint to caller'}))
@@ -336,8 +360,10 @@ class LanServer {
     final status = body['status'] as String? ?? '';
 
     if (status == 'accepted' || status == 'declined') {
-      // Remove any open offers matching offerId
-      _openOffers.removeWhere((_, o) => o.id == offerId);
+      // Only the offer's recipient can close it.
+      if (_openOffers[offerId]?.to == session.clientUid) {
+        _openOffers.remove(offerId);
+      }
     }
 
     request.response

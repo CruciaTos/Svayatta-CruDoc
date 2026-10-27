@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/files/presentation/file_viewer.da
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
 import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/files/presentation/transfer_progress_tray.dart';
+import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_list.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_panel.dart';
@@ -336,6 +337,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         view: view,
         onNewFolder: canEdit ? _newFolder : null,
         onAddFiles: canEdit ? _addFiles : null,
+        onTransfers: ref.watch(hasColleaguesProvider)
+            ? () => showTransfersSheet(context)
+            : null,
+        waitingTransfers: ref.watch(waitingTransfersProvider),
       ),
       const SizedBox(height: CruSpace.s20),
       FilesToolbar(

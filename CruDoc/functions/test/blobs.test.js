@@ -1,7 +1,14 @@
 const assert = require('node:assert/strict');
 const {describe, it, beforeEach} = require('node:test');
 const crypto = require('crypto');
+const {Readable} = require('node:stream');
 const {NestedFakeDb, installNestedFake, Timestamp} = require('./fake-firestore-nested');
+
+// onBlobFinalized listens on the project's default bucket, which
+// firebase-functions reads from FIREBASE_CONFIG when the module loads (set
+// for real during deploy). Give the test one.
+process.env.FIREBASE_CONFIG = process.env.FIREBASE_CONFIG ||
+  JSON.stringify({projectId: 'demo-test', storageBucket: 'demo-test.appspot.com'});
 
 // Import compiled or required blobs module
 const {
@@ -36,13 +43,14 @@ describe('handleBlobFinalized', () => {
     db = new NestedFakeDb();
     installNestedFake(db);
     await db.doc(`clinics/${clinicId}`).set({name: 'Clinic 1', storageBytes: 0, storageUsedGB: 0});
+    await db.doc(`users/${clinicId}`).set({name: 'Owner', storageUsedGB: 0});
   });
 
   function createFakeBucket(fileContent) {
     let deleted = false;
     return {
       file: (name) => ({
-        download: async () => [Buffer.from(fileContent)],
+        createReadStream: () => Readable.from([Buffer.from(fileContent)]),
         delete: async () => {
           deleted = true;
         },
@@ -66,6 +74,9 @@ describe('handleBlobFinalized', () => {
 
     const clinicSnap = await db.doc(`clinics/${clinicId}`).get();
     assert.equal(clinicSnap.data().storageBytes, content.length);
+    // Mirrored where Super Admin reads it.
+    const ownerSnap = await db.doc(`users/${clinicId}`).get();
+    assert.equal(ownerSnap.data().storageUsedGB, clinicSnap.data().storageUsedGB);
   });
 
   it('deletes object and marks state bad when fingerprint mismatches', async () => {

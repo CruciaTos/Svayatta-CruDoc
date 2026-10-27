@@ -156,7 +156,7 @@ class LanClient {
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $sessionToken');
 
-      request.write(jsonEncode(offer.toFirestore()));
+      request.write(jsonEncode(offer.toJson()));
       final response = await request.close();
       return response.statusCode == HttpStatus.ok;
     } catch (e) {

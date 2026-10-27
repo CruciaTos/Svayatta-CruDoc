@@ -33,7 +33,7 @@ class OfflineOfferQueue {
     try {
       final prefs = await SharedPreferences.getInstance();
       final list = await _loadQueue(prefs);
-      list.add(offer.toFirestore());
+      list.add(offer.toJson());
       await prefs.setString(_queueKey, jsonEncode(list));
       debugPrint('[OfflineOfferQueue] Queued offer ${offer.id} for sync');
     } catch (e) {
@@ -56,7 +56,17 @@ class OfflineOfferQueue {
       for (final item in list) {
         final id = item['id'] as String? ?? '';
         if (id.isEmpty) continue;
-        batch.set(collection.doc(id), item, SetOptions(merge: true));
+        // Back to Firestore types (Timestamps, so the TTL on expireAt works).
+        final offer = FileOffer.fromFirestore(
+          id: id,
+          clinicId: clinicId,
+          data: item,
+        );
+        batch.set(
+          collection.doc(id),
+          offer.toFirestore(),
+          SetOptions(merge: true),
+        );
       }
 
       await batch.commit();

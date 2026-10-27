@@ -23,23 +23,43 @@ final incomingOffersProvider = StreamProvider<List<FileOffer>>((ref) {
 
   final controller = StreamController<List<FileOffer>>();
   final offersMap = <String, FileOffer>{};
+  // Ids a cloud answer has listed: when a later answer leaves one out, it
+  // was accepted, declined or cancelled (Wi-Fi copies of it included).
+  final cloudSeen = <String>{};
 
   void emit() {
     final list = offersMap.values
-        .where((o) => o.status == FileOfferStatus.sent)
+        .where(
+          (o) =>
+              o.status == FileOfferStatus.sent &&
+              !_handledOfferIds.contains(o.id),
+        )
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     if (!controller.isClosed) controller.add(list);
   }
 
+  final handledSub = _handledChanges.stream.listen((_) => emit());
   final firestoreSub = FileOffersRepository.instance
       .watchIncomingOffers(clinicId: clinicId, myUid: myUid)
-      .listen((cloudOffers) {
-    for (final o in cloudOffers) {
-      offersMap[o.id] = o;
-    }
-    emit();
-  });
+      .listen(
+        (cloudOffers) {
+          final now = {for (final o in cloudOffers) o.id};
+          offersMap.removeWhere(
+            (id, _) => cloudSeen.contains(id) && !now.contains(id),
+          );
+          cloudSeen
+            ..clear()
+            ..addAll(now);
+          for (final o in cloudOffers) {
+            offersMap[o.id] = o;
+          }
+          emit();
+        },
+        // Refused (rules not deployed, or no clinical access) or offline:
+        // Wi-Fi offers still arrive. Unhandled, this error paused the app.
+        onError: (Object e) => debugPrint('[IncomingOffers] cloud offers: $e'),
+      );
 
   final lanSub = LanServer.instance.incomingLanOffers.listen((lanOffer) {
     if (lanOffer.to == myUid) {
@@ -49,6 +69,7 @@ final incomingOffersProvider = StreamProvider<List<FileOffer>>((ref) {
   });
 
   ref.onDispose(() {
+    handledSub.cancel();
     firestoreSub.cancel();
     lanSub.cancel();
     controller.close();
@@ -56,6 +77,17 @@ final incomingOffersProvider = StreamProvider<List<FileOffer>>((ref) {
 
   return controller.stream;
 });
+
+/// Offers accepted or declined on this device. An offer that came only
+/// over Wi-Fi (no internet) never gets a cloud update, so this is what
+/// takes it out of the waiting list.
+final Set<String> _handledOfferIds = {};
+final StreamController<void> _handledChanges = StreamController.broadcast();
+
+void markOfferHandled(String offerId) {
+  _handledOfferIds.add(offerId);
+  _handledChanges.add(null);
+}
 
 /// Displays a prominent card at the top of Files when incoming offers are waiting.
 class IncomingOffersCard extends ConsumerStatefulWidget {
@@ -81,6 +113,7 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
 
       for (final offer in batch) {
         await FileOffersRepository.instance.acceptOffer(offer);
+        markOfferHandled(offer.id);
       }
 
       if (mounted) {
@@ -119,6 +152,7 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
     try {
       for (final offer in batch) {
         await FileOffersRepository.instance.declineOffer(offer);
+        markOfferHandled(offer.id);
       }
     } catch (e) {
       if (mounted) {

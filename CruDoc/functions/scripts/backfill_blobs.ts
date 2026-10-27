@@ -65,7 +65,7 @@ export async function runBackfill(options?: {
     const clinicId = data.doctorId || "";
 
     if (existingSha && storagePath.startsWith("clinic-blobs/")) {
-      stats.alreadyCurrent = (stats.alreadyCurrent || 0) + 1;
+      stats.alreadyMigrated++;
       knownBlobs.add(`${clinicId}/${existingSha}`);
       continue;
     }
@@ -193,6 +193,7 @@ export async function runBackfill(options?: {
 
   console.log("\n==================== Backfill Summary ====================");
   console.log(`Scanned records:          ${stats.scanned}`);
+  console.log(`Already on blobs:         ${stats.alreadyMigrated}`);
   console.log(`Eligible to migrate:      ${stats.migrated}`);
   console.log(`Duplicate copies saved:   ${stats.duplicates}`);
   console.log(`Estimated bytes saved:    ${(stats.bytesSaved / (1024 * 1024)).toFixed(2)} MB`);

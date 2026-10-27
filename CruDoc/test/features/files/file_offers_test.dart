@@ -1,5 +1,6 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/files/data/file_offer_model.dart';
 
 void main() {
@@ -117,6 +118,46 @@ void main() {
       expect(accepted.via, FileOfferVia.lan);
       expect(accepted.id, '1');
       expect(accepted.name, 'notes.txt');
+    });
+
+    test('toJson survives jsonEncode and keeps the id (Wi-Fi and offline queue)', () {
+      final offer = FileOffer(
+        id: 'offer_lan_1',
+        clinicId: 'clinic_abc',
+        from: 'uid_sender',
+        to: 'uid_recipient',
+        batchId: 'b1',
+        fileId: 'f1',
+        sha256: 'b' * 64,
+        sizeBytes: 10,
+        contentType: 'application/pdf',
+        patientId: 'p1',
+        name: 'referral.pdf',
+        thumb: '',
+        status: FileOfferStatus.sent,
+        via: FileOfferVia.lan,
+        createdAt: DateTime.utc(2026, 10, 27, 10),
+        expireAt: DateTime.utc(2026, 11, 26, 10),
+      );
+
+      final decoded =
+          jsonDecode(jsonEncode(offer.toJson())) as Map<String, dynamic>;
+      final back = FileOffer.fromFirestore(
+        id: decoded['id'] as String,
+        clinicId: 'clinic_abc',
+        data: decoded,
+      );
+
+      expect(back.id, 'offer_lan_1');
+      expect(back.to, 'uid_recipient');
+      expect(
+        back.createdAt.millisecondsSinceEpoch,
+        offer.createdAt.millisecondsSinceEpoch,
+      );
+      expect(
+        back.expireAt.millisecondsSinceEpoch,
+        offer.expireAt.millisecondsSinceEpoch,
+      );
     });
   });
 }

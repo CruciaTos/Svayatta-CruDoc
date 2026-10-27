@@ -55,16 +55,13 @@ export async function handleBlobFinalized(
 
   // Handle 'original'
   const file = bucket.file(name);
-  const hash = crypto.createHash("sha256");
 
-  // Read and stream object bytes to compute SHA-256
-  const buffer = await file.download().then((res: [Buffer]) => res[0]);
-  hash.update(buffer);
-  const computedSha256 = hash.digest("hex");
+  // Streamed, so a 250 MB DICOM never has to fit in the function's memory.
+  const {digest: computedSha256, bytes: streamedBytes} = await sha256OfObject(file);
 
   if (computedSha256 !== expectedSha256) {
     // Mismatch: delete the uploaded object, mark state: 'bad', and log audit
-    await file.delete().catch(() => {});
+    await file.delete().catch(() => undefined);
     await blobRef.set(
       {
         state: "bad",
@@ -84,7 +81,7 @@ export async function handleBlobFinalized(
   }
 
   // Fingerprint matches: record blob state and update clinic usage
-  const sizeBytes = Number(objectData.size) || buffer.length || 0;
+  const sizeBytes = Number(objectData.size) || streamedBytes || 0;
   const contentType = objectData.contentType || "application/octet-stream";
 
   await db.runTransaction(async (txn) => {
@@ -93,13 +90,15 @@ export async function handleBlobFinalized(
     const alreadyReady = existing?.state === "ready";
 
     const refCount = typeof existing?.refCount === "number" ? existing.refCount : 0;
-    const zeroSince = refCount === 0
-      ? (existing?.zeroSince || admin.firestore.FieldValue.serverTimestamp())
-      : null;
+    const zeroSince = refCount === 0 ?
+      (existing?.zeroSince || admin.firestore.FieldValue.serverTimestamp()) :
+      null;
 
     const clinicRef = db.doc(`clinics/${clinicId}`);
     const clinicSnap = await txn.get(clinicRef);
     const currentBytes = Number(clinicSnap.data()?.storageBytes) || 0;
+    const ownerRef = db.doc(`users/${clinicId}`);
+    const ownerSnap = await txn.get(ownerRef);
 
     // All reads completed above. Now perform writes:
     txn.set(
@@ -132,6 +131,9 @@ export async function handleBlobFinalized(
         },
         {merge: true}
       );
+      // Super Admin adds up users/{uid}.storageUsedGB; the clinic id is the
+      // owner's uid.
+      if (ownerSnap.exists) txn.update(ownerRef, {storageUsedGB: newGb});
     }
   });
 
@@ -180,9 +182,9 @@ export async function handlePatientFileWritten(
           const nextCount = Math.max(0, currentCount - 1);
           txn.update(oldBlobRef, {
             refCount: nextCount,
-            zeroSince: nextCount === 0
-              ? admin.firestore.FieldValue.serverTimestamp()
-              : (blobSnap.data()?.zeroSince || null),
+            zeroSince: nextCount === 0 ?
+              admin.firestore.FieldValue.serverTimestamp() :
+              (blobSnap.data()?.zeroSince || null),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         }
@@ -245,9 +247,9 @@ export async function cleanupEligibleBlobs(
 ): Promise<{purgedCount: number; freedBytes: number}> {
   const now = options?.nowMs ?? Date.now();
   const graceMinutes = options?.graceMinutes ?? (
-    process.env.BLOB_CLEANUP_GRACE_MINUTES
-      ? Number(process.env.BLOB_CLEANUP_GRACE_MINUTES)
-      : DEFAULT_GRACE_DAYS * 24 * 60
+    process.env.BLOB_CLEANUP_GRACE_MINUTES ?
+      Number(process.env.BLOB_CLEANUP_GRACE_MINUTES) :
+      DEFAULT_GRACE_DAYS * 24 * 60
   );
   const graceMs = graceMinutes * 60 * 1000;
 
@@ -282,24 +284,26 @@ export async function cleanupEligibleBlobs(
 
         // 1. Delete bucket objects (original and view)
         if (bucket) {
-          await bucket.file(`clinic-blobs/${clinicId}/${sha256}/original`).delete().catch(() => {});
-          await bucket.file(`clinic-blobs/${clinicId}/${sha256}/view`).delete().catch(() => {});
+          await bucket.file(`clinic-blobs/${clinicId}/${sha256}/original`).delete().catch(() => undefined);
+          await bucket.file(`clinic-blobs/${clinicId}/${sha256}/view`).delete().catch(() => undefined);
         }
 
         // 2. Delete all refs subcollection documents
         const refsSnap = await blobDoc.ref.collection("refs").get();
         for (const r of refsSnap.docs) {
-          await r.ref.delete().catch(() => {});
+          await r.ref.delete().catch(() => undefined);
         }
 
         // 3. Delete blob doc
-        await blobDoc.ref.delete().catch(() => {});
+        await blobDoc.ref.delete().catch(() => undefined);
 
         // 4. Subtract storage usage from clinic
         if (sizeBytes > 0) {
           const clinicRef = db.doc(`clinics/${clinicId}`);
+          const ownerRef = db.doc(`users/${clinicId}`);
           await db.runTransaction(async (txn) => {
             const cSnap = await txn.get(clinicRef);
+            const ownerSnap = await txn.get(ownerRef);
             const currentBytes = Number(cSnap.data()?.storageBytes) || 0;
             const newBytes = Math.max(0, currentBytes - sizeBytes);
             const newGb = Math.round((newBytes / (1024 * 1024 * 1024)) * 1000) / 1000;
@@ -308,6 +312,7 @@ export async function cleanupEligibleBlobs(
               storageUsedGB: newGb,
               updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
+            if (ownerSnap.exists) txn.update(ownerRef, {storageUsedGB: newGb});
           });
         }
 
@@ -324,10 +329,29 @@ export async function cleanupEligibleBlobs(
 // Exported Cloud Functions triggers (asia-south1)
 // ----------------------------------------------------------------------
 
+/** SHA-256 of a bucket object, read as a stream. */
+async function sha256OfObject(file: any): Promise<{digest: string; bytes: number}> {
+  const hash = crypto.createHash("sha256");
+  let bytes = 0;
+  await new Promise<void>((resolve, reject) => {
+    file.createReadStream()
+      .on("data", (chunk: Buffer) => {
+        hash.update(chunk);
+        bytes += chunk.length;
+      })
+      .on("end", () => resolve())
+      .on("error", reject);
+  });
+  return {digest: hash.digest("hex"), bytes};
+}
+
+// No `bucket` option: the trigger listens on the project's default bucket
+// (asia-south1, same region as the function).
 export const onBlobFinalized = onObjectFinalized(
   {
     region: "asia-south1",
-    bucket: process.env.STORAGE_BUCKET || "default",
+    memory: "512MiB",
+    timeoutSeconds: 300,
   },
   async (event) => {
     const db = admin.firestore();

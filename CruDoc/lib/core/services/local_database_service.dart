@@ -986,6 +986,18 @@ class LocalDatabaseService extends ChangeNotifier {
       CREATE INDEX IF NOT EXISTS idx_generated_documents_patient
       ON generated_documents (doctorId, patientId, type)
     ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_patient_files_recent
+      ON patient_files (doctorId, isDeleted, createdAt)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_patient_files_patient
+      ON patient_files (doctorId, patientId, isDeleted)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_patient_files_sha256
+      ON patient_files (sha256)
+    ''');
   }
 
   Future<void> _ensureColumns(
@@ -1750,18 +1762,6 @@ class LocalDatabaseService extends ChangeNotifier {
         receivedFromName TEXT NOT NULL DEFAULT ''
       )
     ''');
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_patient_files_recent '
-      'ON patient_files (doctorId, isDeleted, createdAt)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_patient_files_patient '
-      'ON patient_files (doctorId, patientId, isDeleted)',
-    );
-    await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_patient_files_sha256 '
-      'ON patient_files (sha256)',
-    );
     await db.execute('''
       CREATE TABLE IF NOT EXISTS file_folders (
         id TEXT PRIMARY KEY,

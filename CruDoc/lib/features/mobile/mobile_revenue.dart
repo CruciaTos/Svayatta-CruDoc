@@ -16,6 +16,7 @@ import 'package:doctor_management_app/features/revenue/domain/revenue_models.dar
 import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/mobile/mobile_invoices.dart';
@@ -115,25 +116,22 @@ class MobileRevenueScreen extends ConsumerWidget {
         ],
       );
     }
-    final c = context.cru;
     final view = ref.watch(revenueViewControllerProvider);
     final o = ref.watch(revenueOverviewProvider);
-    final pending = ref.watch(revenuePendingProvider);
+    void setPeriod(RevenuePeriod p) =>
+        ref.read(revenueViewControllerProvider.notifier).setPeriod(p);
 
-    final cards = MobileWaveCard(
-      key: cardKey,
-      child: o == null
-          ? const Padding(
-              padding: EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-              child: MobileCard(
-                child: MobileLoading('Loading revenue…', height: 220),
-              ),
-            )
-          : _PeriodCards(
-              period: view.period,
-              onChanged: (p) =>
-                  ref.read(revenueViewControllerProvider.notifier).setPeriod(p),
-            ),
+    // Each period's card, dues and transactions side by side: drag
+    // sideways to the next period.
+    final pages = SwipePages<RevenuePeriod>(
+      values: RevenuePeriod.values,
+      value: view.period,
+      onChanged: setPeriod,
+      builder: (context, period) => _PeriodPage(
+        period: period,
+        // On the selected period's card only, so More glides to it.
+        cardKey: period == view.period ? cardKey : null,
+      ),
     );
     final kids = <Widget>[
       if (onBack != null) _backRow(context),
@@ -160,96 +158,131 @@ class MobileRevenueScreen extends ConsumerWidget {
           },
           selected: view.period,
           onBand: true,
-          onChanged: (p) =>
-              ref.read(revenueViewControllerProvider.notifier).setPeriod(p),
+          onChanged: setPeriod,
         ),
       ),
       const SizedBox(height: CruSpace.s12),
-      cards,
-      if (pending != null && pending.isNotEmpty) ...[
-        const SizedBox(height: CruSpace.s16),
-        MobileRowGroup(
-          title:
-              'To collect · ${DashFormat.rupeesCompact(pending.fold(0.0, (s, g) => s + g.total))}',
-
-          children: [
-            for (final g in pending.take(5))
-              _PendingRow(
-                group: g,
-                clinic: ref.watch(doctorIdentityProvider).clinicName,
-              ),
-          ],
-        ),
-      ],
-      const SizedBox(height: CruSpace.s16),
-      MobileRowGroup(
-        title: 'Transactions',
-        action: 'Invoices',
-        onAction: () => openMobileInvoices(context),
-        children: o == null
-            ? const [MobileLoading('Loading transactions…')]
-            : o.transactions.isEmpty
-            ? [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                  child: Text(
-                    'Nothing recorded in this period',
-                    style: MobileType.subhead.tint(c.label2),
-                  ),
-                ),
-              ]
-            : [
-                for (final t in o.transactions.take(40))
-                  MobileRow(
-                    leading: t.moneyOut
-                        ? Container(
-                            width: 38,
-                            height: 38,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: c.redTint,
-                              shape: BoxShape.circle,
-                            ),
-                            child: CruIcon(
-                              CruIcons.arrowUp,
-                              size: 18,
-                              strokeWidth: 1.8,
-                              color: c.redText,
-                            ),
-                          )
-                        : const MobileIconTile(
-                            icon: CruIcons.arrowDown,
-                            tone: MobileTone.green,
-                          ),
-                    title: t.title,
-                    subtitle:
-                        '${t.dayLabel} · ${t.time} ${t.meridiem}'
-                        '${t.subtitle.isEmpty ? '' : ' · ${t.subtitle}'}',
-                    trailing: Text(
-                      t.amount,
-                      style: MobileType.callout.tabular.tint(
-                        t.moneyOut
-                            ? c.redText
-                            : mobileTone(c, MobileTone.green).$2,
-                      ),
-                    ),
-                    onTap: () => pushMobile(
-                      context,
-                      TransactionDetailsPage(entry: t.entry),
-                    ),
-                  ),
-              ],
-      ),
+      pages,
     ];
     return ListView(
       controller: scrollController,
       padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
-      children: mobileWaveChildren(kids, origin: kids.indexOf(cards)),
+      children: mobileWaveChildren(kids, origin: kids.indexOf(pages)),
     );
   }
 }
 
-/// One period's figures, for its own card (all four cards stay built).
+/// One period's page: its card, who still owes, and its transactions.
+class _PeriodPage extends ConsumerWidget {
+  const _PeriodPage({required this.period, required this.cardKey});
+
+  final RevenuePeriod period;
+  final GlobalKey? cardKey;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final o = ref.watch(_periodOverviewProvider(period));
+    final pending = ref.watch(revenuePendingProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        MobileWaveCard(
+          key: cardKey,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: MobileMetrics.gutter,
+            ),
+            child: SizedBox(
+              height: kMobileRevenueCardHeight,
+              child: o == null
+                  ? const MobileCard(
+                      child: MobileLoading('Loading revenue…', height: 200),
+                    )
+                  : _Hero(o: o, period: period),
+            ),
+          ),
+        ),
+        if (pending != null && pending.isNotEmpty) ...[
+          const SizedBox(height: CruSpace.s16),
+          MobileRowGroup(
+            title:
+                'To collect · ${DashFormat.rupeesCompact(pending.fold(0.0, (s, g) => s + g.total))}',
+
+            children: [
+              for (final g in pending.take(5))
+                _PendingRow(
+                  group: g,
+                  clinic: ref.watch(doctorIdentityProvider).clinicName,
+                ),
+            ],
+          ),
+        ],
+        const SizedBox(height: CruSpace.s16),
+        MobileRowGroup(
+          title: 'Transactions',
+          action: 'Invoices',
+          onAction: () => openMobileInvoices(context),
+          children: o == null
+              ? const [MobileLoading('Loading transactions…')]
+              : o.transactions.isEmpty
+              ? [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+                    child: Text(
+                      'Nothing recorded in this period',
+                      style: MobileType.subhead.tint(c.label2),
+                    ),
+                  ),
+                ]
+              : [
+                  for (final t in o.transactions.take(40))
+                    MobileRow(
+                      leading: t.moneyOut
+                          ? Container(
+                              width: 38,
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: c.redTint,
+                                shape: BoxShape.circle,
+                              ),
+                              child: CruIcon(
+                                CruIcons.arrowUp,
+                                size: 18,
+                                strokeWidth: 1.8,
+                                color: c.redText,
+                              ),
+                            )
+                          : const MobileIconTile(
+                              icon: CruIcons.arrowDown,
+                              tone: MobileTone.green,
+                            ),
+                      title: t.title,
+                      subtitle:
+                          '${t.dayLabel} · ${t.time} ${t.meridiem}'
+                          '${t.subtitle.isEmpty ? '' : ' · ${t.subtitle}'}',
+                      trailing: Text(
+                        t.amount,
+                        style: MobileType.callout.tabular.tint(
+                          t.moneyOut
+                              ? c.redText
+                              : mobileTone(c, MobileTone.green).$2,
+                        ),
+                      ),
+                      onTap: () => pushMobile(
+                        context,
+                        TransactionDetailsPage(entry: t.entry),
+                      ),
+                    ),
+                ],
+        ),
+      ],
+    );
+  }
+}
+
+/// One period's figures, for its page.
 final _periodOverviewProvider =
     Provider.family<RevenueOverview?, RevenuePeriod>((ref, period) {
       final async = ref.watch(recentRevenueEntriesProvider);
@@ -264,85 +297,6 @@ final _periodOverviewProvider =
         now: ref.watch(dashboardNowProvider),
       );
     });
-
-/// A card for each period, side by side: swipe the card to slide to the
-/// next period (the tabs only swipe from anywhere else). The period
-/// buttons above slide the cards too. Each card fills the gutters, as wide
-/// as the period buttons and lists around it.
-class _PeriodCards extends ConsumerStatefulWidget {
-  const _PeriodCards({required this.period, required this.onChanged});
-
-  final RevenuePeriod period;
-  final ValueChanged<RevenuePeriod> onChanged;
-
-  @override
-  ConsumerState<_PeriodCards> createState() => _PeriodCardsState();
-}
-
-class _PeriodCardsState extends ConsumerState<_PeriodCards> {
-  static const _values = RevenuePeriod.values;
-
-  late final PageController _pages = PageController(
-    initialPage: _values.indexOf(widget.period),
-  );
-
-  /// True while the buttons drive the slide, so the cards passed on the
-  /// way don't each become the period.
-  bool _driving = false;
-
-  @override
-  void didUpdateWidget(_PeriodCards old) {
-    super.didUpdateWidget(old);
-    final i = _values.indexOf(widget.period);
-    if (!_pages.hasClients || _pages.page?.round() == i) return;
-    _driving = true;
-    _pages
-        .animateToPage(
-          i,
-          duration: const Duration(milliseconds: 320),
-          curve: Curves.easeOutCubic,
-        )
-        .whenComplete(() => _driving = false);
-  }
-
-  @override
-  void dispose() {
-    _pages.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: kMobileRevenueCardHeight,
-      child: PageView.builder(
-        controller: _pages,
-        itemCount: _values.length,
-        clipBehavior: Clip.none,
-        onPageChanged: (i) {
-          if (_driving) return;
-          MobileHaptics.select();
-          widget.onChanged(_values[i]);
-        },
-        itemBuilder: (context, i) {
-          final o = ref.watch(_periodOverviewProvider(_values[i]));
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MobileMetrics.gutter,
-            ),
-            child: o == null
-                ? const MobileCard(
-                    child: MobileLoading('Loading revenue…', height: 200),
-                  )
-                : RepaintBoundary(
-                    child: _Hero(o: o, period: _values[i]),
-                  ),
-          );
-        },
-      ),
-    );
-  }
-}
 
 /// Every period card's height, whatever its figures: the cards never
 /// change size as they slide or as data arrives.

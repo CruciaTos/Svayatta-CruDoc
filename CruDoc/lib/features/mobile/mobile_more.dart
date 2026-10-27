@@ -661,6 +661,13 @@ class _PageHub extends StatefulWidget {
 
 class _PageHubState extends State<_PageHub> {
   int _tab = 0;
+  final _pages = PageController();
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -678,13 +685,24 @@ class _PageHubState extends State<_PageHub> {
             values: [for (var i = 0; i < widget.pages.length; i++) i],
             label: (i) => widget.pages[i].$1,
             selected: _tab,
-            onChanged: (i) => setState(() => _tab = i),
+            onChanged: (i) {
+              setState(() => _tab = i);
+              final d = CruMotion.of(context, CruMotion.standard);
+              if (d == Duration.zero) {
+                _pages.jumpToPage(i);
+              } else {
+                _pages.animateToPage(i, duration: d, curve: CruMotion.curve);
+              }
+            },
           ),
         ),
         Expanded(
-          child: IndexedStack(
-            index: _tab,
-            children: [for (final p in widget.pages) p.$2],
+          child: PageView(
+            controller: _pages,
+            onPageChanged: (i) => setState(() => _tab = i),
+            children: [
+              for (final p in widget.pages) MobileKeepAlive(child: p.$2),
+            ],
           ),
         ),
       ],

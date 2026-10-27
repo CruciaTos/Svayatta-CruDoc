@@ -80,7 +80,8 @@ class CruMonogram extends StatelessWidget {
   /// When true, uses a name-derived palette even if custom colors are set.
   final bool vibrant;
 
-  /// Draws a subtle ring around the avatar without changing its dimensions.
+  /// Draws the phone-style gradient ring inside [size] (the monogram shrinks
+  /// to make room, so the avatar's footprint stays the same).
   final bool showRing;
 
   static const _titles = {'dr', 'mr', 'mrs', 'ms', 'prof'};
@@ -137,39 +138,58 @@ class CruMonogram extends StatelessWidget {
     final resolvedBg = background ?? vibrantBg;
     final resolvedFg = foreground ?? vibrantFg;
 
+    // Same ring as the phone's avatar: the person's colour sweeping into a
+    // lighter tint, then a clear gap, all inside [size] so layouts keep
+    // their spacing.
+    final ringWidth = (size * 0.06).clamp(1.25, 3.0);
+    final gapWidth = (size * 0.045).clamp(1.0, 2.5);
+    final inner = showRing ? size - 2 * (ringWidth + gapWidth) : size;
+
     final fallback = Container(
-      width: size,
-      height: size,
+      width: inner,
+      height: inner,
       alignment: Alignment.center,
       decoration: BoxDecoration(shape: BoxShape.circle, color: resolvedBg),
       child: Text(
         initialsOf(name),
-        style: CruType.monogram(size * 0.37).copyWith(color: resolvedFg),
+        style: CruType.monogram(inner * 0.37).copyWith(color: resolvedFg),
       ),
     );
 
-    final ringWidth = size >= 32 ? 1.0 : 0.75;
+    final Color vivid;
+    if (useVibrantPalette) {
+      final hsl = HSLColor.fromColor(resolvedBg);
+      vivid = hsl
+          .withSaturation((hsl.saturation + 0.2).clamp(0.0, 1.0))
+          .withLightness(0.55)
+          .toColor();
+    } else {
+      vivid = resolvedFg;
+    }
+    final light = Color.lerp(vivid, Colors.white, 0.5)!;
+
     Widget withRing(Widget child) => SizedBox(
       width: size,
       height: size,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ClipOval(child: child),
-          if (showRing)
-            IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: resolvedFg.withValues(alpha: 0.35),
-                    width: ringWidth,
+      child: !showRing
+          ? ClipOval(child: child)
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: SizedBox(
+                    width: inner,
+                    height: inner,
+                    child: ClipOval(child: child),
                   ),
                 ),
-              ),
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: _GradientRingPainter(vivid, light, ringWidth),
+                  ),
+                ),
+              ],
             ),
-        ],
-      ),
     );
 
     final image = imageUrl?.trim();
@@ -178,8 +198,8 @@ class CruMonogram extends StatelessWidget {
         child: withRing(
           CachedNetworkImage(
             imageUrl: image,
-            width: size,
-            height: size,
+            width: inner,
+            height: inner,
             fit: BoxFit.cover,
             placeholder: (context, url) => fallback,
             errorWidget: (context, url, error) => fallback,
@@ -190,6 +210,34 @@ class CruMonogram extends StatelessWidget {
 
     return ExcludeSemantics(child: withRing(fallback));
   }
+}
+
+class _GradientRingPainter extends CustomPainter {
+  _GradientRingPainter(this.vivid, this.light, this.width);
+
+  final Color vivid;
+  final Color light;
+  final double width;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: 6.2832,
+        transform: const GradientRotation(-1.2),
+        colors: [vivid, light, vivid, vivid],
+        stops: const [0, 0.22, 0.5, 1],
+      ).createShader(rect);
+    canvas.drawCircle(rect.center, (size.shortestSide - width) / 2, paint);
+  }
+
+  @override
+  bool shouldRepaint(_GradientRingPainter old) =>
+      old.vivid != vivid || old.light != light || old.width != width;
 }
 
 /// 30 px inset chip: quiet label + value ("BP 118/76").

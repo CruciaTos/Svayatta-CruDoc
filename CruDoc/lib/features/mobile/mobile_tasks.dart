@@ -33,6 +33,7 @@ import 'package:doctor_management_app/features/radiology/presentation/rvg_captur
 import 'package:doctor_management_app/features/radiology/viewer/thumbnail_strip.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 /// Rebuilt Tasks tab for the mobile shell: one unified to-do list with
 /// source pill filter, a recently-done strip, search with filter icon, and flat list.
@@ -827,28 +828,6 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
 
     final hasAddActions = radiologyOn || dentalOn;
 
-    // Filter candidate list: finished items only when explicitly requested
-    final bool showingFinished =
-        _statusFilter == TaskStatusFilter.sent ||
-        _statusFilter == TaskStatusFilter.invoiced ||
-        _statusFilter == TaskStatusFilter.declined ||
-        _statusFilter == TaskStatusFilter.fitted;
-
-    final candidates = showingFinished ? board.finished : board.items;
-
-    final filtered = candidates
-        .where((t) => matchesSource(t, effectiveSource))
-        .where((t) => matchesStatus(t, _statusFilter))
-        .where((t) => matchesTime(t, _timeFilter, now))
-        .where((t) => matchesSearch(t, _query))
-        .toList();
-
-    if (showingFinished) {
-      filtered.sort((a, b) => b.since.compareTo(a.since));
-    } else {
-      filtered.sort((a, b) => compareUrgency(a, b, now));
-    }
-
     // Counts for source pills
     int countForSource(TaskSourceFilter s) => switch (s) {
       TaskSourceFilter.all => board.items.length,
@@ -880,21 +859,165 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
         board.items.where((t) => t.source == TaskSource.lab).length,
     };
 
-    // Recent activity for the sliding strip above search: every task,
-    // open or finished, newest change first.
-    final recentActivity =
-        [
-            ...board.items,
-            ...board.finished,
-          ].where((t) => matchesSource(t, effectiveSource)).toList()
-          ..sort((a, b) => b.since.compareTo(a.since));
-    if (recentActivity.length > 10) {
-      recentActivity.removeRange(10, recentActivity.length);
-    }
+    // One source's page: its recent strip, search and list. Picking a
+    // source clears the status filter, so the page beside uses none.
+    Widget page(TaskSourceFilter source) {
+      final statusFilter = source == effectiveSource
+          ? _statusFilter
+          : TaskStatusFilter.any;
+      // Filter candidate list: finished items only when explicitly requested
+      final bool showingFinished =
+          statusFilter == TaskStatusFilter.sent ||
+          statusFilter == TaskStatusFilter.invoiced ||
+          statusFilter == TaskStatusFilter.declined ||
+          statusFilter == TaskStatusFilter.fitted;
 
-    final hasActiveFilter =
-        _statusFilter != TaskStatusFilter.any ||
-        _timeFilter != TaskTimeFilter.any;
+      final candidates = showingFinished ? board.finished : board.items;
+
+      final filtered = candidates
+          .where((t) => matchesSource(t, source))
+          .where((t) => matchesStatus(t, statusFilter))
+          .where((t) => matchesTime(t, _timeFilter, now))
+          .where((t) => matchesSearch(t, _query))
+          .toList();
+
+      if (showingFinished) {
+        filtered.sort((a, b) => b.since.compareTo(a.since));
+      } else {
+        filtered.sort((a, b) => compareUrgency(a, b, now));
+      }
+
+      // Recent activity for the sliding strip above search: every task,
+      // open or finished, newest change first.
+      final recentActivity =
+          [
+              ...board.items,
+              ...board.finished,
+            ].where((t) => matchesSource(t, source)).toList()
+            ..sort((a, b) => b.since.compareTo(a.since));
+      if (recentActivity.length > 10) {
+        recentActivity.removeRange(10, recentActivity.length);
+      }
+
+      final hasActiveFilter =
+          statusFilter != TaskStatusFilter.any ||
+          _timeFilter != TaskTimeFilter.any;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 2. Recent activity, as a sliding strip
+          _RecentActivityStrip(
+            items: recentActivity,
+            now: now,
+            thumbs: _thumbs,
+            onTap: (t) => _handleTaskTap(context, t),
+            onLongPress: (t) => _openTaskActions(context, t),
+          ),
+          const SizedBox(height: CruSpace.s16),
+
+          // 3. Search bar with filter icon: the same on every source, so it
+          // stays put while they slide (the dot follows the open source).
+          SwipePinned(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MobileMetrics.gutter,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: MobileSearchField(
+                      controller: _search,
+                      hint: 'Search patient, scan, procedure or referrer',
+                      onChanged: (q) => setState(() => _query = q),
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s10),
+                  _FilterIconButton(
+                    hasActiveFilter:
+                        _statusFilter != TaskStatusFilter.any ||
+                        _timeFilter != TaskTimeFilter.any,
+                    onTap: () => _openFilterModal(context, effectiveSource),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Active filter removable chips
+          if (hasActiveFilter) ...[
+            const SizedBox(height: CruSpace.s8),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: MobileMetrics.gutter,
+              ),
+              child: Wrap(
+                spacing: CruSpace.s8,
+                runSpacing: CruSpace.s6,
+                children: [
+                  if (statusFilter != TaskStatusFilter.any)
+                    _RemovableFilterChip(
+                      label: 'Status: ${statusFilter.label}',
+                      onRemove: () =>
+                          setState(() => _statusFilter = TaskStatusFilter.any),
+                    ),
+                  if (_timeFilter != TaskTimeFilter.any)
+                    _RemovableFilterChip(
+                      label: 'Time: ${_timeFilter.label}',
+                      onRemove: () =>
+                          setState(() => _timeFilter = TaskTimeFilter.any),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: CruSpace.s16),
+
+          // 4. One flat list of tasks
+          if (board.items.isEmpty && board.finished.isEmpty)
+            const MobileEmpty(
+              icon: CruIcons.check,
+              title: 'All caught up',
+              body: 'Nothing is waiting on you right now.',
+            )
+          else if (filtered.isEmpty)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const MobileEmpty(
+                  icon: CruIcons.search,
+                  title: 'No matches',
+                  body: 'Try another filter or search.',
+                ),
+                const SizedBox(height: CruSpace.s8),
+                CruPressable(
+                  onTap: () {
+                    MobileHaptics.tap();
+                    setState(() {
+                      _statusFilter = TaskStatusFilter.any;
+                      _timeFilter = TaskTimeFilter.any;
+                      _search.clear();
+                      _query = '';
+                    });
+                  },
+                  semanticLabel: 'Clear filters',
+                  builder: (context, _) => Text(
+                    'Clear filters',
+                    style: MobileType.subhead.w600.tint(context.cru.accentText),
+                  ),
+                ),
+                const SizedBox(height: CruSpace.s16),
+              ],
+            )
+          else
+            MobileRowGroup(
+              children: [
+                for (final t in filtered) _buildTaskRow(context, t, now),
+              ],
+            ),
+        ],
+      );
+    }
 
     return ListView(
       padding: EdgeInsets.only(bottom: MobileMetrics.bottom(context)),
@@ -972,110 +1095,18 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
             const SizedBox(height: CruSpace.s12),
           ],
 
-          // 2. Recent activity, as a sliding strip
-          _RecentActivityStrip(
-            items: recentActivity,
-            now: now,
-            thumbs: _thumbs,
-            onTap: (t) => _handleTaskTap(context, t),
-            onLongPress: (t) => _openTaskActions(context, t),
+          // Each source's page side by side: drag sideways to switch.
+          SwipePages<TaskSourceFilter>(
+            values: availableSources.length > 2
+                ? availableSources
+                : [effectiveSource],
+            value: effectiveSource,
+            onChanged: (s) => setState(() {
+              _sourceFilter = s;
+              _statusFilter = TaskStatusFilter.any;
+            }),
+            builder: (context, source) => page(source),
           ),
-          const SizedBox(height: CruSpace.s16),
-
-          // 3. Search bar with filter icon
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: MobileMetrics.gutter,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: MobileSearchField(
-                    controller: _search,
-                    hint: 'Search patient, scan, procedure or referrer',
-                    onChanged: (q) => setState(() => _query = q),
-                  ),
-                ),
-                const SizedBox(width: CruSpace.s10),
-                _FilterIconButton(
-                  hasActiveFilter: hasActiveFilter,
-                  onTap: () => _openFilterModal(context, effectiveSource),
-                ),
-              ],
-            ),
-          ),
-
-          // Active filter removable chips
-          if (hasActiveFilter) ...[
-            const SizedBox(height: CruSpace.s8),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MobileMetrics.gutter,
-              ),
-              child: Wrap(
-                spacing: CruSpace.s8,
-                runSpacing: CruSpace.s6,
-                children: [
-                  if (_statusFilter != TaskStatusFilter.any)
-                    _RemovableFilterChip(
-                      label: 'Status: ${_statusFilter.label}',
-                      onRemove: () =>
-                          setState(() => _statusFilter = TaskStatusFilter.any),
-                    ),
-                  if (_timeFilter != TaskTimeFilter.any)
-                    _RemovableFilterChip(
-                      label: 'Time: ${_timeFilter.label}',
-                      onRemove: () =>
-                          setState(() => _timeFilter = TaskTimeFilter.any),
-                    ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: CruSpace.s16),
-
-          // 4. One flat list of tasks
-          if (board.items.isEmpty && board.finished.isEmpty)
-            const MobileEmpty(
-              icon: CruIcons.check,
-              title: 'All caught up',
-              body: 'Nothing is waiting on you right now.',
-            )
-          else if (filtered.isEmpty)
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const MobileEmpty(
-                  icon: CruIcons.search,
-                  title: 'No matches',
-                  body: 'Try another filter or search.',
-                ),
-                const SizedBox(height: CruSpace.s8),
-                CruPressable(
-                  onTap: () {
-                    MobileHaptics.tap();
-                    setState(() {
-                      _statusFilter = TaskStatusFilter.any;
-                      _timeFilter = TaskTimeFilter.any;
-                      _search.clear();
-                      _query = '';
-                    });
-                  },
-                  semanticLabel: 'Clear filters',
-                  builder: (context, _) => Text(
-                    'Clear filters',
-                    style: MobileType.subhead.w600.tint(context.cru.accentText),
-                  ),
-                ),
-                const SizedBox(height: CruSpace.s16),
-              ],
-            )
-          else
-            MobileRowGroup(
-              children: [
-                for (final t in filtered) _buildTaskRow(context, t, now),
-              ],
-            ),
         ],
       ],
     );
@@ -1267,7 +1298,9 @@ class _RecentActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = task;
 
-    final (icon, top, bottom) = switch (t.source) {
+    // The card looks like the work it's at now (a scan becomes a report
+    // card once reading is done), not where the task started.
+    final (icon, top, bottom) = switch (t.stage.source) {
       TaskSource.scan => (
         RadIcons.worklist,
         const Color(0xFF3960FB),

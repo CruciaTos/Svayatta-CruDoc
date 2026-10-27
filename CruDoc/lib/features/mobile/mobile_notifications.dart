@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart';
@@ -183,16 +185,46 @@ class _MobileNotificationsScreenState
     final tab = i.desktopTab;
     return MobileRow(
       leading: i.showsPatient
-          ? VisitBadged(
-              avatar: MobileAvatar(name: p!.fullName, size: 38),
-              avatarSize: 38,
-              homeVisit: i.homeVisit,
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => openMobilePatient(context, p),
+              child: VisitBadged(
+                avatar: MobileAvatar(name: p!.fullName, size: 38),
+                avatarSize: 38,
+                homeVisit: i.homeVisit,
+              ),
             )
           : MobileIconTile(icon: icon, tone: tone),
       title: i.title,
-      subtitle: [?i.detail, ?actor, activityAgo(i.at, now)].join(' · '),
-      trailing: unread ? const MobileUnreadDot() : null,
-      onTap: p != null
+      subtitle: [?i.detail, ?actor].isEmpty
+          ? null
+          : [?i.detail, ?actor].join(' · '),
+      // Fixed-width dot and time columns so every row lines up.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 10,
+            child: unread ? const Center(child: MobileUnreadDot()) : null,
+          ),
+          const SizedBox(width: CruSpace.s8),
+          SizedBox(
+            width: 64,
+            child: Text(
+              activityAgo(i.at, now),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              style: MobileType.caption.tabular.tint(context.cru.label3),
+            ),
+          ),
+        ],
+      ),
+      onTap: i.visit != null && p != null
+          ? () => showSessionDetailsSheet(
+              context,
+              VisitWithPatient(visit: i.visit!, patient: p),
+            )
+          : p != null
           ? () => openMobilePatient(context, p)
           : tab != null
           ? () =>

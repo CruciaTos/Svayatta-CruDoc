@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/revenue/data/models/invoice_model
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 /// Invoices on the phone: what is still owed, then every invoice with
 /// its state. Tap one to view PDF, edit, mark it paid, or cancel it.
@@ -39,8 +40,8 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
 
   void _new() => showDesktopCreateInvoiceDialog(mobileRoot(context));
 
-  bool _matches(InvoiceModel i) {
-    if (_filter != 'All' && i.status.toLowerCase() != _filter.toLowerCase()) {
+  bool _matches(InvoiceModel i, String filter) {
+    if (filter != 'All' && i.status.toLowerCase() != filter.toLowerCase()) {
       return false;
     }
     final q = _search.text.trim().toLowerCase();
@@ -60,18 +61,17 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
         final owed = all == null
             ? 0.0
             : _sum(all.where((i) => !i.isPaid && !i.isCancelled));
-        final shown = all == null
-            ? const <InvoiceModel>[]
-            : all.where(_matches).toList();
 
         int count(String f) => all == null
             ? 0
             : f == 'All'
             ? all.length
             : all
-                  .where((i) =>
-                      !i.isCancelled &&
-                      i.status.toLowerCase() == f.toLowerCase())
+                  .where(
+                    (i) =>
+                        !i.isCancelled &&
+                        i.status.toLowerCase() == f.toLowerCase(),
+                  )
                   .length;
 
         return ListView(
@@ -123,8 +123,12 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                 ),
                 child: _Totals(
                   paid: _sum(all.where((i) => i.isPaid && !i.isCancelled)),
-                  pending: _sum(all.where((i) => i.isPending && !i.isCancelled)),
-                  overdue: _sum(all.where((i) => i.isOverdue && !i.isCancelled)),
+                  pending: _sum(
+                    all.where((i) => i.isPending && !i.isCancelled),
+                  ),
+                  overdue: _sum(
+                    all.where((i) => i.isOverdue && !i.isCancelled),
+                  ),
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
@@ -150,34 +154,43 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
-              if (shown.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: MobileMetrics.gutter,
-                  ),
-                  child: MobileEmpty(
-                    icon: CruIcons.search,
-                    title: 'No invoices match',
-                    body: 'Try a different filter or search term.',
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MobileMetrics.gutter,
-                  ),
-                  child: MobileCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < shown.length; i++) ...[
-                          if (i > 0) const Divider(height: 1, thickness: 0.5),
-                          _InvoiceRow(invoice: shown[i], repo: _repo),
-                        ],
-                      ],
+              // Each filter's list side by side: drag sideways to switch.
+              SwipePages<String>(
+                values: _filters,
+                value: _filter,
+                onChanged: (f) => setState(() => _filter = f),
+                builder: (context, filter) {
+                  final shown = all.where((i) => _matches(i, filter)).toList();
+                  if (shown.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: MobileMetrics.gutter,
+                      ),
+                      child: MobileEmpty(
+                        icon: CruIcons.search,
+                        title: 'No invoices match',
+                        body: 'Try a different filter or search term.',
+                      ),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: MobileMetrics.gutter,
                     ),
-                  ),
-                ),
+                    child: MobileCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < shown.length; i++) ...[
+                            if (i > 0) const Divider(height: 1, thickness: 0.5),
+                            _InvoiceRow(invoice: shown[i], repo: _repo),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ],
           ],
         );
@@ -277,10 +290,10 @@ class _InvoiceRow extends StatelessWidget {
   MobileTone get _tone => invoice.isCancelled
       ? MobileTone.slate
       : (invoice.isPaid
-          ? MobileTone.green
-          : invoice.isOverdue
-          ? MobileTone.amber
-          : MobileTone.blue);
+            ? MobileTone.green
+            : invoice.isOverdue
+            ? MobileTone.amber
+            : MobileTone.blue);
 
   bool get _sample => invoice.doctorId == 'sample';
 
@@ -328,10 +341,7 @@ class _InvoiceRow extends StatelessWidget {
             icon: CruIcons.pen,
             tone: MobileTone.blue,
             onTap: () {
-              showDesktopCreateInvoiceDialog(
-                context,
-                initialInvoice: i,
-              );
+              showDesktopCreateInvoiceDialog(context, initialInvoice: i);
             },
           ),
           if (!i.isPaid)
@@ -367,8 +377,9 @@ class _InvoiceRow extends StatelessWidget {
   }
 
   void _confirmCancel(BuildContext context) {
-    final displayNo =
-        invoice.invoiceNumber.isNotEmpty ? invoice.invoiceNumber : invoice.id;
+    final displayNo = invoice.invoiceNumber.isNotEmpty
+        ? invoice.invoiceNumber
+        : invoice.id;
     showMobileActionSheet(
       context,
       title: 'Cancel invoice $displayNo?',

@@ -73,6 +73,7 @@ class ActivityItem {
     this.patient,
     this.desktopTab,
     this.homeVisit = false,
+    this.visit,
   });
 
   final String id;
@@ -92,6 +93,9 @@ class ActivityItem {
 
   /// A home visit rather than an appointment at the clinic.
   final bool homeVisit;
+
+  /// The appointment or home visit it's about; tapping the row opens it.
+  final Visit? visit;
 
   /// An appointment or home visit of one patient (booked, cancelled,
   /// missed, seen): its row shows that patient's monogram, not an icon.
@@ -151,7 +155,7 @@ class ActivityFeed {
   /// "You", a team member's name, or null when unknown.
   String? actorName(ActivityItem i) {
     if (i.actorUid.isEmpty || i.actorUid == patientActor) return null;
-    if (i.actorUid == me) return 'You';
+    if (i.actorUid == me) return null;
     return names[i.actorUid];
   }
 }
@@ -231,7 +235,7 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
           id: 'qd_${e.id}',
           at: done,
           kind: ActivityKind.consultDone,
-          title: 'Consultation finished with $who',
+          title: "$who's consultation finished",
           patient: p,
         ),
       );
@@ -260,14 +264,15 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
           at: v.createdAt,
           kind: ActivityKind.booked,
           title: home
-              ? 'Home visit booked for $who'
-              : 'Appointment booked for $who',
+              ? "$who's home visit booked"
+              : "$who's appointment booked",
           detail:
               '${DashFormat.shortDate(v.scheduledStart)}, '
               '${DashFormat.time(v.scheduledStart)}',
           actorUid: v.createdByUid,
           patient: p,
           homeVisit: home,
+          visit: v,
         ),
       );
     }
@@ -290,10 +295,11 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
         title: switch (kind) {
           ActivityKind.cancelled => "$who's appointment was cancelled",
           ActivityKind.missed => '$who missed their appointment',
-          _ => 'Home visit with $who finished',
+          _ => "$who's home visit finished",
         },
         patient: p,
         homeVisit: home,
+        visit: v,
       ),
     );
   }

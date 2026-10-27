@@ -243,9 +243,15 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
       slivers: [
         SliverToBoxAdapter(
           child: MobileHeader(
-            overline: DateFormat(
-              'MMMM y',
-            ).format(_isMonthExpanded ? _monthDate : day),
+            // The month of the week on screen: the selected day when it's
+            // in view, else that week's Thursday (where most of it falls).
+            subtitle: DateFormat('MMMM y').format(
+              _isMonthExpanded
+                  ? _monthDate
+                  : _pageOf(day) == _page
+                  ? day
+                  : _weekStart(_page).add(const Duration(days: 3)),
+            ),
             title: 'Schedule',
             titleTrailing: _ViewDropdown(
               isMonth: _isMonthExpanded,
@@ -1014,19 +1020,17 @@ class _ApptRow extends ConsumerWidget {
         ),
         subtitle: [
           if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
+          if (item.durationMinutes > 0)
+            DashFormat.minutes(item.durationMinutes),
           if (item.isHomeVisit) 'Home visit',
           ?item.detailLine,
-        ].join(' · ').ifEmpty(DashFormat.minutes(item.durationMinutes)),
+        ].join(' · '),
         trailing: pill,
         onTap: () => ApptActions.openVisit(context, item),
         onLongPress: () => _sheet(context, ref),
       ),
     );
   }
-}
-
-extension on String {
-  String ifEmpty(String other) => isEmpty ? other : this;
 }
 
 /// The dropdown pill beside "Schedule": toggles between Week and Month view.

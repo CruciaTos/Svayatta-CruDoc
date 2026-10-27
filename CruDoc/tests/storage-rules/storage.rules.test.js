@@ -673,3 +673,72 @@ describe('doctor-files in storage', () => {
     await assertFails(getBytes(ref(as('stranger'), pathA)));
   });
 });
+
+describe('clinic-blobs (Deduplicated shared files)', () => {
+  const DOC2 = 'doctor-2';
+  const RECEP = 'recep-1';
+  const SHA = 'a'.repeat(64);
+  const blobPath = (name = 'original') => `clinic-blobs/${A}/${SHA}/${name}`;
+  const pdf = { contentType: 'application/pdf' };
+  const jpeg = { contentType: 'image/jpeg' };
+
+  beforeEach(async () => {
+    await seedFirestore(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seedFirestore(`clinics/${A}/members/${DOC2}`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view', 'clinical.edit'],
+      name: 'Doctor 2',
+    });
+    await seedFirestore(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'schedule'],
+      name: 'Recep',
+    });
+  });
+
+  it('allows clinical member to create original and view, and read them', async () => {
+    await assertSucceeds(uploadBytes(ref(as(DOC2), blobPath('original')), bytes(), pdf));
+    await assertSucceeds(uploadBytes(ref(as(DOC2), blobPath('view')), bytes(), jpeg));
+
+    // Owner and clinical colleague can read
+    await assertSucceeds(getBytes(ref(as(A), blobPath('original'))));
+    await assertSucceeds(getBytes(ref(as(DOC2), blobPath('view'))));
+  });
+
+  it('refuses non-clinical members and strangers from reading', async () => {
+    await seed(blobPath('original'), 'application/pdf');
+
+    await assertFails(getBytes(ref(as(RECEP), blobPath('original'))));
+    await assertFails(getBytes(ref(as('stranger'), blobPath('original'))));
+    await assertFails(getBytes(ref(anonymous(), blobPath('original'))));
+  });
+
+  it('refuses delete for all callers (deletes are server-only)', async () => {
+    await seed(blobPath('original'), 'application/pdf');
+
+    await assertFails(deleteObject(ref(as(A), blobPath('original'))));
+    await assertFails(deleteObject(ref(as(DOC2), blobPath('original'))));
+    await assertFails(deleteObject(ref(as(RECEP), blobPath('original'))));
+  });
+
+  it('only allows names "original" or "view"', async () => {
+    await assertFails(uploadBytes(ref(as(A), `clinic-blobs/${A}/${SHA}/thumbnail`), bytes(), jpeg));
+    await assertFails(uploadBytes(ref(as(A), `clinic-blobs/${A}/${SHA}/file.pdf`), bytes(), pdf));
+  });
+
+  it('enforces content types and size limits', async () => {
+    // view must be image/jpeg
+    await assertFails(uploadBytes(ref(as(A), blobPath('view')), bytes(), pdf));
+
+    // original refuses programs or html
+    await assertFails(uploadBytes(ref(as(A), blobPath('original')), bytes(), { contentType: 'application/x-msdownload' }));
+    await assertFails(uploadBytes(ref(as(A), blobPath('original')), bytes(), { contentType: 'text/html' }));
+
+    // size limits: 50 MB for normal, 250 MB for DICOM
+    await assertFails(uploadBytes(ref(as(A), `clinic-blobs/${A}/big/original`), bytes(50 * MB + 1), pdf));
+    await assertSucceeds(uploadBytes(ref(as(A), `clinic-blobs/${A}/dcm/original`), bytes(50 * MB + 1), { contentType: 'application/dicom' }));
+  });
+});
+

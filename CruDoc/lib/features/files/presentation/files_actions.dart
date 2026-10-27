@@ -21,6 +21,7 @@ import 'package:doctor_management_app/features/appointments/presentation/patient
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_dicom_file.dart';
+import 'package:doctor_management_app/features/files/presentation/send_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// What the Files screen and the patient's Files card can do. Dialogs open
@@ -483,5 +484,14 @@ abstract final class FilesActions {
     );
     if (!ok || !context.mounted) return;
     await _guard(context, () => FilesRepository.instance.deleteFile(entry.id));
+  }
+
+  static Future<void> sendToColleague(
+    BuildContext context,
+    WidgetRef ref,
+    List<PatientFile> files,
+  ) async {
+    if (files.isEmpty) return;
+    await showSendToColleagueSheet(context, ref, files);
   }
 }

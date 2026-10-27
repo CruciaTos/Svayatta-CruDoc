@@ -21,6 +21,8 @@ class AccessAuditService {
   static const String collection = 'access_logs';
   static const String actionPatientView = 'patient.view';
   static const String actionFileDownload = 'file.download';
+  static const String actionFileSend = 'file.send';
+  static const String actionFileReceive = 'file.receive';
 
   /// Re-opening the same record within this window is not logged again, so
   /// screens can call [patientViewed] from build without flooding the log.
@@ -38,6 +40,30 @@ class AccessAuditService {
       actionFileDownload,
       patientId: patientIdFromPath(storagePath),
       target: storagePath,
+    );
+  }
+
+  void fileSent({
+    required String fileId,
+    required String recipientUid,
+    String? patientId,
+  }) {
+    _log(
+      actionFileSend,
+      patientId: patientId,
+      target: 'file:$fileId->recipient:$recipientUid',
+    );
+  }
+
+  void fileReceived({
+    required String fileId,
+    required String senderUid,
+    String? patientId,
+  }) {
+    _log(
+      actionFileReceive,
+      patientId: patientId,
+      target: 'file:$fileId<-sender:$senderUid',
     );
   }
 

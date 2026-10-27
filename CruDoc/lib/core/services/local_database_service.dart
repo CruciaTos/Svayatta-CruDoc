@@ -1744,7 +1744,10 @@ class LocalDatabaseService extends ChangeNotifier {
         viewPath TEXT NOT NULL DEFAULT '',
         syncStatus TEXT NOT NULL DEFAULT 'pending'
           CHECK (syncStatus IN ('synced', 'pending')),
-        lastSyncedAt INTEGER
+        lastSyncedAt INTEGER,
+        sha256 TEXT NOT NULL DEFAULT '',
+        receivedFromUid TEXT NOT NULL DEFAULT '',
+        receivedFromName TEXT NOT NULL DEFAULT ''
       )
     ''');
     await db.execute(
@@ -1754,6 +1757,10 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_patient_files_patient '
       'ON patient_files (doctorId, patientId, isDeleted)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_patient_files_sha256 '
+      'ON patient_files (sha256)',
     );
     await db.execute('''
       CREATE TABLE IF NOT EXISTS file_folders (
@@ -1796,6 +1803,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'viewPath': "viewPath TEXT NOT NULL DEFAULT ''",
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'sha256': "sha256 TEXT NOT NULL DEFAULT ''",
+    'receivedFromUid': "receivedFromUid TEXT NOT NULL DEFAULT ''",
+    'receivedFromName': "receivedFromName TEXT NOT NULL DEFAULT ''",
   };
 
   static const Map<String, String> _fileFoldersColumns = {

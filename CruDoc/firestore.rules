@@ -45,6 +45,17 @@ service cloud.firestore {
       return /databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid);
     }
 
+    function userMemberPath(clinicId, uid) {
+      return /databases/$(database)/documents/clinics/$(clinicId)/members/$(uid);
+    }
+
+    function isClinicMember(clinicId, uid) {
+      return uid == clinicId || (
+        exists(userMemberPath(clinicId, uid))
+        && get(userMemberPath(clinicId, uid)).data.active == true
+      );
+    }
+
     // Reading or writing a patient's clinical record, as opposed to running
     // the clinic. Keep in sync with CLINICAL_PERMS in functions/src/clinic.ts
     // and clinicalPerm() in storage.rules.
@@ -433,7 +444,16 @@ service cloud.firestore {
         && d.sizeBytes is int
         && d.storagePath is string
         && d.visibleTo is list && d.visibleTo.size() <= 50
-        && followsRoot(d);
+        && followsRoot(d)
+        && (!('sha256' in d) || (d.sha256 is string && d.sha256.matches('^[0-9a-f]{64}$')))
+        && (!d.storagePath.matches('^clinic-blobs/.*') || (
+          'sha256' in d
+          && d.storagePath == 'clinic-blobs/' + d.doctorId + '/' + d.sha256 + '/original'
+        ))
+        && (!('viewPath' in d) || !d.viewPath.matches('^clinic-blobs/.*') || (
+          'sha256' in d
+          && d.viewPath == 'clinic-blobs/' + d.doctorId + '/' + d.sha256 + '/view'
+        ));
     }
 
     match /file_folders/{folderId} {
@@ -778,6 +798,64 @@ service cloud.firestore {
       match /invites/{inviteId} {
         allow read: if isSuperAdmin() || clinicAllows(clinicId, 'team');
         allow write: if false;
+      }
+
+      // Deduplicated file blob records and ref docs (Phase 1).
+      // Members with clinical.view can read blobs and refs.
+      // Only the server writes (Cloud Functions).
+      match /blobs/{allPaths=**} {
+        allow read: if clinicAllows(clinicId, 'clinical.view');
+        allow write: if false;
+      }
+
+      // File offers (Phase 2): Send to colleague.
+      match /file_offers/{offerId} {
+        allow read: if isAuthenticated() && (
+          resource.data.from == request.auth.uid || resource.data.to == request.auth.uid
+        );
+        allow create: if clinicAllows(clinicId, 'clinical.view')
+          && request.resource.data.from == request.auth.uid
+          && request.resource.data.to != request.auth.uid
+          && isClinicMember(clinicId, request.resource.data.to)
+          && request.resource.data.status == 'sent'
+          && request.resource.data.sha256 is string
+          && request.resource.data.sha256.matches('^[0-9a-f]{64}$')
+          && request.resource.data.sizeBytes is int
+          && request.resource.data.keys().hasAll([
+            'from', 'to', 'batchId', 'fileId', 'sha256',
+            'sizeBytes', 'contentType', 'patientId', 'name',
+            'status', 'createdAt', 'expireAt'
+          ]);
+        allow update: if isAuthenticated() && resource.data.status == 'sent' && (
+          (request.auth.uid == resource.data.to
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.status in ['accepted', 'declined'])
+          ||
+          (request.auth.uid == resource.data.from
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+            && request.resource.data.status == 'cancelled')
+        );
+        allow delete: if false;
+      }
+
+      // Registered trusted devices (Phase 3).
+      match /devices/{deviceId} {
+        allow read: if clinicAllows(clinicId, 'clinical.view');
+        allow create: if clinicAllows(clinicId, 'member')
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.certSha256 is string
+          && request.resource.data.certSha256.matches('^[0-9a-f]{64}$')
+          && request.resource.data.keys().hasAll([
+            'uid', 'name', 'platform', 'certPem', 'certSha256',
+            'lan', 'createdAt', 'lastSeenAt'
+          ]);
+        allow update: if isAuthenticated() && resource.data.uid == request.auth.uid
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'certPem', 'certSha256', 'uid', 'platform'
+          ]);
+        allow delete: if isAuthenticated() && (
+          resource.data.uid == request.auth.uid || clinicAllows(clinicId, 'admin')
+        );
       }
     }
 

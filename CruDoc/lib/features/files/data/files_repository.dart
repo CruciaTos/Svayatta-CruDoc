@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -14,7 +15,9 @@ import 'package:doctor_management_app/core/services/local_database_service.dart'
 import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/services/storage_sync_queue.dart';
+import 'package:doctor_management_app/features/files/data/file_fingerprint.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
+import 'package:doctor_management_app/features/files/data/file_offer_model.dart';
 import 'package:doctor_management_app/features/files/data/file_previews.dart';
 import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/files/data/files_cloud_sync.dart';
@@ -513,6 +516,7 @@ class FilesRepository {
       } else {
         continue;
       }
+      final sha256 = await computeFileSha256(dest.path);
       final now = DateTime.now();
       final f = PatientFile(
         id: id,
@@ -528,6 +532,7 @@ class FilesRepository {
         createdAt: now,
         updatedAt: now,
         localPath: rel,
+        sha256: sha256,
       );
       await _putFile(f);
       final queued = await StorageSyncQueue.instance.enqueue(
@@ -535,7 +540,11 @@ class FilesRepository {
         patientId: patientId,
         bytes: bytes,
         contentType: type,
-        link: UploadLink.viaHandler(linkHandler, docId: id),
+        link: UploadLink.viaHandler(
+          linkHandler,
+          docId: id,
+          args: {'sha256': sha256},
+        ),
       );
       if (queued == null) {
         // Signed out or refused by the queue: keep it here, say so.
@@ -547,6 +556,135 @@ class FilesRepository {
     }
     _changed();
     return added;
+  }
+
+  /// Creates a new local and synced file record for a file received from a colleague.
+  /// Points to the existing shared cloud blob when ready.
+  Future<String> createReceivedFile({
+    required FileOffer offer,
+    String? localFilePath,
+  }) async {
+    final now = DateTime.now();
+    final newId = const Uuid().v4();
+    final clinicId = doctorId;
+    final me = uid;
+
+    String relPath = '';
+    if (localFilePath != null) {
+      try {
+        final dir = await _clinicDir();
+        final name = _diskName(offer.name);
+        final rel = p.join(newId, name);
+        final dest = File(p.join(dir.path, rel));
+        await dest.parent.create(recursive: true);
+        final srcFile = File(localFilePath);
+        if (await srcFile.exists()) {
+          await srcFile.copy(dest.path);
+          relPath = rel;
+        }
+      } catch (_) {}
+    }
+
+    String storagePath = '';
+    String viewPath = '';
+    if (offer.sha256.isNotEmpty && clinicId.isNotEmpty) {
+      try {
+        final blobSnap = await FirebaseFirestore.instance
+            .collection('clinics')
+            .doc(clinicId)
+            .collection('blobs')
+            .doc(offer.sha256)
+            .get();
+        if (blobSnap.exists && blobSnap.data()?['state'] == 'ready') {
+          storagePath = MedicalStorageService.blobOriginalPath(clinicId, offer.sha256);
+          if (blobSnap.data()?['hasView'] == true) {
+            viewPath = MedicalStorageService.blobViewPath(clinicId, offer.sha256);
+          }
+        }
+      } catch (_) {}
+    }
+
+    final f = PatientFile(
+      id: newId,
+      doctorId: clinicId,
+      ownerUid: me,
+      patientId: offer.patientId,
+      folderId: '',
+      rootId: '',
+      name: offer.name,
+      contentType: offer.contentType,
+      sizeBytes: offer.sizeBytes,
+      visibleTo: [me],
+      createdAt: now,
+      updatedAt: now,
+      localPath: relPath,
+      thumb: offer.thumb,
+      sha256: offer.sha256,
+      storagePath: storagePath,
+      viewPath: viewPath,
+      receivedFromUid: offer.from,
+      receivedFromName: offer.fromDoctorName,
+    );
+
+    await _putFile(f);
+    _changed();
+    return newId;
+  }
+
+  /// Scans local records that have a sha256 but no storagePath, and links
+  /// them once the shared cloud blob has been finalized.
+  Future<void> linkWhenReadyCheck() async {
+    final clinic = doctorId;
+    final me = uid;
+    if (clinic.isEmpty || me.isEmpty) return;
+
+    final db = await _db.localDatabase;
+    final rows = await db.query(
+      _files,
+      where: "doctorId = ? AND ownerUid = ? AND isDeleted = 0 AND sha256 != '' AND storagePath = ''",
+      whereArgs: [clinic, me],
+    );
+
+    for (final r in rows) {
+      final f = PatientFile.fromLocalMap(r);
+      try {
+        final blobSnap = await FirebaseFirestore.instance
+            .collection('clinics')
+            .doc(clinic)
+            .collection('blobs')
+            .doc(f.sha256)
+            .get();
+        if (blobSnap.exists && blobSnap.data()?['state'] == 'ready') {
+          final originalPath = MedicalStorageService.blobOriginalPath(clinic, f.sha256);
+          final viewPath = (blobSnap.data()?['hasView'] == true)
+              ? MedicalStorageService.blobViewPath(clinic, f.sha256)
+              : '';
+          await _patchFile(f.id, {
+            'storagePath': originalPath,
+            if (viewPath.isNotEmpty) 'viewPath': viewPath,
+          });
+        } else if (f.receivedFromUid.isNotEmpty &&
+                   f.localPath.isNotEmpty &&
+                   DateTime.now().difference(f.createdAt).inHours >= 2) {
+          // Task N7: 2-hour delay passed; sender did not upload to cloud, recipient uploads now
+          final diskFile = await localCopy(f);
+          if (await diskFile.exists()) {
+            final bytes = await diskFile.readAsBytes();
+            await StorageSyncQueue.instance.enqueue(
+              kind: UploadKind.patientFile,
+              patientId: f.patientId,
+              bytes: bytes,
+              contentType: f.contentType,
+              link: UploadLink.viaHandler(
+                linkHandler,
+                docId: f.id,
+                args: {'sha256': f.sha256},
+              ),
+            );
+          }
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> renameFile(String id, String name) async {
@@ -614,6 +752,11 @@ class FilesRepository {
   }
 
   Future<void> _deleteObject(String path) async {
+    if (path.startsWith('clinic-blobs/')) {
+      // Shared blob: do NOT delete from bucket directly.
+      // Firestore cloud function cleanUpBlobs manages lifecycle based on refCount.
+      return;
+    }
     try {
       await MedicalStorageService.instance.delete(path);
     } catch (e) {
@@ -671,8 +814,15 @@ class FilesRepository {
     await dest.parent.create(recursive: true);
     try {
       await MedicalStorageService.instance.downloadToFile(f.storagePath, dest);
+      if (f.sha256.isNotEmpty) {
+        final downloadedHash = await computeFileSha256(dest.path);
+        if (downloadedHash.toLowerCase() != f.sha256.toLowerCase()) {
+          throw const FilesException('File damaged, trying again.');
+        }
+      }
     } catch (e) {
       if (await dest.exists()) await dest.delete();
+      if (e is FilesException) rethrow;
       throw const FilesException(
         "Couldn't download this file. Check the connection and try again.",
       );
@@ -760,7 +910,11 @@ class FilesRepository {
         patientId: latest.patientId,
         bytes: view,
         contentType: 'image/jpeg',
-        link: UploadLink.viaHandler(viewLinkHandler, docId: id),
+        link: UploadLink.viaHandler(
+          viewLinkHandler,
+          docId: id,
+          args: {'sha256': latest.sha256},
+        ),
       );
     }
     _changed();
@@ -841,6 +995,12 @@ class FilesRepository {
         part,
         onBytes: onBytes,
       );
+      if (!useView && f.sha256.isNotEmpty) {
+        final downloadedHash = await computeFileSha256(part.path);
+        if (downloadedHash.toLowerCase() != f.sha256.toLowerCase()) {
+          throw const FilesException('File damaged, trying again.');
+        }
+      }
       if (await dest.exists()) await dest.delete();
       await part.rename(dest.path);
     } catch (e) {

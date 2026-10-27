@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
@@ -716,6 +717,10 @@ class StorageSyncQueue {
   }
 
   Future<void> _deleteQuietly(String path) async {
+    if (path.startsWith('clinic-blobs/')) {
+      // Shared clinic blob: do NOT delete from bucket directly.
+      return;
+    }
     try {
       await _deleteObject(path);
     } on FirebaseException catch (e) {
@@ -883,21 +888,152 @@ class StorageSyncQueue {
         doctorId: doctorId,
         bytes: bytes,
       ),
-      // Stored under the file's own id (the link's document).
-      UploadKind.patientFile => service.uploadPatientFile(
-        doctorId: doctorId,
-        patientId: patientId,
-        fileId: item.link?.docId ?? '',
+      // Deduplicated clinic blob (falls back to patientFile when sha/clinic is missing).
+      UploadKind.patientFile => _uploadPatientFileDeduplicated(
+        service: service,
+        item: item,
         bytes: bytes,
-        contentType: type,
       ),
-      UploadKind.patientFileView => service.uploadPatientFileView(
-        doctorId: doctorId,
-        patientId: patientId,
-        fileId: item.link?.docId ?? '',
+      UploadKind.patientFileView => _uploadPatientFileViewDeduplicated(
+        service: service,
+        item: item,
         bytes: bytes,
       ),
     };
+  }
+
+  static Future<StoredFile> _uploadPatientFileDeduplicated({
+    required MedicalStorageService service,
+    required PendingUpload item,
+    required Uint8List bytes,
+  }) async {
+    final doctorId = item.doctorId;
+    final type = item.contentType;
+    var sha = (item.link?.args['sha256'] as String?)?.trim().toLowerCase() ?? '';
+    if (sha.isEmpty) {
+      sha = crypto.sha256.convert(bytes).toString();
+    }
+
+    if (doctorId.isEmpty || sha.isEmpty) {
+      return service.uploadPatientFile(
+        doctorId: doctorId,
+        patientId: item.patientId ?? '',
+        fileId: item.link?.docId ?? '',
+        bytes: bytes,
+        contentType: type,
+      );
+    }
+
+    // 1. Check if the blob already exists in Firestore and is ready
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(doctorId)
+          .collection('blobs')
+          .doc(sha)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      if (doc.exists && doc.data()?['state'] == 'ready') {
+        return StoredFile(
+          path: MedicalStorageService.blobOriginalPath(doctorId, sha),
+          contentType: type,
+          sizeBytes: bytes.lengthInBytes,
+        );
+      }
+    } catch (_) {
+      // Offline, timeout, or Firestore permission issue - proceed with upload attempt
+    }
+
+    // 2. Upload to blob storage
+    try {
+      return await service.uploadBlobOriginal(
+        clinicId: doctorId,
+        sha256: sha,
+        bytes: bytes,
+        contentType: type,
+      );
+    } on FirebaseException catch (e) {
+      // If another client won the upload race, rules return unauthorized/permission-denied
+      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
+        try {
+          final size = await service.cloudSize(
+            MedicalStorageService.blobOriginalPath(doctorId, sha),
+          );
+          if (size != null && size > 0) {
+            return StoredFile(
+              path: MedicalStorageService.blobOriginalPath(doctorId, sha),
+              contentType: type,
+              sizeBytes: size,
+            );
+          }
+        } catch (_) {}
+      }
+      rethrow;
+    }
+  }
+
+  static Future<StoredFile> _uploadPatientFileViewDeduplicated({
+    required MedicalStorageService service,
+    required PendingUpload item,
+    required Uint8List bytes,
+  }) async {
+    final doctorId = item.doctorId;
+    var sha = (item.link?.args['sha256'] as String?)?.trim().toLowerCase() ?? '';
+    if (sha.isEmpty) {
+      sha = crypto.sha256.convert(bytes).toString();
+    }
+
+    if (doctorId.isEmpty || sha.isEmpty) {
+      return service.uploadPatientFileView(
+        doctorId: doctorId,
+        patientId: item.patientId ?? '',
+        fileId: item.link?.docId ?? '',
+        bytes: bytes,
+      );
+    }
+
+    // 1. Check if view already exists on blob
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(doctorId)
+          .collection('blobs')
+          .doc(sha)
+          .get()
+          .timeout(const Duration(seconds: 10));
+      if (doc.exists && doc.data()?['hasView'] == true) {
+        return StoredFile(
+          path: MedicalStorageService.blobViewPath(doctorId, sha),
+          contentType: 'image/jpeg',
+          sizeBytes: bytes.lengthInBytes,
+        );
+      }
+    } catch (_) {}
+
+    // 2. Upload view to blob storage
+    try {
+      return await service.uploadBlobView(
+        clinicId: doctorId,
+        sha256: sha,
+        bytes: bytes,
+      );
+    } on FirebaseException catch (e) {
+      if (e.code == 'unauthorized' || e.code == 'permission-denied') {
+        try {
+          final size = await service.cloudSize(
+            MedicalStorageService.blobViewPath(doctorId, sha),
+          );
+          if (size != null && size > 0) {
+            return StoredFile(
+              path: MedicalStorageService.blobViewPath(doctorId, sha),
+              contentType: 'image/jpeg',
+              sizeBytes: size,
+            );
+          }
+        } catch (_) {}
+      }
+      rethrow;
+    }
   }
 }
 

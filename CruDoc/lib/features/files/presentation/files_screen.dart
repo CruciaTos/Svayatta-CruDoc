@@ -9,9 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
+import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/file_viewer.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
+import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
+import 'package:doctor_management_app/features/files/presentation/transfer_progress_tray.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_list.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_panel.dart';
@@ -89,6 +92,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
+    FilesRepository.instance.linkWhenReadyCheck();
     // The shell holds focus by default; take it so our shortcuts see keys.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_keysFocus.hasFocus) _keysFocus.requestFocus();
@@ -327,6 +331,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
     final canEdit = ref.watch(clinicCanProvider(ClinicPermission.clinicalEdit));
     final top = <Widget>[
+      const IncomingOffersCard(),
       FilesHeader(
         view: view,
         onNewFolder: canEdit ? _newFolder : null,
@@ -382,11 +387,18 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       );
     }
 
+    final layeredBody = Stack(
+      children: [
+        body,
+        const TransferProgressTray(),
+      ],
+    );
+
     return Shortcuts(
       shortcuts: _shortcuts,
       child: Actions(
         actions: _actions,
-        child: Focus(focusNode: _keysFocus, child: body),
+        child: Focus(focusNode: _keysFocus, child: layeredBody),
       ),
     );
   }

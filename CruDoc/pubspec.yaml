@@ -95,6 +95,8 @@ dependencies:
   # Scan quick action: live page-edge detection and auto-crop (ML Kit on
   # Android, Vision on iOS).
   cunning_document_scanner: 3.0.3
+  basic_utils: ^5.7.0
+  bonsoir: ^7.1.5
 dev_dependencies:
   flutter_test:
     sdk: flutter

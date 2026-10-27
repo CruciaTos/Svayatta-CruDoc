@@ -211,6 +211,9 @@ class FilesCloudSync {
         'sharing': row['sharing'] as String? ?? 'private',
       };
     }
+    final sha256 = row['sha256'] as String? ?? '';
+    final receivedFromUid = row['receivedFromUid'] as String? ?? '';
+    final receivedFromName = row['receivedFromName'] as String? ?? '';
     return {
       ...common,
       'patientId': row['patientId'] as String? ?? '',
@@ -221,6 +224,12 @@ class FilesCloudSync {
       // A picture of the file is patient data: encrypted like the name.
       'thumb': FieldCipher.encrypt(row['thumb'] as String?),
       'viewPath': row['viewPath'] as String? ?? '',
+      if (sha256.isNotEmpty) 'sha256': sha256,
+      if (receivedFromUid.isNotEmpty)
+        'receivedFrom': {
+          'uid': receivedFromUid,
+          'name': FieldCipher.encrypt(receivedFromName),
+        },
     };
   }
 
@@ -252,6 +261,9 @@ class FilesCloudSync {
         'sharing': d['sharing'] as String? ?? 'private',
       }).copyWith(visibleTo: visibleTo).toLocalMap();
     }
+    final receivedFrom = d['receivedFrom'] as Map<String, dynamic>?;
+    final rFromUid = receivedFrom?['uid'] as String? ?? '';
+    final rFromName = FieldCipher.decrypt(receivedFrom?['name'] as String?);
     return PatientFile.fromLocalMap({
       ...common,
       'patientId': d['patientId'] as String? ?? '',
@@ -261,6 +273,22 @@ class FilesCloudSync {
       'storagePath': d['storagePath'] as String? ?? '',
       'thumb': FieldCipher.decrypt(d['thumb'] as String?),
       'viewPath': d['viewPath'] as String? ?? '',
+      'sha256': d['sha256'] as String? ?? '',
+      'receivedFromUid': rFromUid,
+      'receivedFromName': rFromName,
     }).copyWith(visibleTo: visibleTo).toLocalMap();
   }
+
+  @visibleForTesting
+  static Map<String, Object?> firestoreDataForTesting(
+    String collection,
+    Map<String, Object?> row,
+  ) => _firestoreData(collection, row);
+
+  @visibleForTesting
+  static Map<String, Object?> localRowForTesting(
+    String collection,
+    String id,
+    Map<String, dynamic> d,
+  ) => _localRow(collection, id, d);
 }

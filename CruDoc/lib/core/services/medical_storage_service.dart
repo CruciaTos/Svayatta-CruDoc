@@ -257,6 +257,56 @@ class MedicalStorageService {
     }, limit: PatientFileTypes.maxBytes);
   }
 
+  /// The storage path for a deduplicated original file in a clinic.
+  static String blobOriginalPath(String clinicId, String sha256) =>
+      'clinic-blobs/$clinicId/$sha256/original';
+
+  /// The storage path for a progressive preview of a deduplicated file.
+  static String blobViewPath(String clinicId, String sha256) =>
+      'clinic-blobs/$clinicId/$sha256/view';
+
+  /// Uploads a deduplicated clinic blob original to Cloud Storage.
+  Future<StoredFile> uploadBlobOriginal({
+    required String clinicId,
+    required String sha256,
+    required Uint8List bytes,
+    required String contentType,
+  }) {
+    _requireSignedInAs(clinicId);
+    _requireOneOf(contentType, PatientFileTypes.contentTypes);
+    final path = blobOriginalPath(clinicId, sha256);
+    return _put(
+      path,
+      bytes,
+      contentType,
+      {
+        'clinicId': clinicId,
+        'sha256': sha256,
+      },
+      limit: PatientFileTypes.maxBytesFor(contentType),
+    );
+  }
+
+  /// Uploads a deduplicated clinic blob preview view to Cloud Storage.
+  Future<StoredFile> uploadBlobView({
+    required String clinicId,
+    required String sha256,
+    required Uint8List bytes,
+  }) {
+    _requireSignedInAs(clinicId);
+    final path = blobViewPath(clinicId, sha256);
+    return _put(
+      path,
+      bytes,
+      _jpeg,
+      {
+        'clinicId': clinicId,
+        'sha256': sha256,
+      },
+      limit: PatientFileTypes.maxBytes,
+    );
+  }
+
   /// Voice dictation for transcription. Stored under `voice-scratch/`, which
   /// is write-once: each call creates a new object and nothing overwrites it.
   /// Delete it with [delete] once the transcript is saved.
@@ -652,6 +702,7 @@ class MedicalStorageService {
       ['doctors', final id, _, ...] => id,
       ['voice-scratch', 'doctors', final id, _, ...] => id,
       ['patient-files', final id, _, ...] => id,
+      ['clinic-blobs', final id, _, ...] => id,
       _ => null,
     };
     if (doctorId == null || parts.any((p) => p.isEmpty || p == '..')) {

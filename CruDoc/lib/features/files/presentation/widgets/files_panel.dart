@@ -32,7 +32,6 @@ class FilePanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
     final f = entry.file;
     final me = FilesRepository.instance.uid;
     final status = f.storagePath.isNotEmpty
@@ -82,6 +81,16 @@ class FilePanel extends ConsumerWidget {
             'Added by',
             _value(context, entry.addedBy.isEmpty ? 'You' : entry.addedBy),
           ),
+          if (f.receivedFromName.isNotEmpty)
+            (
+              'Received from',
+              _value(
+                context,
+                f.receivedFromName.startsWith('Dr')
+                    ? f.receivedFromName
+                    : 'Dr. ${f.receivedFromName}',
+              ),
+            ),
           ('Status', _value(context, status)),
         ],
       ),
@@ -98,6 +107,12 @@ class FilePanel extends ConsumerWidget {
           spacing: CruSpace.s8,
           runSpacing: CruSpace.s8,
           children: [
+            _Capsule(
+              label: 'Send',
+              icon: CruIcons.arrowUpRight,
+              onTap: () =>
+                  FilesActions.sendToColleague(context, ref, [entry.file]),
+            ),
             _Capsule(
               label: 'Move',
               icon: FileIcons.folder,
@@ -121,9 +136,17 @@ class FilePanel extends ConsumerWidget {
           ],
         )
       else
-        Text(
-          'Only the person who added this file can change it.',
-          style: CruType.caption.tint(c.label2),
+        Wrap(
+          spacing: CruSpace.s8,
+          runSpacing: CruSpace.s8,
+          children: [
+            _Capsule(
+              label: 'Send',
+              icon: CruIcons.arrowUpRight,
+              onTap: () =>
+                  FilesActions.sendToColleague(context, ref, [entry.file]),
+            ),
+          ],
         ),
     ];
 

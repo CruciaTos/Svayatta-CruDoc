@@ -39,6 +39,7 @@ import 'package:doctor_management_app/features/settings/data/appearance_provider
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
+import 'package:doctor_management_app/features/files/presentation/nearby_sharing_settings.dart';
 import 'package:doctor_management_app/features/team/presentation/team_section.dart';
 import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
@@ -936,7 +937,7 @@ class _DevicesSection extends StatelessWidget {
               });
         final others = sessions.where((s) => !s.isCurrentDevice).length;
 
-        return _SettingsCard(
+        final card = _SettingsCard(
           title: 'Signed-in devices',
           description: 'Where CruDoc is signed in to your account right now.',
           trailing: others > 0
@@ -973,6 +974,15 @@ class _DevicesSection extends StatelessWidget {
                     ],
                   ],
                 ),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            card,
+            const SizedBox(height: CruSpace.s20),
+            const NearbySharingSettingsCard(),
+          ],
         );
       },
     );

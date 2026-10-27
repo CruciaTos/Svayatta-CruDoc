@@ -644,6 +644,7 @@ class _PdfDocumentViewerState extends State<_PdfDocumentViewer> {
           parent: BouncingScrollPhysics(),
         ),
         // Pages a screen or two away are laid out ahead of time.
+        // ignore: deprecated_member_use
         cacheExtent: 1600,
         itemCount: count,
         itemBuilder: (context, i) {

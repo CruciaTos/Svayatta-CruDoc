@@ -190,6 +190,9 @@ class PatientFile {
     this.isDeleted = false,
     this.thumb = '',
     this.viewPath = '',
+    this.sha256 = '',
+    this.receivedFromUid = '',
+    this.receivedFromName = '',
   });
 
   final String id;
@@ -231,6 +234,16 @@ class PatientFile {
   /// `encodeProgressiveJpeg`); '' until uploaded, or for other kinds.
   final String viewPath;
 
+  /// The SHA-256 fingerprint (64 lowercase hex characters) of the file's bytes.
+  /// Points to the single shared stored blob for this file.
+  final String sha256;
+
+  /// If received from a colleague, the sender's uid.
+  final String receivedFromUid;
+
+  /// If received from a colleague, the sender's doctor name ("From Dr Mehta").
+  final String receivedFromName;
+
   FileKind get kind => PatientFileTypes.kindOf(contentType);
 
   PatientFile copyWith({
@@ -246,6 +259,9 @@ class PatientFile {
     bool? isDeleted,
     String? thumb,
     String? viewPath,
+    String? sha256,
+    String? receivedFromUid,
+    String? receivedFromName,
   }) => PatientFile(
     id: id,
     doctorId: doctorId,
@@ -265,6 +281,9 @@ class PatientFile {
     isDeleted: isDeleted ?? this.isDeleted,
     thumb: thumb ?? this.thumb,
     viewPath: viewPath ?? this.viewPath,
+    sha256: sha256 ?? this.sha256,
+    receivedFromUid: receivedFromUid ?? this.receivedFromUid,
+    receivedFromName: receivedFromName ?? this.receivedFromName,
   );
 
   Map<String, Object?> toLocalMap() => {
@@ -286,6 +305,9 @@ class PatientFile {
     'updatedAt': updatedAt.millisecondsSinceEpoch,
     'thumb': thumb,
     'viewPath': viewPath,
+    'sha256': sha256,
+    'receivedFromUid': receivedFromUid,
+    'receivedFromName': receivedFromName,
   };
 
   factory PatientFile.fromLocalMap(Map<String, Object?> m) => PatientFile(
@@ -307,6 +329,9 @@ class PatientFile {
     viewPath: m['viewPath'] as String? ?? '',
     createdAt: DateTime.fromMillisecondsSinceEpoch(m['createdAt'] as int? ?? 0),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(m['updatedAt'] as int? ?? 0),
+    sha256: m['sha256'] as String? ?? '',
+    receivedFromUid: m['receivedFromUid'] as String? ?? '',
+    receivedFromName: m['receivedFromName'] as String? ?? '',
   );
 }
 

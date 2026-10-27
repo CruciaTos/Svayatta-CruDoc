@@ -1619,6 +1619,236 @@ describe('files screen: folders and patient files', () => {
     await assertFails(deleteDoc(doc(db, 'patient_files/x1')));
     await assertSucceeds(updateDoc(doc(db, 'patient_files/x1'), { isDeleted: true }));
   });
+
+  it('validates sha256 format and clinic-blobs path consistency', async () => {
+    const db = doctor(A);
+    const validSha = 'a'.repeat(64);
+
+    // Valid sha256 and matching storagePath + viewPath succeeds
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'patient_files/b1'),
+        file({
+          sha256: validSha,
+          storagePath: `clinic-blobs/${A}/${validSha}/original`,
+          viewPath: `clinic-blobs/${A}/${validSha}/view`,
+        }),
+      ),
+    );
+
+    // Invalid sha256 (not 64 hex characters) fails
+    await assertFails(
+      setDoc(doc(db, 'patient_files/bad_sha'), file({ sha256: 'tooshort' })),
+    );
+    await assertFails(
+      setDoc(doc(db, 'patient_files/bad_sha2'), file({ sha256: 'G'.repeat(64) })),
+    );
+
+    // storagePath starting with clinic-blobs/ but pointing to another clinic fails
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/bad_clinic'),
+        file({
+          sha256: validSha,
+          storagePath: `clinic-blobs/${B}/${validSha}/original`,
+        }),
+      ),
+    );
+
+    // storagePath starting with clinic-blobs/ but mismatching sha256 fails
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/bad_match'),
+        file({
+          sha256: validSha,
+          storagePath: `clinic-blobs/${A}/${'b'.repeat(64)}/original`,
+        }),
+      ),
+    );
+
+    // storagePath starting with clinic-blobs/ with no sha256 fails
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/no_sha'),
+        file({
+          storagePath: `clinic-blobs/${A}/${validSha}/original`,
+        }),
+      ),
+    );
+  });
+
+  it('enforces read-only permissions on clinics/{c}/blobs/**', async () => {
+    const validSha = 'f'.repeat(64);
+    await seed(`clinics/${A}/blobs/${validSha}`, {
+      sizeBytes: 12345,
+      contentType: 'application/pdf',
+      state: 'ready',
+      refCount: 1,
+    });
+    await seed(`clinics/${A}/blobs/${validSha}/refs/x1`, {
+      refId: 'x1',
+      createdAt: 1000,
+    });
+
+    // Clinical members can read blob doc and refs
+    await assertSucceeds(getDoc(doc(doctor(A), `clinics/${A}/blobs/${validSha}`)));
+    await assertSucceeds(getDoc(doc(as(DOC2), `clinics/${A}/blobs/${validSha}`)));
+    await assertSucceeds(getDoc(doc(as(DOC2), `clinics/${A}/blobs/${validSha}/refs/x1`)));
+
+    // Receptionist (non-clinical) and stranger cannot read
+    await assertFails(getDoc(doc(as(RECEP), `clinics/${A}/blobs/${validSha}`)));
+    await assertFails(getDoc(doc(doctor(B), `clinics/${A}/blobs/${validSha}`)));
+
+    // Clients cannot write (only server writes)
+    await assertFails(
+      setDoc(doc(doctor(A), `clinics/${A}/blobs/${validSha}`), { state: 'tampered' }),
+    );
+    await assertFails(
+      deleteDoc(doc(doctor(A), `clinics/${A}/blobs/${validSha}`)),
+    );
+    await assertFails(
+      deleteDoc(doc(doctor(A), `clinics/${A}/blobs/${validSha}/refs/x1`)),
+    );
+  });
+
+  it('file_offers: sender creates offer, recipient accepts/declines, sender cancels, strangers blocked, delete blocked', async () => {
+    const validSha = 'c'.repeat(64);
+    const offerData = (extra = {}) => ({
+      from: A,
+      to: DOC2,
+      batchId: 'batch-1',
+      fileId: 'file-1',
+      sha256: validSha,
+      sizeBytes: 1024,
+      contentType: 'application/pdf',
+      patientId: 'p1',
+      name: 'enc:name',
+      status: 'sent',
+      createdAt: 1000,
+      expireAt: 1000 + 30 * 86400 * 1000,
+      ...extra,
+    });
+
+    // 1. Clinical sender (A) creates offer to active member (DOC2)
+    await assertSucceeds(
+      setDoc(doc(doctor(A), `clinics/${A}/file_offers/o1`), offerData()),
+    );
+
+    // 2. Non-clinical member (RECEP) cannot create an offer
+    await assertFails(
+      setDoc(doc(as(RECEP), `clinics/${A}/file_offers/o_recep`), offerData({ from: RECEP })),
+    );
+
+    // 3. Cannot send offer to self
+    await assertFails(
+      setDoc(doc(doctor(A), `clinics/${A}/file_offers/o_self`), offerData({ to: A })),
+    );
+
+    // 4. Cannot send offer to stranger outside clinic (B)
+    await assertFails(
+      setDoc(doc(doctor(A), `clinics/${A}/file_offers/o_stranger`), offerData({ to: B })),
+    );
+
+    // 5. Read permissions: only from (A) and to (DOC2) can read
+    await assertSucceeds(getDoc(doc(doctor(A), `clinics/${A}/file_offers/o1`)));
+    await assertSucceeds(getDoc(doc(as(DOC2), `clinics/${A}/file_offers/o1`)));
+    await assertFails(getDoc(doc(doctor(B), `clinics/${A}/file_offers/o1`)));
+    await assertFails(getDoc(doc(as(RECEP), `clinics/${A}/file_offers/o1`)));
+
+    // 6. Recipient (DOC2) updates status to accepted or declined
+    await assertSucceeds(
+      updateDoc(doc(as(DOC2), `clinics/${A}/file_offers/o1`), {
+        status: 'accepted',
+        updatedAt: 2000,
+      }),
+    );
+
+    // Reset status to 'sent' for other update tests
+    await seed(`clinics/${A}/file_offers/o1`, offerData());
+
+    // Sender (A) can cancel
+    await assertSucceeds(
+      updateDoc(doc(doctor(A), `clinics/${A}/file_offers/o1`), {
+        status: 'cancelled',
+        updatedAt: 2000,
+      }),
+    );
+
+    // Reset status
+    await seed(`clinics/${A}/file_offers/o1`, offerData());
+
+    // Tampering with other fields is forbidden
+    await assertFails(
+      updateDoc(doc(as(DOC2), `clinics/${A}/file_offers/o1`), {
+        status: 'accepted',
+        sizeBytes: 9999,
+      }),
+    );
+
+    // Third party cannot update
+    await assertFails(
+      updateDoc(doc(doctor(B), `clinics/${A}/file_offers/o1`), {
+        status: 'declined',
+      }),
+    );
+
+    // Deleting offer is forbidden
+    await assertFails(deleteDoc(doc(doctor(A), `clinics/${A}/file_offers/o1`)));
+    await assertFails(deleteDoc(doc(as(DOC2), `clinics/${A}/file_offers/o1`)));
+  });
+
+  it('devices: members register devices, clinical members discover, owner updates/deletes, cert immutable', async () => {
+    const validCertSha = 'd'.repeat(64);
+    const deviceData = (extra = {}) => ({
+      uid: DOC2,
+      name: "Dr Mehta's Pixel",
+      platform: 'android',
+      certPem: '-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----',
+      certSha256: validCertSha,
+      lan: { ips: ['192.168.1.50'], port: 47811, updatedAt: 1000 },
+      createdAt: 1000,
+      lastSeenAt: 1000,
+      ...extra,
+    });
+
+    // 1. Member (DOC2) registers their device
+    await assertSucceeds(
+      setDoc(doc(as(DOC2), `clinics/${A}/devices/dev1`), deviceData()),
+    );
+
+    // 2. Cannot register a device for another user
+    await assertFails(
+      setDoc(doc(as(DOC2), `clinics/${A}/devices/dev2`), deviceData({ uid: A })),
+    );
+
+    // 3. Clinical members (A, DOC2) can discover devices
+    await assertSucceeds(getDoc(doc(doctor(A), `clinics/${A}/devices/dev1`)));
+    await assertSucceeds(getDoc(doc(as(DOC2), `clinics/${A}/devices/dev1`)));
+
+    // Receptionist (non-clinical) and stranger cannot discover
+    await assertFails(getDoc(doc(as(RECEP), `clinics/${A}/devices/dev1`)));
+    await assertFails(getDoc(doc(doctor(B), `clinics/${A}/devices/dev1`)));
+
+    // 4. Owner updates LAN info and name
+    await assertSucceeds(
+      updateDoc(doc(as(DOC2), `clinics/${A}/devices/dev1`), {
+        name: "Dr Mehta's Pixel (Updated)",
+        'lan.port': 47812,
+        lastSeenAt: 2000,
+      }),
+    );
+
+    // 5. Changing immutable certificate fields fails
+    await assertFails(
+      updateDoc(doc(as(DOC2), `clinics/${A}/devices/dev1`), {
+        certSha256: 'e'.repeat(64),
+      }),
+    );
+
+    // 6. Another user cannot delete, but owner or admin can
+    await assertFails(deleteDoc(doc(doctor(B), `clinics/${A}/devices/dev1`)));
+    await assertSucceeds(deleteDoc(doc(doctor(A), `clinics/${A}/devices/dev1`))); // A is clinic owner/admin
+  });
 });
 
 describe('referrals between doctors', () => {

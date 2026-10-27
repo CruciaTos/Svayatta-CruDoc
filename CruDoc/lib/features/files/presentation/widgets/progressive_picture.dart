@@ -387,7 +387,7 @@ class _ProgressivePictureState extends State<ProgressivePicture>
 /// A soft band of light drifting down, so a waiting picture reads as
 /// loading without a spinner.
 class LoadingSweep extends StatelessWidget {
-  const LoadingSweep({required this.animation});
+  const LoadingSweep({super.key, required this.animation});
 
   final Animation<double> animation;
 

@@ -191,6 +191,44 @@ service firebase.storage {
           || can(doctorId, 'admin'));
     }
 
+    // Clinic blobs: deduplicated stored copies keyed by SHA-256 fingerprint.
+    // Bytes live at clinic-blobs/{clinicId}/{sha}/{name} where name is 'original' or 'view'.
+    // Read: anyone with clinical.view in that clinic.
+    // Create: anyone with clinical.edit in that clinic, create-only (resource == null, no overwrite).
+    // No update. No delete (cleanup handled by server function).
+    match /clinic-blobs/{clinicId}/{sha}/{name} {
+      allow read: if can(clinicId, 'clinical.view');
+      allow create: if can(clinicId, 'clinical.edit')
+        && resource == null
+        && name in ['original', 'view']
+        && (
+          (name == 'view'
+            && request.resource.contentType == 'image/jpeg'
+            && request.resource.size <= 50 * 1024 * 1024)
+          ||
+          (name == 'original'
+            && request.resource.contentType in [
+              'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp',
+              'image/heic', 'image/heif', 'image/tiff', 'application/dicom',
+              'model/stl', 'model/ply', 'model/obj',
+              'application/pdf', 'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'application/vnd.ms-excel',
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              'application/vnd.ms-powerpoint',
+              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              'application/vnd.oasis.opendocument.text',
+              'application/vnd.oasis.opendocument.spreadsheet',
+              'application/rtf', 'text/plain', 'text/csv',
+              'video/mp4', 'video/quicktime', 'video/webm',
+              'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/ogg'
+            ]
+            && request.resource.size <= (
+              request.resource.contentType in ['application/dicom', 'image/tiff']
+                ? 250 : 50) * 1024 * 1024)
+        );
+    }
+
     // Clinic branding (logo, signature)
     match /doctors/{doctorId}/clinic/branding/{allPaths=**} {
       allow read: if can(doctorId, 'member');

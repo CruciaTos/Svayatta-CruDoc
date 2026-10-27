@@ -38,6 +38,10 @@ import 'features/voice/presentation/voice_overlay.dart';
 import 'features/tutorial/presentation/tutorial_overlay.dart';
 import 'features/files/data/files_cloud_sync.dart';
 import 'features/files/data/files_repository.dart';
+import 'features/files/lan/device_registry_service.dart';
+import 'features/files/lan/lan_mdns_service.dart';
+import 'features/files/lan/lan_server.dart';
+import 'features/files/lan/offline_offer_queue.dart';
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
   'USE_FIREBASE_EMULATORS',
@@ -187,8 +191,21 @@ void _wireDoctorScopedStartup() {
       unawaited(RadiologyCloudSync.catchUp());
       // Keeps this device within the storage limit set in Settings.
       LocalStorageManager.instance.start();
+      // Start LAN HTTPS server, register presence, start offline queue & mDNS broadcast
+      final lanPort = await LanServer.instance.start();
+      await DeviceRegistryService.instance.start(
+        clinicId: access.clinicId,
+        myUid: user.uid,
+        port: lanPort,
+      );
+      OfflineOfferQueue.instance.start(clinicId: access.clinicId);
+      unawaited(LanMdnsService.instance.startBroadcast(port: lanPort));
     },
     close: () async {
+      await LanMdnsService.instance.stopBroadcast();
+      OfflineOfferQueue.instance.stop();
+      await DeviceRegistryService.instance.stop();
+      await LanServer.instance.stop();
       LocalStorageManager.instance.stop();
       FilesCloudSync.instance.stop();
       await FirestoreSyncService.instance.stop();

@@ -50,6 +50,10 @@ List<FilesMenuItem> fileMenuItems(
     'Open patient',
     () => FilesActions.openPatient(context, ref, e.file.patientId),
   ),
+  FilesMenuItem(
+    'Send to colleague…',
+    () => FilesActions.sendToColleague(context, ref, [e.file]),
+  ),
   if (e.canManage) ...[
     FilesMenuItem('Move to…', () => FilesActions.moveFile(context, ref, e)),
     FilesMenuItem(
@@ -504,6 +508,16 @@ class _FileRow extends ConsumerWidget {
         ? entry.folderPath
         : (entry.addedBy.isEmpty ? 'You' : entry.addedBy);
 
+    final String subtitle;
+    if (f.receivedFromName.isNotEmpty) {
+      final drName = f.receivedFromName.startsWith('Dr')
+          ? f.receivedFromName
+          : 'Dr. ${f.receivedFromName}';
+      subtitle = phone ? 'From $drName · ${entry.patientName}' : 'From $drName';
+    } else {
+      subtitle = phone ? entry.patientName : FilesBuilder.typeLabel(f);
+    }
+
     final nameCell = Row(
       children: [
         FileThumb(file: f),
@@ -512,7 +526,7 @@ class _FileRow extends ConsumerWidget {
           child: _twoLines(
             context,
             f.name,
-            phone ? entry.patientName : FilesBuilder.typeLabel(f),
+            subtitle,
           ),
         ),
       ],

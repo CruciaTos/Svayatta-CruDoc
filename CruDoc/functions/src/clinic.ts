@@ -1391,6 +1391,13 @@ export const clinicTeam = onCall(
         batch.delete(sessionDoc.ref);
       }
 
+      // Delete the removed member's registered devices from the clinic (Phase 3)
+      const devicesSnap = await db.collection("clinics").doc(clinicId)
+        .collection("devices").where("uid", "==", targetUid).get();
+      for (const devDoc of devicesSnap.docs) {
+        batch.delete(devDoc.ref);
+      }
+
       addAuditLog(batch, clinicId, caller.uid, "team.remove", targetUid);
       await batch.commit();
 

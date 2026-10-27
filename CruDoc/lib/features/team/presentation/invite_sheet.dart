@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dental/presentation/dental_featur
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/features/team/presentation/contact_invite_picker.dart';
 import 'package:doctor_management_app/features/team/presentation/features_checklist.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Adds a doctor or staff member to the clinic by inviting their phone
@@ -34,6 +35,10 @@ class InviteDialog extends ConsumerStatefulWidget {
 class _InviteDialogState extends ConsumerState<InviteDialog> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
+  final _crudocId = TextEditingController();
+
+  /// Invite by CruDoc ID instead of a phone number.
+  bool _byId = false;
   MemberKind _kind = MemberKind.staff;
   String? _roleId;
   DoctorSpecialty? _specialty;
@@ -52,6 +57,7 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
   void dispose() {
     _name.dispose();
     _phone.dispose();
+    _crudocId.dispose();
     super.dispose();
   }
 
@@ -71,12 +77,20 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     final clinicId = ref.read(clinicAccessProvider).value?.clinicId;
     final name = _name.text.trim();
     if (clinicId == null || role == null) return;
-    if (name.isEmpty || _phone.text.trim().isEmpty) {
+    final crudocId = _crudocId.text.trim();
+    if (_byId) {
+      if (name.isEmpty || !looksLikeCrudocId(crudocId)) {
+        setState(
+          () => _notice = 'Add a name and their CruDoc ID, like K7Q9-2XMB.',
+        );
+        return;
+      }
+    } else if (name.isEmpty || _phone.text.trim().isEmpty) {
       setState(() => _notice = 'Add a name and a phone number.');
       return;
     }
-    final phone = invitePhoneE164(_phone.text);
-    if (phone == null) {
+    final phone = _byId ? null : invitePhoneE164(_phone.text);
+    if (!_byId && phone == null) {
       setState(
         () => _notice = 'Enter a 10-digit mobile number, or the full number '
             'starting with +.',
@@ -99,6 +113,7 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
         clinicId: clinicId,
         name: name,
         phone: phone,
+        crudocId: _byId ? crudocId : null,
         kind: _kind,
         roleId: role.id,
         specialty: _kind == MemberKind.doctor ? _specialty?.label : null,
@@ -107,7 +122,7 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
       );
       if (mounted) {
         setState(() {
-          _sentTo = phone;
+          _sentTo = phone ?? '';
           _result = result;
         });
       }
@@ -243,8 +258,8 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
 
     return CruFormDialog(
       title: 'Add a person',
-      subtitle: 'Invite them by phone number. They join from CruDoc on '
-          'their phone.',
+      subtitle: 'Invite them by phone number or CruDoc ID. They join from '
+          'CruDoc on their phone.',
       submitLabel: _busy ? 'Sending…' : 'Send invite',
       busy: _busy,
       notice: _notice,
@@ -268,14 +283,36 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Phone number',
-            controller: _phone,
-            prefix: _phone.text.trimLeft().startsWith('+') ? null : '+91',
-            keyboardType: TextInputType.phone,
-            tabular: true,
-            onChanged: (_) => setState(() {}),
+          CruSegmentedControl<bool>(
+            semanticLabel: 'Invite by',
+            segments: const [
+              CruSegment(false, 'Phone number'),
+              CruSegment(true, 'CruDoc ID'),
+            ],
+            selected: _byId,
+            onChanged: (v) => setState(() {
+              _byId = v;
+              _notice = null;
+            }),
           ),
+          const SizedBox(height: CruSpace.s12),
+          if (_byId)
+            CruTextField(
+              label: 'CruDoc ID',
+              controller: _crudocId,
+              hint: 'K7Q9-2XMB',
+              textCapitalization: TextCapitalization.characters,
+              tabular: true,
+            )
+          else
+            CruTextField(
+              label: 'Phone number',
+              controller: _phone,
+              prefix: _phone.text.trimLeft().startsWith('+') ? null : '+91',
+              keyboardType: TextInputType.phone,
+              tabular: true,
+              onChanged: (_) => setState(() {}),
+            ),
           const SizedBox(height: CruSpace.s16),
           CruSegmentedControl<MemberKind>(
             segments: const [

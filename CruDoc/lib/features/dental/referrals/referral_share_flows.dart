@@ -985,6 +985,8 @@ class _FindDoctorDialogState extends ConsumerState<FindDoctorDialog> {
   List<CruDocDoctor> _results = const [];
   bool _searching = false;
   String _searched = '';
+  /// Why a typed CruDoc ID found no doctor (shown when nothing else matches).
+  String? _idNote;
 
   @override
   void initState() {
@@ -1001,13 +1003,41 @@ class _FindDoctorDialogState extends ConsumerState<FindDoctorDialog> {
   Future<void> _search() async {
     final q = _query.text.trim();
     if (q.length < 2) return;
-    setState(() => _searching = true);
+    setState(() {
+      _searching = true;
+      _idNote = null;
+    });
     try {
+      // A CruDoc ID finds that one person, listed or not. A name can look
+      // like an ID too, so the directory is searched either way.
+      CruDocDoctor? byId;
+      if (looksLikeCrudocId(q)) {
+        try {
+          final person = await ReferralNetworkApi.instance.findByCrudocId(q);
+          if (person.isDoctor) {
+            byId = person.doctor;
+          } else {
+            _idNote =
+                "${person.doctor.name} is on CruDoc but isn't a doctor, so "
+                "they can't receive referrals.";
+          }
+        } on ReferralNetworkException catch (e) {
+          _idNote = e.message;
+        }
+      }
       final found = await searchDirectory(
         q,
         selfUid: FirebaseAuth.instance.currentUser?.uid,
       );
-      if (mounted) setState(() => _results = found);
+      if (mounted) {
+        setState(
+          () => _results = [
+            ?byId,
+            for (final d in found)
+              if (d.uid != byId?.uid) d,
+          ],
+        );
+      }
     } catch (_) {
       if (mounted) recToast(context, 'Couldn\'t search right now. Try again.');
     } finally {
@@ -1025,7 +1055,7 @@ class _FindDoctorDialogState extends ConsumerState<FindDoctorDialog> {
     final c = context.cru;
     return DentalPanelDialog(
       title: 'Find a doctor on CruDoc',
-      subtitle: 'Doctors who chose to be listed',
+      subtitle: 'Listed doctors, or anyone by their CruDoc ID',
       leading: const CruIconTile(
         icon: CruIcons.search,
         tone: CruTileTone.neutral,
@@ -1040,7 +1070,7 @@ class _FindDoctorDialogState extends ConsumerState<FindDoctorDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CruTextField(
-            label: 'Name, @handle, specialty or city',
+            label: 'Name, @handle, CruDoc ID, specialty or city',
             controller: _query,
             autofocus: true,
             textInputAction: TextInputAction.search,
@@ -1054,9 +1084,10 @@ class _FindDoctorDialogState extends ConsumerState<FindDoctorDialog> {
           const SizedBox(height: CruSpace.s12),
           if (_results.isEmpty && _searched.isNotEmpty && !_searching)
             Text(
-              'No listed doctor matches "$_searched". If they use CruDoc, '
-              'save their phone number: it is matched even if they aren\'t '
-              'listed.',
+              _idNote ??
+                  'No listed doctor matches "$_searched". Ask them for their '
+                      'CruDoc ID (Settings › Profile), or save their phone '
+                      'number: either finds them even if they aren\'t listed.',
               style: CruType.caption.tint(c.label2),
             ),
           for (final d in _results)

@@ -7,6 +7,9 @@ import * as crypto from "crypto";
 import {loadCaller, requirePerm, normalizeContactPhone} from "./clinic";
 import {decryptProfileField} from "./crypto/profileCipher";
 import {encryptField, getPepper, patientKekPepperSecret} from "./crypto/patientCipher";
+import {
+  ensureCrudocId, formatCrudocId, normalizeCrudocId, uidForCrudocId, LOOKUPS_PER_HOUR,
+} from "./crudoc-id";
 
 /**
  * Referrals between doctors who both use CruDoc.
@@ -663,6 +666,48 @@ async function attachmentUrl(request: CallableRequest) {
   return {url};
 }
 
+/** The caller's own CruDoc ID ("K7Q9-2XMB"), made the first time. */
+async function myCrudocId(request: CallableRequest) {
+  const uid = requireUid(request);
+  return {crudocId: formatCrudocId(await ensureCrudocId(uid))};
+}
+
+/**
+ * The person whose CruDoc ID was typed: exact match only, never a list.
+ * Not found when they turned off being found. `isDoctor` says whether
+ * they can receive a referral.
+ */
+async function findByCrudocId(request: CallableRequest) {
+  const uid = requireUid(request);
+  const id = normalizeCrudocId(request.data?.crudocId);
+  if (!id) {
+    throw new HttpsError("invalid-argument",
+      "A CruDoc ID is 8 letters and numbers, like K7Q9-2XMB.");
+  }
+  await spend(uid, "crudocIdLookup", 1, LOOKUPS_PER_HOUR, 3600_000,
+    "That's a lot of lookups. Try again in an hour.");
+  const found = await uidForCrudocId(id);
+  if (found === uid) {
+    throw new HttpsError("invalid-argument", "That's your own CruDoc ID.");
+  }
+  const notFound = () => new HttpsError("not-found",
+    "No one on CruDoc has that ID. Check it and try again.");
+  if (!found) throw notFound();
+  const doctor = await loadDoctor(found);
+  if (doctor) {
+    if (!doctor.discoverable) throw notFound();
+    return {...cardJson(doctor), crudocId: formatCrudocId(id), isDoctor: true};
+  }
+  const user = (await admin.firestore().collection("users").doc(found).get()).data();
+  if (!user || user.discoverable === false) throw notFound();
+  const name = decryptProfileField(user.name, found) ||
+    decryptProfileField(user.displayName, found) || "CruDoc user";
+  return {
+    uid: found, name, specialty: "", clinicName: "", city: "", handle: "",
+    crudocId: formatCrudocId(id), isDoctor: false,
+  };
+}
+
 /**
  * One callable, one action per request, like clinicTeam:
  *   matchContacts        which saved referral contacts are on CruDoc
@@ -670,6 +715,8 @@ async function attachmentUrl(request: CallableRequest) {
  *   send                 send a referral to another doctor
  *   update               step: accept / seen / complete / decline / reply / withdraw
  *   attachmentUrl        a short-lived link to one attached file
+ *   myCrudocId           your own CruDoc ID, made the first time
+ *   findByCrudocId       the one person with a CruDoc ID you typed
  */
 export const referralNetwork = onCall(
   {region: "asia-south1", maxInstances: 10, secrets: [patientKekPepperSecret]},
@@ -681,7 +728,10 @@ export const referralNetwork = onCall(
     case "send": return send(request);
     case "update": return update(request);
     case "attachmentUrl": return attachmentUrl(request);
+    case "myCrudocId": return myCrudocId(request);
+    case "findByCrudocId": return findByCrudocId(request);
     default: throw new HttpsError("invalid-argument", "Unknown action.");
     }
   }
 );
+

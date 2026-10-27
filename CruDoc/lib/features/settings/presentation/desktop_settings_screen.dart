@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
@@ -592,6 +594,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
           ),
         ),
       ),
+      const _CrudocIdCard(),
       _SettingsCard(
         title: 'Sign-in',
         description: 'You sign in with your $signIn.',
@@ -627,6 +630,43 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
         ),
       ),
     ]);
+  }
+}
+
+/// "Your CruDoc ID": anyone on CruDoc can find you with it, to send you a
+/// referral or invite you to their clinic, even without your number.
+class _CrudocIdCard extends ConsumerWidget {
+  const _CrudocIdCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = ref.watch(myCrudocIdProvider);
+    final value = id.value ?? '';
+    return _SettingsCard(
+      title: 'Your CruDoc ID',
+      description:
+          'Share it so anyone on CruDoc can find you, to send you a referral '
+          "or invite you to their clinic, even if they don't have your number.",
+      child: _ActionRow(
+        title: id.isLoading
+            ? 'Loading…'
+            : id.hasError
+            ? "Couldn't load it. Check the connection."
+            : value,
+        detail: value.isEmpty ? null : 'Only this exact ID finds you.',
+        action: value.isEmpty
+            ? const SizedBox.shrink()
+            : CruCapsuleButton(
+                label: 'Copy',
+                kind: CruCapsuleKind.surface,
+                height: CruSize.control,
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  _toast(context, 'CruDoc ID copied');
+                },
+              ),
+      ),
+    );
   }
 }
 

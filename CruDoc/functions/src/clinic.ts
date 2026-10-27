@@ -7,6 +7,7 @@ import * as admin from "firebase-admin";
 // (production is unaffected; the classes are the same either way).
 import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {copyAssignmentsForClinic} from "./clinical-assignment";
+import {normalizeCrudocId, uidForCrudocId} from "./crudoc-id";
 
 // Keep in sync with lib/core/clinic/clinic_permission.dart and the rules.
 export const PERMS = [
@@ -918,8 +919,40 @@ export const clinicTeam = onCall(
       const caller = await loadCaller(request, clinicId);
       requirePerm(caller, "team");
 
-      const rawPhone = typeof data.phone === "string" ? data.phone.trim() : "";
-      const rawEmail = typeof data.email === "string" ? data.email.trim() : "";
+      let rawPhone = typeof data.phone === "string" ? data.phone.trim() : "";
+      let rawEmail = typeof data.email === "string" ? data.email.trim() : "";
+
+      // Invited by CruDoc ID: the invite goes to that account's phone (or
+      // verified email), exactly as if it had been typed in.
+      if (typeof data.crudocId === "string" && data.crudocId.trim()) {
+        if (rawPhone || rawEmail) {
+          throw new HttpsError("invalid-argument",
+            "Invite by a CruDoc ID, a phone number or an email, not more than one.");
+        }
+        const id = normalizeCrudocId(data.crudocId);
+        if (!id) {
+          throw new HttpsError("invalid-argument",
+            "A CruDoc ID is 8 letters and numbers, like K7Q9-2XMB.");
+        }
+        const idUid = await uidForCrudocId(id);
+        const account = idUid && await isDiscoverable(idUid) ?
+          await admin.auth().getUser(idUid).catch(() => null) : null;
+        if (!account) {
+          throw new HttpsError("not-found",
+            "No one on CruDoc has that ID. Check it and try again.");
+        }
+        if (account.uid === caller.uid) {
+          throw new HttpsError("invalid-argument", "That's your own CruDoc ID.");
+        }
+        if (account.phoneNumber) {
+          rawPhone = account.phoneNumber;
+        } else if (account.email && account.emailVerified) {
+          rawEmail = account.email;
+        } else {
+          throw new HttpsError("failed-precondition",
+            "That person hasn't added a phone number to CruDoc yet. Invite them by phone instead.");
+        }
+      }
 
       if ((rawPhone && rawEmail) || (!rawPhone && !rawEmail)) {
         throw new HttpsError("invalid-argument", "Provide exactly one of phone or email.");

@@ -21,6 +21,7 @@ import 'package:doctor_management_app/features/team/presentation/roles_view.dart
 import 'package:doctor_management_app/features/team/presentation/team_analytics_view.dart';
 import 'package:doctor_management_app/features/team/presentation/team_widgets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
 enum _TeamTab { members, roles, activity, analytics }
 
@@ -160,18 +161,38 @@ class _TeamSectionState extends ConsumerState<TeamSection> {
           ),
         ),
         const SizedBox(height: CruSpace.cardGap),
-        switch (tab) {
-          _TeamTab.members => _MembersView(me: me),
-          _TeamTab.roles => const RolesView(),
-          _TeamTab.activity => const ActivityLogView(),
-          _TeamTab.analytics => const TeamAnalyticsView(),
-        },
-        // Owner-only, and only once the clinic has an admin other than the
-        // owner; the card hides itself otherwise.
-        if (tab == _TeamTab.members) ...[
-          const SizedBox(height: CruSpace.cardGap),
-          AdminClinicalAccessCard(me: me, clinic: clinic, members: members),
-        ],
+        // The tabs side by side under the card: drag sideways to switch.
+        SwipePages<_TeamTab>(
+          values: [
+            _TeamTab.members,
+            _TeamTab.roles,
+            _TeamTab.activity,
+            if (me.isAdmin) _TeamTab.analytics,
+          ],
+          value: tab,
+          onChanged: (t) => setState(() => _tab = t),
+          builder: (context, t) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              switch (t) {
+                _TeamTab.members => _MembersView(me: me),
+                _TeamTab.roles => const RolesView(),
+                _TeamTab.activity => const ActivityLogView(),
+                _TeamTab.analytics => const TeamAnalyticsView(),
+              },
+              // Owner-only, and only once the clinic has an admin other
+              // than the owner; the card hides itself otherwise.
+              if (t == _TeamTab.members) ...[
+                const SizedBox(height: CruSpace.cardGap),
+                AdminClinicalAccessCard(
+                  me: me,
+                  clinic: clinic,
+                  members: members,
+                ),
+              ],
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -189,8 +210,7 @@ class _MembersView extends ConsumerWidget {
         .where((m) => m.active)
         .toList();
     final invites = ref.watch(clinicInvitesProvider).value ?? const [];
-    final declined =
-        ref.watch(clinicDeclinedInvitesProvider).value ?? const [];
+    final declined = ref.watch(clinicDeclinedInvitesProvider).value ?? const [];
 
     Widget memberRow(ClinicMember m) {
       final self = m.uid == me.uid;

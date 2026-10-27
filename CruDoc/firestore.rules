@@ -683,6 +683,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Which uid holds each CruDoc ID (functions/src/crudoc-id.ts). Server
+    // only: IDs are looked up one at a time through the functions, so they
+    // can't be listed or guessed in bulk.
+    match /crudoc_ids/{id} {
+      allow read, write: if false;
+    }
+
     // ============================================================
     // CLINICS, MEMBERS, ROLES, INVITES
     // ============================================================
@@ -817,7 +824,7 @@ service cloud.firestore {
             'clinicId', 'memberKind',
             'enabledModules', 'expiresDate', 'status', 'subscriptionPlan',
             'allowMultiDevice', 'lastPaymentDate', 'lastTransactionId',
-            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt']));
+            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt', 'crudocId']));
       allow update: if isSuperAdmin()
         || (isSelf(userId)
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
@@ -826,7 +833,7 @@ service cloud.firestore {
             'clinicId', 'memberKind',
             'enabledModules', 'expiresDate', 'status', 'subscriptionPlan',
             'allowMultiDevice', 'lastPaymentDate', 'lastTransactionId',
-            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt']));
+            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt', 'crudocId']));
       allow delete: if isSuperAdmin();
 
       // Everything a doctor keeps under their own profile: device sessions,

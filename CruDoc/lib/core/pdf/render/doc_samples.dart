@@ -2,7 +2,9 @@ import '../models/pdf_document_models.dart';
 import '../templates/doc_template.dart';
 import 'doc_context.dart';
 
-PdfMedicalDocumentData docSampleData(DocKind kind) {
+/// Sample data for previews. [templateId] previews that template instead of
+/// the default for [kind].
+PdfMedicalDocumentData docSampleData(DocKind kind, {String? templateId}) {
   const patient = PdfPatientSnapshot(
     fullName: 'Sample Patient',
     ageGender: '34 Y / Female',
@@ -15,6 +17,7 @@ PdfMedicalDocumentData docSampleData(DocKind kind) {
   return switch (kind) {
     DocKind.invoice => PdfInvoiceDocumentData(
       patient: patient,
+      templateId: templateId,
       documentNumber: 'INV-26-27/0001',
       documentDate: now,
       items: const [
@@ -50,6 +53,7 @@ PdfMedicalDocumentData docSampleData(DocKind kind) {
     ),
     DocKind.prescription => PdfPrescriptionDocumentData(
       patient: patient,
+      templateId: templateId,
       documentNumber: 'RX-26-27/0001',
       documentDate: now,
       vitals: 'BP: 120/80 mmHg · Pulse: 72 bpm · Weight: 60 kg',
@@ -87,6 +91,7 @@ PdfMedicalDocumentData docSampleData(DocKind kind) {
     ),
     DocKind.referral => PdfReferralDocumentData(
       patient: patient,
+      templateId: templateId,
       documentNumber: 'REF-26-27/0001',
       documentDate: now,
       recipient: 'Dr. R. Sharma (Oral & Maxillofacial Surgeon)',
@@ -100,6 +105,7 @@ PdfMedicalDocumentData docSampleData(DocKind kind) {
     ),
     DocKind.report => PdfMedicalReportDocumentData(
       patient: patient,
+      templateId: templateId,
       documentNumber: 'REP-26-27/0001',
       documentDate: now,
       reportTitle: 'Clinical Examination Report',
@@ -129,6 +135,7 @@ PdfMedicalDocumentData docSampleData(DocKind kind) {
     ),
     DocKind.certificate => PdfCertificateDocumentData(
       patient: patient,
+      templateId: templateId,
       documentNumber: 'CERT-26-27/0001',
       documentDate: now,
       title: 'Medical Certificate',

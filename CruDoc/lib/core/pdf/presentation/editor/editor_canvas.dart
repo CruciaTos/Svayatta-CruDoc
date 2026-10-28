@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -35,6 +36,8 @@ class EditorCanvas extends StatefulWidget {
     required this.pxPerMm,
     required this.previewCtx,
     required this.onDragLock,
+    this.bodyImage,
+    this.touch = false,
   });
 
   final TemplateEditorController controller;
@@ -42,12 +45,20 @@ class EditorCanvas extends StatefulWidget {
   final DocContext previewCtx;
   final ValueChanged<bool> onDragLock;
 
+  /// The page rendered without its header and footer blocks: the real
+  /// body under the blocks. Placeholder rows until it arrives.
+  final Uint8List? bodyImage;
+
+  /// Fingers: bigger handles and a faint outline on everything movable.
+  final bool touch;
+
   @override
   State<EditorCanvas> createState() => _EditorCanvasState();
 }
 
 class _EditorCanvasState extends State<EditorCanvas> {
   _DragState? _drag;
+  final Set<int> _pointers = {};
 
   TemplateEditorController get ctrl => widget.controller;
   DocTemplate get t => ctrl.template;
@@ -62,6 +73,19 @@ class _EditorCanvasState extends State<EditorCanvas> {
       (t.paper.heightMm - t.paper.margins.bottom - t.footerMm) * s;
 
   bool get _hasLogo => widget.previewCtx.images.logo != null;
+
+  /// Drawn on the page. On a phone a picture that isn't uploaded yet is
+  /// left out, as in the PDF, so its empty box doesn't sit over text that
+  /// slid into its place.
+  bool _shows(DocBlock b) {
+    if (b.hidden || (b.onlyWithLogo && !_hasLogo)) return false;
+    if (widget.touch &&
+        b.type == DocBlockType.image &&
+        widget.previewCtx.images.forBlock(b) == null) {
+      return false;
+    }
+    return true;
+  }
 
   /// Where [b] is drawn: without a logo, slid by its no-logo offset, the
   /// same as in the PDF. Drags still change the stored x/y.
@@ -80,7 +104,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   Rect _handleRect(Rect blockRect, DocHandle h) {
-    const handleHitSize = 24.0;
+    final handleHitSize = widget.touch ? 40.0 : 24.0;
     final center = switch (h) {
       DocHandle.tl => blockRect.topLeft,
       DocHandle.tr => blockRect.topRight,
@@ -95,6 +119,16 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   void _onPointerDown(PointerDownEvent e) {
+    _pointers.add(e.pointer);
+    // A second finger means pinch-to-zoom: let go of the block.
+    if (_pointers.length > 1) {
+      if (_drag != null) {
+        _drag = null;
+        ctrl.endDrag();
+        widget.onDragLock(false);
+      }
+      return;
+    }
     final pos = e.localPosition;
 
     // 1. Check corner handles of selected block
@@ -143,7 +177,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
     final blocks = t.blocks;
     for (var i = blocks.length - 1; i >= 0; i--) {
       final b = blocks[i];
-      if (b.hidden || (b.onlyWithLogo && !_hasLogo)) continue;
+      if (!_shows(b)) continue;
       if (_blockRect(b).contains(pos)) {
         ctrl.select(b.id);
         if (!b.locked) {
@@ -164,7 +198,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
   void _onPointerMove(PointerMoveEvent e) {
     final drag = _drag;
-    if (drag == null) return;
+    if (drag == null || _pointers.length > 1) return;
 
     final diff = e.localPosition - drag.startPos;
     final dxMm = diff.dx / s;
@@ -199,6 +233,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   void _onPointerUp(PointerUpEvent e) {
+    _pointers.remove(e.pointer);
     if (_drag != null) {
       _drag = null;
       ctrl.endDrag();
@@ -207,6 +242,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
   }
 
   void _onPointerCancel(PointerCancelEvent e) {
+    _pointers.remove(e.pointer);
     if (_drag != null) {
       _drag = null;
       ctrl.endDrag();
@@ -238,7 +274,8 @@ class _EditorCanvasState extends State<EditorCanvas> {
         width: _paperWidthPx,
         height: _paperHeightPx,
         decoration: BoxDecoration(
-          color: Colors.white,
+          // Paper is white in both appearances.
+          color: CruBrand.white,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.12),
@@ -250,8 +287,24 @@ class _EditorCanvasState extends State<EditorCanvas> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
+            // The real page, rendered without its blocks (it includes the
+            // letterhead background). Placeholder rows until it arrives.
+            if (widget.bodyImage != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Image.memory(
+                    widget.bodyImage!,
+                    fit: BoxFit.fill,
+                    gaplessPlayback: true,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
+              ),
+
             // Letterhead background image
-            if (bgBytes != null && t.background != null)
+            if (widget.bodyImage == null &&
+                bgBytes != null &&
+                t.background != null)
               Positioned.fill(
                 child: Opacity(
                   opacity: t.background!.opacity.clamp(0.0, 1.0),
@@ -289,16 +342,18 @@ class _EditorCanvasState extends State<EditorCanvas> {
                     color: c.accentTint.withValues(alpha: 0.12),
                     alignment: Alignment.topLeft,
                     padding: const EdgeInsets.all(4),
-                    child: Text(
-                      'HEADER',
-                      style: TextStyle(
-                        fontFamily: 'Geist',
-                        fontSize: 9,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.bold,
-                        color: c.accentText.withValues(alpha: 0.5),
-                      ),
-                    ),
+                    child: widget.touch
+                        ? null
+                        : Text(
+                            'HEADER',
+                            style: TextStyle(
+                              fontFamily: 'Geist',
+                              fontSize: 9,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.bold,
+                              color: c.accentText.withValues(alpha: 0.5),
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -315,37 +370,42 @@ class _EditorCanvasState extends State<EditorCanvas> {
                     color: c.accentTint.withValues(alpha: 0.12),
                     alignment: Alignment.topLeft,
                     padding: const EdgeInsets.all(4),
-                    child: Text(
-                      'FOOTER',
-                      style: TextStyle(
-                        fontFamily: 'Geist',
-                        fontSize: 9,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.bold,
-                        color: c.accentText.withValues(alpha: 0.5),
-                      ),
-                    ),
+                    child: widget.touch
+                        ? null
+                        : Text(
+                            'FOOTER',
+                            style: TextStyle(
+                              fontFamily: 'Geist',
+                              fontSize: 9,
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.bold,
+                              color: c.accentText.withValues(alpha: 0.5),
+                            ),
+                          ),
                   ),
                 ),
               ),
 
-            // Body Area Placeholder Rows
-            Positioned(
-              left: contentLeft,
-              top: headerZoneTop + headerZoneHeight,
-              width: contentWidth,
-              height: math.max(
-                0,
-                footerZoneTop - (headerZoneTop + headerZoneHeight),
+            // Body placeholder rows until the rendered page arrives
+            if (widget.bodyImage == null)
+              Positioned(
+                left: contentLeft,
+                top: headerZoneTop + headerZoneHeight,
+                width: contentWidth,
+                height: math.max(
+                  0,
+                  footerZoneTop - (headerZoneTop + headerZoneHeight),
+                ),
+                child: IgnorePointer(child: _buildBodyPlaceholders()),
               ),
-              child: IgnorePointer(child: _buildBodyPlaceholders()),
-            ),
 
             // Blocks
             for (final b in t.blocks)
-              if (!b.hidden)
-                if (hasLogo || !b.onlyWithLogo)
-                  _buildBlockWidget(b, hasLogo: hasLogo),
+              if (_shows(b)) _buildBlockWidget(b, hasLogo: hasLogo),
+
+            // The selection sits above every block so its handles show.
+            if (ctrl.selected case final sel? when _shows(sel))
+              _buildSelection(sel),
 
             // Guides while dragging
             if (ctrl.guideZone != null) ...[
@@ -501,43 +561,73 @@ class _EditorCanvasState extends State<EditorCanvas> {
               pxPerMm: s,
             ),
           ),
-          if (isSelected) ...[
+          // Everything movable shows a faint outline on a touch screen.
+          if (widget.touch && !isSelected)
             Positioned.fill(
               child: IgnorePointer(
-                child: Container(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    border: Border.all(color: c.accent, width: 1.5),
+                    border: Border.all(
+                      color: c.accent.withValues(alpha: 0.28),
+                      width: 1,
+                    ),
                   ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Outline and corner handles (or a lock badge) for the selection.
+  Widget _buildSelection(DocBlock b) {
+    final c = context.cru;
+    return Positioned.fromRect(
+      rect: _blockRect(b),
+      child: IgnorePointer(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: c.accent.withValues(alpha: 0.06),
+                  border: Border.all(color: c.accent, width: 1.5),
                 ),
               ),
             ),
             if (b.locked)
               Positioned(
-                top: -8,
-                right: -8,
+                top: -10,
+                right: -10,
                 child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: c.surface,
                     shape: BoxShape.circle,
+                    border: Border.all(color: c.accent, width: 1.5),
                   ),
-                  child: Icon(Icons.lock, size: 12, color: c.accent),
+                  child: Icon(Icons.lock, size: 11, color: c.accentText),
                 ),
               )
             else ...[
-              // 4 corner handles
               _buildCornerSquare(Alignment.topLeft),
               _buildCornerSquare(Alignment.topRight),
               _buildCornerSquare(Alignment.bottomLeft),
               _buildCornerSquare(Alignment.bottomRight),
             ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildCornerSquare(Alignment align) {
+    final c = context.cru;
+    final size = widget.touch ? 14.0 : 8.0;
     return Align(
       alignment: align,
       child: FractionalTranslation(
@@ -545,12 +635,16 @@ class _EditorCanvasState extends State<EditorCanvas> {
           align.x == -1.0 ? -0.5 : 0.5,
           align.y == -1.0 ? -0.5 : 0.5,
         ),
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: context.cru.accent, width: 1.5),
+        child: IgnorePointer(
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: c.surface,
+              shape: widget.touch ? BoxShape.circle : BoxShape.rectangle,
+              border: Border.all(color: c.accent, width: 1.5),
+              boxShadow: widget.touch && !c.isEvening ? c.cardShadow : null,
+            ),
           ),
         ),
       ),

@@ -16,8 +16,11 @@ import 'package:doctor_management_app/core/pdf/render/doc_renderer.dart';
 import 'package:doctor_management_app/core/pdf/render/doc_samples.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_presets.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
+import 'package:doctor_management_app/features/settings/presentation/documents/documents_kit.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+/// Templates: which one each kind of document uses by default, then every
+/// template with a preview, Customize/Edit and a ⋯ menu.
 class TemplatesTab extends ConsumerStatefulWidget {
   const TemplatesTab({super.key});
 
@@ -26,7 +29,11 @@ class TemplatesTab extends ConsumerStatefulWidget {
 }
 
 class _TemplatesTabState extends ConsumerState<TemplatesTab> {
-  static final Map<String, Uint8List> _thumbCache = {};
+  /// Rendered first pages, by template id and version.
+  static final Map<String, _Thumb> _thumbCache = {};
+
+  /// Which defaults are showing when the doctor can set both.
+  bool _clinicDefaults = false;
 
   void _toast(String msg) {
     if (!mounted) return;
@@ -37,119 +44,10 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
     final presets = builtinTemplates
         .where((t) => t.id != 'builtin.receipt80')
         .toList();
-    var selectedPreset = presets.first;
-    final nameCtrl = TextEditingController(
-      text: '${selectedPreset.name} (my copy)',
-    );
-    var selectedScope = canEditClinic ? DocScope.clinic : DocScope.doctor;
-    var userModifiedName = false;
-
     final created = await showDialog<DocTemplate>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: ctx.cru.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(CruRadius.card),
-          ),
-          title: Text('New template', style: CruType.headline),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                DropdownButtonFormField<DocTemplate>(
-                  initialValue: selectedPreset,
-                  decoration: InputDecoration(
-                    labelText: 'Base preset',
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: CruSpace.s12,
-                      vertical: CruSpace.s8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
-                    ),
-                  ),
-                  items: [
-                    for (final p in presets)
-                      DropdownMenuItem(value: p, child: Text(p.name)),
-                  ],
-                  onChanged: (p) {
-                    if (p != null) {
-                      setDialogState(() {
-                        selectedPreset = p;
-                        if (!userModifiedName) {
-                          nameCtrl.text = '${p.name} (my copy)';
-                        }
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: CruSpace.s16),
-                CruTextField(
-                  label: 'Template name',
-                  controller: nameCtrl,
-                  onChanged: (_) => userModifiedName = true,
-                ),
-                const SizedBox(height: CruSpace.s16),
-                DropdownButtonFormField<DocScope>(
-                  initialValue: selectedScope,
-                  decoration: InputDecoration(
-                    labelText: 'Template scope',
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: CruSpace.s12,
-                      vertical: CruSpace.s8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
-                    ),
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: DocScope.doctor,
-                      child: Text('Only for me'),
-                    ),
-                    DropdownMenuItem(
-                      value: DocScope.clinic,
-                      enabled: canEditClinic,
-                      child: Text(
-                        'For the whole clinic${canEditClinic ? "" : " (Admin only)"}',
-                      ),
-                    ),
-                  ],
-                  onChanged: (s) {
-                    if (s != null && (s == DocScope.doctor || canEditClinic)) {
-                      setDialogState(() => selectedScope = s);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final name = nameCtrl.text.trim();
-                if (name.isEmpty) return;
-                final myUid = DocRepository.instance.tenantOrNull;
-                final copy = selectedPreset.copyWith(
-                  id: '',
-                  name: name,
-                  scope: selectedScope,
-                  ownerUid: selectedScope == DocScope.doctor ? myUid : null,
-                );
-                Navigator.pop(ctx, copy);
-              },
-              child: const Text('Create & Edit'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) =>
+          _NewTemplateDialog(presets: presets, canEditClinic: canEditClinic),
     );
 
     if (created != null && mounted) {
@@ -161,31 +59,9 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
   }
 
   Future<void> _renameTemplate(DocTemplate t) async {
-    final ctrl = TextEditingController(text: t.name);
     final newName = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ctx.cru.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CruRadius.card),
-        ),
-        title: Text('Rename template', style: CruType.headline),
-        content: CruTextField(
-          label: 'Template name',
-          controller: ctrl,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      builder: (_) => _RenameDialog(initial: t.name),
     );
 
     if (newName != null && newName.isNotEmpty && newName != t.name) {
@@ -224,48 +100,31 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
 
   Future<void> _deleteTemplate(DocTemplate t) async {
     final s = await DocRepository.instance.clinicSettingsOnce();
-    final clearedClinicKinds = s.defaults.entries
-        .where((e) => e.value == t.id)
-        .map((e) => e.key)
-        .toList();
+    final clearedClinicKinds = [
+      for (final k in DocKind.values)
+        if (s.defaults[k.name] == t.id) k.label,
+    ];
 
     if (!mounted) return;
+    final body = clearedClinicKinds.isEmpty
+        ? 'This can\'t be undone.'
+        : 'It is the clinic default for ${clearedClinicKinds.join(', ')}. '
+              'Those go back to Classic. This can\'t be undone.';
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ctx.cru.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CruRadius.card),
+      builder: (ctx) => CruFormDialog(
+        title: 'Delete "${t.name}"?',
+        leading: const CruIconTile(
+          icon: DocIcons.trash,
+          tone: CruTileTone.neutral,
         ),
-        title: Text('Delete template', style: CruType.headline),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to delete "${t.name}"?'),
-            if (clearedClinicKinds.isNotEmpty) ...[
-              const SizedBox(height: CruSpace.s12),
-              Text(
-                'Notice: This template is the clinic default for ${clearedClinicKinds.join(", ")} and will revert to Classic.',
-                style: CruType.subhead.tint(ctx.cru.redText),
-              ),
-            ],
-          ],
+        submitLabel: 'Delete',
+        onSubmit: () => Navigator.of(ctx).pop(true),
+        width: CruSize.dialog + CruSpace.s32 * 2,
+        body: Padding(
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+          child: Text(body, style: CruType.text.tint(ctx.cru.label2)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: ctx.cru.redText,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
 
@@ -279,9 +138,31 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
     }
   }
 
+  Future<void> _edit(DocTemplate t) async {
+    final saved = await TemplateEditorScreen.open(context, template: t);
+    if (saved == true && mounted) _toast('Template saved');
+  }
+
+  void _preview(DocTemplate t) {
+    MedicalPdfPreviewScreen.open(
+      context,
+      documentData: docSampleData(
+        t.kinds.firstOrNull ?? DocKind.invoice,
+        templateId: t.id,
+      ),
+    );
+  }
+
+  List<DocMenuItem> _menuFor(DocTemplate t) => [
+    if (!t.isBuiltin) DocMenuItem('Rename', () => _renameTemplate(t)),
+    DocMenuItem('Duplicate', () => _duplicateTemplate(t)),
+    if (!t.isBuiltin) DocMenuItem('Delete', () => _deleteTemplate(t)),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final phone = cruIsPhone(context);
     final access = ref.watch(clinicAccessProvider).value;
     final canEditClinic =
         access == null || access.can(ClinicPermission.settings);
@@ -292,454 +173,677 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
         ref.watch(clinicDocSettingsProvider).value ?? const ClinicDocSettings();
     final doctorProfile = ref.watch(myDocProfileProvider).value;
 
-    final isCompact = MediaQuery.sizeOf(context).width < CruBreakpoint.compact;
+    _TemplateItem item(DocTemplate t) => _TemplateItem(
+      template: t,
+      clinic: settings,
+      doctor: doctorProfile,
+      cache: _thumbCache,
+      menu: _menuFor(t),
+      onPreview: () => _preview(t),
+      onEdit: () => _edit(t),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Defaults section
-        CruCard(
-          semanticLabel: 'Default templates',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Default templates', style: CruType.headline.tint(c.label)),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                'The template picked automatically when creating new documents.',
-                style: CruType.text.tint(c.label2),
-              ),
-              const SizedBox(height: CruSpace.s16),
-              for (final kind in DocKind.values) ...[
-                _DefaultKindRow(
-                  kind: kind,
-                  templates: templates,
-                  settings: settings,
-                  doctorProfile: doctorProfile,
-                  isDoctor: isDoctor,
-                  canEditClinic: canEditClinic,
-                  onChanged: (templateId, forClinic) async {
-                    await DocRepository.instance.setDefault(
-                      kind,
-                      templateId,
-                      forClinic: forClinic,
-                    );
-                    _toast('Default updated');
-                  },
-                ),
-                const SizedBox(height: CruSpace.s12),
-              ],
-            ],
+        if (isDoctor || canEditClinic) ...[
+          _defaultsCard(
+            templates: templates,
+            settings: settings,
+            doctorProfile: doctorProfile,
+            isDoctor: isDoctor,
+            canEditClinic: canEditClinic,
           ),
-        ),
-        const SizedBox(height: CruSpace.cardGap),
+          const SizedBox(height: CruSpace.cardGap + CruSpace.s8),
+        ],
 
-        // Gallery header
+        // Every template
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Templates gallery',
-                  style: CruType.headline.tint(c.label),
-                ),
-                const SizedBox(height: CruSpace.s2),
-                Text(
-                  '${templates.length} templates available',
-                  style: CruType.subhead.tint(c.label2),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'All templates',
+                      style: CruType.headline.tint(c.label),
+                    ),
+                  ),
+                  const SizedBox(height: CruSpace.s2),
+                  Text(
+                    templates.length == 1
+                        ? '1 template'
+                        : '${templates.length} templates',
+                    style: CruType.subhead.tabular.tint(c.label2),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: CruSpace.s12),
             CruButton(
-              label: '+ New template',
-              kind: CruButtonKind.primary,
+              label: 'New template',
+              icon: CruIcons.plus,
               onPressed: () => _openNewTemplateDialog(canEditClinic),
             ),
           ],
         ),
         const SizedBox(height: CruSpace.s16),
 
-        // Gallery Grid
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isCompact ? 2 : 3,
-            mainAxisSpacing: CruSpace.s16,
-            crossAxisSpacing: CruSpace.s16,
-            childAspectRatio: isCompact ? 0.65 : 0.68,
-          ),
-          itemCount: templates.length,
-          itemBuilder: (context, i) {
-            final t = templates[i];
-            return _TemplateGalleryCard(
-              template: t,
-              clinic: settings,
-              doctor: doctorProfile,
-              onPreview: () => MedicalPdfPreviewScreen.open(
-                context,
-                documentData: docSampleData(
-                  t.kinds.firstOrNull ?? DocKind.invoice,
-                ),
+        if (phone)
+          CruCard(
+            semanticLabel: 'All templates',
+            padding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s12,
+              vertical: CruSpace.s4,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < templates.length; i++) ...[
+                  if (i > 0)
+                    const CruSeparator(
+                      indent: _TemplateRow.thumbWidth + CruSpace.s12,
+                    ),
+                  _TemplateRow(item: item(templates[i])),
+                ],
+              ],
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) => GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: constraints.maxWidth >= 860 ? 3 : 2,
+                mainAxisSpacing: CruSpace.cardGap,
+                crossAxisSpacing: CruSpace.cardGap,
+                mainAxisExtent: _TemplateCard.height,
               ),
-              onEdit: () async {
-                final saved = await TemplateEditorScreen.open(
-                  context,
-                  template: t,
-                );
-                if (saved == true && mounted) {
-                  _toast('Template saved');
-                }
-              },
-              onRename: () => _renameTemplate(t),
-              onDuplicate: () => _duplicateTemplate(t),
-              onDelete: () => _deleteTemplate(t),
-            );
-          },
-        ),
+              itemCount: templates.length,
+              itemBuilder: (context, i) =>
+                  _TemplateCard(item: item(templates[i])),
+            ),
+          ),
         const SizedBox(height: CruSpace.s32),
       ],
     );
   }
-}
 
-class _DefaultKindRow extends StatelessWidget {
-  const _DefaultKindRow({
-    required this.kind,
-    required this.templates,
-    required this.settings,
-    required this.doctorProfile,
-    required this.isDoctor,
-    required this.canEditClinic,
-    required this.onChanged,
-  });
+  Widget _defaultsCard({
+    required List<DocTemplate> templates,
+    required ClinicDocSettings settings,
+    required DoctorDocProfile? doctorProfile,
+    required bool isDoctor,
+    required bool canEditClinic,
+  }) {
+    final both = isDoctor && canEditClinic;
+    final forClinic = both ? _clinicDefaults : !isDoctor;
 
-  final DocKind kind;
-  final List<DocTemplate> templates;
-  final ClinicDocSettings settings;
-  final DoctorDocProfile? doctorProfile;
-  final bool isDoctor;
-  final bool canEditClinic;
-  final void Function(String id, bool forClinic) onChanged;
+    return CruCard(
+      semanticLabel: 'Default templates',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          DocCardHeader(
+            title: 'Default templates',
+            description: forClinic
+                ? 'Picked for everyone in the clinic who hasn\'t chosen '
+                      'their own.'
+                : 'Picked automatically when you create a document.',
+            trailing: both
+                ? CruSegmentedControl<bool>(
+                    semanticLabel: 'Whose defaults',
+                    segments: const [
+                      CruSegment(false, 'Mine'),
+                      CruSegment(true, 'Clinic'),
+                    ],
+                    selected: _clinicDefaults,
+                    onChanged: (v) => setState(() => _clinicDefaults = v),
+                  )
+                : null,
+          ),
+          const SizedBox(height: CruSpace.s20),
+          DocFieldGrid(
+            children: [
+              for (final kind in DocKind.values)
+                _defaultField(
+                  kind: kind,
+                  templates: templates,
+                  settings: settings,
+                  doctorProfile: doctorProfile,
+                  forClinic: forClinic,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
+  Widget _defaultField({
+    required DocKind kind,
+    required List<DocTemplate> templates,
+    required ClinicDocSettings settings,
+    required DoctorDocProfile? doctorProfile,
+    required bool forClinic,
+  }) {
     final visible = DocRepository.instance.visibleTemplates(
       templates,
       settings,
       kind: kind,
     );
-
+    final names = {for (final t in visible) t.id: t.name};
+    final ids = names.keys.toList();
     final clinicDefault = settings.defaults[kind.name] ?? 'builtin.classic';
-    final myDefault = doctorProfile?.defaults[kind.name] ?? clinicDefault;
+    final current = forClinic
+        ? clinicDefault
+        : doctorProfile?.defaults[kind.name] ?? clinicDefault;
 
-    return Row(
-      children: [
-        SizedBox(
-          width: 130,
-          child: Text(kind.label, style: CruType.body.w500.tint(c.label)),
-        ),
-        if (isDoctor) ...[
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: visible.any((t) => t.id == myDefault)
-                  ? myDefault
-                  : visible.firstOrNull?.id,
-              decoration: InputDecoration(
-                labelText: canEditClinic ? 'My default' : 'Default',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: CruSpace.s12,
-                  vertical: CruSpace.s8,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                ),
-              ),
-              items: [
-                for (final t in visible)
-                  DropdownMenuItem(value: t.id, child: Text(t.name)),
-              ],
-              onChanged: (v) {
-                if (v != null) onChanged(v, false);
-              },
-            ),
-          ),
-          const SizedBox(width: CruSpace.s12),
-        ],
-        if (canEditClinic) ...[
-          Expanded(
-            child: DropdownButtonFormField<String>(
-              initialValue: visible.any((t) => t.id == clinicDefault)
-                  ? clinicDefault
-                  : visible.firstOrNull?.id,
-              decoration: InputDecoration(
-                labelText: 'Clinic default',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: CruSpace.s12,
-                  vertical: CruSpace.s8,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                ),
-              ),
-              items: [
-                for (final t in visible)
-                  DropdownMenuItem(value: t.id, child: Text(t.name)),
-              ],
-              onChanged: (v) {
-                if (v != null) onChanged(v, true);
-              },
-            ),
-          ),
-        ],
-      ],
+    return CruDropdownField<String>(
+      label: kind.label,
+      value: ids.contains(current) ? current : ids.firstOrNull,
+      items: ids,
+      itemLabel: (id) => names[id] ?? id,
+      onChanged: ids.isEmpty
+          ? null
+          : (id) async {
+              await DocRepository.instance.setDefault(
+                kind,
+                id,
+                forClinic: forClinic,
+              );
+              _toast('${kind.label} now uses ${names[id]}');
+            },
     );
   }
 }
 
-class _TemplateGalleryCard extends StatefulWidget {
-  const _TemplateGalleryCard({
+/// A rendered first page and its shape.
+class _Thumb {
+  const _Thumb(this.bytes, this.aspectRatio);
+  final Uint8List bytes;
+  final double aspectRatio;
+}
+
+/// What a gallery card or row needs to show one template.
+class _TemplateItem {
+  const _TemplateItem({
     required this.template,
     required this.clinic,
     required this.doctor,
+    required this.cache,
+    required this.menu,
     required this.onPreview,
     required this.onEdit,
-    required this.onRename,
-    required this.onDuplicate,
-    required this.onDelete,
   });
 
   final DocTemplate template;
   final ClinicDocSettings clinic;
   final DoctorDocProfile? doctor;
+  final Map<String, _Thumb> cache;
+  final List<DocMenuItem> menu;
   final VoidCallback onPreview;
   final VoidCallback onEdit;
-  final VoidCallback onRename;
-  final VoidCallback onDuplicate;
-  final VoidCallback onDelete;
 
-  @override
-  State<_TemplateGalleryCard> createState() => _TemplateGalleryCardState();
+  String get editLabel => template.isBuiltin ? 'Customize' : 'Edit';
+
+  /// "Ready-made · A4", "Clinic · 80 mm roll · Invoice only".
+  String get subtitle {
+    final t = template;
+    final scope = switch (t.scope) {
+      DocScope.builtin => 'Ready-made',
+      DocScope.clinic => 'Clinic',
+      DocScope.doctor => 'Mine',
+    };
+    final paper = switch (t.paper.format) {
+      DocPaperFormat.roll80 => '80 mm roll',
+      DocPaperFormat.custom => 'Custom size',
+      final f => f.label,
+    };
+    return [
+      scope,
+      paper,
+      if (t.kinds.length == 1) '${t.kinds.first.label} only',
+    ].join(' · ');
+  }
 }
 
-class _TemplateGalleryCardState extends State<_TemplateGalleryCard> {
-  Uint8List? _thumbBytes;
-  bool _loading = true;
+/// The template's first page on its tray, rendered once and cached.
+class _TemplateThumb extends StatefulWidget {
+  const _TemplateThumb({
+    required this.item,
+    required this.radius,
+    required this.padding,
+    this.hovered = false,
+  });
+
+  final _TemplateItem item;
+  final double radius;
+  final double padding;
+  final bool hovered;
+
+  @override
+  State<_TemplateThumb> createState() => _TemplateThumbState();
+}
+
+class _TemplateThumbState extends State<_TemplateThumb> {
+  _Thumb? _thumb;
+
+  DocTemplate get _t => widget.item.template;
+  String get _key => '${_t.id}:${_t.updatedAt}';
 
   @override
   void initState() {
     super.initState();
-    _renderThumb();
+    _render();
   }
 
   @override
-  void didUpdateWidget(_TemplateGalleryCard old) {
+  void didUpdateWidget(_TemplateThumb old) {
     super.didUpdateWidget(old);
-    if (old.template.id != widget.template.id ||
-        old.template.updatedAt != widget.template.updatedAt) {
-      _renderThumb();
+    if (old.item.template.id != _t.id ||
+        old.item.template.updatedAt != _t.updatedAt) {
+      _render();
     }
   }
 
-  Future<void> _renderThumb() async {
-    final t = widget.template;
-    final cacheKey = '${t.id}:${t.updatedAt}';
-    if (_TemplatesTabState._thumbCache.containsKey(cacheKey)) {
-      if (mounted) {
-        setState(() {
-          _thumbBytes = _TemplatesTabState._thumbCache[cacheKey];
-          _loading = false;
-        });
-      }
+  Future<void> _render() async {
+    final key = _key;
+    final cached = widget.item.cache[key];
+    if (cached != null) {
+      setState(() => _thumb = cached);
       return;
     }
+    _thumb = null;
 
     try {
+      final t = _t;
+      final clinic = widget.item.clinic;
+      final doctor = widget.item.doctor;
       final kind = t.kinds.firstOrNull ?? DocKind.invoice;
-      final sampleData = docSampleData(kind);
       final ctx = docSampleContext(
-        sampleData,
+        docSampleData(kind),
         clinic: DocClinicInfo(
-          name: widget.clinic.name.isNotEmpty
-              ? widget.clinic.name
-              : 'Sample Clinic',
-          tagline: widget.clinic.tagline,
-          address: widget.clinic.address,
-          phone: widget.clinic.phone,
-          email: widget.clinic.email,
-          gstEnabled: widget.clinic.gstEnabled,
-          roundOff: widget.clinic.roundOff,
+          name: clinic.name.isNotEmpty ? clinic.name : 'Sample Clinic',
+          tagline: clinic.tagline,
+          address: clinic.address,
+          phone: clinic.phone,
+          email: clinic.email,
+          gstEnabled: clinic.gstEnabled,
+          roundOff: clinic.roundOff,
         ),
-        doctor: widget.doctor == null
+        doctor: doctor == null
             ? null
             : DocDoctorInfo(
-                uid: widget.doctor!.uid,
-                name: widget.doctor!.nameOnDocs.isNotEmpty
-                    ? widget.doctor!.nameOnDocs
+                uid: doctor.uid,
+                name: doctor.nameOnDocs.isNotEmpty
+                    ? doctor.nameOnDocs
                     : 'Dr. Sample',
-                qualification: widget.doctor!.qualification,
-                specialty: widget.doctor!.specialty,
-                regNo: widget.doctor!.regNo,
+                qualification: doctor.qualification,
+                specialty: doctor.specialty,
+                regNo: doctor.regNo,
               ),
       );
       final pdfBytes = await DocRenderer.render(t, ctx);
-      final pages = Printing.raster(pdfBytes, pages: [0], dpi: 40);
-      await for (final page in pages) {
-        final png = await page.toPng();
-        _TemplatesTabState._thumbCache[cacheKey] = png;
-        if (mounted) {
-          setState(() {
-            _thumbBytes = png;
-            _loading = false;
-          });
-        }
+      await for (final page in Printing.raster(
+        pdfBytes,
+        pages: [0],
+        dpi: 40,
+      )) {
+        final thumb = _Thumb(
+          await page.toPng(),
+          page.height == 0 ? _fallbackAspect : page.width / page.height,
+        );
+        widget.item.cache[key] = thumb;
+        if (mounted && key == _key) setState(() => _thumb = thumb);
         return;
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      // Leave the empty tray: the name and actions still work.
     }
+  }
+
+  /// The paper's shape before the page has rendered.
+  double get _fallbackAspect {
+    final p = _t.paper;
+    return p.heightMm > 0 ? p.widthMm / p.heightMm : 0.5;
   }
 
   @override
   Widget build(BuildContext context) {
+    return DocPaperThumb(
+      bytes: _thumb?.bytes,
+      aspectRatio: _thumb?.aspectRatio ?? _fallbackAspect,
+      radius: widget.radius,
+      padding: widget.padding,
+      hovered: widget.hovered,
+    );
+  }
+}
+
+/// ⋯ for a template's other actions.
+class _MoreButton extends StatelessWidget {
+  const _MoreButton({required this.item});
+
+  final _TemplateItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return DocMenu(
+      items: item.menu,
+      builder: (context, open) => CruIconButton(
+        icon: CruIcons.more,
+        size: CruSize.capsule + CruSpace.s6,
+        iconSize: 18,
+        semanticLabel: 'More for ${item.template.name}',
+        tooltip: 'More',
+        onPressed: open,
+      ),
+    );
+  }
+}
+
+/// Desktop and tablet: a card with the page on a tray, the name and the
+/// actions. Tapping the page previews it.
+class _TemplateCard extends StatelessWidget {
+  const _TemplateCard({required this.item});
+
+  final _TemplateItem item;
+
+  /// Fixed so the grid rows line up; the tray takes what's left.
+  static const double height = 352;
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.cru;
-    final t = widget.template;
-
-    final badgeLabel = t.isBuiltin
-        ? 'Ready-made'
-        : t.scope == DocScope.clinic
-        ? 'Clinic'
-        : 'Mine';
-
+    final t = item.template;
     return CruCard(
-      padding: const EdgeInsets.all(CruSpace.s10),
+      semanticLabel: t.name,
+      padding: const EdgeInsets.all(CruSpace.s12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Thumbnail Box
           Expanded(
-            child: Container(
-              decoration: ShapeDecoration(
-                color: Colors.white,
-                shape: cruShape(
-                  CruRadius.control,
-                  side: BorderSide(color: c.hairline),
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                child: _loading
-                    ? Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: c.accentText,
-                          ),
-                        ),
-                      )
-                    : _thumbBytes != null
-                    ? Image.memory(_thumbBytes!, fit: BoxFit.contain)
-                    : Icon(
-                        Icons.description_outlined,
-                        color: c.label2,
-                        size: 36,
-                      ),
+            child: CruPressable(
+              onTap: item.onPreview,
+              scaleOnPress: false,
+              semanticLabel: 'Preview ${t.name}',
+              tooltip: 'Preview',
+              builder: (context, hovered) => _TemplateThumb(
+                item: item,
+                radius: CruRadius.control,
+                padding: CruSpace.s16,
+                hovered: hovered,
               ),
             ),
           ),
-          const SizedBox(height: CruSpace.s8),
-
-          // Title & Badge Row
-          Row(
-            children: [
-              Expanded(
-                child: Text(
+          const SizedBox(height: CruSpace.s12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   t.name,
-                  style: CruType.subhead.w600.tint(c.label),
+                  style: CruType.callout.tint(c.label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(width: CruSpace.s4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: ShapeDecoration(
-                  color: t.isBuiltin ? c.track : c.accentTint,
-                  shape: cruShape(CruRadius.control),
-                ),
-                child: Text(
-                  badgeLabel,
-                  style: CruType.caption.tint(
-                    t.isBuiltin ? c.label2 : c.accentText,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s8),
-
-          // Actions Row
-          Row(
-            children: [
-              Expanded(
-                child: CruButton(
-                  label: 'Preview',
-                  kind: CruButtonKind.secondary,
-                  onPressed: widget.onPreview,
-                ),
-              ),
-              const SizedBox(width: CruSpace.s6),
-              Expanded(
-                child: CruButton(
-                  label: t.isBuiltin ? 'Customize' : 'Edit',
-                  kind: CruButtonKind.primary,
-                  onPressed: widget.onEdit,
-                ),
-              ),
-              if (!t.isBuiltin) ...[
-                const SizedBox(width: CruSpace.s6),
-                PopupMenuButton<String>(
-                  icon: CruIcon(CruIcons.more, size: 16, color: c.label),
-                  onSelected: (val) {
-                    if (val == 'rename') widget.onRename();
-                    if (val == 'duplicate') widget.onDuplicate();
-                    if (val == 'delete') widget.onDelete();
-                  },
-                  itemBuilder: (ctx) => [
-                    const PopupMenuItem(value: 'rename', child: Text('Rename')),
-                    const PopupMenuItem(
-                      value: 'duplicate',
-                      child: Text('Duplicate'),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text(
-                        'Delete',
-                        style: TextStyle(color: ctx.cru.redText),
-                      ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                const SizedBox(width: CruSpace.s6),
-                PopupMenuButton<String>(
-                  icon: CruIcon(CruIcons.more, size: 16, color: c.label),
-                  onSelected: (val) {
-                    if (val == 'duplicate') widget.onDuplicate();
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'duplicate', child: Text('Duplicate')),
-                  ],
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  item.subtitle,
+                  style: CruType.subhead.tint(c.label2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: CruSpace.s12),
+          Row(
+            children: [
+              CruCapsuleButton(
+                label: item.editLabel,
+                icon: CruIcons.pen,
+                onPressed: item.onEdit,
+              ),
+              const SizedBox(width: CruSpace.s8),
+              CruCapsuleButton(label: 'Preview', onPressed: item.onPreview),
+              const Spacer(),
+              _MoreButton(item: item),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Phone: one row per template. Tapping the row previews it.
+class _TemplateRow extends StatelessWidget {
+  const _TemplateRow({required this.item});
+
+  final _TemplateItem item;
+
+  static const double thumbWidth = 60;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final t = item.template;
+    return CruPressable(
+      onTap: item.onPreview,
+      scaleOnPress: false,
+      semanticLabel: 'Preview ${t.name}',
+      builder: (context, hovered) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+        child: Row(
+          children: [
+            SizedBox(
+              width: thumbWidth,
+              height: thumbWidth * 1.3,
+              child: _TemplateThumb(
+                item: item,
+                radius: CruRadius.iconTile,
+                padding: CruSpace.s6,
+                hovered: hovered,
+              ),
+            ),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.name,
+                    style: CruType.row.tint(c.label),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: CruSpace.s2),
+                  Text(
+                    item.subtitle,
+                    style: CruType.subhead.tint(c.label2),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: CruSpace.s8),
+            CruCapsuleButton(label: item.editLabel, onPressed: item.onEdit),
+            const SizedBox(width: CruSpace.s2),
+            _MoreButton(item: item),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Start a template from a ready-made one. Returns the unsaved copy.
+class _NewTemplateDialog extends StatefulWidget {
+  const _NewTemplateDialog({
+    required this.presets,
+    required this.canEditClinic,
+  });
+
+  final List<DocTemplate> presets;
+  final bool canEditClinic;
+
+  @override
+  State<_NewTemplateDialog> createState() => _NewTemplateDialogState();
+}
+
+class _NewTemplateDialogState extends State<_NewTemplateDialog> {
+  late DocTemplate _preset = widget.presets.first;
+  late final TextEditingController _name = TextEditingController(
+    text: _copyName(_preset),
+  );
+  late DocScope _scope = widget.canEditClinic
+      ? DocScope.clinic
+      : DocScope.doctor;
+  bool _nameEdited = false;
+  String? _notice;
+
+  static String _copyName(DocTemplate t) => '${t.name} (my copy)';
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _create() {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _notice = 'Type a name for the template.');
+      return;
+    }
+    final myUid = DocRepository.instance.tenantOrNull;
+    Navigator.of(context).pop(
+      _preset.copyWith(
+        id: '',
+        name: name,
+        scope: _scope,
+        ownerUid: _scope == DocScope.doctor ? myUid : null,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CruFormDialog(
+      title: 'New template',
+      subtitle: 'Start from a ready-made layout, then make it yours.',
+      leading: const CruIconTile(
+        icon: CruIcons.fileText,
+        tone: CruTileTone.neutral,
+      ),
+      submitLabel: 'Create and edit',
+      onSubmit: _create,
+      notice: _notice,
+      width: CruSize.dialog + CruSpace.s32 * 2,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CruDropdownField<DocTemplate>(
+              label: 'Start from',
+              value: _preset,
+              items: widget.presets,
+              itemLabel: (t) => t.name,
+              onChanged: (p) => setState(() {
+                _preset = p;
+                if (!_nameEdited) _name.text = _copyName(p);
+              }),
+            ),
+            const SizedBox(height: CruSpace.s16),
+            CruTextField(
+              label: 'Name',
+              controller: _name,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onChanged: (_) {
+                _nameEdited = true;
+                if (_notice != null) setState(() => _notice = null);
+              },
+              onSubmitted: (_) => _create(),
+            ),
+            if (widget.canEditClinic) ...[
+              const SizedBox(height: CruSpace.s16),
+              CruDropdownField<DocScope>(
+                label: 'Who can use it',
+                value: _scope,
+                items: const [DocScope.clinic, DocScope.doctor],
+                itemLabel: (s) =>
+                    s == DocScope.clinic ? 'Everyone in the clinic' : 'Only me',
+                onChanged: (s) => setState(() => _scope = s),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A new name for a template. Returns it, or null when cancelled.
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initial,
+  );
+  String? _notice;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _notice = 'Type a name for the template.');
+      return;
+    }
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CruFormDialog(
+      title: 'Rename template',
+      leading: const CruIconTile(icon: CruIcons.pen, tone: CruTileTone.neutral),
+      submitLabel: 'Save',
+      onSubmit: _save,
+      notice: _notice,
+      dirty: _name.text.trim() != widget.initial,
+      width: CruSize.dialog + CruSpace.s32 * 2,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+        child: CruTextField(
+          label: 'Name',
+          controller: _name,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.done,
+          onChanged: (_) => setState(() => _notice = null),
+          onSubmitted: (_) => _save(),
+        ),
       ),
     );
   }

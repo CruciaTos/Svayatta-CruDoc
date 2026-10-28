@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -12,10 +14,12 @@ import 'package:doctor_management_app/core/pdf/data/doc_repository.dart';
 import 'package:doctor_management_app/core/pdf/data/doc_settings_models.dart';
 import 'package:doctor_management_app/core/pdf/presentation/editor/editor_canvas.dart';
 import 'package:doctor_management_app/core/pdf/presentation/editor/editor_panels.dart';
+import 'package:doctor_management_app/core/pdf/presentation/editor/editor_touch_ui.dart';
 import 'package:doctor_management_app/core/pdf/presentation/editor/template_editor_controller.dart';
 import 'package:doctor_management_app/core/pdf/render/doc_context.dart';
 import 'package:doctor_management_app/core/pdf/render/doc_renderer.dart';
 import 'package:doctor_management_app/core/pdf/render/doc_samples.dart';
+import 'package:doctor_management_app/core/pdf/templates/doc_presets.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -99,6 +103,15 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
   bool _saving = false;
   DocImages _images = const DocImages();
 
+  /// The page body rendered without header/footer blocks, shown under them.
+  Uint8List? _bodyImage;
+  String? _bodyKey;
+  Timer? _bodyTimer;
+
+  /// The "tap anything" tip goes once something has been selected.
+  bool _hintSeen = false;
+  final TransformationController _view = TransformationController();
+
   @override
   void initState() {
     super.initState();
@@ -109,13 +122,158 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
 
   @override
   void dispose() {
+    _bodyTimer?.cancel();
+    _view.dispose();
     _controller.removeListener(_onControllerChange);
     _controller.dispose();
     super.dispose();
   }
 
   void _onControllerChange() {
+    if (_controller.selected != null) _hintSeen = true;
     if (mounted) setState(() {});
+  }
+
+  /// Re-renders the body when something that changes it changes (paper,
+  /// zones, style, sections), not while blocks move.
+  void _scheduleBodyRender(DocContext ctx) {
+    final t = _controller.template;
+    final key = [
+      _controller.previewKind.name,
+      jsonEncode(t.copyWith(blocks: const []).toMap()),
+      ctx.clinic.name,
+      ctx.clinic.gstEnabled,
+      ctx.clinic.roundOff,
+      ctx.clinic.upiId,
+      ctx.images.background?.length ?? 0,
+    ].join('|');
+    if (key == _bodyKey) return;
+    _bodyKey = key;
+    _bodyTimer?.cancel();
+    _bodyTimer = Timer(
+      Duration(milliseconds: _bodyImage == null ? 0 : 350),
+      () => _renderBody(key, ctx),
+    );
+  }
+
+  Future<void> _renderBody(String key, DocContext ctx) async {
+    try {
+      final t = _controller.template.copyWith(blocks: const []);
+      // No "SAMPLE" watermark over the editing page.
+      final plain = DocContext(
+        data: ctx.data,
+        clinic: ctx.clinic,
+        doctor: ctx.doctor,
+        doctors: ctx.doctors,
+        images: ctx.images,
+        warnings: ctx.warnings,
+        scriptImages: ctx.scriptImages,
+      );
+      final pdf = await DocRenderer.render(t, plain);
+      await for (final page in Printing.raster(pdf, pages: [0], dpi: 110)) {
+        final png = await page.toPng();
+        if (!mounted || key != _bodyKey) return;
+        setState(() => _bodyImage = png);
+        return;
+      }
+    } catch (_) {
+      // Keep the placeholder rows; blocks still edit as usual.
+    }
+  }
+
+  /// The ready-made template this one started from, if any.
+  DocTemplate? get _preset {
+    final t = _controller.template;
+    final id = t.presetId.isNotEmpty ? t.presetId : (t.isBuiltin ? t.id : '');
+    return builtinTemplates.where((p) => p.id == id).firstOrNull;
+  }
+
+  Future<void> _resetLayout() async {
+    final preset = _preset;
+    if (preset == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => CruFormDialog(
+        title: 'Reset the layout?',
+        leading: const CruIconTile(
+          icon: EditorIcons.reset,
+          tone: CruTileTone.neutral,
+        ),
+        submitLabel: 'Reset',
+        width: CruSize.dialog + CruSpace.s32 * 2,
+        onSubmit: () => Navigator.of(ctx).pop(true),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+          child: Text(
+            'Every element goes back to where it is in the ready-made '
+            '"${preset.name}" template. You can undo this.',
+            style: CruType.text.tint(ctx.cru.label2),
+          ),
+        ),
+      ),
+    );
+    if (ok == true) _controller.resetLayout(preset);
+  }
+
+  void _hideSelected() {
+    final b = _controller.selected;
+    if (b == null) return;
+    _controller.updateBlock(b.id, (o) => o.copyWith(hidden: true));
+    _controller.select(null);
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          '${editorBlockTitle(b)} hidden. Show it again from Elements.',
+        ),
+        action: SnackBarAction(label: 'Undo', onPressed: _controller.undo),
+        // Goes by itself so it doesn't sit over the tools.
+        persist: false,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  /// A bottom sheet in the app's style holding one of the editor panels.
+  Future<void> _sheet(Widget child, {double heightFactor = 0.62}) {
+    final c = context.cru;
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: c.surface,
+      shape: const RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      builder: (sheetCtx) => SizedBox(
+        height: MediaQuery.sizeOf(sheetCtx).height * heightFactor,
+        child: Column(
+          children: [
+            const SizedBox(height: CruSpace.s8),
+            Container(
+              width: 36,
+              height: 5,
+              decoration: ShapeDecoration(
+                color: c.track,
+                shape: const StadiumBorder(),
+              ),
+            ),
+            const SizedBox(height: CruSpace.s4),
+            Expanded(
+              // Rebuild with the editor so edits show in the sheet too.
+              child: ListenableBuilder(
+                listenable: _controller,
+                builder: (_, _) => child,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadImages() async {
@@ -382,27 +540,23 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
     if (!_controller.dirty) return true;
     final discard = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: ctx.cru.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CruRadius.card),
+      builder: (ctx) => CruFormDialog(
+        title: 'Discard your changes?',
+        leading: const CruIconTile(
+          icon: EditorIcons.trash,
+          tone: CruTileTone.neutral,
         ),
-        title: Text('Discard changes?', style: CruType.headline),
-        content: Text(
-          'You have unsaved changes to this template. Do you want to discard them?',
-          style: CruType.body,
+        cancelLabel: 'Keep editing',
+        submitLabel: 'Discard',
+        width: CruSize.dialog + CruSpace.s32 * 2,
+        onSubmit: () => Navigator.of(ctx).pop(true),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+          child: Text(
+            "This template has changes that aren't saved.",
+            style: CruType.text.tint(ctx.cru.label2),
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep editing'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: ctx.cru.redText),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Discard'),
-          ),
-        ],
       ),
     );
     return discard ?? false;
@@ -433,7 +587,8 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
       );
     }
 
-    final pxPerMm = (isCompact ? 2.8 : 3.2) * _zoom;
+    final pxPerMm = 3.2 * _zoom;
+    _scheduleBodyRender(previewCtx);
 
     return PopScope(
       canPop: !_controller.dirty,
@@ -450,7 +605,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
         child: Scaffold(
           backgroundColor: c.canvas,
           body: isCompact
-              ? _buildMobileLayout(previewCtx, pxPerMm)
+              ? _buildMobileLayout(previewCtx)
               : _buildDesktopLayout(previewCtx, pxPerMm),
         ),
       ),
@@ -578,6 +733,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
                             controller: _controller,
                             pxPerMm: pxPerMm,
                             previewCtx: previewCtx,
+                            bodyImage: _bodyImage,
                             onDragLock: (locked) =>
                                 setState(() => _dragLocked = locked),
                           ),
@@ -654,137 +810,180 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildMobileLayout(DocContext previewCtx, double pxPerMm) {
+  Widget _buildMobileLayout(DocContext previewCtx) {
     final c = context.cru;
+    final t = _controller.template;
+    final selected = _controller.selected;
 
-    return SafeArea(
-      child: Column(
-        children: [
-          // Mobile Top Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: CruSpace.s8,
-              vertical: CruSpace.s6,
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () async {
-                    if (await _onWillPop() && mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                ),
-                Expanded(
-                  child: Text(
-                    _controller.template.name,
-                    style: CruType.headline.tint(c.label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.undo),
-                  onPressed: _controller.canUndo ? _controller.undo : null,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.redo),
-                  onPressed: _controller.canRedo ? _controller.redo : null,
-                ),
-                CruButton(
-                  label: _saving ? 'Saving…' : 'Save',
-                  onPressed: _saving ? null : _saveTemplate,
-                ),
-              ],
-            ),
+    Widget dim(bool on, Widget child) => AnimatedOpacity(
+      duration: CruMotion.of(context, CruMotion.fast),
+      opacity: on ? 1 : 0.35,
+      child: child,
+    );
+
+    return Column(
+      children: [
+        // Top bar: back, name, undo/redo, the one filled action
+        Container(
+          decoration: BoxDecoration(
+            color: c.surface,
+            border: Border(bottom: BorderSide(color: c.hairline)),
           ),
-          const Divider(height: 1),
-
-          // Canvas in 2-axis scroll view
-          Expanded(
-            child: Container(
-              color: c.inset,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                physics: _dragLocked
-                    ? const NeverScrollableScrollPhysics()
-                    : const BouncingScrollPhysics(),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: _dragLocked
-                      ? const NeverScrollableScrollPhysics()
-                      : const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(20),
-                  child: EditorCanvas(
-                    controller: _controller,
-                    pxPerMm: pxPerMm,
-                    previewCtx: previewCtx,
-                    onDragLock: (locked) =>
-                        setState(() => _dragLocked = locked),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Bottom Sheet or Bottom Toolbar
-          if (_controller.selected != null)
-            Container(
-              height: 220,
-              decoration: BoxDecoration(
-                color: c.surface,
-                border: Border(top: BorderSide(color: c.hairline)),
-              ),
-              child: EditorPropertiesPanel(controller: _controller),
-            )
-          else
-            Container(
-              height: 52,
-              padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
-              decoration: BoxDecoration(
-                color: c.surface,
-                border: Border(top: BorderSide(color: c.hairline)),
-              ),
+          child: SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: CruSize.searchBar + CruSpace.s12,
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  TextButton.icon(
-                    icon: const Icon(Icons.list, size: 16),
-                    label: const Text('Elements'),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        builder: (_) => SizedBox(
-                          height: 400,
-                          child: EditorElementsPanel(controller: _controller),
-                        ),
-                      );
+                  const SizedBox(width: CruSpace.s4),
+                  CruIconButton(
+                    icon: CruIcons.chevronLeft,
+                    semanticLabel: 'Back',
+                    onPressed: () async {
+                      if (await _onWillPop() && mounted) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.settings, size: 16),
-                    label: const Text('Page'),
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        builder: (_) => SizedBox(
-                          height: 450,
-                          child: EditorPagePanel(controller: _controller),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.name,
+                          style: CruType.callout.tint(c.label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      );
-                    },
+                        Text(
+                          _controller.dirty || t.id.isEmpty
+                              ? 'Not saved yet'
+                              : 'Saved',
+                          style: CruType.caption.tint(c.label3),
+                        ),
+                      ],
+                    ),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.picture_as_pdf, size: 16),
-                    label: const Text('Preview'),
-                    onPressed: _previewPdf,
+                  dim(
+                    _controller.canUndo,
+                    CruIconButton(
+                      icon: EditorIcons.undo,
+                      semanticLabel: 'Undo',
+                      onPressed: _controller.canUndo ? _controller.undo : null,
+                    ),
                   ),
+                  dim(
+                    _controller.canRedo,
+                    CruIconButton(
+                      icon: EditorIcons.redo,
+                      semanticLabel: 'Redo',
+                      onPressed: _controller.canRedo ? _controller.redo : null,
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s4),
+                  CruButton(
+                    label: _saving ? 'Saving…' : 'Save',
+                    onPressed: _saving ? null : _saveTemplate,
+                  ),
+                  const SizedBox(width: CruSpace.s12),
                 ],
               ),
             ),
-        ],
-      ),
+          ),
+        ),
+
+        // The page, fitted to the screen's width. Pinch to zoom; one finger
+        // on an element moves it, on the paper scrolls.
+        Expanded(
+          child: ColoredBox(
+            color: c.canvas,
+            child: Stack(
+              children: [
+                LayoutBuilder(
+                  builder: (context, box) {
+                    const pad = CruSpace.s16;
+                    final s = (box.maxWidth - pad * 2) / t.paper.widthMm;
+                    return InteractiveViewer(
+                      transformationController: _view,
+                      constrained: false,
+                      minScale: 1,
+                      maxScale: 4,
+                      panEnabled: !_dragLocked,
+                      boundaryMargin: const EdgeInsets.only(bottom: pad),
+                      child: Padding(
+                        padding: const EdgeInsets.all(pad),
+                        child: EditorCanvas(
+                          controller: _controller,
+                          pxPerMm: s,
+                          previewCtx: previewCtx,
+                          bodyImage: _bodyImage,
+                          touch: true,
+                          onDragLock: (locked) =>
+                              setState(() => _dragLocked = locked),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                if (selected == null && !_hintSeen)
+                  const Positioned(
+                    left: CruSpace.s16,
+                    right: CruSpace.s16,
+                    bottom: CruSpace.s16,
+                    child: Center(
+                      child: IgnorePointer(
+                        child: EditorHint(
+                          'Tap anything on the page to move, resize or fade it',
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        // Selected: the size / transparency panel. Otherwise: the tools.
+        AnimatedSize(
+          duration: CruMotion.of(context, CruMotion.standard),
+          curve: CruMotion.curve,
+          alignment: Alignment.bottomCenter,
+          child: selected != null
+              ? EditorTunePanel(
+                  controller: _controller,
+                  onHide: _hideSelected,
+                  onMore: () => _sheet(
+                    EditorPropertiesPanel(controller: _controller),
+                    heightFactor: 0.7,
+                  ),
+                )
+              : EditorToolBar(
+                  tools: [
+                    EditorTool(
+                      'Elements',
+                      EditorIcons.layers,
+                      () =>
+                          _sheet(EditorElementsPanel(controller: _controller)),
+                    ),
+                    EditorTool(
+                      'Page',
+                      CruIcons.settings,
+                      () => _sheet(
+                        EditorPagePanel(controller: _controller),
+                        heightFactor: 0.7,
+                      ),
+                    ),
+                    EditorTool(
+                      'Reset',
+                      EditorIcons.reset,
+                      _preset == null ? null : _resetLayout,
+                    ),
+                    EditorTool('Preview', EditorIcons.eye, _previewPdf),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }

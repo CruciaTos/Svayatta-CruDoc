@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/files_screen.dart';
 import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/files_list.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
@@ -140,22 +141,42 @@ Future<void> settle(WidgetTester tester) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('desktop list: newest first, patient names, panel', (
-    tester,
-  ) async {
+  testWidgets(
+    'desktop defaults to grid view: newest first, patient names, panel',
+    (tester) async {
+      setSize(tester, const Size(1440, 900));
+      await tester.pumpWidget(app(const FilesScreen()));
+      await settle(tester);
+
+      expect(find.byType(FilesGrid), findsOneWidget);
+      expect(find.byType(FilesList), findsNothing);
+      expect(find.text('Files'), findsWidgets);
+      expect(
+        find.textContaining('4 files', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.text('Asha Rao'), findsWidgets);
+      expect(find.text('Vikram Shah'), findsWidgets);
+      // The panel shows the newest file.
+      expect(find.text('Saved to the cloud'), findsNothing);
+      expect(find.text('Uploading…'), findsNothing);
+      expect(find.text('Open'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('desktop files can be displayed in list view', (tester) async {
     setSize(tester, const Size(1440, 900));
-    await tester.pumpWidget(app(const FilesScreen()));
+    await tester.pumpWidget(
+      app(
+        const FilesScreen(),
+        initial: const FilesState(viewMode: FilesViewMode.list),
+      ),
+    );
     await settle(tester);
 
-    expect(find.text('Files'), findsWidgets);
-    expect(find.textContaining('4 files', findRichText: true), findsOneWidget);
-    expect(find.text('Asha Rao'), findsWidgets);
-    expect(find.text('Vikram Shah'), findsWidgets);
-    // The panel shows the newest file.
-    expect(find.text('Saved to the cloud'), findsNothing);
-    expect(find.text('Uploading…'), findsNothing);
-    expect(find.text('Open'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    expect(find.byType(FilesList), findsOneWidget);
+    expect(find.byType(FilesGrid), findsNothing);
   });
 
   testWidgets('desktop grid and folders tab render', (tester) async {
@@ -211,15 +232,18 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('patient card lists their files with See all', (tester) async {
+  testWidgets('patient card lists their files with Add files in the header', (
+    tester,
+  ) async {
     setSize(tester, const Size(500, 900));
     await tester.pumpWidget(
       app(SingleChildScrollView(child: PatientFilesCard(patient: patients[0]))),
     );
     await settle(tester);
-    expect(find.text('See all'), findsOneWidget);
+    // The list expands in place with "Show N more"; no See all link.
+    expect(find.text('See all'), findsNothing);
     expect(find.text('OPG full mouth.jpg'), findsOneWidget);
-    expect(find.text('Add files'), findsOneWidget);
+    expect(find.byTooltip('Add files'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

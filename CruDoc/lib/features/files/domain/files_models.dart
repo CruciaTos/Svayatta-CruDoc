@@ -19,7 +19,7 @@ enum FilesViewMode {
   grid;
 
   static FilesViewMode fromName(String? name) => FilesViewMode.values
-      .firstWhere((m) => m.name == name, orElse: () => FilesViewMode.list);
+      .firstWhere((m) => m.name == name, orElse: () => FilesViewMode.grid);
 }
 
 enum FilesSort {

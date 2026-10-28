@@ -18,16 +18,15 @@ import 'package:doctor_management_app/features/dental/specialties/anaesthesia/pr
 import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/form_fill.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
-import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
-import 'package:doctor_management_app/features/radiology/open_study.dart';
-import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
-import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// The dentist's clinical records on Patient details: perio chart, endo,
-/// consents, recall, pain and TMD, behaviour (children) and surgical
-/// checklists. Each row says what's there and opens it.
+/// The dentist's clinical records on Patient details, as an icon grid.
+/// Tiles stay in one fixed order. A tile with records is active (filled
+/// icon, bold name, a short status); one with nothing yet is quiet.
+/// Every tile opens its record.
 class DentalRecordsCard extends ConsumerWidget {
   const DentalRecordsCard({super.key, required this.patient});
 
@@ -36,165 +35,262 @@ class DentalRecordsCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    List<DentalRecord> of(String kind) =>
-        ref
-            .watch(patientRecordsProvider((patientId: patient.id, kind: kind)))
-            .value ??
-        const <DentalRecord>[];
+    // One query for every kind, so the card stays light on Patient details.
+    final byKind =
+        ref.watch(patientRecordsByKindProvider(patient.id)).value ??
+        const <String, List<DentalRecord>>{};
+    List<DentalRecord> of(String kind) => byKind[kind] ?? const [];
+    String plural(int n, String word) => '$n $word${n == 1 ? '' : 's'}';
+    final now = DateTime.now();
+    final child = patient.age < 16;
+
+    final om = omHistoryOf(of(RecKind.omHistory));
+    final allergy = omAllergyText(om);
+    final hasAllergy = allergy != null && allergy != 'None';
+    final highRisk = om != null && omHighRisk(om);
+
+    // Declined and deleted items dropped, as on the rest of Patient details.
+    final planItems = DentalPlan.active(
+      ref.watch(patientTreatmentPlanProvider(patient.id)).value ?? const [],
+    );
+    final planDone = planItems.where(DentalPlan.isDone).length;
+
     final perio = of(RecKind.perio);
-    final srp = srpCardLine(of(RecKind.srp));
+    final srp = srpTileLine(of(RecKind.srp));
+
     final endo = of(RecKind.endo);
-    final consents = of(RecKind.consent);
+    final endoOpen = endo.where((r) => r.str('status') != 'obturated').length;
+    final endoTeeth = endo
+        .map((r) => r.str('tooth'))
+        .where((t) => t.isNotEmpty)
+        .toSet();
+
     final recalls =
         of(RecKind.recall).where((r) => recallStatusOf(r).isOpen).toList()
           ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final pain = of(RecKind.pain);
-    final tmd = of(RecKind.tmd);
-    final frankl = of(RecKind.frankl);
-    final checklists = of(RecKind.checklist);
-    final child = patient.age < 16;
-    final om = omHistoryOf(of(RecKind.omHistory));
-    final allergy = omAllergyText(om);
-    final eruptionRecords = of(RecKind.eruption);
-    final eruption = eruptionCardLine(
-      eruptionRecords.isEmpty ? null : eruptionRecords.first,
-      patient,
-    );
+    final nextRecall = recalls.firstOrNull;
+
+    final consents = of(RecKind.consent);
     final referrals = of(RecKind.referral);
     final openReferrals = referrals
         .where(
           (r) =>
               r.str('status') != 'completed' && r.str('status') != 'declined',
         )
-        .toList();
-    final referralLine = referrals.isEmpty
-        ? 'No referrals yet'
-        : () {
-            final openCount = openReferrals.length;
-            final last = referrals.first;
-            final lastContact = last.str('contactName');
-            final countStr = openCount == 0 ? 'None open' : '$openCount open';
-            return lastContact.isNotEmpty
-                ? '$countStr · last ${last.str('direction') == 'in' ? 'from' : 'to'} $lastContact'
-                : countStr;
-          }();
+        .length;
     final labCases = of(RecKind.labCase);
-    final openLabCases = labCases
-        .where((r) => r.str('stage') != 'fitted')
-        .toList();
-    final labCaseLine = labCases.isEmpty
-        ? 'No lab cases'
-        : () {
-            final openCount = openLabCases.length;
-            final last = labCases.first;
-            final type = last.str('type').isNotEmpty
-                ? last.str('type')
-                : 'Case';
-            final stage = last.str('stage');
-            final countStr = openCount == 0
-                ? 'None active'
-                : '$openCount active';
-            return '$countStr · last $type (${stage.isNotEmpty ? stage : 'scanned'})';
-          }();
+    final activeLab = labCases.where((r) => r.str('stage') != 'fitted').length;
     final photoSets = of(RecKind.photoSet);
-    final photoSetLine = photoSets.isEmpty
-        ? 'No series yet'
-        : '${photoSets.length} series · last ${photoSets.first.str('label')} (${DentalFormat.date(photoSets.first.recordedAt)})';
-    final sedationCases = of(RecKind.sedationCase);
-    final sedationLine = sedationCases.isEmpty
-        ? 'No cases'
-        : () {
-            final last = sedationCases.first;
-            final modality = last.str('planned').isNotEmpty
-                ? last.str('planned')
-                : 'Sedation';
-            final status = last.str('status');
-            return '$modality · $status (${DentalFormat.date(last.recordedAt)})';
-          }();
-    final formResponses = of(RecKind.formResponse);
-    final formsLine = formResponses.isEmpty
-        ? 'No forms filled'
-        : () {
-            final count = formResponses.length;
-            final last = formResponses.first;
-            final name = last.str('templateName').isNotEmpty
-                ? last.str('templateName')
-                : 'Form';
-            return '$count filled · last $name (${DentalFormat.date(last.recordedAt)})';
-          }();
+    final sedation = of(RecKind.sedationCase);
+    final sedationStatus = sedation.firstOrNull?.str('status') ?? '';
+    final forms = of(RecKind.formResponse);
 
-    final radStudies =
-        (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
-            .where((s) => s.patientId == patient.id)
-            .toList()
-          ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
-    final radLine = radStudies.isEmpty
-        ? 'No scans yet · Tap to import / capture'
-        : '${radStudies.length} ${radStudies.length == 1 ? 'scan' : 'scans'} · last ${radStudies.first.modality.short} (${DentalFormat.date(radStudies.first.studyDate)})';
+    final pain = of(RecKind.pain);
+    final tmd = of(RecKind.tmd);
+    final painStatus = pain.isNotEmpty
+        ? 'Pain ${(pain.first.number('score') ?? 0).toStringAsFixed(0)}'
+              '${pain.first.str('scale') == 'VAS' ? ' mm' : '/10'}'
+        : tmd.isNotEmpty
+        ? 'TMD ${tmd.first.integer('score')}/7'
+        : null;
 
-    final perioLine = perio.isEmpty
-        ? 'No exam yet'
-        : () {
-            final s = perioSummaryOf(perio.first);
-            return s.sites == 0
-                ? 'Last ${DentalFormat.date(perio.first.recordedAt)} · empty'
-                : 'Last ${DentalFormat.date(perio.first.recordedAt)} · PD ${s.meanPd!.toStringAsFixed(1)} mm · '
-                      'bleeding ${s.bopPct!.toStringAsFixed(0)}%';
-          }();
-    final painLine = [
-      if (pain.isNotEmpty)
-        'Pain ${(pain.first.number('score') ?? 0).toStringAsFixed(0)}${pain.first.str('scale') == 'VAS' ? ' mm' : '/10'}',
-      if (tmd.isNotEmpty) 'TMD screen ${tmd.first.integer('score')}/7',
-    ].join(' · ');
+    final frankl = of(RecKind.frankl);
+    final eruptionRecord = of(RecKind.eruption).firstOrNull;
+    final eruption = eruptionCardLine(eruptionRecord, patient);
+    final checklists = of(RecKind.checklist);
+    final openChecklists = checklists
+        .where((r) => r.data['complete'] != true)
+        .length;
 
-    Widget row(
-      CruIconData icon,
-      String title,
-      String detail,
-      VoidCallback onTap, {
-      bool warn = false,
-      String? alert,
-    }) => DentalListRow(
-      semanticLabel: '$title. $detail',
-      onTap: onTap,
-      minHeight: 52,
-      child: Row(
-        children: [
-          CruIconTile(icon: icon, tone: CruTileTone.neutral),
-          const SizedBox(width: CruSpace.s12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: CruType.callout.w600.tint(c.label)),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      // Allergies in red: patient safety.
-                      if (alert != null)
-                        TextSpan(
-                          text: '$alert · ',
-                          style: CruType.subhead.w600.tint(c.redText),
-                        ),
-                      TextSpan(text: detail),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.subhead.tabular.tint(
-                    warn ? c.amberText : c.label2,
-                  ),
-                ),
-              ],
+    final tiles = <_RecTile>[
+      _RecTile(
+        icon: RecIcons.history,
+        name: 'Medical history',
+        status: om == null
+            ? null
+            : hasAllergy
+            ? 'Allergy'
+            : highRisk
+            ? 'High risk'
+            : 'Recorded',
+        tone: hasAllergy
+            ? _Tone.alert
+            : highRisk
+            ? _Tone.warn
+            : _Tone.plain,
+        onTap: () => showOmHistoryDialog(context, patient, existing: om),
+      ),
+      _RecTile(
+        icon: DentalIcons.plan,
+        name: 'Treatment plan',
+        status: planItems.isEmpty
+            ? null
+            : '$planDone of ${planItems.length} done',
+        onTap: () async {
+          await showTreatmentPlanDialog(context, patient: patient);
+          ref.invalidate(patientTreatmentPlanProvider(patient.id));
+        },
+      ),
+      _RecTile(
+        icon: RecIcons.perio,
+        name: 'Perio chart',
+        status: perio.isEmpty
+            ? null
+            : DentalFormat.shortDate(perio.first.recordedAt),
+        onTap: () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(
+            builder: (_) => Theme(
+              data: Theme.of(context),
+              child: PerioChartScreen(patient: patient),
             ),
           ),
-          CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
-        ],
+        ),
       ),
-    );
+      _RecTile(
+        icon: RecIcons.srp,
+        name: 'Root planing',
+        status: srp.text,
+        tone: srp.warn ? _Tone.warn : _Tone.plain,
+        onTap: () => showSrpDialog(context, patient),
+      ),
+      _RecTile(
+        icon: RecIcons.endo,
+        name: 'Endodontics',
+        status: endo.isEmpty
+            ? null
+            : endoOpen > 0
+            ? '$endoOpen ongoing'
+            : endoTeeth.length == 1
+            ? 'Tooth ${endoTeeth.first}'
+            : endoTeeth.isEmpty
+            ? plural(endo.length, 'record')
+            : '${endoTeeth.length} teeth',
+        onTap: () => showEndoListDialog(context, patient),
+      ),
+      _RecTile(
+        icon: RecIcons.recall,
+        name: 'Recall',
+        status: nextRecall == null
+            ? null
+            : 'Due ${DentalFormat.shortDate(nextRecall.recordedAt)}',
+        tone: nextRecall != null && nextRecall.recordedAt.isBefore(now)
+            ? _Tone.warn
+            : _Tone.plain,
+        onTap: () => showSetRecallDialog(
+          context,
+          patient: patient,
+          existing: nextRecall,
+        ),
+      ),
+      _RecTile(
+        icon: RecIcons.consent,
+        name: 'Consents',
+        status: consents.isEmpty ? null : '${consents.length} signed',
+        onTap: () => showConsentListDialog(context, patient),
+      ),
+      _RecTile(
+        icon: CruIcons.arrowUpRight,
+        name: 'Referrals',
+        status: referrals.isEmpty
+            ? null
+            : openReferrals > 0
+            ? '$openReferrals open'
+            : 'None open',
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => PatientReferralsDialog(patient: patient),
+        ),
+      ),
+      _RecTile(
+        icon: CruIcons.flask,
+        name: 'Lab cases',
+        status: labCases.isEmpty
+            ? null
+            : activeLab > 0
+            ? '$activeLab active'
+            : 'All fitted',
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => PatientLabCasesDialog(patient: patient),
+        ),
+      ),
+      _RecTile(
+        icon: RecIcons.camera,
+        name: 'Ortho photos',
+        status: photoSets.isEmpty ? null : '${photoSets.length} series',
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => OrthoPhotosDialog(patient: patient),
+        ),
+      ),
+      _RecTile(
+        icon: CruIcons.moon,
+        name: 'Sedation & pre-op',
+        status: sedation.isEmpty
+            ? null
+            : sedationStatus.isEmpty
+            ? plural(sedation.length, 'case')
+            : '${sedationStatus[0].toUpperCase()}${sedationStatus.substring(1)}',
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => PreopDialog(
+            patient: patient,
+            initialCase: sedation.isNotEmpty
+                ? SedationCase.fromRecord(sedation.first)
+                : null,
+          ),
+        ),
+      ),
+      _RecTile(
+        icon: RecIcons.form,
+        name: 'Forms',
+        status: forms.isEmpty ? null : '${forms.length} filled',
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => PatientFormsDialog(patient: patient),
+        ),
+      ),
+      _RecTile(
+        icon: RecIcons.pain,
+        name: 'Pain and TMD',
+        status: painStatus,
+        onTap: () => showPainDialog(context, patient),
+      ),
+      if (child)
+        _RecTile(
+          icon: RecIcons.frankl,
+          name: 'Behaviour',
+          status: frankl.isEmpty
+              ? null
+              : 'Frankl ${frankl.first.integer('rating')}',
+          onTap: () => showFranklDialog(context, patient),
+        ),
+      if (child)
+        _RecTile(
+          icon: DentalIcons.tooth,
+          name: 'Eruption',
+          status: eruptionTeethOf(eruptionRecord).isEmpty
+              ? null
+              : eruption.warn
+              ? 'Flagged'
+              : 'Charted',
+          tone: eruption.warn ? _Tone.warn : _Tone.plain,
+          onTap: () =>
+              showEruptionDialog(context, patient, existing: eruptionRecord),
+        ),
+      _RecTile(
+        icon: RecIcons.checklist,
+        name: 'Surgical checklists',
+        status: checklists.isEmpty
+            ? null
+            : openChecklists > 0
+            ? '$openChecklists open'
+            : '${checklists.length} done',
+        tone: openChecklists > 0 ? _Tone.warn : _Tone.plain,
+        onTap: () => showChecklistDialog(context, patient),
+      ),
+    ];
 
-    final now = DateTime.now();
-    final nextRecall = recalls.firstOrNull;
     return CruCard(
       semanticLabel: 'Clinical records',
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
@@ -208,264 +304,111 @@ class DentalRecordsCard extends ConsumerWidget {
               style: CruType.headline.tint(c.label),
             ),
           ),
-          const SizedBox(height: CruSpace.s8),
-          row(
-            RecIcons.consent,
-            'Oral medicine history',
-            omCardLine(om),
-            () => showOmHistoryDialog(context, patient, existing: om),
-            warn: omHighRisk(om),
-            alert: allergy == null || allergy == 'None'
-                ? null
-                : 'Allergic to $allergy',
-          ),
-          row(RadIcons.xray, 'X-rays & Imaging', radLine, () {
-            if (radStudies.isNotEmpty) {
-              openRadStudy(context, ref, radStudies.first);
-            } else {
-              runRadImport(context, ref);
-            }
-          }),
-          row(RecIcons.perio, 'Perio chart', perioLine, () {
-            Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute<void>(
-                builder: (_) => Theme(
-                  data: Theme.of(context),
-                  child: PerioChartScreen(patient: patient),
-                ),
-              ),
-            );
-          }),
-          row(
-            RecIcons.checklist,
-            'Root planing',
-            srp.text,
-            () => showSrpDialog(context, patient),
-            warn: srp.warn,
-          ),
-          row(
-            RecIcons.endo,
-            'Endodontics',
-            endoCardLine(endo),
-            () => showEndoListDialog(context, patient),
-          ),
-          row(
-            RecIcons.recall,
-            'Recall',
-            nextRecall == null
-                ? 'None set'
-                : '${nextRecall.str('reason')} · due ${DentalFormat.date(nextRecall.recordedAt)}',
-            () => showSetRecallDialog(
-              context,
-              patient: patient,
-              existing: nextRecall,
-            ),
-            warn: nextRecall != null && nextRecall.recordedAt.isBefore(now),
-          ),
-          row(
-            RecIcons.consent,
-            'Consents',
-            consents.isEmpty
-                ? 'None signed'
-                : '${consents.length} signed · last ${consents.first.str('title').toLowerCase()}',
-            () => showConsentListDialog(context, patient),
-          ),
-          row(
-            CruIcons.arrowUpRight,
-            'Referrals',
-            referralLine,
-            () => showDialog<void>(
-              context: context,
-              builder: (_) => PatientReferralsDialog(patient: patient),
-            ),
-          ),
-          row(
-            CruIcons.box,
-            'Lab cases',
-            labCaseLine,
-            () => showDialog<void>(
-              context: context,
-              builder: (_) => PatientLabCasesDialog(patient: patient),
-            ),
-          ),
-          row(
-            CruIcons.box,
-            'Ortho photo series',
-            photoSetLine,
-            () => showDialog<void>(
-              context: context,
-              builder: (_) => OrthoPhotosDialog(patient: patient),
-            ),
-          ),
-          row(
-            CruIcons.clock,
-            'Sedation & Pre-op',
-            sedationLine,
-            () => showDialog<void>(
-              context: context,
-              builder: (_) => PreopDialog(
-                patient: patient,
-                initialCase: sedationCases.isNotEmpty
-                    ? SedationCase.fromRecord(sedationCases.first)
-                    : null,
-              ),
-            ),
-          ),
-          row(
-            RecIcons.checklist,
-            'Forms',
-            formsLine,
-            () => showDialog<void>(
-              context: context,
-              builder: (_) => PatientFormsDialog(patient: patient),
-            ),
-          ),
-          row(
-            RecIcons.pain,
-            'Pain and TMD',
-            painLine.isEmpty ? 'No scores yet' : painLine,
-            () => showPainDialog(context, patient),
-          ),
-          if (child)
-            row(
-              RecIcons.frankl,
-              'Behaviour',
-              frankl.isEmpty
-                  ? 'Not rated yet (Frankl scale)'
-                  : '${franklLabel(frankl.first.integer('rating'))} · ${DentalFormat.date(frankl.first.recordedAt)}',
-              () => showFranklDialog(context, patient),
-            ),
-          if (child)
-            row(
-              DentalIcons.tooth,
-              'Eruption',
-              eruption.text,
-              () => showEruptionDialog(
-                context,
-                patient,
-                existing: eruptionRecords.isEmpty
-                    ? null
-                    : eruptionRecords.first,
-              ),
-              warn: eruption.warn,
-            ),
-          row(
-            RecIcons.checklist,
-            'Surgical checklists',
-            checklists.isEmpty
-                ? 'None yet'
-                : '${checklists.length} · last ${DentalFormat.date(checklists.first.recordedAt)}'
-                      '${checklists.first.data['complete'] == true ? '' : ' (open)'}',
-            () => showChecklistDialog(context, patient),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Patient details' way into the clinical records: one button. The full
-/// [DentalRecordsCard] (about twenty record lookups) is built only on its
-/// own page, so opening Patient details stays light.
-class DentalRecordsButton extends StatelessWidget {
-  const DentalRecordsButton({super.key, required this.patient});
-
-  final Patient patient;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return CruCard(
-      semanticLabel: 'Clinical records',
-      padding: const EdgeInsets.all(CruSpace.s16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Clinical records',
-              style: CruType.headline.tint(c.label),
-            ),
-          ),
-          CruButton(
-            label: 'Open',
-            icon: CruIcons.chevronRight,
-            kind: CruButtonKind.inset,
-            onPressed: () => Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute<void>(
-                builder: (_) => Theme(
-                  data: Theme.of(context),
-                  child: _DentalRecordsPage(patient: patient),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DentalRecordsPage extends StatelessWidget {
-  const _DentalRecordsPage({required this.patient});
-
-  final Patient patient;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return Scaffold(
-      backgroundColor: c.canvas,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CruSpace.s16,
-                CruSpace.s12,
-                CruSpace.s16,
-                CruSpace.s4,
-              ),
-              child: Row(
+          const SizedBox(height: CruSpace.s12),
+          LayoutBuilder(
+            builder: (context, box) {
+              // About 76 px a tile: four across on a phone, more when wide.
+              final columns = (box.maxWidth / 76).floor().clamp(4, 8);
+              final width = box.maxWidth / columns;
+              return Wrap(
+                runSpacing: CruSpace.s4,
                 children: [
-                  CruSquareButton(
-                    icon: CruIcons.chevronLeft,
-                    semanticLabel: 'Back',
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const SizedBox(width: CruSpace.s12),
-                  Expanded(
-                    child: Semantics(
-                      header: true,
-                      child: Text(
-                        'Clinical records · ${patient.fullName}',
-                        style: CruType.title2.tint(c.label),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
+                  for (final t in tiles) SizedBox(width: width, child: t),
                 ],
-              ),
-            ),
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      CruSpace.s16,
-                      CruSpace.s12,
-                      CruSpace.s16,
-                      CruSpace.s24,
-                    ),
-                    children: [DentalRecordsCard(patient: patient)],
-                  ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Status colour: plain, amber (waiting or overdue), red (allergy only).
+enum _Tone { plain, warn, alert }
+
+/// One record in the grid: icon, name, and a status when it has records.
+class _RecTile extends StatelessWidget {
+  const _RecTile({
+    required this.icon,
+    required this.name,
+    required this.status,
+    required this.onTap,
+    this.tone = _Tone.plain,
+  });
+
+  final CruIconData icon;
+  final String name;
+
+  /// Null when nothing is recorded yet: the tile is quiet.
+  final String? status;
+  final VoidCallback onTap;
+  final _Tone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final active = status != null;
+    final statusColor = switch (tone) {
+      _Tone.plain => c.label2,
+      _Tone.warn => c.amberText,
+      _Tone.alert => c.redText,
+    };
+    return CruPressable(
+      onTap: onTap,
+      scaleOnPress: false,
+      semanticLabel: '$name. ${status ?? 'Nothing recorded yet'}',
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s4,
+          vertical: CruSpace.s8,
+        ),
+        decoration: ShapeDecoration(
+          color: hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0),
+          shape: cruShape(CruRadius.control),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: CruSize.iconTile,
+              height: CruSize.iconTile,
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                color: active ? c.inset : null,
+                shape: cruShape(
+                  CruRadius.iconTile,
+                  side: active
+                      ? BorderSide.none
+                      : BorderSide(color: c.hairline),
                 ),
               ),
+              child: CruIcon(
+                icon,
+                size: 18,
+                strokeWidth: 1.8,
+                color: active ? c.label : c.label3,
+              ),
             ),
+            const SizedBox(height: CruSpace.s4),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: active
+                  ? CruType.caption.w600.tint(c.label)
+                  : CruType.caption.tint(c.label2),
+            ),
+            if (active)
+              Text(
+                status!,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.micro.tabular.tint(statusColor),
+              ),
           ],
         ),
       ),

@@ -93,7 +93,7 @@ class FilesState {
     this.patientId,
     this.selectedId,
     this.panelOpen = false,
-    this.viewMode = FilesViewMode.list,
+    this.viewMode = FilesViewMode.grid,
     this.limit = FilesBuilder.pageSize,
   });
 

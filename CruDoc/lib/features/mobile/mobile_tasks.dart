@@ -1095,18 +1095,8 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
             const SizedBox(height: CruSpace.s12),
           ],
 
-          // Each source's page side by side: drag sideways to switch.
-          SwipePages<TaskSourceFilter>(
-            values: availableSources.length > 2
-                ? availableSources
-                : [effectiveSource],
-            value: effectiveSource,
-            onChanged: (s) => setState(() {
-              _sourceFilter = s;
-              _statusFilter = TaskStatusFilter.any;
-            }),
-            builder: (context, source) => page(source),
-          ),
+          // The open source's page; switch with the filter pills above.
+          page(effectiveSource),
         ],
       ],
     );

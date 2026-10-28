@@ -375,7 +375,8 @@ class _PdfViewState extends State<_PdfView>
   /// Pixels per inch that fill the page width on this screen.
   double _dpi() {
     final mq = MediaQuery.of(context);
-    final width = math.min(mq.size.width, _maxPageWidth) - _pageMargin.horizontal;
+    final width =
+        math.min(mq.size.width, _maxPageWidth) - _pageMargin.horizontal;
     final ratio = mq.devicePixelRatio.clamp(1.0, 3.0);
     return math.max(48, width) * ratio / PdfPageFormat.a4.width * 72;
   }
@@ -652,9 +653,7 @@ class _PdfDocumentViewerState extends State<_PdfDocumentViewer> {
           final page = ready ? pages.pages[i] : null;
           final ratio =
               page?.aspectRatio ??
-              (pages.pages.isEmpty
-                  ? 210 / 297
-                  : pages.pages.last.aspectRatio);
+              (pages.pages.isEmpty ? 210 / 297 : pages.pages.last.aspectRatio);
           // A page arriving while it is on screen rises in; one drawn
           // while it was off screen is simply there when scrolled to.
           final arriving =

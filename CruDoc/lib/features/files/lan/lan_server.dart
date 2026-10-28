@@ -52,6 +52,20 @@ class LanServer {
   /// stays downloadable by both.
   final Map<String, FileOffer> _openOffers = {};
 
+  /// How much of each offer the recipient has downloaded from this device
+  /// (0 to 1), by offer id. Drives the sender's progress ring.
+  final ValueNotifier<Map<String, double>> servedProgress = ValueNotifier(
+    const {},
+  );
+
+  /// What recipients reported over Wi-Fi ("accepted" or "declined"), by
+  /// offer id: the ring turns green without waiting for the cloud.
+  final ValueNotifier<Map<String, String>> lanStatus = ValueNotifier(const {});
+
+  void _setProgress(String offerId, double value) {
+    servedProgress.value = {...servedProgress.value, offerId: value};
+  }
+
   /// Tracks active incoming transfer subscriptions/listeners.
   final StreamController<FileOffer> _incomingOffersController =
       StreamController<FileOffer>.broadcast();
@@ -62,7 +76,8 @@ class LanServer {
     if (_running && _server != null) return _port;
 
     await DeviceIdentity.instance.initialize();
-    final securityContext = DeviceIdentity.instance.createServerSecurityContext();
+    final securityContext = DeviceIdentity.instance
+        .createServerSecurityContext();
 
     try {
       // Try default port 47811 first
@@ -83,9 +98,12 @@ class LanServer {
     }
 
     _running = true;
-    _server!.listen(_handleRequest, onError: (e) {
-      debugPrint('[LanServer] Error: $e');
-    });
+    _server!.listen(
+      _handleRequest,
+      onError: (e) {
+        debugPrint('[LanServer] Error: $e');
+      },
+    );
 
     debugPrint('[LanServer] Listening securely on port $_port');
     return _port;
@@ -124,7 +142,9 @@ class LanServer {
           await _handleReceiveOffer(request, session);
         } else if (method == 'GET' && path.startsWith('/v1/blobs/')) {
           await _handleServeBlob(request, session);
-        } else if (method == 'POST' && path.startsWith('/v1/offers/') && path.endsWith('/status')) {
+        } else if (method == 'POST' &&
+            path.startsWith('/v1/offers/') &&
+            path.endsWith('/status')) {
           await _handleOfferStatus(request, session);
         } else {
           request.response
@@ -152,10 +172,7 @@ class LanServer {
     final nonce = _generateRandomHex(32);
     _nonces[nonce] = DateTime.now().add(const Duration(seconds: 60));
 
-    final data = {
-      'deviceId': DeviceIdentity.instance.deviceId,
-      'nonce': nonce,
-    };
+    final data = {'deviceId': DeviceIdentity.instance.deviceId, 'nonce': nonce};
 
     request.response
       ..headers.contentType = ContentType.json
@@ -193,7 +210,9 @@ class LanServer {
     if (clientDevice == null || clientDevice.certPem.isEmpty) {
       request.response
         ..statusCode = HttpStatus.forbidden
-        ..write(jsonEncode({'error': 'Device not recognized in clinic registry'}))
+        ..write(
+          jsonEncode({'error': 'Device not recognized in clinic registry'}),
+        )
         ..close();
       return;
     }
@@ -248,7 +267,10 @@ class LanServer {
 
   // ──────────────────────────── Endpoints ────────────────────────────
 
-  Future<void> _handleReceiveOffer(HttpRequest request, _LanSession session) async {
+  Future<void> _handleReceiveOffer(
+    HttpRequest request,
+    _LanSession session,
+  ) async {
     final bodyStr = await utf8.decoder.bind(request).join();
     final map = jsonDecode(bodyStr) as Map<String, dynamic>;
 
@@ -286,7 +308,10 @@ class LanServer {
       ..close();
   }
 
-  Future<void> _handleServeBlob(HttpRequest request, _LanSession session) async {
+  Future<void> _handleServeBlob(
+    HttpRequest request,
+    _LanSession session,
+  ) async {
     final sha256 = request.uri.pathSegments.last;
 
     // Check caller has an open offer for this fingerprint
@@ -296,7 +321,11 @@ class LanServer {
     if (openOffer == null) {
       request.response
         ..statusCode = HttpStatus.forbidden
-        ..write(jsonEncode({'error': 'No open offer for this file fingerprint to caller'}))
+        ..write(
+          jsonEncode({
+            'error': 'No open offer for this file fingerprint to caller',
+          }),
+        )
         ..close();
       return;
     }
@@ -347,11 +376,26 @@ class LanServer {
     request.response.headers.contentLength = contentLength;
     request.response.headers.contentType = ContentType.binary;
 
-    final stream = file.openRead(start, end + 1);
+    // Counts what goes out, for the sender's progress ring (at most one
+    // update per 2 %).
+    var sent = start;
+    var shown = -1;
+    final stream = file.openRead(start, end + 1).map((chunk) {
+      sent += chunk.length;
+      final pct = totalLength == 0 ? 100 : (sent * 100 ~/ totalLength);
+      if (pct >= shown + 2 || pct == 100) {
+        shown = pct;
+        _setProgress(openOffer.id, pct / 100);
+      }
+      return chunk;
+    });
     await stream.pipe(request.response);
   }
 
-  Future<void> _handleOfferStatus(HttpRequest request, _LanSession session) async {
+  Future<void> _handleOfferStatus(
+    HttpRequest request,
+    _LanSession session,
+  ) async {
     final segments = request.uri.pathSegments;
     final offerId = segments[segments.length - 2];
 
@@ -363,6 +407,7 @@ class LanServer {
       // Only the offer's recipient can close it.
       if (_openOffers[offerId]?.to == session.clientUid) {
         _openOffers.remove(offerId);
+        lanStatus.value = {...lanStatus.value, offerId: status};
       }
     }
 

@@ -93,6 +93,10 @@ class FilesRepository {
   static const linkHandler = 'files.storagePath';
   static const viewLinkHandler = 'files.viewPath';
 
+  /// A shared copy made for someone else's record (see [ensureFingerprint]):
+  /// nothing to write back once it's uploaded.
+  static const sharedCopyLinkHandler = 'files.sharedCopy';
+
   /// A picture's progressive view on this device, next to its original.
   static const _viewName = 'view.jpg';
   static const Uuid _uuid = Uuid();
@@ -118,6 +122,10 @@ class FilesRepository {
     StorageSyncQueue.instance.registerLinkHandler(
       viewLinkHandler,
       (ctx) => instance._recordView(ctx),
+    );
+    StorageSyncQueue.instance.registerLinkHandler(
+      sharedCopyLinkHandler,
+      (_) async {},
     );
     LocalStorageManager.instance.registerSource(_FilesLocalSource());
   }
@@ -596,9 +604,15 @@ class FilesRepository {
             .doc(offer.sha256)
             .get();
         if (blobSnap.exists && blobSnap.data()?['state'] == 'ready') {
-          storagePath = MedicalStorageService.blobOriginalPath(clinicId, offer.sha256);
+          storagePath = MedicalStorageService.blobOriginalPath(
+            clinicId,
+            offer.sha256,
+          );
           if (blobSnap.data()?['hasView'] == true) {
-            viewPath = MedicalStorageService.blobViewPath(clinicId, offer.sha256);
+            viewPath = MedicalStorageService.blobViewPath(
+              clinicId,
+              offer.sha256,
+            );
           }
         }
       } catch (_) {}
@@ -628,7 +642,112 @@ class FilesRepository {
 
     await _putFile(f);
     _changed();
+    if (storagePath.isEmpty && relPath.isEmpty && offer.sha256.isNotEmpty) {
+      _linkWhenBlobReady(newId, clinicId, offer.sha256);
+    }
     return newId;
+  }
+
+  /// Received records waiting for the sender's shared copy, by record id.
+  final Map<String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>
+  _blobWaits = {};
+
+  /// Links received record [id] to the clinic's shared copy of [sha] once
+  /// it is ready. Accept can come before the sender's upload finished, and
+  /// a record with no copy on this device has no bytes until it's linked.
+  void _linkWhenBlobReady(String id, String clinicId, String sha) {
+    if (clinicId.isEmpty || _blobWaits.containsKey(id)) return;
+    _blobWaits[id] = FirebaseFirestore.instance
+        .collection('clinics')
+        .doc(clinicId)
+        .collection('blobs')
+        .doc(sha)
+        .snapshots()
+        .listen(
+          (snap) async {
+            final data = snap.data();
+            if (data == null || data['state'] != 'ready') return;
+            await _blobWaits.remove(id)?.cancel();
+            if (doctorId != clinicId) return;
+            await _patchFile(id, {
+              'storagePath': MedicalStorageService.blobOriginalPath(
+                clinicId,
+                sha,
+              ),
+              if (data['hasView'] == true)
+                'viewPath': MedicalStorageService.blobViewPath(clinicId, sha),
+            });
+            _changed();
+          },
+          onError: (Object e) {
+            _blobWaits.remove(id);
+            debugPrint('[Files] waiting for shared copy of $id: $e');
+          },
+        );
+  }
+
+  /// Files whose shared copy was queued this session by [ensureFingerprint].
+  final Set<String> _sharedCopyQueued = {};
+
+  /// Queues the clinic's shared copy of [f], which has a fingerprint but was
+  /// stored on the old per-file path (so a colleague's received record has
+  /// nothing to link to). In the background: the upload skips the bytes
+  /// when the copy is already there.
+  Future<void> _queueSharedCopy(PatientFile f) async {
+    if (!_sharedCopyQueued.add(f.id)) return;
+    try {
+      final local = await localCopy(f);
+      await StorageSyncQueue.instance.enqueue(
+        kind: UploadKind.patientFile,
+        patientId: f.patientId,
+        bytes: await local.readAsBytes(),
+        contentType: f.contentType,
+        link: UploadLink.viaHandler(
+          sharedCopyLinkHandler,
+          docId: f.id,
+          args: {'sha256': f.sha256},
+        ),
+      );
+    } catch (e) {
+      _sharedCopyQueued.remove(f.id);
+      debugPrint('[Files] shared copy of ${f.id}: $e');
+    }
+  }
+
+  /// Gives [f] a fingerprint when it has none (added before sharing
+  /// existed), so it can be offered to a colleague. Hashes this device's
+  /// copy (downloading it first) and queues the clinic's shared copy. When
+  /// the record is this person's ([f.ownerUid]), it also keeps the
+  /// fingerprint and moves to the shared copy; someone else's record is
+  /// left as it is (the rules wouldn't let this person change it).
+  /// A file with a fingerprint that was stored on the old per-file path
+  /// gets its shared copy queued in the background.
+  /// Throws [FilesException] when the file can't be fetched.
+  Future<PatientFile> ensureFingerprint(PatientFile f) async {
+    if (f.sha256.isNotEmpty) {
+      if (f.storagePath.isNotEmpty &&
+          !f.storagePath.startsWith('clinic-blobs/')) {
+        unawaited(_queueSharedCopy(f));
+      }
+      return f;
+    }
+    final local = await localCopy(f);
+    final sha = await computeFileSha256(local.path);
+    final mine = f.ownerUid == uid;
+    if (mine) await _patchFile(f.id, {'sha256': sha});
+    await StorageSyncQueue.instance.enqueue(
+      kind: UploadKind.patientFile,
+      patientId: f.patientId,
+      bytes: await local.readAsBytes(),
+      contentType: f.contentType,
+      link: UploadLink.viaHandler(
+        mine ? linkHandler : sharedCopyLinkHandler,
+        docId: f.id,
+        args: {'sha256': sha},
+      ),
+    );
+    _changed();
+    return f.copyWith(sha256: sha);
   }
 
   /// Scans local records that have a sha256 but no storagePath, and links
@@ -641,7 +760,8 @@ class FilesRepository {
     final db = await _db.localDatabase;
     final rows = await db.query(
       _files,
-      where: "doctorId = ? AND ownerUid = ? AND isDeleted = 0 AND sha256 != '' AND storagePath = ''",
+      where:
+          "doctorId = ? AND ownerUid = ? AND isDeleted = 0 AND sha256 != '' AND storagePath = ''",
       whereArgs: [clinic, me],
     );
     if (rows.isEmpty) return;
@@ -662,7 +782,10 @@ class FilesRepository {
             .doc(f.sha256)
             .get();
         if (blobSnap.exists && blobSnap.data()?['state'] == 'ready') {
-          final originalPath = MedicalStorageService.blobOriginalPath(clinic, f.sha256);
+          final originalPath = MedicalStorageService.blobOriginalPath(
+            clinic,
+            f.sha256,
+          );
           final viewPath = (blobSnap.data()?['hasView'] == true)
               ? MedicalStorageService.blobViewPath(clinic, f.sha256)
               : '';
@@ -671,9 +794,9 @@ class FilesRepository {
             if (viewPath.isNotEmpty) 'viewPath': viewPath,
           });
         } else if (f.receivedFromUid.isNotEmpty &&
-                   f.localPath.isNotEmpty &&
-                   !queued.contains(f.id) &&
-                   DateTime.now().difference(f.createdAt).inHours >= 2) {
+            f.localPath.isNotEmpty &&
+            !queued.contains(f.id) &&
+            DateTime.now().difference(f.createdAt).inHours >= 2) {
           // Task N7: 2-hour delay passed; sender did not upload to cloud, recipient uploads now
           final diskFile = await localCopy(f);
           if (await diskFile.exists()) {
@@ -690,6 +813,10 @@ class FilesRepository {
               ),
             );
           }
+        } else if (f.receivedFromUid.isNotEmpty && f.localPath.isEmpty) {
+          // Accepted from the cloud before the sender's copy was ready:
+          // link it the moment it is, not only the next time Files opens.
+          _linkWhenBlobReady(f.id, clinic, f.sha256);
         }
       } catch (_) {}
     }

@@ -46,10 +46,11 @@ List<FilesMenuItem> fileMenuItems(
     'Open',
     () => FilesActions.open(context, e.file, patientName: e.patientName),
   ),
-  FilesMenuItem(
-    'Open patient',
-    () => FilesActions.openPatient(context, ref, e.file.patientId),
-  ),
+  if (!isUnassignedPatientId(e.file.patientId))
+    FilesMenuItem(
+      'Open patient',
+      () => FilesActions.openPatient(context, ref, e.file.patientId),
+    ),
   FilesMenuItem(
     'Send to colleague…',
     () => FilesActions.sendToColleague(context, ref, [e.file]),
@@ -57,7 +58,9 @@ List<FilesMenuItem> fileMenuItems(
   if (e.canManage) ...[
     FilesMenuItem('Move to…', () => FilesActions.moveFile(context, ref, e)),
     FilesMenuItem(
-      'Change patient…',
+      isUnassignedPatientId(e.file.patientId)
+          ? 'Assign patient…'
+          : 'Change patient…',
       () => FilesActions.changePatient(context, e),
     ),
     FilesMenuItem('Rename…', () => FilesActions.renameFile(context, e)),
@@ -152,7 +155,6 @@ class _DraggableFile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!entry.canManage) return child;
     final c = context.cru;
     final feedback = Material(
       color: c.surface.withValues(alpha: 0),
@@ -201,6 +203,9 @@ class _DraggableFile extends StatelessWidget {
     final touch =
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
+    // Phones don't have the colleague row: there, only files you may move
+    // into folders are draggable, as before.
+    if (touch && !entry.canManage) return child;
     final faded = Opacity(opacity: 0.4, child: child);
     return touch
         ? LongPressDraggable<FileEntry>(
@@ -213,9 +218,19 @@ class _DraggableFile extends StatelessWidget {
             data: entry,
             feedback: feedback,
             childWhenDragging: faded,
+            dragAnchorStrategy: _besideCursor,
             child: child,
           );
   }
+
+  /// The dragged file rides just above and to the right of the pointer, so
+  /// what it is over (a folder, a colleague lifting) stays in view. The
+  /// result is where the pointer sits inside the feedback.
+  static Offset _besideCursor(
+    Draggable<Object> draggable,
+    BuildContext context,
+    Offset position,
+  ) => const Offset(-CruSpace.s20, CruSpace.s32 + CruSpace.s8);
 }
 
 /// List view: one card with Name / Patient / Folder / Added columns,
@@ -522,13 +537,7 @@ class _FileRow extends ConsumerWidget {
       children: [
         FileThumb(file: f),
         const SizedBox(width: CruSpace.s12),
-        Expanded(
-          child: _twoLines(
-            context,
-            f.name,
-            subtitle,
-          ),
-        ),
+        Expanded(child: _twoLines(context, f.name, subtitle)),
       ],
     );
 

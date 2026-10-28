@@ -6,13 +6,15 @@ import 'package:doctor_management_app/core/clinic/clinic_invites.dart';
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_team_api.dart';
+import 'package:doctor_management_app/core/people/crudoc_id.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
 import 'package:doctor_management_app/features/team/presentation/team_widgets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Settings → Clinic invites: the number clinics invite, whether they can
-/// find this person by it, and the invites waiting (Later ones included).
+/// Settings → Clinic invites: the CruDoc ID and number clinics invite,
+/// whether they can find this person by the number, and the invites waiting
+/// (Later ones included).
 class ClinicInvitesSection extends ConsumerStatefulWidget {
   const ClinicInvitesSection({super.key});
 
@@ -82,6 +84,10 @@ class _ClinicInvitesSectionState extends ConsumerState<ClinicInvitesSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        const CrudocIdCard(
+          description: 'Give your clinic admin your phone number or CruDoc ID.',
+        ),
+        const SizedBox(height: CruSpace.s12),
         CruCard(
           child: Row(
             children: [
@@ -119,9 +125,11 @@ class _ClinicInvitesSectionState extends ConsumerState<ClinicInvitesSection> {
               label: 'Let clinics find me by my phone number',
               detail: findable
                   ? 'Clinics that have your number see you’re on CruDoc and '
-                        'can invite you in the app.'
+                        'can invite you in the app. This covers your number '
+                        'only: your exact CruDoc ID always finds you.'
                   : 'Clinics can still invite your number; you’ll see it '
-                        'when you sign in.',
+                        'when you sign in. This covers your number only: '
+                        'your exact CruDoc ID always finds you.',
               checked: findable,
               enabled: !_savingFindable,
               onToggle: _savingFindable ? null : () => _setFindable(!findable),
@@ -134,9 +142,10 @@ class _ClinicInvitesSectionState extends ConsumerState<ClinicInvitesSection> {
         if (invites.isEmpty)
           Text(
             phone == null
-                ? 'No invites. Clinics invite you by phone number, so '
-                      'confirm yours above.'
-                : 'No invites. Ask your clinic admin to invite $phone.',
+                ? 'No invites. Give your clinic admin your CruDoc ID, or '
+                      'confirm your phone number above.'
+                : 'No invites. Ask your clinic admin to invite $phone or '
+                      'your CruDoc ID.',
             style: CruType.text.tint(c.label2),
           )
         else ...[
@@ -165,15 +174,13 @@ class _ClinicInvitesSectionState extends ConsumerState<ClinicInvitesSection> {
                             ? () => _act(i, join: false)
                             : null,
                       ),
-                      if (profile?['memberKind'] != 'owner') ...[
-                        const SizedBox(width: CruSpace.s8),
-                        CruCapsuleButton(
-                          label: _busy == i.id ? 'Joining…' : 'Join',
-                          onPressed: _busy == null
-                              ? () => _act(i, join: true)
-                              : null,
-                        ),
-                      ],
+                      const SizedBox(width: CruSpace.s8),
+                      CruCapsuleButton(
+                        label: _busy == i.id ? 'Joining…' : 'Join',
+                        onPressed: _busy == null
+                            ? () => _act(i, join: true)
+                            : null,
+                      ),
                     ],
                   ),
                 ),

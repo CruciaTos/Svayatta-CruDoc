@@ -52,6 +52,8 @@ class FileOffer {
     required this.expireAt,
     this.updatedAt,
     this.fromDoctorName = '',
+    this.subject = '',
+    this.note = '',
   });
 
   final String id;
@@ -92,6 +94,10 @@ class FileOffer {
   /// Name of the sender for display in the Incoming card.
   final String fromDoctorName;
 
+  /// Optional, written in the compose popup. Encrypted in Firestore.
+  final String subject;
+  final String note;
+
   FileOffer copyWith({
     FileOfferStatus? status,
     FileOfferVia? via,
@@ -116,6 +122,8 @@ class FileOffer {
     expireAt: expireAt,
     updatedAt: updatedAt ?? this.updatedAt,
     fromDoctorName: fromDoctorName ?? this.fromDoctorName,
+    subject: subject,
+    note: note,
   );
 
   /// Converts to Firestore map with encrypted PHI fields (name, thumb).
@@ -130,6 +138,8 @@ class FileOffer {
     'patientId': patientId,
     'name': FieldCipher.encrypt(name),
     'thumb': FieldCipher.encrypt(thumb),
+    if (subject.isNotEmpty) 'subject': FieldCipher.encrypt(subject),
+    if (note.isNotEmpty) 'note': FieldCipher.encrypt(note),
     'status': status.name,
     'via': via.name,
     'createdAt': Timestamp.fromDate(createdAt),
@@ -193,6 +203,8 @@ class FileOffer {
       expireAt: expire,
       updatedAt: updated,
       fromDoctorName: fromDoctorName,
+      subject: FieldCipher.decrypt(data['subject'] as String? ?? ''),
+      note: FieldCipher.decrypt(data['note'] as String? ?? ''),
     );
   }
 }

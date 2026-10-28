@@ -11,10 +11,12 @@ class ActiveTransfersNotifier extends Notifier<Map<String, TransferProgress>> {
 
   void updateProgress(TransferProgress p) {
     if (p.isDone || p.error != null) {
-      final updated = Map<String, TransferProgress>.from(state)..remove(p.offerId);
+      final updated = Map<String, TransferProgress>.from(state)
+        ..remove(p.offerId);
       state = updated;
     } else {
-      final updated = Map<String, TransferProgress>.from(state)..[p.offerId] = p;
+      final updated = Map<String, TransferProgress>.from(state)
+        ..[p.offerId] = p;
       state = updated;
     }
   }
@@ -28,8 +30,8 @@ class ActiveTransfersNotifier extends Notifier<Map<String, TransferProgress>> {
 
 final activeTransfersProvider =
     NotifierProvider<ActiveTransfersNotifier, Map<String, TransferProgress>>(
-  ActiveTransfersNotifier.new,
-);
+      ActiveTransfersNotifier.new,
+    );
 
 /// A tray at the bottom of the Files screen showing real-time LAN transfer progress (Task N6).
 class TransferProgressTray extends ConsumerWidget {

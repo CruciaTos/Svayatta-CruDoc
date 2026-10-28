@@ -11,6 +11,7 @@ import 'file_offer_model.dart';
 import 'files_repository.dart';
 import '../lan/device_registry_service.dart';
 import '../lan/lan_client.dart';
+import '../lan/offline_offer_queue.dart';
 
 /// Manages sending and receiving file offers between colleagues in a clinic.
 class FileOffersRepository {
@@ -24,18 +25,26 @@ class FileOffersRepository {
 
   String? get _currentUid => FirebaseAuth.instance.currentUser?.uid;
 
-  CollectionReference<Map<String, dynamic>> _offersCollection(String clinicId) =>
-      _firestore.collection('clinics').doc(clinicId).collection('file_offers');
+  CollectionReference<Map<String, dynamic>> _offersCollection(
+    String clinicId,
+  ) => _firestore.collection('clinics').doc(clinicId).collection('file_offers');
 
   /// Creates and sends file offers for [files] to [recipientUid].
   ///
   /// Each file gets an offer doc with its fingerprint, size, patientId,
   /// and encrypted name/thumb. Writes an audit entry for each sent file.
+  ///
+  /// A Wi-Fi offer ([FileOfferVia.lan]) doesn't wait for the server: on
+  /// clinic Wi-Fi without internet a commit never completes, and the offer
+  /// goes to the colleague over Wi-Fi anyway. Until the server has it, it
+  /// also waits in [OfflineOfferQueue], which survives a restart.
   Future<List<FileOffer>> createOffers({
     required String clinicId,
     required String recipientUid,
     required List<PatientFile> files,
     FileOfferVia via = FileOfferVia.cloud,
+    String subject = '',
+    String note = '',
   }) async {
     final senderUid = _currentUid;
     if (senderUid == null || senderUid.isEmpty) {
@@ -69,6 +78,8 @@ class FileOffersRepository {
         via: via,
         createdAt: now,
         expireAt: expire,
+        subject: subject,
+        note: note,
       );
 
       created.add(offer);
@@ -81,6 +92,18 @@ class FileOffersRepository {
         recipientUid: recipientUid,
         patientId: file.patientId,
       );
+    }
+
+    if (via == FileOfferVia.lan) {
+      final queue = OfflineOfferQueue.instance;
+      await queue.enqueueAll(created);
+      unawaited(
+        batch.commit().then(
+          (_) => queue.remove([for (final o in created) o.id]),
+          onError: (Object e) => debugPrint('[FileOffers] offer write: $e'),
+        ),
+      );
+      return created;
     }
 
     await batch.commit();
@@ -101,13 +124,15 @@ class FileOffersRepository {
         .where('status', isEqualTo: 'sent')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) {
-              return FileOffer.fromFirestore(
-                id: doc.id,
-                clinicId: clinicId,
-                data: doc.data(),
-              );
-            }).toList());
+        .map(
+          (snapshot) => snapshot.docs.map((doc) {
+            return FileOffer.fromFirestore(
+              id: doc.id,
+              clinicId: clinicId,
+              data: doc.data(),
+            );
+          }).toList(),
+        );
   }
 
   /// Every offer [myUid] sent (any status; offers expire after 30 days),
@@ -154,10 +179,11 @@ class FileOffersRepository {
     // Try direct LAN pull if offer was sent via LAN
     if (offer.via == FileOfferVia.lan) {
       try {
-        final senderDevice = await DeviceRegistryService.instance.findColleagueDevice(
-          clinicId: offer.clinicId,
-          colleagueUid: offer.from,
-        );
+        final senderDevice = await DeviceRegistryService.instance
+            .findColleagueDevice(
+              clinicId: offer.clinicId,
+              colleagueUid: offer.from,
+            );
         if (senderDevice != null) {
           final probe = await LanClient.instance.probePeer(senderDevice);
           if (probe != null) {
@@ -177,10 +203,21 @@ class FileOffersRepository {
                 offer: offer,
               )) {
                 if (progress.isDone) {
-                  await _offersCollection(offer.clinicId).doc(offer.id).update({
-                    'status': FileOfferStatus.accepted.name,
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  });
+                  // The file is saved. Don't wait for the server (no
+                  // internet: the update completes once it's back), and a
+                  // failed update must not fall through and save it twice.
+                  unawaited(
+                    _offersCollection(offer.clinicId)
+                        .doc(offer.id)
+                        .update({
+                          'status': FileOfferStatus.accepted.name,
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        })
+                        .catchError(
+                          (Object e) =>
+                              debugPrint('[FileOffers] accepted status: $e'),
+                        ),
+                  );
                   return;
                 }
               }
@@ -188,8 +225,10 @@ class FileOffersRepository {
           }
         }
       } catch (e) {
-        debugPrint('[FileOffers] LAN pull failed, falling back to cloud reference: $e');
+        debugPrint('[FileOffers] Wi-Fi pull failed: $e');
       }
+      // A Wi-Fi offer arrives over Wi-Fi only: it waits for the sender.
+      throw const SenderNotOnWifiException();
     }
 
     // Cloud reference path (or LAN fallback)
@@ -200,7 +239,9 @@ class FileOffersRepository {
     });
 
     // 2. Create recipient's own file record pointing to the shared blob
-    final newFileId = await FilesRepository.instance.createReceivedFile(offer: offer);
+    final newFileId = await FilesRepository.instance.createReceivedFile(
+      offer: offer,
+    );
 
     // 3. Audit log
     AccessAuditService.instance.fileReceived(
@@ -235,4 +276,11 @@ class FileOffersRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+}
+
+/// A Wi-Fi offer can't download yet: its sender's device doesn't answer on
+/// this Wi-Fi. [WifiOffers] retries once it does.
+class SenderNotOnWifiException extends FilesException {
+  const SenderNotOnWifiException()
+    : super("The sender isn't on this Wi-Fi yet");
 }

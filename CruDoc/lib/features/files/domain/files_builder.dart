@@ -98,7 +98,9 @@ abstract final class FilesBuilder {
     }
 
     final q = query.trim().toLowerCase();
-    String patientName(String id) => patientNames[id] ?? 'Unknown patient';
+    String patientName(String id) => isUnassignedPatientId(id)
+        ? 'No patient yet'
+        : patientNames[id] ?? 'Unknown patient';
 
     // Scope: tab, folder, patient and search (before the kind chip, so
     // the chips count what the other choices leave).

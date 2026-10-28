@@ -606,11 +606,13 @@ test('accepting joins the clinic and clears the inbox', async () => {
   assert.strictEqual(db.peek(`users/smit/clinic_invites/${inviteId}`), undefined);
 });
 
-test('the owner of another clinic cannot accept', async () => {
+test('the owner of another clinic with people in it cannot accept', async () => {
   seedClinic();
   auth.seedUser({uid: 'smit', phoneNumber: SMIT});
   db.seed('users/smit', {clinicId: 'smit', memberKind: 'owner'});
   db.seed('clinics/smit', {name: 'Smit Clinic', ownerUid: 'smit'});
+  db.seed('clinics/smit/members/smit', {active: true, isOwner: true, kind: 'doctor'});
+  db.seed('clinics/smit/members/smit-recep', {active: true, kind: 'staff'});
   const {inviteId} = await inviteSmit();
   await rejects('failed-precondition',
     call('smit', {action: 'acceptInvite', clinicId: C, inviteId}, smitToken));

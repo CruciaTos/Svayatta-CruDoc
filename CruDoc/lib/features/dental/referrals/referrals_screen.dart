@@ -37,6 +37,7 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
   @override
   Widget build(BuildContext context) {
     final referrals = ref.watch(allReferralsProvider);
+    final sharesError = ref.watch(referralSharesErrorProvider);
     final patients =
         ref.watch(patientsStreamProvider).value ?? const <Patient>[];
 
@@ -216,6 +217,19 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                     ),
                   ),
                   const SizedBox(height: CruSpace.cardGap),
+
+                  // Referrals from other doctors couldn't be loaded: say so,
+                  // rather than look like there are none.
+                  if (sharesError != null) ...[
+                    _SharesErrorCard(
+                      message: sharesError,
+                      onRetry: () {
+                        ref.invalidate(incomingSharesProvider);
+                        ref.invalidate(outgoingSharesProvider);
+                      },
+                    ),
+                    const SizedBox(height: CruSpace.cardGap),
+                  ],
 
                   // List or empty state
                   if (filtered.isEmpty)
@@ -620,6 +634,44 @@ class _ReferralListRow extends ConsumerWidget {
               }
             },
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Referrals sent to or from other doctors in CruDoc couldn't be loaded:
+/// why, and Retry.
+class _SharesErrorCard extends StatelessWidget {
+  const _SharesErrorCard({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruCard(
+      semanticLabel: "Couldn't load referrals from other doctors",
+      child: Row(
+        children: [
+          CruIcon(CruIcons.warning, size: 18, color: c.label2),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Couldn't load referrals from other doctors",
+                  style: CruType.callout.w600.tint(c.label),
+                ),
+                const SizedBox(height: CruSpace.s2),
+                Text(message, style: CruType.caption.tint(c.label2)),
+              ],
+            ),
+          ),
+          const SizedBox(width: CruSpace.s12),
+          CruCapsuleButton(label: 'Retry', onPressed: onRetry),
         ],
       ),
     );

@@ -118,13 +118,13 @@ class DeviceRegistryService {
           .collection('devices')
           .doc(deviceId)
           .update({
-        'lan': {
-          'ips': ips,
-          'port': port,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        'lastSeenAt': FieldValue.serverTimestamp(),
-      });
+            'lan': {
+              'ips': ips,
+              'port': port,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            'lastSeenAt': FieldValue.serverTimestamp(),
+          });
     } catch (e) {
       debugPrint('[DeviceRegistry] Update presence error (will retry): $e');
     }
@@ -140,18 +140,20 @@ class DeviceRegistryService {
         .collection('devices')
         .snapshots()
         .map((snap) {
-      final list = snap.docs
-          .map((d) => LanDevice.fromFirestore(
-                id: d.id,
-                clinicId: clinicId,
-                data: d.data(),
-              ))
-          .toList();
+          final list = snap.docs
+              .map(
+                (d) => LanDevice.fromFirestore(
+                  id: d.id,
+                  clinicId: clinicId,
+                  data: d.data(),
+                ),
+              )
+              .toList();
 
-      _cachedDevices = list;
-      _saveCachedDevices(clinicId, list);
-      return list;
-    });
+          _cachedDevices = list;
+          _saveCachedDevices(clinicId, list);
+          return list;
+        });
   }
 
   /// Removes a registered device doc.
@@ -181,7 +183,10 @@ class DeviceRegistryService {
 
     // Prefer device sharing same subnet
     for (final dev in devices) {
-      final matching = LanIpHelper.matchingSubnetIps(myIps: myIps, peerIps: dev.ips);
+      final matching = LanIpHelper.matchingSubnetIps(
+        myIps: myIps,
+        peerIps: dev.ips,
+      );
       if (matching.isNotEmpty && dev.port > 0) {
         return dev;
       }
@@ -195,20 +200,27 @@ class DeviceRegistryService {
 
   static const _cachePrefix = 'crudoc.lan.cached_devices.';
 
-  Future<void> _saveCachedDevices(String clinicId, List<LanDevice> devices) async {
+  Future<void> _saveCachedDevices(
+    String clinicId,
+    List<LanDevice> devices,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final list = devices.map((d) => {
-        'id': d.id,
-        'uid': d.uid,
-        'name': d.name,
-        'platform': d.platform,
-        'certPem': d.certPem,
-        'certSha256': d.certSha256,
-        'ips': d.ips,
-        'port': d.port,
-        'savedAt': DateTime.now().toIso8601String(),
-      }).toList();
+      final list = devices
+          .map(
+            (d) => {
+              'id': d.id,
+              'uid': d.uid,
+              'name': d.name,
+              'platform': d.platform,
+              'certPem': d.certPem,
+              'certSha256': d.certSha256,
+              'ips': d.ips,
+              'port': d.port,
+              'savedAt': DateTime.now().toIso8601String(),
+            },
+          )
+          .toList();
 
       await prefs.setString('$_cachePrefix$clinicId', jsonEncode(list));
     } catch (_) {}
@@ -230,17 +242,19 @@ class DeviceRegistryService {
         // Cache expires after 7 days (7-day rule, Task M2)
         if (savedAt == null || now.difference(savedAt).inDays > 7) continue;
 
-        list.add(LanDevice(
-          id: item['id'] as String? ?? '',
-          clinicId: clinicId,
-          uid: item['uid'] as String? ?? '',
-          name: item['name'] as String? ?? '',
-          platform: item['platform'] as String? ?? '',
-          certPem: item['certPem'] as String? ?? '',
-          certSha256: item['certSha256'] as String? ?? '',
-          ips: List<String>.from(item['ips'] as List? ?? []),
-          port: (item['port'] as num? ?? 0).toInt(),
-        ));
+        list.add(
+          LanDevice(
+            id: item['id'] as String? ?? '',
+            clinicId: clinicId,
+            uid: item['uid'] as String? ?? '',
+            name: item['name'] as String? ?? '',
+            platform: item['platform'] as String? ?? '',
+            certPem: item['certPem'] as String? ?? '',
+            certSha256: item['certSha256'] as String? ?? '',
+            ips: List<String>.from(item['ips'] as List? ?? []),
+            port: (item['port'] as num? ?? 0).toInt(),
+          ),
+        );
       }
       if (list.isNotEmpty) {
         _cachedDevices = list;

@@ -917,9 +917,10 @@ class _ReasonDialogState extends State<_ReasonDialog> {
 // ─────────────────────────── Finding doctors ───────────────────────────
 
 /// Checks which saved contacts are doctors on CruDoc and stores the result
-/// on each. Contacts linked by hand from the directory are left alone.
+/// on each. Contacts linked by hand (from the directory or by CruDoc ID)
+/// are left alone, even when their saved number belongs to someone else.
 /// Returns how many contacts are on CruDoc, or null when CruDoc couldn't
-/// be reached. Never throws.
+/// be reached (logged). Never throws.
 Future<int?> refreshContactMatches(
   WidgetRef ref, {
   List<ReferralContact>? only,
@@ -936,194 +937,89 @@ Future<int?> refreshContactMatches(
       clinicId: clinicId,
       contacts: contacts,
     );
-  } catch (_) {
+  } catch (e) {
+    debugPrint('[referrals] matching contacts to CruDoc failed: $e');
     return null;
   }
-  // Read now, not before: a contact saved a moment ago is included.
-  final records = await repo.all(clinicId, RecKind.referralContact);
-  for (final c in contacts) {
-    final record = records.where((r) => r.id == c.id).firstOrNull;
-    if (record == null) continue;
-    final m = matches[c.id];
-    final byHand = record.str('crudocSource') == 'directory';
-    if (m == null && (byHand || !c.onCruDoc)) continue;
-    if (m != null &&
-        m.uid == c.crudocUid &&
-        m.name == c.crudocName &&
-        m.specialty == c.crudocSpecialty) {
-      continue;
+  try {
+    // Read now, not before: a contact saved a moment ago is included.
+    final records = await repo.all(clinicId, RecKind.referralContact);
+    for (final c in contacts) {
+      final record = records.where((r) => r.id == c.id).firstOrNull;
+      if (record == null || linkedByHand(record)) continue;
+      final m = matches[c.id];
+      if (m == null && !c.onCruDoc) continue;
+      if (m != null &&
+          m.uid == c.crudocUid &&
+          m.name == c.crudocName &&
+          m.specialty == c.crudocSpecialty) {
+        continue;
+      }
+      await save(
+        record.copyWith(
+          data: {
+            ...record.data,
+            'crudocUid': m?.uid ?? '',
+            'crudocName': m?.name ?? '',
+            'crudocSpecialty': m?.specialty ?? '',
+            'crudocId': '',
+            'crudocSource': m == null ? '' : 'match',
+          },
+        ),
+      );
     }
-    await save(
-      record.copyWith(
-        data: {
-          ...record.data,
-          'crudocUid': m?.uid ?? '',
-          'crudocName': m?.name ?? '',
-          'crudocSpecialty': m?.specialty ?? '',
-          'crudocSource': m == null ? '' : 'match',
-        },
-      ),
-    );
+  } catch (e) {
+    debugPrint('[referrals] saving CruDoc matches failed: $e');
+    return null;
   }
   return contacts.where((c) => matches.containsKey(c.id) || c.onCruDoc).length;
 }
 
-/// Searches the doctors listed on CruDoc; pops the one picked.
-class FindDoctorDialog extends ConsumerStatefulWidget {
-  const FindDoctorDialog({super.key, this.initialQuery = ''});
+/// Whether a saved contact's CruDoc link was chosen by hand (picked from
+/// the directory or found by CruDoc ID), not matched by phone or email.
+bool linkedByHand(DentalRecord contact) =>
+    contact.str('crudocSource') == 'directory' ||
+    contact.str('crudocId').isNotEmpty;
 
-  final String initialQuery;
-
-  @override
-  ConsumerState<FindDoctorDialog> createState() => _FindDoctorDialogState();
-}
-
-class _FindDoctorDialogState extends ConsumerState<FindDoctorDialog> {
-  late final TextEditingController _query = TextEditingController(
-    text: widget.initialQuery,
-  );
-  List<CruDocDoctor> _results = const [];
-  bool _searching = false;
-  String _searched = '';
-  /// Why a typed CruDoc ID found no doctor (shown when nothing else matches).
-  String? _idNote;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.initialQuery.trim().length >= 2) _search();
-  }
-
-  @override
-  void dispose() {
-    _query.dispose();
-    super.dispose();
-  }
-
-  Future<void> _search() async {
-    final q = _query.text.trim();
-    if (q.length < 2) return;
-    setState(() {
-      _searching = true;
-      _idNote = null;
-    });
-    try {
-      // A CruDoc ID finds that one person, listed or not. A name can look
-      // like an ID too, so the directory is searched either way.
-      CruDocDoctor? byId;
-      if (looksLikeCrudocId(q)) {
-        try {
-          final person = await ReferralNetworkApi.instance.findByCrudocId(q);
-          if (person.isDoctor) {
-            byId = person.doctor;
-          } else {
-            _idNote =
-                "${person.doctor.name} is on CruDoc but isn't a doctor, so "
-                "they can't receive referrals.";
-          }
-        } on ReferralNetworkException catch (e) {
-          _idNote = e.message;
-        }
-      }
-      final found = await searchDirectory(
-        q,
-        selfUid: FirebaseAuth.instance.currentUser?.uid,
-      );
-      if (mounted) {
-        setState(
-          () => _results = [
-            ?byId,
-            for (final d in found)
-              if (d.uid != byId?.uid) d,
-          ],
-        );
-      }
-    } catch (_) {
-      if (mounted) recToast(context, 'Couldn\'t search right now. Try again.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _searching = false;
-          _searched = q;
+/// The saved contact for [person] (picked with showDoctorPicker), made
+/// now or brought up to date: one contact per CruDoc account, linked by
+/// hand so a phone re-match never moves it.
+Future<ReferralContact> saveCrudocContact(
+  WidgetRef ref,
+  CrudocPerson person,
+) async {
+  final save = recordSaver(ref);
+  final records = await ref
+      .read(dentalRecordsRepoProvider)
+      .all(ref.read(dentalDoctorIdProvider), RecKind.referralContact);
+  final existing = records
+      .where((r) => r.str('crudocUid') == person.uid)
+      .firstOrNull;
+  final d = person.doctor;
+  final link = {
+    'crudocUid': person.uid,
+    'crudocName': d.name,
+    'crudocSpecialty': d.specialty,
+    // Found in the directory this time: keep the ID it was found by.
+    'crudocId': person.crudocId.isNotEmpty
+        ? person.crudocId
+        : (existing?.str('crudocId') ?? ''),
+    'crudocSource': 'directory',
+  };
+  final record = existing != null
+      ? existing.copyWith(data: {...existing.data, ...link})
+      : DentalRecord.create('', RecKind.referralContact, {
+          'name': d.name,
+          'clinic': d.clinicName,
+          'specialty': d.specialty,
+          'city': d.city,
+          'phone': '',
+          'email': '',
+          'notes': '',
+          ...link,
         });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return DentalPanelDialog(
-      title: 'Find a doctor on CruDoc',
-      subtitle: 'Listed doctors, or anyone by their CruDoc ID',
-      leading: const CruIconTile(
-        icon: CruIcons.search,
-        tone: CruTileTone.neutral,
-      ),
-      width: 520,
-      footer: CruButton(
-        label: 'Close',
-        kind: CruButtonKind.secondary,
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CruTextField(
-            label: 'Name, @handle, CruDoc ID, specialty or city',
-            controller: _query,
-            autofocus: true,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _search(),
-            trailing: CruCapsuleButton(
-              label: _searching ? 'Searching…' : 'Search',
-              icon: CruIcons.search,
-              onPressed: _searching ? null : _search,
-            ),
-          ),
-          const SizedBox(height: CruSpace.s12),
-          if (_results.isEmpty && _searched.isNotEmpty && !_searching)
-            Text(
-              _idNote ??
-                  'No listed doctor matches "$_searched". Ask them for their '
-                      'CruDoc ID (Settings › Profile), or save their phone '
-                      'number: either finds them even if they aren\'t listed.',
-              style: CruType.caption.tint(c.label2),
-            ),
-          for (final d in _results)
-            DentalListRow(
-              semanticLabel: d.name,
-              onTap: () => Navigator.of(context).pop(d),
-              child: Row(
-                children: [
-                  CruMonogram(name: d.name),
-                  const SizedBox(width: CruSpace.s12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          drName(d.name),
-                          style: CruType.callout.w600.tint(c.label),
-                        ),
-                        Text(
-                          [
-                            if (d.handle.isNotEmpty) '@${d.handle}',
-                            if (d.specialty.isNotEmpty) d.specialty,
-                            if (d.city.isNotEmpty) d.city,
-                          ].join(' · '),
-                          style: CruType.caption.tint(c.label2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+  await save(record);
+  return ReferralContact.fromRecord(record);
 }
 
 /// The signed-in doctor's listing in the CruDoc directory.

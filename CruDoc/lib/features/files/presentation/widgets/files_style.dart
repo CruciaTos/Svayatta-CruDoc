@@ -3,6 +3,11 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Icons the Files screen needs that `CruIcons` doesn't have.
 abstract final class FileIcons {
+  /// Descending lines with an arrow down: sort order.
+  static const sort = CruIconData(
+    'M3 6h11M3 12h8M3 18h5M19 6v12M16 15l3 3l3-3',
+  );
+
   static const folder = CruIconData(
     'M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13'
     'a2 2 0 0 1-2-2z',

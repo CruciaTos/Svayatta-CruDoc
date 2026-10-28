@@ -6,12 +6,26 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:doctor_management_app/core/people/crudoc_id.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/encryption_key_manager.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
+
+// The CruDoc ID helpers live in core/people; re-exported so existing
+// imports keep working.
+export 'package:doctor_management_app/core/people/crudoc_id.dart'
+    show
+        CruDocDoctor,
+        CrudocIdApi,
+        CrudocIdException,
+        CrudocPerson,
+        formatCrudocId,
+        looksLikeCrudocId,
+        myCrudocIdProvider,
+        normalizeCrudocId;
 
 // Referrals between doctors who both use CruDoc. The server side, and the
 // reasoning behind who can see what, is functions/src/referrals.ts.
@@ -146,66 +160,6 @@ class ReferralShare {
   }
 }
 
-/// A doctor on CruDoc: from a contact match or a directory search.
-class CruDocDoctor {
-  const CruDocDoctor({
-    required this.uid,
-    required this.name,
-    this.specialty = '',
-    this.clinicName = '',
-    this.city = '',
-    this.handle = '',
-  });
-
-  final String uid;
-  final String name;
-  final String specialty;
-  final String clinicName;
-  final String city;
-  final String handle;
-
-  factory CruDocDoctor.fromMap(Map<String, dynamic> m) => CruDocDoctor(
-    uid: m['uid'] as String? ?? '',
-    name: (m['name'] ?? m['displayName']) as String? ?? '',
-    specialty: m['specialty'] as String? ?? '',
-    clinicName: m['clinicName'] as String? ?? '',
-    city: m['city'] as String? ?? '',
-    handle: m['handle'] as String? ?? '',
-  );
-}
-
-/// Someone found by their CruDoc ID. Only doctors can receive referrals.
-class CrudocPerson {
-  const CrudocPerson({
-    required this.doctor,
-    required this.crudocId,
-    required this.isDoctor,
-  });
-
-  /// Their name (and, for a doctor, specialty, clinic and city).
-  final CruDocDoctor doctor;
-
-  /// "K7Q9-2XMB".
-  final String crudocId;
-  final bool isDoctor;
-
-  factory CrudocPerson.fromMap(Map<String, dynamic> m) => CrudocPerson(
-    doctor: CruDocDoctor.fromMap(m),
-    crudocId: m['crudocId'] as String? ?? '',
-    isDoctor: m['isDoctor'] == true,
-  );
-}
-
-/// Whether [text] could be a CruDoc ID ("K7Q9-2XMB": any case, spaces or
-/// dashes, an optional "CD" in front, O for 0 and I or L for 1). Mirrors
-/// normalizeCrudocId in functions/src/crudoc-id.ts.
-bool looksLikeCrudocId(String text) {
-  var s = text.toUpperCase().replaceAll(RegExp(r'[\s-]'), '');
-  if (s.length == 10 && s.startsWith('CD')) s = s.substring(2);
-  s = s.replaceAll('O', '0').replaceAll(RegExp('[IL]'), '1');
-  return RegExp(r'^[0-9A-HJKMNP-TV-Z]{8}$').hasMatch(s);
-}
-
 /// The signed-in doctor's own directory listing (`doctor_directory/{uid}`).
 
 class DirectoryCard {
@@ -306,19 +260,6 @@ class ReferralNetworkApi {
       }
     }
     return out;
-  }
-
-  /// The signed-in person's CruDoc ID ("K7Q9-2XMB"), made the first time.
-  Future<String> myCrudocId() async {
-    final data = await _call('myCrudocId');
-    return data['crudocId'] as String? ?? '';
-  }
-
-  /// The one person with CruDoc ID [id]. Throws [ReferralNetworkException]
-  /// when no one has it, or they turned off being found.
-  Future<CrudocPerson> findByCrudocId(String id) async {
-    final data = await _call('findByCrudocId', {'crudocId': id.trim()});
-    return CrudocPerson.fromMap(data);
   }
 
   Future<void> saveDirectoryProfile({
@@ -521,14 +462,6 @@ final myDirectoryCardProvider = StreamProvider<DirectoryCard?>((ref) {
       .doc(uid)
       .snapshots()
       .map((s) => s.exists ? DirectoryCard.fromMap(s.data()!) : null);
-});
-
-/// The signed-in person's CruDoc ID, made the first time it's asked for.
-/// Empty in the demo.
-final myCrudocIdProvider = FutureProvider<String>((ref) async {
-  final uid = ref.watch(authStateProvider).value?.uid;
-  if (uid == null || DemoSessionService.isDemoMode) return '';
-  return ReferralNetworkApi.instance.myCrudocId();
 });
 
 /// Listed doctors matching every word of [query] (at least two letters).

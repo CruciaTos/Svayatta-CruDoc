@@ -44,6 +44,8 @@ import 'features/files/lan/device_registry_service.dart';
 import 'features/files/lan/lan_mdns_service.dart';
 import 'features/files/lan/lan_server.dart';
 import 'features/files/lan/offline_offer_queue.dart';
+import 'features/files/data/wifi_offers.dart';
+import 'features/files/presentation/incoming_card.dart' show markOfferHandled;
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
   'USE_FIREBASE_EMULATORS',
@@ -197,6 +199,9 @@ void _wireDoctorScopedStartup() {
       unawaited(_startLanServices(access, user.uid));
     },
     close: () async {
+      await _lanTeamWatch?.cancel();
+      _lanTeamWatch = null;
+      WifiOffers.instance.stop();
       await LanMdnsService.instance.stopBroadcast();
       OfflineOfferQueue.instance.stop();
       await DeviceRegistryService.instance.stop();
@@ -210,10 +215,51 @@ void _wireDoctorScopedStartup() {
   );
 }
 
+/// Waits for an owner's first colleague (see [_startLanServices]).
+StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _lanTeamWatch;
+
+/// Nearby sharing runs only where it can be used: switched on in Settings
+/// (on by default), for someone who may see clinical records, in a clinic
+/// with more than one person. Anywhere else the server would only bring up
+/// a Windows Firewall prompt. A member always has the owner as a colleague;
+/// an owner watches the member list, so sharing starts as soon as someone
+/// joins instead of on the next app start. The team answer is remembered
+/// for starts without internet.
 Future<void> _startLanServices(ClinicAccess access, String myUid) async {
-  final clinicId = access.clinicId;
+  await _lanTeamWatch?.cancel();
+  _lanTeamWatch = null;
+  if (!access.can(ClinicPermission.clinicalView)) return;
+  final prefs = await SharedPreferences.getInstance();
+  if (!(prefs.getBool('crudoc.lan.enabled') ?? true)) return;
+  if (access.clinicId != myUid) return _runLanServices(access.clinicId, myUid);
+
+  final key = 'crudoc.lan.team.${access.clinicId}';
+  var started = false;
+  Future<void> startOnce() async {
+    if (started) return;
+    started = true;
+    await _lanTeamWatch?.cancel();
+    _lanTeamWatch = null;
+    await _runLanServices(access.clinicId, myUid);
+  }
+
+  // Offline start: trust the last answer.
+  if (prefs.getBool(key) ?? false) unawaited(startOnce());
+  _lanTeamWatch = FirebaseFirestore.instance
+      .collection('clinics')
+      .doc(access.clinicId)
+      .collection('members')
+      .where('active', isEqualTo: true)
+      .snapshots()
+      .listen((snap) async {
+        final team = snap.docs.any((d) => d.id != myUid);
+        await prefs.setBool(key, team);
+        if (team) await startOnce();
+      }, onError: (Object e) => debugPrint('[LanStartup] members: $e'));
+}
+
+Future<void> _runLanServices(String clinicId, String myUid) async {
   try {
-    if (!await _nearbySharingApplies(access, myUid)) return;
     final lanPort = await LanServer.instance.start();
     await DeviceRegistryService.instance.start(
       clinicId: clinicId,
@@ -221,38 +267,14 @@ Future<void> _startLanServices(ClinicAccess access, String myUid) async {
       port: lanPort,
     );
     OfflineOfferQueue.instance.start(clinicId: clinicId);
+    WifiOffers.instance.start(
+      clinicId: clinicId,
+      uid: myUid,
+      onReceived: markOfferHandled,
+    );
     unawaited(LanMdnsService.instance.startBroadcast(port: lanPort));
   } catch (e) {
     debugPrint('[LanStartup] Non-critical LAN startup notice: $e');
-  }
-}
-
-/// Nearby sharing runs only where it can be used: switched on in Settings
-/// (on by default), for someone who may see clinical records, in a clinic
-/// with more than one person. Anywhere else the server would only bring up
-/// a Windows Firewall prompt. The team answer is remembered for starts
-/// without internet.
-Future<bool> _nearbySharingApplies(ClinicAccess access, String myUid) async {
-  if (!access.can(ClinicPermission.clinicalView)) return false;
-  final prefs = await SharedPreferences.getInstance();
-  if (!(prefs.getBool('crudoc.lan.enabled') ?? true)) return false;
-  // A member always has at least the owner as a colleague.
-  if (access.clinicId != myUid) return true;
-  final key = 'crudoc.lan.team.${access.clinicId}';
-  try {
-    final snap = await FirebaseFirestore.instance
-        .collection('clinics')
-        .doc(access.clinicId)
-        .collection('members')
-        .where('active', isEqualTo: true)
-        .limit(2)
-        .get()
-        .timeout(const Duration(seconds: 10));
-    final team = snap.docs.any((d) => d.id != myUid);
-    await prefs.setBool(key, team);
-    return team;
-  } catch (_) {
-    return prefs.getBool(key) ?? false;
   }
 }
 

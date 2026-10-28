@@ -7,7 +7,7 @@ import * as admin from "firebase-admin";
 // (production is unaffected; the classes are the same either way).
 import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {copyAssignmentsForClinic} from "./clinical-assignment";
-import {normalizeCrudocId, uidForCrudocId} from "./crudoc-id";
+import {CrudocTarget, resolveCrudocId} from "./crudoc-id";
 
 // Keep in sync with lib/core/clinic/clinic_permission.dart and the rules.
 export const PERMS = [
@@ -342,13 +342,17 @@ function tokenPhone(token: Record<string, unknown> | undefined): string | null {
 }
 
 /**
- * Whether an invite was sent to the signed-in person: its phone matches the
- * account's phone, or its email matches the account's verified email.
+ * Whether an invite was sent to the signed-in person: it names their
+ * account ([uid], set for CruDoc ID invites and numbers already on CruDoc),
+ * its phone matches the account's phone, or its email matches the account's
+ * verified email.
  */
 export function inviteMatchesCaller(
   invite: Record<string, unknown>,
-  token: Record<string, unknown> | undefined
+  token: Record<string, unknown> | undefined,
+  uid?: string
 ): boolean {
+  if (uid && invite.inviteeUid === uid) return true;
   const phone = tokenPhone(token);
   let invitePhone: string | null = null;
   if (invite.phone) {
@@ -406,6 +410,36 @@ function inboxEntry(inviteId: string, invite: Record<string, unknown>): Record<s
 async function isDiscoverable(uid: string): Promise<boolean> {
   const snap = await admin.firestore().collection("users").doc(uid).get();
   return snap.data()?.discoverable !== false;
+}
+
+/**
+ * Why [uid] can't join [clinicId] (null when they can): one account belongs
+ * to one clinic. "ownsClinic": they run a clinic that has other active
+ * members (a doctor's clinic with nobody else in it doesn't count).
+ * "memberElsewhere": they are an active member of another clinic. Used by
+ * acceptInvite and by CruDoc ID invites, so an invite that goes out can be
+ * accepted. [userData] is `users/{uid}`; reads go through [tx] when given.
+ */
+async function joinBlock(
+  uid: string,
+  clinicId: string,
+  userData: Record<string, unknown>,
+  tx?: admin.firestore.Transaction
+): Promise<"ownsClinic" | "memberElsewhere" | null> {
+  const db = admin.firestore();
+  if (clinicId !== uid) {
+    const others = db.collection("clinics").doc(uid).collection("members")
+      .where("active", "==", true).limit(2);
+    const snap = tx ? await tx.get(others) : await others.get();
+    if (snap.docs.some((d) => d.id !== uid)) return "ownsClinic";
+  }
+  const current = typeof userData.clinicId === "string" ? userData.clinicId : "";
+  if (current && current !== uid && current !== clinicId) {
+    const ref = db.collection("clinics").doc(current).collection("members").doc(uid);
+    const snap = tx ? await tx.get(ref) : await ref.get();
+    if (snap.exists && snap.data()?.active === true) return "memberElsewhere";
+  }
+  return null;
 }
 
 /** How many contact numbers one person may check per hour. */
@@ -820,8 +854,10 @@ export const clinicTeam = onCall(
 
         const phoneMatch = !!(invitePhone && tokenPhone && invitePhone === tokenPhone);
         const emailMatch = !!(inviteEmail && tokenEmail && inviteEmail === tokenEmail);
+        // Invites by CruDoc ID are addressed to the account itself.
+        const uidMatch = inviteData.inviteeUid === uid;
 
-        if (!phoneMatch && !emailMatch) {
+        if (!phoneMatch && !emailMatch && !uidMatch) {
           throw new HttpsError(
             "permission-denied",
             "Invite does not match signed-in phone number or verified email."
@@ -842,29 +878,21 @@ export const clinicTeam = onCall(
         const userSnap = await transaction.get(userRef);
         const userData = userSnap.data() || {};
 
-        // One account belongs to one clinic. Someone who runs their own
-        // clinic would otherwise be moved out of it without a word, and
+        // One account belongs to one clinic. Someone who runs a clinic with
+        // other people in it would otherwise leave them without a word, and
         // someone already working elsewhere would silently switch clinics.
-        if (clinicId !== uid) {
-          const ownClinic = await transaction.get(db.collection("clinics").doc(uid));
-          if (ownClinic.exists) {
-            throw new HttpsError(
-              "failed-precondition",
-              "You run your own clinic on CruDoc, so this account can't join another clinic."
-            );
-          }
-        }
-        const currentClinic = typeof userData.clinicId === "string" ? userData.clinicId : "";
-        if (currentClinic && currentClinic !== uid && currentClinic !== clinicId) {
-          const currentMember = await transaction.get(
-            db.collection("clinics").doc(currentClinic).collection("members").doc(uid)
+        const block = await joinBlock(uid, clinicId, userData, transaction);
+        if (block === "ownsClinic") {
+          throw new HttpsError(
+            "failed-precondition",
+            "Other people work in the clinic you run on CruDoc, so this account can't join another clinic."
           );
-          if (currentMember.exists && currentMember.data()?.active === true) {
-            throw new HttpsError(
-              "failed-precondition",
-              "You're already part of another clinic. Ask its admin to remove you first."
-            );
-          }
+        }
+        if (block === "memberElsewhere") {
+          throw new HttpsError(
+            "failed-precondition",
+            "You're already part of another clinic. Ask its admin to remove you first."
+          );
         }
 
         const memberData: Record<string, unknown> = {
@@ -919,50 +947,28 @@ export const clinicTeam = onCall(
       const caller = await loadCaller(request, clinicId);
       requirePerm(caller, "team");
 
-      let rawPhone = typeof data.phone === "string" ? data.phone.trim() : "";
-      let rawEmail = typeof data.email === "string" ? data.email.trim() : "";
+      const rawPhone = typeof data.phone === "string" ? data.phone.trim() : "";
+      const rawEmail = typeof data.email === "string" ? data.email.trim() : "";
 
-      // Invited by CruDoc ID: the invite goes to that account's phone (or
-      // verified email), exactly as if it had been typed in.
+      // Invited by CruDoc ID: the invite is addressed to that account (its
+      // uid), not to its phone or email, which the admins never see.
+      let target: CrudocTarget | null = null;
       if (typeof data.crudocId === "string" && data.crudocId.trim()) {
         if (rawPhone || rawEmail) {
           throw new HttpsError("invalid-argument",
             "Invite by a CruDoc ID, a phone number or an email, not more than one.");
         }
-        const id = normalizeCrudocId(data.crudocId);
-        if (!id) {
-          throw new HttpsError("invalid-argument",
-            "A CruDoc ID is 8 letters and numbers, like K7Q9-2XMB.");
-        }
-        const idUid = await uidForCrudocId(id);
-        const account = idUid && await isDiscoverable(idUid) ?
-          await admin.auth().getUser(idUid).catch(() => null) : null;
-        if (!account) {
-          throw new HttpsError("not-found",
-            "No one on CruDoc has that ID. Check it and try again.");
-        }
-        if (account.uid === caller.uid) {
-          throw new HttpsError("invalid-argument", "That's your own CruDoc ID.");
-        }
-        if (account.phoneNumber) {
-          rawPhone = account.phoneNumber;
-        } else if (account.email && account.emailVerified) {
-          rawEmail = account.email;
-        } else {
-          throw new HttpsError("failed-precondition",
-            "That person hasn't added a phone number to CruDoc yet. Invite them by phone instead.");
-        }
-      }
-
-      if ((rawPhone && rawEmail) || (!rawPhone && !rawEmail)) {
+        target = await resolveCrudocId(caller.uid, data.crudocId);
+      } else if ((rawPhone && rawEmail) || (!rawPhone && !rawEmail)) {
         throw new HttpsError("invalid-argument", "Provide exactly one of phone or email.");
       }
 
+      // Both stay null for a CruDoc ID invite.
       let phone: string | null = null;
       let email: string | null = null;
       if (rawPhone) {
         phone = normalizePhone(rawPhone);
-      } else {
+      } else if (rawEmail) {
         const lowerEmail = rawEmail.toLowerCase();
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lowerEmail)) {
           throw new HttpsError("invalid-argument", "Invalid email address format.");
@@ -993,25 +999,33 @@ export const clinicTeam = onCall(
         roleId
       );
 
-      const memberQuery = phone ?
-        db.collection("clinics").doc(clinicId).collection("members")
-          .where("active", "==", true).where("phone", "==", phone) :
-        db.collection("clinics").doc(clinicId).collection("members")
-          .where("active", "==", true).where("email", "==", String(email));
+      if (target) {
+        const memberSnap = await db.collection("clinics").doc(clinicId)
+          .collection("members").doc(target.uid).get();
+        if (target.uid === clinicId || (memberSnap.exists && memberSnap.data()?.active === true)) {
+          throw new HttpsError("already-exists", "That person is already in your clinic.");
+        }
+      } else {
+        const memberQuery = phone ?
+          db.collection("clinics").doc(clinicId).collection("members")
+            .where("active", "==", true).where("phone", "==", phone) :
+          db.collection("clinics").doc(clinicId).collection("members")
+            .where("active", "==", true).where("email", "==", String(email));
 
-      const existingMemberSnap = await memberQuery.limit(1).get();
-      if (!existingMemberSnap.empty) {
-        throw new HttpsError(
-          "already-exists",
-          `An active member already has that ${phone ? "phone number" : "email"}.`
-        );
+        const existingMemberSnap = await memberQuery.limit(1).get();
+        if (!existingMemberSnap.empty) {
+          throw new HttpsError(
+            "already-exists",
+            `An active member already has that ${phone ? "phone number" : "email"}.`
+          );
+        }
       }
 
-      const inviteQuery = phone ?
-        db.collection("clinics").doc(clinicId).collection("invites")
-          .where("status", "==", "pending").where("phone", "==", phone) :
-        db.collection("clinics").doc(clinicId).collection("invites")
-          .where("status", "==", "pending").where("email", "==", String(email));
+      const invites = db.collection("clinics").doc(clinicId).collection("invites")
+        .where("status", "==", "pending");
+      const inviteQuery = target ? invites.where("inviteeUid", "==", target.uid) :
+        phone ? invites.where("phone", "==", phone) :
+          invites.where("email", "==", String(email));
 
       const existingInviteSnap = await inviteQuery.get();
       const now = Date.now();
@@ -1023,8 +1037,24 @@ export const clinicTeam = onCall(
         if (exp > now) {
           throw new HttpsError(
             "already-exists",
-            `A pending invite already exists for that ${phone ? "phone number" : "email"}.`
+            `A pending invite already exists for that ${target ? "person" : phone ? "phone number" : "email"}.`
           );
+        }
+      }
+
+      // Refuse now what acceptInvite would refuse later, so the admin isn't
+      // told "Invite sent" for an invite that can never be accepted.
+      if (target) {
+        const targetUser = await db.collection("users").doc(target.uid).get();
+        const block = await joinBlock(target.uid, clinicId, targetUser.data() || {});
+        const who = target.name || "That person";
+        if (block === "ownsClinic") {
+          throw new HttpsError("failed-precondition",
+            `${who} runs a clinic on CruDoc that other people work in, so they can't join yours.`);
+        }
+        if (block === "memberElsewhere") {
+          throw new HttpsError("failed-precondition",
+            `${who} is already part of another clinic. Its admin has to remove them first.`);
         }
       }
 
@@ -1049,7 +1079,7 @@ export const clinicTeam = onCall(
       const invitePayload: Record<string, unknown> = {
         clinicId,
         clinicName,
-        name: String(data.name || "").trim(),
+        name: String(data.name || "").trim() || target?.name || "",
         kind,
         roleId,
         roleName: roleData.name || roleId,
@@ -1062,6 +1092,7 @@ export const clinicTeam = onCall(
 
       if (phone) invitePayload.phone = phone;
       if (email) invitePayload.email = email;
+      if (target) invitePayload.crudocId = target.crudocId;
       if (kind === "doctor" && data.specialty) invitePayload.specialty = String(data.specialty);
 
       const normModules = normalizeModules(data.modules);
@@ -1073,15 +1104,17 @@ export const clinicTeam = onCall(
       }
 
       const batch = db.batch();
-      // Someone who already has an account with this number gets the
-      // invite in their app straight away.
-      const inviteeUid = phone ? await uidForPhone(phone) : null;
+      // Someone invited by CruDoc ID, or who already has an account with this
+      // number, gets the invite in their app straight away.
+      const inviteeUid = target ? target.uid : phone ? await uidForPhone(phone) : null;
       if (inviteeUid) invitePayload.inviteeUid = inviteeUid;
 
       batch.set(inviteRef, invitePayload);
       if (inviteeUid) batch.set(inboxRef(inviteeUid, inviteRef.id), inboxEntry(inviteRef.id, invitePayload));
       addAuditLog(batch, clinicId, caller.uid, "team.invite", inviteRef.id);
       await batch.commit();
+
+      if (target) return {inviteId: inviteRef.id, onCruDoc: true, name: target.name};
 
       // Only say they're on CruDoc if they let people find them; either way
       // the invite reaches them.
@@ -1711,7 +1744,7 @@ export const clinicTeam = onCall(
         return {success: true};
       }
       const invite = inviteSnap.data() || {};
-      if (!inviteMatchesCaller(invite, request.auth.token as Record<string, unknown>)) {
+      if (!inviteMatchesCaller(invite, request.auth.token as Record<string, unknown>, uid)) {
         throw new HttpsError("permission-denied", "This invite isn't for you.");
       }
       const batch = db.batch();

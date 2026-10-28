@@ -8,6 +8,17 @@ import 'package:doctor_management_app/features/files/data/file_types.dart';
 /// clinical records. Stored in `visibleTo` next to person ids.
 const String kFilesTeam = 'team';
 
+/// Patient id of a file sent straight from the computer (dropped from
+/// Explorer onto a colleague) before anyone chose its patient. It sits
+/// under that doctor's id until they assign one (Change patient…).
+const String kUnassignedPatientPrefix = 'unassigned-';
+
+String unassignedPatientIdFor(String doctorUid) =>
+    '$kUnassignedPatientPrefix$doctorUid';
+
+bool isUnassignedPatientId(String patientId) =>
+    patientId.startsWith(kUnassignedPatientPrefix);
+
 /// Who a top-level folder is shared with. Folders inside it, and every
 /// file in them, follow it.
 enum FolderSharing {

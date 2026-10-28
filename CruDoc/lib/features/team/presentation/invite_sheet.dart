@@ -14,14 +14,15 @@ import 'package:doctor_management_app/features/dental/presentation/dental_featur
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/features/team/presentation/contact_invite_picker.dart';
 import 'package:doctor_management_app/features/team/presentation/features_checklist.dart';
-import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
+import 'package:doctor_management_app/core/people/crudoc_id.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Adds a doctor or staff member to the clinic by inviting their phone
-/// number. Someone already on CruDoc sees the invite in the app straight
-/// away; anyone else is sent the invite message (WhatsApp, SMS or email)
-/// and finds it waiting when they sign up with that number. On a phone the
-/// admin can pick the person from their contacts.
+/// number or CruDoc ID. Someone already on CruDoc sees the invite in the app
+/// straight away (an ID invite always goes to that account); anyone else is
+/// sent the invite message (WhatsApp, SMS or email) and finds it waiting
+/// when they sign up with that number. On a phone the admin can pick the
+/// person from their contacts.
 Future<void> showInviteDialog(BuildContext context) =>
     showDialog<void>(context: context, builder: (_) => const InviteDialog());
 
@@ -39,6 +40,9 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
 
   /// Invite by CruDoc ID instead of a phone number.
   bool _byId = false;
+
+  /// Who the typed CruDoc ID belongs to, once looked up.
+  CrudocPerson? _found;
   MemberKind _kind = MemberKind.staff;
   String? _roleId;
   DoctorSpecialty? _specialty;
@@ -67,9 +71,20 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     final picked = await pickContactToInvite(context, clinicId: clinicId);
     if (picked == null || !mounted) return;
     setState(() {
+      _byId = false;
       _name.text = picked.name;
       _phone.text = invitePhoneForForm(picked.phone);
       _notice = null;
+    });
+  }
+
+  void _resolved(CrudocPerson? person) {
+    setState(() {
+      _found = person;
+      _notice = null;
+      if (person != null && _name.text.trim().isEmpty) {
+        _name.text = person.name;
+      }
     });
   }
 
@@ -77,12 +92,22 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     final clinicId = ref.read(clinicAccessProvider).value?.clinicId;
     final name = _name.text.trim();
     if (clinicId == null || role == null) return;
-    final crudocId = _crudocId.text.trim();
+    final crudocId = normalizeCrudocId(_crudocId.text);
     if (_byId) {
-      if (name.isEmpty || !looksLikeCrudocId(crudocId)) {
+      if (crudocId == null) {
+        setState(() => _notice = 'Add their CruDoc ID, like K7Q9-2XMB.');
+        return;
+      }
+      // Only once the ID shows who it belongs to: one wrong character would
+      // invite a stranger.
+      if (_found == null) {
         setState(
-          () => _notice = 'Add a name and their CruDoc ID, like K7Q9-2XMB.',
+          () => _notice = 'Wait for their name to show under the CruDoc ID.',
         );
+        return;
+      }
+      if (name.isEmpty) {
+        setState(() => _notice = 'Add a name.');
         return;
       }
     } else if (name.isEmpty || _phone.text.trim().isEmpty) {
@@ -163,7 +188,8 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     final c = context.cru;
     final name = _name.text.trim();
     final to = _sentTo ?? '';
-    if (_result!.onCruDoc) {
+    // An ID invite goes to that account: there is no number to message.
+    if (_result!.onCruDoc || _byId) {
       return CruFormDialog(
         title: 'Invite sent',
         submitLabel: 'Done',
@@ -297,12 +323,10 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
           ),
           const SizedBox(height: CruSpace.s12),
           if (_byId)
-            CruTextField(
-              label: 'CruDoc ID',
+            CrudocIdField(
               controller: _crudocId,
-              hint: 'K7Q9-2XMB',
-              textCapitalization: TextCapitalization.characters,
-              tabular: true,
+              enabled: !_busy,
+              onResolved: _resolved,
             )
           else
             CruTextField(

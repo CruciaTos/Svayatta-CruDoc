@@ -37,9 +37,11 @@ Future<bool> confirmPhoneForInvites(BuildContext context) async {
 /// nothing needs saying. [profile] is `users/{uid}`.
 String? clinicInviteWarning(Map<String, dynamic>? profile) {
   final kind = profile?['memberKind'];
+  // The server refuses only an owner whose clinic has other people in it
+  // (clinic.ts joinBlock); this screen can't tell, so it says both.
   if (kind == 'owner') {
-    return 'This account runs its own clinic, so it can’t join another. '
-        'Sign in with a different account to join.';
+    return 'Your own clinic is kept, hidden while you work in this one. If '
+        'others work in your clinic, this account can’t join.';
   }
   final member = kind == 'doctor' || kind == 'staff';
   final onboarding = profile?['onboarding'];
@@ -222,7 +224,6 @@ class _ClinicInviteDialogState extends State<ClinicInviteDialog> {
     final invite = widget.invite;
     final clinic = invite.clinicName.isEmpty ? 'A clinic' : invite.clinicName;
     final warning = clinicInviteWarning(widget.profile);
-    final owner = widget.profile?['memberKind'] == 'owner';
     final idle = _busy == null;
     return Dialog(
       backgroundColor: c.surface,
@@ -276,17 +277,15 @@ class _ClinicInviteDialogState extends State<ClinicInviteDialog> {
                 Text(_error!, style: CruType.text.tint(c.label)),
               ],
               const SizedBox(height: CruSpace.s20),
-              if (!owner) ...[
-                CruButton(
-                  label: _busy == ClinicInviteChoice.joined
-                      ? 'Joining…'
-                      : 'Join clinic',
-                  large: true,
-                  expand: true,
-                  onPressed: idle ? () => _act(ClinicInviteChoice.joined) : null,
-                ),
-                const SizedBox(height: CruSpace.s10),
-              ],
+              CruButton(
+                label: _busy == ClinicInviteChoice.joined
+                    ? 'Joining…'
+                    : 'Join clinic',
+                large: true,
+                expand: true,
+                onPressed: idle ? () => _act(ClinicInviteChoice.joined) : null,
+              ),
+              const SizedBox(height: CruSpace.s10),
               Row(
                 children: [
                   Expanded(

@@ -825,7 +825,15 @@ service cloud.firestore {
             'from', 'to', 'batchId', 'fileId', 'sha256',
             'sizeBytes', 'contentType', 'patientId', 'name',
             'status', 'createdAt', 'expireAt'
-          ]);
+          ])
+          // Optional subject (120 characters) and note (2000), encrypted:
+          // these limits leave room for the cipher text.
+          && (!('subject' in request.resource.data)
+            || (request.resource.data.subject is string
+              && request.resource.data.subject.size() <= 1000))
+          && (!('note' in request.resource.data)
+            || (request.resource.data.note is string
+              && request.resource.data.note.size() <= 12000));
         allow update: if isAuthenticated() && resource.data.status == 'sent' && (
           (request.auth.uid == resource.data.to
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])

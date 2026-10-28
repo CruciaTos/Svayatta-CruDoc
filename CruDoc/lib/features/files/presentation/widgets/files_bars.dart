@@ -213,25 +213,19 @@ class FilesToolbar extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: CruSpace.s10),
-          Row(
-            children: [
-              Expanded(child: _FilesSearchField(focusNode: searchFocus)),
-              const SizedBox(width: CruSpace.s8),
-              _FilesSortButton(sort: sort),
-            ],
-          ),
+          _FilesSearchField(focusNode: searchFocus, sort: sort),
         ],
       );
     }
     return Row(
       children: [
-        Expanded(child: _FilesSearchField(focusNode: searchFocus)),
+        Expanded(
+          child: _FilesSearchField(focusNode: searchFocus, sort: sort),
+        ),
         const SizedBox(width: CruSpace.s12),
         _PatientButton(patientId: state.patientId),
         const SizedBox(width: CruSpace.s12),
         _FilesViewToggle(mode: state.viewMode),
-        const SizedBox(width: CruSpace.s12),
-        _FilesSortButton(sort: sort),
       ],
     );
   }
@@ -243,11 +237,12 @@ const Duration _debounce = Duration(milliseconds: 150);
 String _shortcut() =>
     defaultTargetPlatform == TargetPlatform.macOS ? '⌘F' : 'Ctrl F';
 
-/// "Search files or patients", 44 px, with the Ctrl F keycap.
+/// "Search files or patients", 44 px, with Ctrl F keycap and sort icon.
 class _FilesSearchField extends ConsumerStatefulWidget {
-  const _FilesSearchField({required this.focusNode});
+  const _FilesSearchField({required this.focusNode, required this.sort});
 
   final FocusNode focusNode;
+  final FilesSort sort;
 
   @override
   ConsumerState<_FilesSearchField> createState() => _FilesSearchFieldState();
@@ -305,7 +300,7 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
 
     return Container(
       height: CruSize.searchBar,
-      padding: const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s10, 0),
+      padding: const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s6, 0),
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
@@ -340,8 +335,8 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
               ),
             ),
           ),
-          const SizedBox(width: CruSpace.s10),
-          if (_text.text.isNotEmpty)
+          const SizedBox(width: CruSpace.s8),
+          if (_text.text.isNotEmpty) ...[
             CruIconButton(
               icon: CruIcons.close,
               size: CruSize.capsule,
@@ -349,9 +344,13 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
               semanticLabel: 'Clear search',
               tooltip: 'Clear search',
               onPressed: _clear,
-            )
-          else if (!cruIsPhone(context))
+            ),
+            const SizedBox(width: CruSpace.s4),
+          ] else if (!cruIsPhone(context)) ...[
             CruKeycap(_shortcut()),
+            const SizedBox(width: CruSpace.s6),
+          ],
+          _FilesSortIcon(sort: widget.sort),
         ],
       ),
     );
@@ -513,16 +512,16 @@ class _ToggleButton extends StatelessWidget {
   }
 }
 
-/// "Sort  Newest first ⌄".
-class _FilesSortButton extends ConsumerWidget {
-  const _FilesSortButton({required this.sort});
+/// Sort icon button inside the search field.
+class _FilesSortIcon extends ConsumerWidget {
+  const _FilesSortIcon({required this.sort});
 
   final FilesSort sort;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
     return FilesMenu(
+      endAlignedWidth: 160,
       items: [
         for (final s in FilesSort.values)
           FilesMenuItem(
@@ -531,40 +530,13 @@ class _FilesSortButton extends ConsumerWidget {
             checked: s == sort,
           ),
       ],
-      builder: (context, open) => CruPressable(
-        onTap: open,
-        semanticLabel: 'Sort by ${sort.label}',
-        builder: (context, hovered) => AnimatedContainer(
-          duration: CruMotion.of(context, CruMotion.fast),
-          curve: CruMotion.curve,
-          height: CruSize.searchBar,
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
-          decoration: ShapeDecoration(
-            color: hovered ? c.hoverFill : c.surface,
-            shape: cruShape(
-              CruRadius.control,
-              side: BorderSide(color: c.hairline),
-            ),
-            shadows: const [],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!cruIsPhone(context)) ...[
-                Text('Sort', style: CruType.text.w500.tint(c.label2)),
-                const SizedBox(width: CruSpace.s6),
-              ],
-              Text(sort.label, style: CruType.text.w500.tint(c.label)),
-              const SizedBox(width: CruSpace.s6),
-              CruIcon(
-                CruIcons.chevronDown,
-                size: 14,
-                strokeWidth: 2.2,
-                color: c.label2,
-              ),
-            ],
-          ),
-        ),
+      builder: (context, open) => CruIconButton(
+        icon: FileIcons.sort,
+        size: CruSize.capsule,
+        iconSize: 16,
+        semanticLabel: 'Sort: ${sort.label}',
+        tooltip: 'Sort: ${sort.label}',
+        onPressed: open,
       ),
     );
   }
@@ -866,7 +838,8 @@ class FileDropTarget extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     return DragTarget<FileEntry>(
-      onWillAcceptWithDetails: (d) => d.data.file.folderId != folderId,
+      onWillAcceptWithDetails: (d) =>
+          d.data.canManage && d.data.file.folderId != folderId,
       onAcceptWithDetails: (d) =>
           FilesActions.dropOnFolder(context, d.data, folderId),
       builder: (context, candidates, _) => AnimatedContainer(

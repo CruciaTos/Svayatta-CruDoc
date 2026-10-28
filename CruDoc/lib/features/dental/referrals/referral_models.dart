@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
@@ -95,6 +96,7 @@ class ReferralContact {
     this.crudocUid = '',
     this.crudocName = '',
     this.crudocSpecialty = '',
+    this.crudocId = '',
   });
 
   final String id;
@@ -113,6 +115,10 @@ class ReferralContact {
   final String crudocName;
   final String crudocSpecialty;
 
+  /// Their CruDoc ID ("K7Q9-2XMB") when they were found by it; empty
+  /// otherwise (and on contacts saved before IDs were kept).
+  final String crudocId;
+
   bool get onCruDoc => crudocUid.isNotEmpty;
 
   factory ReferralContact.fromRecord(DentalRecord r) => ReferralContact(
@@ -128,6 +134,7 @@ class ReferralContact {
     crudocUid: r.str('crudocUid'),
     crudocName: r.str('crudocName'),
     crudocSpecialty: r.str('crudocSpecialty'),
+    crudocId: r.str('crudocId'),
   );
 
   Map<String, dynamic> toData() => {
@@ -142,6 +149,7 @@ class ReferralContact {
     'crudocUid': crudocUid,
     'crudocName': crudocName,
     'crudocSpecialty': crudocSpecialty,
+    'crudocId': crudocId,
   };
 }
 
@@ -355,7 +363,9 @@ final referralContactsProvider = Provider<List<ReferralContact>>((ref) {
 });
 
 /// Provider for all referrals clinic-wide, together with the ones sent to
-/// and received from other doctors in CruDoc.
+/// and received from other doctors in CruDoc. A share stream that failed
+/// adds nothing here: [referralSharesErrorProvider] says why, so the
+/// screen doesn't just look empty.
 final allReferralsProvider = Provider<List<DentalReferral>>((ref) {
   final records =
       ref.watch(clinicRecordsProvider(RecKind.referral)).value ??
@@ -365,6 +375,22 @@ final allReferralsProvider = Provider<List<DentalReferral>>((ref) {
     outgoing: ref.watch(outgoingSharesProvider).value ?? const [],
     incoming: ref.watch(incomingSharesProvider).value ?? const [],
   );
+});
+
+/// Why the referrals sent to or from this doctor in CruDoc couldn't be
+/// loaded (a Firestore error code and message), or null when they could.
+/// Retry with `ref.invalidate` on [incomingSharesProvider] and
+/// [outgoingSharesProvider].
+final referralSharesErrorProvider = Provider<String?>((ref) {
+  final incoming = ref.watch(incomingSharesProvider);
+  final outgoing = ref.watch(outgoingSharesProvider);
+  final e = incoming.error ?? outgoing.error;
+  if (e == null) return null;
+  if (e is FirebaseException) {
+    final message = e.message ?? '';
+    return message.isEmpty ? e.code : '$message (${e.code})';
+  }
+  return '$e';
 });
 
 /// [local] referrals with the live state of those sent in CruDoc laid over

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -17,6 +18,7 @@ import 'package:doctor_management_app/core/pdf/render/pdf_text.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/settings/presentation/documents/documents_kit.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class ClinicDetailsTab extends ConsumerStatefulWidget {
@@ -346,7 +348,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final access = ref.watch(clinicAccessProvider).value;
     final canEdit = access == null || access.can(ClinicPermission.settings);
 
@@ -360,108 +361,88 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!canEdit)
-          Container(
-            margin: const EdgeInsets.only(bottom: CruSpace.s16),
-            padding: const EdgeInsets.all(CruSpace.s12),
-            decoration: ShapeDecoration(
-              color: c.surface,
-              shape: cruShape(
-                CruRadius.control,
-                side: BorderSide(color: c.hairline),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lock_outline, color: c.accentText, size: 16),
-                const SizedBox(width: CruSpace.s8),
-                Expanded(
-                  child: Text(
-                    'Only clinic admins can change these details.',
-                    style: CruType.text.tint(c.label2),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        if (!canEdit) ...[
+          const DocNotice('Only clinic admins can change these details.'),
+          const SizedBox(height: CruSpace.s16),
+        ],
 
-        // Clinic details card
+        // Letterhead
         CruCard(
           semanticLabel: 'Clinic details',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Clinic details', style: CruType.headline.tint(c.label)),
-              const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'Clinic name',
-                    controller: _name,
-                    enabled: canEdit,
-                    hint: 'Sanjeevani Clinic',
-                  ),
-                  CruTextField(
-                    label: 'Tagline',
-                    controller: _tagline,
-                    enabled: canEdit,
-                    optional: true,
-                    hint: 'Family healthcare & wellbeing',
-                  ),
-                ],
+              const DocCardHeader(
+                title: 'Clinic details',
+                description: 'Printed in the letterhead of every document.',
+              ),
+              const SizedBox(height: CruSpace.s20),
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Clinic name',
+                  controller: _name,
+                  enabled: canEdit,
+                  textCapitalization: TextCapitalization.words,
+                ),
+                second: CruTextField(
+                  label: 'Tagline',
+                  controller: _tagline,
+                  enabled: canEdit,
+                  optional: true,
+                  hint: 'A short line under the name',
+                ),
               ),
               const SizedBox(height: CruSpace.s16),
               CruTextField(
-                label: 'Address (up to 3 lines)',
+                label: 'Address',
                 controller: _address,
                 enabled: canEdit,
                 maxLines: 3,
-                hint: 'Shop 4, Ground Floor\nNear Metro Station, Mumbai 400001',
+                hint: 'Street, area, city and PIN code',
+                help: 'Up to 3 lines.',
               ),
               const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'Phone',
-                    controller: _phone,
-                    enabled: canEdit,
-                    keyboardType: TextInputType.phone,
-                  ),
-                  CruTextField(
-                    label: 'Email',
-                    controller: _email,
-                    enabled: canEdit,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                ],
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Phone',
+                  controller: _phone,
+                  enabled: canEdit,
+                  tabular: true,
+                  keyboardType: TextInputType.phone,
+                ),
+                second: CruTextField(
+                  label: 'Email',
+                  controller: _email,
+                  enabled: canEdit,
+                  keyboardType: TextInputType.emailAddress,
+                ),
               ),
               const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'Website',
-                    controller: _website,
-                    enabled: canEdit,
-                    optional: true,
-                    hint: 'https://example.com',
-                  ),
-                  CruTextField(
-                    label: 'Clinic registration number',
-                    controller: _regNo,
-                    enabled: canEdit,
-                    optional: true,
-                    hint: 'CL-2024-001',
-                  ),
-                ],
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Website',
+                  controller: _website,
+                  enabled: canEdit,
+                  optional: true,
+                  keyboardType: TextInputType.url,
+                ),
+                second: CruTextField(
+                  label: 'Registration number',
+                  controller: _regNo,
+                  enabled: canEdit,
+                  optional: true,
+                  tabular: true,
+                ),
               ),
               const SizedBox(height: CruSpace.s16),
               CruTextField(
-                label: 'Clinic timings (up to 2 lines)',
+                label: 'Clinic timings',
                 controller: _timings,
                 enabled: canEdit,
                 optional: true,
                 maxLines: 2,
-                hint: 'Mon - Sat: 9:00 AM - 8:00 PM\nSun: 10:00 AM - 1:00 PM',
+                hint: 'e.g. Mon–Sat 9 AM – 8 PM',
+                help: 'Up to 2 lines.',
               ),
             ],
           ),
@@ -474,163 +455,54 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Logo & clinic stamp',
-                style: CruType.headline.tint(c.label),
+              const DocCardHeader(
+                title: 'Logo & clinic stamp',
+                description: 'PNGs with a transparent background look best.',
               ),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                'Used across documents. PNGs with transparent backgrounds look best.',
-                style: CruType.text.tint(c.label2),
-              ),
-              const SizedBox(height: CruSpace.s16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Logo
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Clinic logo',
-                          style: CruType.subhead.w500.tint(c.label),
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                        Row(
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: ShapeDecoration(
-                                color: Colors.white,
-                                shape: cruShape(
-                                  CruRadius.control,
-                                  side: BorderSide(color: c.hairline),
-                                ),
-                              ),
-                              child: _logoBytes != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        CruRadius.control,
-                                      ),
-                                      child: Image.memory(
-                                        _logoBytes!,
-                                        fit: BoxFit.contain,
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.image_outlined,
-                                      color: c.label2,
-                                      size: 28,
-                                    ),
-                            ),
-                            const SizedBox(width: CruSpace.s12),
-                            if (canEdit)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CruButton(
-                                    label: _logoBytes == null
-                                        ? 'Upload'
-                                        : 'Replace',
-                                    kind: CruButtonKind.secondary,
-                                    onPressed: _uploadLogo,
-                                  ),
-                                  if (_logoBytes != null) ...[
-                                    const SizedBox(height: CruSpace.s6),
-                                    CruLink(
-                                      label: 'Remove',
-                                      style: CruType.subhead.tint(c.redText),
-                                      onPressed: () {
-                                        setState(() {
-                                          _logoPath = '';
-                                          _logoSha = '';
-                                          _logoBytes = null;
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ],
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Clinic stamp
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Clinic stamp',
-                          style: CruType.subhead.w500.tint(c.label),
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                        Row(
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: ShapeDecoration(
-                                color: Colors.white,
-                                shape: cruShape(
-                                  CruRadius.control,
-                                  side: BorderSide(color: c.hairline),
-                                ),
-                              ),
-                              child: _stampBytes != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(
-                                        CruRadius.control,
-                                      ),
-                                      child: Image.memory(
-                                        _stampBytes!,
-                                        fit: BoxFit.contain,
-                                      ),
-                                    )
-                                  : Icon(
-                                      Icons.approval_outlined,
-                                      color: c.label2,
-                                      size: 28,
-                                    ),
-                            ),
-                            const SizedBox(width: CruSpace.s12),
-                            if (canEdit)
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  CruButton(
-                                    label: _stampBytes == null
-                                        ? 'Upload'
-                                        : 'Replace',
-                                    kind: CruButtonKind.secondary,
-                                    onPressed: _uploadStamp,
-                                  ),
-                                  if (_stampBytes != null) ...[
-                                    const SizedBox(height: CruSpace.s6),
-                                    CruLink(
-                                      label: 'Remove',
-                                      style: CruType.subhead.tint(c.redText),
-                                      onPressed: () {
-                                        setState(() {
-                                          _stampPath = '';
-                                          _stampSha = '';
-                                          _stampBytes = null;
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ],
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              const SizedBox(height: CruSpace.s20),
+              DocSplit(
+                first: DocImageSlot(
+                  title: 'Clinic logo',
+                  caption: 'At the top of the letterhead.',
+                  bytes: _logoBytes,
+                  emptyIcon: DocIcons.image,
+                  actions: [
+                    if (canEdit)
+                      CruButton(
+                        label: _logoBytes == null ? 'Upload' : 'Replace',
+                        kind: CruButtonKind.inset,
+                        onPressed: _uploadLogo,
+                      ),
+                  ],
+                  onRemove: canEdit
+                      ? () => setState(() {
+                          _logoPath = '';
+                          _logoSha = '';
+                          _logoBytes = null;
+                        })
+                      : null,
+                ),
+                second: DocImageSlot(
+                  title: 'Clinic stamp',
+                  caption: 'Where a template places the clinic\'s stamp.',
+                  bytes: _stampBytes,
+                  emptyIcon: DocIcons.stamp,
+                  actions: [
+                    if (canEdit)
+                      CruButton(
+                        label: _stampBytes == null ? 'Upload' : 'Replace',
+                        kind: CruButtonKind.inset,
+                        onPressed: _uploadStamp,
+                      ),
+                  ],
+                  onRemove: canEdit
+                      ? () => setState(() {
+                          _stampPath = '';
+                          _stampSha = '';
+                          _stampBytes = null;
+                        })
+                      : null,
+                ),
               ),
             ],
           ),
@@ -643,77 +515,66 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Bills & payments', style: CruType.headline.tint(c.label)),
+              const DocCardHeader(title: 'Bills & payments'),
               const SizedBox(height: CruSpace.s16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  'Charge GST on bills',
-                  style: CruType.body.w500.tint(c.label),
-                ),
-                subtitle: Text(
-                  'Splits into CGST and SGST on tax invoices',
-                  style: CruType.subhead.tint(c.label2),
-                ),
+              DocToggleRow(
+                title: 'Charge GST on bills',
+                subtitle: 'Tax invoices split it into CGST and SGST.',
                 value: _gstEnabled,
                 onChanged: canEdit
                     ? (v) => setState(() => _gstEnabled = v)
                     : null,
               ),
               if (_gstEnabled) ...[
-                const SizedBox(height: CruSpace.s12),
-                CruTextField(
-                  label: 'GSTIN (15 characters)',
-                  controller: _gstin,
-                  enabled: canEdit,
-                  textCapitalization: TextCapitalization.characters,
-                  hint: '27AAAAA0000A1Z5',
+                const SizedBox(height: CruSpace.s16),
+                DocFieldPair(
+                  first: CruTextField(
+                    label: 'GSTIN',
+                    controller: _gstin,
+                    enabled: canEdit,
+                    tabular: true,
+                    textCapitalization: TextCapitalization.characters,
+                    help: '15 characters.',
+                  ),
                 ),
               ],
               const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'UPI ID for payments',
-                    controller: _upiId,
-                    enabled: canEdit,
-                    optional: true,
-                    hint: 'clinic@okhdfcbank',
-                  ),
-                  CruTextField(
-                    label: 'Name shown when paying',
-                    controller: _upiName,
-                    enabled: canEdit,
-                    optional: true,
-                    hint: 'Sanjeevani Clinic',
-                  ),
-                ],
-              ),
-              const SizedBox(height: CruSpace.s16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  'Round off to nearest rupee',
-                  style: CruType.body.w500.tint(c.label),
-                ),
-                subtitle: Text(
-                  'Eliminates paise from invoice grand totals',
-                  style: CruType.subhead.tint(c.label2),
-                ),
+              DocToggleRow(
+                title: 'Round off to the nearest rupee',
+                subtitle: 'Bill totals have no paise.',
                 value: _roundOff,
                 onChanged: canEdit
                     ? (v) => setState(() => _roundOff = v)
                     : null,
               ),
               const SizedBox(height: CruSpace.s16),
+              const CruSeparator(),
+              const SizedBox(height: CruSpace.s16),
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'UPI ID',
+                  controller: _upiId,
+                  enabled: canEdit,
+                  optional: true,
+                  keyboardType: TextInputType.emailAddress,
+                  hint: 'name@bank',
+                  help: 'Used for the UPI QR code on bills.',
+                ),
+                second: CruTextField(
+                  label: 'Name shown when paying',
+                  controller: _upiName,
+                  enabled: canEdit,
+                  optional: true,
+                ),
+              ),
+              const SizedBox(height: CruSpace.s16),
               CruTextField(
-                label: 'Bill terms & conditions',
+                label: 'Terms on bills',
                 controller: _termsText,
                 enabled: canEdit,
                 optional: true,
                 maxLines: 3,
-                hint:
-                    '1. Payment due upon receipt.\n2. Non-refundable consultation fee.\n3. Keep receipt for tax purposes.',
+                help: 'Printed at the bottom of every bill. One per line.',
               ),
             ],
           ),
@@ -726,66 +587,36 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Document numbering', style: CruType.headline.tint(c.label)),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                'Sequential numbering per financial year (April - March).',
-                style: CruType.text.tint(c.label2),
+              const DocCardHeader(
+                title: 'Document numbering',
+                description:
+                    'Each kind has its own prefix. Numbers start again every '
+                    'financial year (April to March).',
               ),
-              const SizedBox(height: CruSpace.s16),
-              for (final k in DocKind.values) ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 140,
-                      child: Text(
-                        k.label,
-                        style: CruType.body.w500.tint(c.label),
-                      ),
+              const SizedBox(height: CruSpace.s20),
+              DocFieldGrid(
+                minColumnWidth: 280,
+                children: [
+                  for (final k in DocKind.values)
+                    ListenableBuilder(
+                      listenable: _prefixCtrls[k]!,
+                      builder: (context, _) =>
+                          _prefixField(k, fy: fy, canEdit: canEdit),
                     ),
-                    const SizedBox(width: CruSpace.s12),
-                    SizedBox(
-                      width: 100,
-                      child: CruTextField(
-                        label: 'Prefix',
-                        controller: _prefixCtrls[k]!,
-                        enabled: canEdit,
-                        textCapitalization: TextCapitalization.characters,
-                        hint: k.defaultPrefix,
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s16),
-                    Expanded(
-                      child: ListenableBuilder(
-                        listenable: _prefixCtrls[k]!,
-                        builder: (context, _) {
-                          final p = _prefixCtrls[k]!.text.trim().isEmpty
-                              ? k.defaultPrefix
-                              : _prefixCtrls[k]!.text.trim().toUpperCase();
-                          return Text(
-                            'Next: $p-$fy/0001',
-                            style: CruType.subhead.tint(c.label2),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s12),
-              ],
+                ],
+              ),
             ],
           ),
         ),
         const SizedBox(height: CruSpace.cardGap),
 
-        // Footer & Templates policy
+        // Footer & template policy
         CruCard(
-          semanticLabel: 'Footer & template policy',
+          semanticLabel: 'Footer and template policy',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Footer & templates', style: CruType.headline.tint(c.label)),
+              const DocCardHeader(title: 'Footer & team templates'),
               const SizedBox(height: CruSpace.s16),
               CruTextField(
                 label: 'Footer note',
@@ -793,19 +624,12 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                 enabled: canEdit,
                 optional: true,
                 maxLines: 2,
-                help: 'Printed across all documents at the bottom.',
+                help: 'Printed at the bottom of every document.',
               ),
-              const SizedBox(height: CruSpace.s16),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  'Everyone uses clinic templates',
-                  style: CruType.body.w500.tint(c.label),
-                ),
-                subtitle: Text(
-                  'Locks team members to templates managed by the clinic',
-                  style: CruType.subhead.tint(c.label2),
-                ),
+              const SizedBox(height: CruSpace.s20),
+              DocToggleRow(
+                title: 'Everyone uses clinic templates',
+                subtitle: 'Team members can\'t pick templates of their own.',
                 value: _lockTemplates,
                 onChanged: canEdit
                     ? (v) => setState(() => _lockTemplates = v)
@@ -816,17 +640,42 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
         ),
         const SizedBox(height: CruSpace.s24),
 
-        // Save button
         if (canEdit)
-          Align(
-            alignment: Alignment.centerRight,
-            child: CruButton(
-              label: _saving ? 'Saving…' : 'Save clinic details',
-              onPressed: _saving ? null : _save,
-            ),
+          DocSaveBar(
+            label: 'Save clinic details',
+            saving: _saving,
+            onSave: _save,
           ),
         const SizedBox(height: CruSpace.s32),
       ],
+    );
+  }
+
+  /// One kind's prefix, with the number the next one will get.
+  Widget _prefixField(DocKind k, {required String fy, required bool canEdit}) {
+    final c = context.cru;
+    final typed = _prefixCtrls[k]!.text.trim().toUpperCase();
+    final p = typed.isEmpty ? k.defaultPrefix : typed;
+    return CruTextField(
+      label: k.label,
+      controller: _prefixCtrls[k]!,
+      enabled: canEdit,
+      tabular: true,
+      hint: k.defaultPrefix,
+      textCapitalization: TextCapitalization.characters,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp('[A-Za-z0-9]')),
+        LengthLimitingTextInputFormatter(5),
+      ],
+      trailing: Semantics(
+        label: 'Next number $p-$fy/0001',
+        child: ExcludeSemantics(
+          child: Text(
+            'Next $p-$fy/0001',
+            style: CruType.caption.tabular.tint(c.label3),
+          ),
+        ),
+      ),
     );
   }
 }

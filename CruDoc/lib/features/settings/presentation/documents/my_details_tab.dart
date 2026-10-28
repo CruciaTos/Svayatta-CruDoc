@@ -14,6 +14,7 @@ import 'package:doctor_management_app/core/pdf/data/doc_settings_models.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/settings/presentation/documents/documents_kit.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/signature_pad.dart';
 
@@ -233,36 +234,41 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
     final padController = SignatureController();
     final drawn = await showDialog<Uint8List>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: context.cru.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CruRadius.card),
+      builder: (ctx) => CruFormDialog(
+        title: 'Draw your signature',
+        subtitle: 'Sign with your finger, a pen or the mouse.',
+        leading: const CruIconTile(
+          icon: CruIcons.pen,
+          tone: CruTileTone.neutral,
         ),
-        title: Text('Draw signature', style: CruType.headline),
-        content: SizedBox(
-          width: 500,
+        submitLabel: 'Use signature',
+        width: CruSize.dialog + CruSpace.s32 * 3,
+        onSubmit: () async {
+          final png = await padController.toPng();
+          if (ctx.mounted) Navigator.pop(ctx, png);
+        },
+        body: Padding(
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SignaturePad(controller: padController, height: 180),
+              // The white pad on an inset tray, so its edge shows.
+              Container(
+                padding: const EdgeInsets.all(CruSpace.s6),
+                decoration: ShapeDecoration(
+                  color: ctx.cru.inset,
+                  shape: cruShape(CruRadius.control + CruSpace.s6),
+                ),
+                child: SignaturePad(controller: padController, height: 180),
+              ),
               const SizedBox(height: CruSpace.s12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  CruButton(
-                    label: 'Clear',
-                    kind: CruButtonKind.secondary,
-                    onPressed: padController.clear,
-                  ),
-                  const SizedBox(width: CruSpace.s8),
-                  CruButton(
-                    label: 'Use signature',
-                    onPressed: () async {
-                      final png = await padController.toPng();
-                      if (ctx.mounted) Navigator.pop(ctx, png);
-                    },
-                  ),
-                ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: CruButton(
+                  label: 'Clear',
+                  kind: CruButtonKind.inset,
+                  onPressed: padController.clear,
+                ),
               ),
             ],
           ),
@@ -296,55 +302,56 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            backgroundColor: ctx.cru.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(CruRadius.card),
+          builder: (ctx, setDialogState) => CruFormDialog(
+            title: 'Check your signature',
+            subtitle: 'This is how it prints on your documents.',
+            leading: const CruIconTile(
+              icon: CruIcons.pen,
+              tone: CruTileTone.neutral,
             ),
-            title: Text('Signature preview', style: CruType.headline),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 320,
-                  height: 120,
-                  decoration: ShapeDecoration(
-                    color: Colors.white,
-                    shape: cruShape(
-                      CruRadius.control,
-                      side: BorderSide(color: ctx.cru.hairline),
+            submitLabel: 'Use signature',
+            width: CruSize.dialog + CruSpace.s32 * 2,
+            onSubmit: () => Navigator.pop(ctx, true),
+            body: Padding(
+              padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    height: 120,
+                    padding: const EdgeInsets.all(CruSpace.s12),
+                    decoration: ShapeDecoration(
+                      // Printed on white paper in both appearances.
+                      color: CruBrand.white,
+                      shape: cruShape(
+                        CruRadius.control,
+                        side: BorderSide(color: ctx.cru.separator),
+                      ),
+                    ),
+                    child: Image.memory(
+                      currentPng,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
                     ),
                   ),
-                  child: Image.memory(currentPng, fit: BoxFit.contain),
-                ),
-                const SizedBox(height: CruSpace.s16),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Keep original background'),
-                  subtitle: const Text('Turn on if lines are too faint'),
-                  value: keepBg,
-                  onChanged: (v) async {
-                    setDialogState(() => keepBg = v);
-                    final updated = await prepareBrandingImage(
-                      raw,
-                      maxSide: 1000,
-                      cleanBackground: !v,
-                    );
-                    setDialogState(() => currentPng = updated);
-                  },
-                ),
-              ],
+                  const SizedBox(height: CruSpace.s16),
+                  DocToggleRow(
+                    title: 'Keep the original background',
+                    subtitle: 'Turn on if the lines look too faint.',
+                    value: keepBg,
+                    onChanged: (v) async {
+                      setDialogState(() => keepBg = v);
+                      final updated = await prepareBrandingImage(
+                        raw,
+                        maxSide: 1000,
+                        cleanBackground: !v,
+                      );
+                      setDialogState(() => currentPng = updated);
+                    },
+                  ),
+                ],
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Use signature'),
-              ),
-            ],
           ),
         ),
       );
@@ -494,7 +501,6 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final profileAsync = ref.watch(myDocProfileProvider);
     profileAsync.whenData((prof) {
       if (!_loaded) _loadInitial(prof);
@@ -503,264 +509,163 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Doctor identity card
+        // Who signs
         CruCard(
-          semanticLabel: 'Doctor identity details',
+          semanticLabel: 'Doctor details',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Doctor details', style: CruType.headline.tint(c.label)),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                'Printed on documents you issue (prescriptions, certificates, referrals, bills).',
-                style: CruType.text.tint(c.label2),
+              const DocCardHeader(
+                title: 'Doctor details',
+                description:
+                    'Printed on the prescriptions, certificates, referrals '
+                    'and bills you issue.',
               ),
-              const SizedBox(height: CruSpace.s16),
+              const SizedBox(height: CruSpace.s20),
               CruTextField(
                 label: 'Name on documents',
                 controller: _nameOnDocs,
-                hint: 'Dr. John Doe',
+                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'Qualifications',
-                    controller: _qualification,
-                    hint: 'MBBS, MD (General Medicine)',
-                  ),
-                  CruTextField(
-                    label: 'Specialty',
-                    controller: _specialty,
-                    optional: true,
-                    hint: 'Cardiology',
-                  ),
-                ],
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Qualifications',
+                  controller: _qualification,
+                  hint: 'e.g. MBBS, MD',
+                ),
+                second: CruTextField(
+                  label: 'Specialty',
+                  controller: _specialty,
+                  optional: true,
+                  textCapitalization: TextCapitalization.words,
+                ),
               ),
               const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'Registration number',
-                    controller: _regNo,
-                    hint: 'MMC 2018/06/1234',
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCouncil,
-                    decoration: InputDecoration(
-                      labelText: 'State / Medical council',
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: CruSpace.s12,
-                        vertical: CruSpace.s10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(CruRadius.control),
-                      ),
-                    ),
-                    items: [
-                      for (final council in _indianCouncils)
-                        DropdownMenuItem(
-                          value: council,
-                          child: Text(council, overflow: TextOverflow.ellipsis),
-                        ),
-                    ],
-                    onChanged: (v) {
-                      if (v != null) setState(() => _selectedCouncil = v);
-                    },
-                  ),
-                ],
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Registration number',
+                  controller: _regNo,
+                  tabular: true,
+                ),
+                second: CruDropdownField<String>(
+                  label: 'Medical council',
+                  value: _selectedCouncil,
+                  items: _indianCouncils,
+                  itemLabel: (council) => council,
+                  onChanged: (v) => setState(() => _selectedCouncil = v),
+                ),
               ),
               if (_selectedCouncil == 'Other') ...[
                 const SizedBox(height: CruSpace.s16),
-                CruTextField(
-                  label: 'Council name',
-                  controller: _customCouncil,
-                  hint: 'Medical Council of India',
+                DocFieldPair(
+                  first: CruTextField(
+                    label: 'Council name',
+                    controller: _customCouncil,
+                    textCapitalization: TextCapitalization.words,
+                  ),
                 ),
               ],
               const SizedBox(height: CruSpace.s16),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: 'Direct phone',
-                    controller: _phone,
-                    optional: true,
-                    keyboardType: TextInputType.phone,
-                  ),
-                  CruTextField(
-                    label: 'Direct email',
-                    controller: _email,
-                    optional: true,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                ],
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Direct phone',
+                  controller: _phone,
+                  optional: true,
+                  tabular: true,
+                  keyboardType: TextInputType.phone,
+                ),
+                second: CruTextField(
+                  label: 'Direct email',
+                  controller: _email,
+                  optional: true,
+                  keyboardType: TextInputType.emailAddress,
+                ),
               ),
               const SizedBox(height: CruSpace.s16),
-              CruTextField(
-                label: 'Standard consultation fee (₹)',
-                controller: _consultFee,
-                optional: true,
-                keyboardType: TextInputType.number,
-                hint: '500',
-                help:
-                    'Prefills a consultation line when you create a new bill.',
+              DocFieldPair(
+                first: CruTextField(
+                  label: 'Consultation fee',
+                  controller: _consultFee,
+                  optional: true,
+                  prefix: '₹',
+                  tabular: true,
+                  keyboardType: TextInputType.number,
+                  help: 'Prefills a consultation line on every new bill.',
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: CruSpace.cardGap),
 
-        // Signature & Stamp
+        // Signature & stamp
         CruCard(
           semanticLabel: 'Signature and stamp',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Signature & stamp', style: CruType.headline.tint(c.label)),
-              const SizedBox(height: CruSpace.s16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Signature
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Your signature',
-                          style: CruType.subhead.w500.tint(c.label),
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                        Container(
-                          width: double.infinity,
-                          height: 100,
-                          decoration: ShapeDecoration(
-                            color: Colors.white,
-                            shape: cruShape(
-                              CruRadius.control,
-                              side: BorderSide(color: c.hairline),
-                            ),
-                          ),
-                          child: _signatureBytes != null
-                              ? Image.memory(
-                                  _signatureBytes!,
-                                  fit: BoxFit.contain,
-                                )
-                              : Center(
-                                  child: Text(
-                                    'No signature saved',
-                                    style: CruType.text.tint(c.label2),
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(height: CruSpace.s12),
-                        Wrap(
-                          spacing: CruSpace.s8,
-                          runSpacing: CruSpace.s8,
-                          children: [
-                            CruButton(
-                              label: 'Draw',
-                              kind: CruButtonKind.secondary,
-                              onPressed: _drawSignature,
-                            ),
-                            CruButton(
-                              label: 'Upload photo',
-                              kind: CruButtonKind.secondary,
-                              onPressed: _uploadSignaturePhoto,
-                            ),
-                            if (_signatureBytes != null)
-                              CruLink(
-                                label: 'Remove',
-                                style: CruType.subhead.tint(c.redText),
-                                onPressed: () {
-                                  setState(() {
-                                    _signaturePath = '';
-                                    _signatureSha = '';
-                                    _signatureBytes = null;
-                                  });
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                        Text(
-                          'Only you can change your signature. It is printed only on documents you create.',
-                          style: CruType.caption.tint(c.label2),
-                        ),
-                      ],
+              const DocCardHeader(
+                title: 'Signature & stamp',
+                description:
+                    'Only you can change these. They print only on documents '
+                    'you create.',
+              ),
+              const SizedBox(height: CruSpace.s20),
+              DocSplit(
+                first: DocImageSlot(
+                  title: 'Your signature',
+                  caption: 'Draw it, or upload a photo of it on white paper.',
+                  bytes: _signatureBytes,
+                  emptyIcon: CruIcons.pen,
+                  previewWidth: 120,
+                  actions: [
+                    CruButton(
+                      label: 'Draw',
+                      kind: CruButtonKind.inset,
+                      onPressed: _drawSignature,
                     ),
-                  ),
-                  const SizedBox(width: CruSpace.s24),
-
-                  // Personal Stamp
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Personal stamp',
-                          style: CruType.subhead.w500.tint(c.label),
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                        Container(
-                          width: double.infinity,
-                          height: 100,
-                          decoration: ShapeDecoration(
-                            color: Colors.white,
-                            shape: cruShape(
-                              CruRadius.control,
-                              side: BorderSide(color: c.hairline),
-                            ),
-                          ),
-                          child: _stampBytes != null
-                              ? Image.memory(_stampBytes!, fit: BoxFit.contain)
-                              : Center(
-                                  child: Text(
-                                    'No stamp saved',
-                                    style: CruType.text.tint(c.label2),
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(height: CruSpace.s12),
-                        Wrap(
-                          spacing: CruSpace.s8,
-                          children: [
-                            CruButton(
-                              label: _stampBytes == null ? 'Upload' : 'Replace',
-                              kind: CruButtonKind.secondary,
-                              onPressed: _uploadStamp,
-                            ),
-                            if (_stampBytes != null)
-                              CruLink(
-                                label: 'Remove',
-                                style: CruType.subhead.tint(c.redText),
-                                onPressed: () {
-                                  setState(() {
-                                    _stampPath = '';
-                                    _stampSha = '';
-                                    _stampBytes = null;
-                                  });
-                                },
-                              ),
-                          ],
-                        ),
-                      ],
+                    CruButton(
+                      label: 'Upload photo',
+                      kind: CruButtonKind.inset,
+                      onPressed: _uploadSignaturePhoto,
                     ),
-                  ),
-                ],
+                  ],
+                  onRemove: () => setState(() {
+                    _signaturePath = '';
+                    _signatureSha = '';
+                    _signatureBytes = null;
+                  }),
+                ),
+                second: DocImageSlot(
+                  title: 'Personal stamp',
+                  caption: 'Your registration stamp, if you use one.',
+                  bytes: _stampBytes,
+                  emptyIcon: DocIcons.stamp,
+                  previewWidth: 120,
+                  actions: [
+                    CruButton(
+                      label: _stampBytes == null ? 'Upload' : 'Replace',
+                      kind: CruButtonKind.inset,
+                      onPressed: _uploadStamp,
+                    ),
+                  ],
+                  onRemove: () => setState(() {
+                    _stampPath = '';
+                    _stampSha = '';
+                    _stampBytes = null;
+                  }),
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: CruSpace.s24),
 
-        // Save
-        Align(
-          alignment: Alignment.centerRight,
-          child: CruButton(
-            label: _saving ? 'Saving…' : 'Save doctor details',
-            onPressed: _saving ? null : _save,
-          ),
+        DocSaveBar(
+          label: 'Save doctor details',
+          saving: _saving,
+          onSave: _save,
         ),
         const SizedBox(height: CruSpace.s32),
       ],

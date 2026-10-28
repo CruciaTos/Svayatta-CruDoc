@@ -545,6 +545,10 @@ async function send(request: CallableRequest) {
     const urgent = urgency === "urgent" ? "Urgent: " : "";
     await pushTo(recipientUid, `${urgent}New referral from ${drName(sender.displayName)}`,
       "Open CruDoc to see the patient and the details.", {type: "referral", shareId});
+    // Not referrers yet: the referral also asks them (no second push; the
+    // request shows in their notifications).
+    await askReferrer(caller.uid, recipientUid, {push: false}).catch((err) =>
+      console.warn("[referrals] referrer request with referral failed", err));
   }
   return {shareId};
 }
@@ -686,6 +690,8 @@ async function findByCrudocId(request: CallableRequest) {
  *   attachmentUrl        a short-lived link to one attached file
  *   myCrudocId           your own CruDoc ID, made the first time
  *   findByCrudocId       the one person with a CruDoc ID you typed
+ *   requestReferrer      ask a doctor to be one of your referrers
+ *   answerReferrer       accept or decline a referrer request to you
  */
 export const referralNetwork = onCall(
   {region: "asia-south1", maxInstances: 10, secrets: [patientKekPepperSecret]},
@@ -699,8 +705,101 @@ export const referralNetwork = onCall(
     case "attachmentUrl": return attachmentUrl(request);
     case "myCrudocId": return myCrudocId(request);
     case "findByCrudocId": return findByCrudocId(request);
+    case "requestReferrer": return requestReferrer(request);
+    case "answerReferrer": return answerReferrer(request);
     default: throw new HttpsError("invalid-argument", "Unknown action.");
     }
   }
 );
 
+
+// ───────────────────────────── Referrer requests ─────────────────────────────
+
+const REQUESTS = "referrer_requests";
+const REQUESTS_PER_DAY = 100;
+
+/** One request doc per pair, named by who asked: "<from>_<to>". */
+function requestRef(fromUid: string, toUid: string) {
+  return admin.firestore().collection(REQUESTS).doc(`${fromUid}_${toUid}`);
+}
+
+/** The card fields a request shows about one side. */
+function side(prefix: string, c: DoctorCard | null, uid: string,
+  crudocId: string): Record<string, string> {
+  return {
+    [`${prefix}Uid`]: uid,
+    [`${prefix}Name`]: c?.displayName ?? "",
+    [`${prefix}Specialty`]: c?.specialty ?? "",
+    [`${prefix}Clinic`]: c?.clinicName ?? "",
+    [`${prefix}City`]: c?.city ?? "",
+    [`${prefix}CrudocId`]: crudocId,
+  };
+}
+
+/**
+ * Asks [toUid] to become one of [fromUid]'s referrers. Already linked
+ * (either way round): nothing changes. They had asked [fromUid] first:
+ * that counts as both agreeing. Returns the resulting status.
+ */
+export async function askReferrer(fromUid: string, toUid: string,
+  opts: {push: boolean}): Promise<string> {
+  const [mine, theirs] = await Promise.all([
+    requestRef(fromUid, toUid).get(), requestRef(toUid, fromUid).get(),
+  ]);
+  if (mine.data()?.status === "accepted" || theirs.data()?.status === "accepted") {
+    return "accepted";
+  }
+  if (theirs.data()?.status === "pending") {
+    await theirs.ref.update({status: "accepted", answeredAt: FieldValue.serverTimestamp()});
+    return "accepted";
+  }
+  if (mine.data()?.status === "pending") return "pending";
+  const [from, to] = await Promise.all([loadDoctor(fromUid), loadDoctor(toUid)]);
+  if (!to) {
+    throw new HttpsError("failed-precondition",
+      "That person isn't a doctor on CruDoc, so they can't be a referrer.");
+  }
+  const [fromId, toId] = await Promise.all([ensureCrudocId(fromUid), ensureCrudocId(toUid)]);
+  await mine.ref.set({
+    ...side("from", from, fromUid, formatCrudocId(fromId)),
+    ...side("to", to, toUid, formatCrudocId(toId)),
+    status: "pending",
+    createdAt: FieldValue.serverTimestamp(),
+    answeredAt: null,
+  });
+  if (opts.push) {
+    await pushTo(toUid, `${drName(from?.displayName ?? "A doctor")} wants to add you as a referrer`,
+      "Open CruDoc to accept or decline.", {type: "referrer_request", fromUid});
+  }
+  return "pending";
+}
+
+/** requestReferrer {uid}: ask that doctor to be your referrer. */
+async function requestReferrer(request: CallableRequest) {
+  const uid = requireUid(request);
+  const to = String(request.data?.uid ?? "").trim();
+  if (!to) throw new HttpsError("invalid-argument", "Choose a doctor.");
+  if (to === uid) throw new HttpsError("invalid-argument", "That's you.");
+  await spend(uid, "referrerRequests", 1, REQUESTS_PER_DAY, 24 * 3600_000,
+    "That's a lot of requests today. Try again tomorrow.");
+  return {status: await askReferrer(uid, to, {push: true})};
+}
+
+/** answerReferrer {fromUid, accept}: accept or decline a request to you. */
+async function answerReferrer(request: CallableRequest) {
+  const uid = requireUid(request);
+  const fromUid = String(request.data?.fromUid ?? "").trim();
+  const accept = request.data?.accept === true;
+  const ref = requestRef(fromUid, uid);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "That request is gone.");
+  if (snap.data()?.status !== "pending") return {status: snap.data()?.status};
+  const status = accept ? "accepted" : "declined";
+  await ref.update({status, answeredAt: FieldValue.serverTimestamp()});
+  const me = await loadDoctor(uid);
+  await pushTo(fromUid,
+    `${drName(me?.displayName ?? "The doctor")} ${accept ? "accepted" : "declined"} your referrer request`,
+    accept ? "They're now in your referrers." : "They were not added to your referrers.",
+    {type: "referrer_request", toUid: uid});
+  return {status};
+}

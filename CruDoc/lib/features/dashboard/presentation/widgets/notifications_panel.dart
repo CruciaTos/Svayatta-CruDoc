@@ -3,6 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_share_flows.dart'
+    show drName;
+import 'package:doctor_management_app/features/dental/referrals/referrers_screen.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart';
@@ -117,6 +121,7 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
     final feed = ref.watch(activityFeedProvider);
     final now = ref.watch(dashboardNowProvider);
     final storage = ref.watch(storageNearlyFullProvider).value;
+    final requests = ref.watch(incomingReferrerRequestsProvider);
     final last = feed.lastPatient;
     final groups = activityGroups(feed.items, now);
     final empty =
@@ -124,6 +129,7 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
         feed.attention.isEmpty &&
         feed.birthdays.isEmpty &&
         storage == null &&
+        requests.isEmpty &&
         last == null;
 
     final sections = <Widget>[
@@ -139,6 +145,41 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
                   : activityAgo(feed.lastPatientAt!, now),
               onTap: () => _openPatient(last),
             ),
+          ],
+        ),
+      if (requests.isNotEmpty)
+        _Section(
+          title: 'Referrer requests',
+          rows: [
+            for (final r in requests)
+              _Row(
+                leading: CruMonogram(name: r.from.name, size: CruSize.iconTile),
+                title: '${drName(r.from.name)} wants to add you as a referrer',
+                subtitle: [
+                  if (r.from.doctor.specialty.isNotEmpty)
+                    r.from.doctor.specialty,
+                  if (r.from.doctor.clinicName.isNotEmpty)
+                    r.from.doctor.clinicName,
+                ].join(' · '),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CruCapsuleButton(
+                      label: 'Decline',
+                      onPressed: () =>
+                          answerReferrerRequest(context, ref, r, accept: false),
+                    ),
+                    const SizedBox(width: CruSpace.s8),
+                    CruCapsuleButton(
+                      label: 'Accept',
+                      icon: CruIcons.check,
+                      onPressed: () =>
+                          answerReferrerRequest(context, ref, r, accept: true),
+                    ),
+                  ],
+                ),
+                onTap: () => _go(DesktopTab.referrers),
+              ),
           ],
         ),
       if (feed.attention.isNotEmpty || storage != null)

@@ -159,7 +159,6 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       const _NavGroup('Radiology', [
         _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
         _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),
-        _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
       ]),
     _NavGroup('Patients', [
       const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
@@ -178,6 +177,8 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
         'Consults',
         CruIcons.arrowUpRight,
       ),
+      // Drawn inside Consults as its Referrers tab, for everyone.
+      const _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
       const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
     ]),
     _NavGroup('Clinic', [

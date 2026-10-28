@@ -26,11 +26,7 @@ enum DentalFeature {
   surgery('surgery', 'Oral surgery and implants', 'Surgeries and implants'),
   pathology('pathology', 'Oral pathology', 'Biopsies'),
   oralMedicine('oral_medicine', 'Oral medicine', 'Patient forms'),
-  sedation(
-    'sedation',
-    'Sedation and emergencies',
-    'Emergency protocols',
-  ),
+  sedation('sedation', 'Sedation and emergencies', 'Emergency protocols'),
   publicHealth('public_health', 'Public health', 'Camps and population health');
 
   const DentalFeature(this.key, this.label, this.detail);
@@ -94,9 +90,8 @@ enum DentalFeature {
     // Referrals are not here: every specialty refers patients, dental or not.
     DesktopTab.sterilization ||
     DesktopTab.procedures => chairside,
-    DesktopTab.worklist ||
-    DesktopTab.reports ||
-    DesktopTab.referrers => radiology,
+    // Referrers are not here either: everyone keeps one list of them.
+    DesktopTab.worklist || DesktopTab.reports => radiology,
     DesktopTab.perioPatients => perio,
     DesktopTab.rootCanals => endo,
     DesktopTab.pedoChildren => pedo,

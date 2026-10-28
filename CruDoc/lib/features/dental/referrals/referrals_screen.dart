@@ -134,18 +134,9 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                 title: 'Referrals',
                 subtitle: subtitle.isNotEmpty
                     ? subtitle
-                    : 'Track referrals sent to and received from other doctors',
+                    : 'Patients you refer to other doctors for further '
+                          'care, and those referred to you',
                 actions: [
-                  CruButton(
-                    label: 'Contacts',
-                    icon: CruIcons.userPlus,
-                    kind: CruButtonKind.secondary,
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => const ContactDirectoryDialog(),
-                    ),
-                  ),
-                  const SizedBox(width: CruSpace.s8),
                   CruButton(
                     label: 'New referral',
                     icon: CruIcons.plus,

@@ -677,6 +677,20 @@ service cloud.firestore {
     // either clinic, and never Super Admin. Clients list with
     // where('senderUid', '==', uid) or where('recipientUid', '==', uid).
 
+    // Referrer requests between two doctors ("<from>_<to>"), written by
+    // referralNetwork only. Each side reads its own:
+    // where('fromUid', '==', uid) or where('toUid', '==', uid).
+    match /referrer_requests/{requestId} {
+      allow get: if isAuthenticated()
+        && (resource == null
+          || request.auth.uid == resource.data.fromUid
+          || request.auth.uid == resource.data.toUid);
+      allow list: if isAuthenticated()
+        && (resource.data.fromUid == request.auth.uid
+          || resource.data.toUid == request.auth.uid);
+      allow write: if false;
+    }
+
     match /referral_shares/{shareId} {
       allow get: if isAuthenticated()
         && (resource == null

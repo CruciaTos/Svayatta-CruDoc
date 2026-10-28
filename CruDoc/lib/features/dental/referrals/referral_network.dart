@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -488,4 +489,172 @@ Future<List<CruDocDoctor>> searchDirectory(
           ))
         CruDocDoctor.fromMap({...d.data(), 'uid': d.id}),
   ];
+}
+
+// ───────────────────────────── Referrer requests ─────────────────────────────
+
+enum ReferrerRequestStatus {
+  pending,
+  accepted,
+  declined;
+
+  static ReferrerRequestStatus fromName(Object? v) => switch (v) {
+    'accepted' => accepted,
+    'declined' => declined,
+    _ => pending,
+  };
+}
+
+/// How long a declined referrer stays in the list (in red) before it goes.
+const referrerDeclineGrace = Duration(hours: 10);
+
+/// One doctor asking another to be their referrer (`referrer_requests`,
+/// written by the server). Accepted, each is in the other's referrers.
+class ReferrerRequest {
+  const ReferrerRequest({
+    required this.fromUid,
+    required this.toUid,
+    required this.from,
+    required this.to,
+    required this.status,
+    this.createdAt,
+    this.answeredAt,
+  });
+
+  final String fromUid;
+  final String toUid;
+
+  /// Each side as the server saw them when asked.
+  final CrudocPerson from;
+  final CrudocPerson to;
+  final ReferrerRequestStatus status;
+  final DateTime? createdAt;
+  final DateTime? answeredAt;
+
+  /// The other doctor, seen from [myUid].
+  CrudocPerson other(String myUid) => fromUid == myUid ? to : from;
+  String otherUid(String myUid) => fromUid == myUid ? toUid : fromUid;
+
+  /// Declined long enough ago that the referrer leaves the list.
+  bool get expired =>
+      status == ReferrerRequestStatus.declined &&
+      answeredAt != null &&
+      DateTime.now().difference(answeredAt!) > referrerDeclineGrace;
+
+  static CrudocPerson _person(Map<String, dynamic> d, String p) => CrudocPerson(
+    doctor: CruDocDoctor(
+      uid: '${d['${p}Uid'] ?? ''}',
+      name: '${d['${p}Name'] ?? ''}',
+      specialty: '${d['${p}Specialty'] ?? ''}',
+      clinicName: '${d['${p}Clinic'] ?? ''}',
+      city: '${d['${p}City'] ?? ''}',
+    ),
+    crudocId: '${d['${p}CrudocId'] ?? ''}',
+    isDoctor: true,
+  );
+
+  factory ReferrerRequest.fromMap(Map<String, dynamic> d) => ReferrerRequest(
+    fromUid: '${d['fromUid'] ?? ''}',
+    toUid: '${d['toUid'] ?? ''}',
+    from: _person(d, 'from'),
+    to: _person(d, 'to'),
+    status: ReferrerRequestStatus.fromName(d['status']),
+    createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+    answeredAt: (d['answeredAt'] as Timestamp?)?.toDate(),
+  );
+}
+
+extension ReferrerRequestsApi on ReferralNetworkApi {
+  /// Asks the doctor [uid] to be a referrer; returns 'pending' or
+  /// 'accepted' (already linked, or they had asked first).
+  Future<String> requestReferrer(String uid) async {
+    final data = await _call('requestReferrer', {'uid': uid});
+    return '${data['status'] ?? 'pending'}';
+  }
+
+  /// Accepts or declines the request [fromUid] sent.
+  Future<void> answerReferrer(String fromUid, {required bool accept}) =>
+      _call('answerReferrer', {'fromUid': fromUid, 'accept': accept});
+}
+
+Stream<List<ReferrerRequest>> _requests(String field, String uid) =>
+    FirebaseFirestore.instance
+        .collection('referrer_requests')
+        .where(field, isEqualTo: uid)
+        .snapshots()
+        .map(
+          (snap) => [
+            for (final d in snap.docs) ReferrerRequest.fromMap(d.data()),
+          ],
+        );
+
+/// Every referrer request the signed-in doctor sent or received.
+final referrerRequestsProvider = StreamProvider<List<ReferrerRequest>>((ref) {
+  final uid = ref.watch(authStateProvider).value?.uid;
+  if (uid == null || DemoSessionService.isDemoMode) {
+    return Stream.value(const []);
+  }
+  final sent = _requests('fromUid', uid);
+  final got = _requests('toUid', uid);
+  final controller = StreamController<List<ReferrerRequest>>();
+  var a = const <ReferrerRequest>[];
+  var b = const <ReferrerRequest>[];
+  void emit() => controller.add([...a, ...b]);
+  final subs = [
+    sent.listen((v) {
+      a = v;
+      emit();
+    }, onError: controller.addError),
+    got.listen((v) {
+      b = v;
+      emit();
+    }, onError: controller.addError),
+  ];
+  ref.onDispose(() {
+    for (final s in subs) {
+      s.cancel();
+    }
+    controller.close();
+  });
+  return controller.stream;
+});
+
+/// Requests to the signed-in doctor still waiting for an answer.
+final incomingReferrerRequestsProvider = Provider<List<ReferrerRequest>>((ref) {
+  final uid = ref.watch(authStateProvider).value?.uid;
+  final all = ref.watch(referrerRequestsProvider).value ?? const [];
+  return [
+    for (final r in all)
+      if (r.toUid == uid && r.status == ReferrerRequestStatus.pending) r,
+  ];
+});
+
+/// The link with each other doctor, by their uid: accepted either way
+/// round wins; otherwise what this doctor asked them.
+final referrerLinksProvider = Provider<Map<String, ReferrerRequest>>((ref) {
+  final uid = ref.watch(authStateProvider).value?.uid ?? '';
+  final all = ref.watch(referrerRequestsProvider).value ?? const [];
+  final out = <String, ReferrerRequest>{};
+  for (final r in all) {
+    final other = r.otherUid(uid);
+    final had = out[other];
+    if (r.status == ReferrerRequestStatus.accepted) {
+      out[other] = r;
+    } else if (had?.status != ReferrerRequestStatus.accepted &&
+        r.fromUid == uid) {
+      out[other] = r;
+    }
+  }
+  return out;
+});
+
+/// Asks [uid] to be a referrer in the background (they show in amber until
+/// they answer). A failure only logs: sending them a referral asks again.
+void askToBeReferrer(String uid) {
+  unawaited(
+    ReferralNetworkApi.instance
+        .requestReferrer(uid)
+        .then<void>((_) {})
+        .catchError((Object e) => debugPrint('[Referrers] ask $uid: $e')),
+  );
 }

@@ -29,7 +29,7 @@ import 'package:doctor_management_app/features/subscription/presentation/subscri
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
-import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
+import 'package:doctor_management_app/features/dental/referrals/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
@@ -93,7 +93,7 @@ Widget? mobileDestinationScreen(int tab) => switch (tab) {
   DesktopTab.procedures => const ProceduresScreen(),
   DesktopTab.worklist => const RadWorklistScreen(),
   DesktopTab.reports => const RadReportsScreen(),
-  DesktopTab.referrers => const RadReferrersScreen(),
+  DesktopTab.referrers => const ReferrersScreen(),
   DesktopTab.recalls => const RecallsScreen(),
   DesktopTab.perioPatients => const PerioPatientsScreen(),
   DesktopTab.dentalReferrals => const ReferralsScreen(),
@@ -203,9 +203,10 @@ class MobileMoreScreen extends ConsumerWidget {
       onTap: onTap,
     );
 
-    final bothReferrals =
-        specialty.any((t) => t.tab == DesktopTab.dentalReferrals) &&
-        specialty.any((t) => t.tab == DesktopTab.referrers);
+    // Consults always opens Referrals and Referrers together.
+    final bothReferrals = specialty.any(
+      (t) => t.tab == DesktopTab.dentalReferrals,
+    );
     final revenueCard =
         on('revenue') && ref.watch(clinicCanProvider(ClinicPermission.revenue));
 
@@ -312,7 +313,7 @@ class MobileMoreScreen extends ConsumerWidget {
                               child: _PageHub(
                                 pages: [
                                   ('Referrals', ReferralsScreen()),
-                                  ('Referrers', RadReferrersScreen()),
+                                  ('Referrers', ReferrersScreen()),
                                 ],
                               ),
                             ),

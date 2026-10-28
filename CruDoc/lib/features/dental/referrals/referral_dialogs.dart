@@ -158,6 +158,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
     if (person == null || !mounted) return;
     try {
       final contact = await saveCrudocContact(ref, person);
+      askToBeReferrer(person.uid);
       if (mounted) setState(() => _selectedContact = contact);
     } catch (e) {
       if (mounted) {
@@ -331,8 +332,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
     final picked = _selectedContact;
     final items = [
       ...contacts,
-      if (picked != null && !contacts.any((cnt) => cnt.id == picked.id))
-        picked,
+      if (picked != null && !contacts.any((cnt) => cnt.id == picked.id)) picked,
     ];
     final contactDropdown = DropdownButtonHideUnderline(
       child: DropdownButton<String>(
@@ -466,7 +466,9 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
           CruTextField(
             label: 'Reason for referral',
             controller: _reason,
-            hint: 'e.g. Retreatment 36, Apicoectomy, Orthodontic consult',
+            hint: dental
+                ? 'e.g. Retreatment 36, Apicoectomy, Orthodontic consult'
+                : 'e.g. Further examination of persistent knee pain',
           ),
           const SizedBox(height: CruSpace.s12),
 
@@ -490,7 +492,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
             controller: _findings,
             maxLines: 4,
             hint:
-                'Relevant symptoms, radiographic findings, prior treatments...',
+                'Relevant symptoms, examination and test findings, prior '
+                'treatment...',
           ),
           const SizedBox(height: CruSpace.s12),
 
@@ -499,8 +502,9 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
             label: 'Specific question or requested procedure',
             controller: _question,
             maxLines: 4,
-            hint:
-                'e.g. Please evaluate for surgical extraction vs endodontic retreat',
+            hint: dental
+                ? 'e.g. Please evaluate for surgical extraction vs endodontic retreat'
+                : 'e.g. Please assess for ligament injury; MRI if needed',
           ),
           const SizedBox(height: CruSpace.s12),
 
@@ -774,6 +778,10 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
           resultContact = widget.contact!;
         }
       }
+      final linkedUid = _crudoc?.uid ?? '';
+      if (linkedUid.isNotEmpty && linkedUid != widget.contact?.crudocUid) {
+        askToBeReferrer(linkedUid);
+      }
 
       if (mounted) {
         if (resultContact.onCruDoc) {
@@ -887,8 +895,12 @@ class _ContactDirectoryDialogState
         .any((cnt) => cnt.crudocUid == person.uid);
     try {
       await saveCrudocContact(ref, person);
+      askToBeReferrer(person.uid);
       if (mounted) {
-        recToast(context, '${had ? 'Updated' : 'Added'} ${drName(person.name)}');
+        recToast(
+          context,
+          '${had ? 'Updated' : 'Added'} ${drName(person.name)}',
+        );
       }
     } catch (e) {
       if (mounted) {

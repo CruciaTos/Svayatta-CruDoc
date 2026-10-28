@@ -44,7 +44,7 @@ import 'package:doctor_management_app/features/dental/specialties/anaesthesia/em
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_cases_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/forms_screen.dart';
-import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
+import 'package:doctor_management_app/features/dental/referrals/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -338,7 +338,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             _ => const TreatmentPlansScreen(),
           },
         );
-      // Referrals (sent) and referrers (who send) are one page.
+      // Referrals and referrers (the doctors and clinics they go to or
+      // come from) are one page, for everyone.
       case DesktopTab.dentalReferrals:
       case DesktopTab.referrers:
         return DesktopPageTabs(
@@ -349,7 +350,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             (DesktopTab.referrers, 'Referrers'),
           ],
           builder: (tab) => tab == DesktopTab.referrers
-              ? const RadReferrersScreen()
+              ? const ReferrersScreen()
               : const ReferralsScreen(),
         );
       // Procedures and form templates are set up from Settings › Dental.

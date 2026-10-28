@@ -75,3 +75,4 @@ export const claimSuperAdmin = onCall(async (request) => {
 });
 
 export * from "./receptionist-admin";
+export {setClinicSeats} from "./clinic-admin";

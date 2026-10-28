@@ -159,5 +159,35 @@ void main() {
         offer.expireAt.millisecondsSinceEpoch,
       );
     });
+
+    test('subject and note survive Firestore and Wi-Fi JSON', () {
+      final offer = FileOffer(
+        id: 'o1',
+        clinicId: 'c1',
+        from: 'a',
+        to: 'b',
+        batchId: 'b1',
+        fileId: 'f1',
+        sha256: 'c' * 64,
+        sizeBytes: 1,
+        contentType: 'application/pdf',
+        patientId: 'p1',
+        name: 'x.pdf',
+        thumb: '',
+        status: FileOfferStatus.sent,
+        via: FileOfferVia.cloud,
+        createdAt: DateTime.utc(2026, 10, 28),
+        expireAt: DateTime.utc(2026, 11, 27),
+        subject: 'OPG',
+        note: 'Before extraction',
+      );
+      final back = FileOffer.fromFirestore(
+        id: 'o1',
+        clinicId: 'c1',
+        data: jsonDecode(jsonEncode(offer.toJson())) as Map<String, dynamic>,
+      );
+      expect(back.subject, 'OPG');
+      expect(back.note, 'Before extraction');
+    });
   });
 }

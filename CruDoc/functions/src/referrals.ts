@@ -7,9 +7,11 @@ import * as crypto from "crypto";
 import {loadCaller, requirePerm, normalizeContactPhone} from "./clinic";
 import {decryptProfileField} from "./crypto/profileCipher";
 import {encryptField, getPepper, patientKekPepperSecret} from "./crypto/patientCipher";
-import {
-  ensureCrudocId, formatCrudocId, normalizeCrudocId, uidForCrudocId, LOOKUPS_PER_HOUR,
-} from "./crudoc-id";
+import {ensureCrudocId, formatCrudocId, resolveCrudocId, spend} from "./crudoc-id";
+
+// spend lives in crudoc-id.ts (clinic.ts needs it too, and referrals.ts
+// imports clinic.ts); re-exported for the modules that import it from here.
+export {spend};
 
 /**
  * Referrals between doctors who both use CruDoc.
@@ -31,8 +33,9 @@ import {
  * a CruDoc account, unless its owner turned off being found (the same
  * `users/{uid}.discoverable` the clinic invites use). Doctors who opt in are
  * also listed in `doctor_directory`, searchable by name, @handle, specialty
- * and city. Staff accounts and clinic managers who don't treat patients can
- * never receive a referral.
+ * and city. Anyone can be found by their exact CruDoc ID. Any doctor found
+ * one of these ways can receive a referral; staff accounts and clinic
+ * managers who don't treat patients never can.
  */
 
 export const SHARES = "referral_shares";
@@ -227,25 +230,6 @@ export async function loadDoctor(uid: string): Promise<DoctorCard | null> {
   };
 }
 
-/** Counts [n] uses of [key] against [limit] per [windowMs]; throws when over. */
-export async function spend(uid: string, key: string, n: number, limit: number,
-  windowMs: number, message: string): Promise<void> {
-  const db = admin.firestore();
-  const ref = db.collection("rate_limits").doc(uid);
-  await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
-    const prev = snap.data()?.[key] || {};
-    const now = Date.now();
-    const fresh = !(typeof prev.windowStart === "number" && now - prev.windowStart < windowMs);
-    const windowStart = fresh ? now : prev.windowStart;
-    const used = fresh ? 0 : Number(prev.count || 0);
-    if (used + n > limit) {
-      throw new HttpsError("resource-exhausted", message);
-    }
-    tx.set(ref, {[key]: {windowStart, count: used + n}}, {merge: true});
-  });
-}
-
 const DEAD_TOKEN_CODES = [
   "messaging/registration-token-not-registered",
   "messaging/invalid-registration-token",
@@ -256,10 +240,11 @@ const DEAD_TOKEN_CODES = [
  * A push notification to every device [uid] signed in on (Android, iOS).
  * Never says anything about the patient: it shows on a lock screen. Never
  * throws: a referral is sent whether or not the push gets through, and the
- * app shows it the next time it opens either way.
+ * app shows it the next time it opens either way. [channelId] is an Android
+ * channel the app creates (push_notifications.dart).
  */
 export async function pushTo(uid: string, title: string, body: string,
-  data: Record<string, string>): Promise<void> {
+  data: Record<string, string>, channelId = "referrals"): Promise<void> {
   try {
     const col = admin.firestore().collection("users").doc(uid).collection("device_tokens");
     const snap = await col.get();
@@ -269,7 +254,7 @@ export async function pushTo(uid: string, title: string, body: string,
       tokens: docs.map((d) => d.data().token as string),
       notification: {title, body},
       data,
-      android: {priority: "high", notification: {channelId: "referrals"}},
+      android: {priority: "high", notification: {channelId}},
       apns: {payload: {aps: {sound: "default"}}},
     });
     await Promise.all(res.responses.map((r, i) =>
@@ -456,7 +441,9 @@ async function send(request: CallableRequest) {
   if (!sender) {
     throw new HttpsError("permission-denied", "Only doctors can send referrals.");
   }
-  if (!recipient || !(recipient.discoverable || recipient.listed)) {
+  // Any doctor on CruDoc can take a referral: the uid only ever comes from a
+  // contact match, the directory or their exact CruDoc ID.
+  if (!recipient) {
     throw new HttpsError("not-found",
       "That doctor can't receive referrals in CruDoc. Send it on WhatsApp or email instead.");
   }
@@ -673,38 +660,20 @@ async function myCrudocId(request: CallableRequest) {
 }
 
 /**
- * The person whose CruDoc ID was typed: exact match only, never a list.
- * Not found when they turned off being found. `isDoctor` says whether
- * they can receive a referral.
+ * The person whose CruDoc ID was typed: exact match only, never a list,
+ * found even when they turned off being found by phone number. `isDoctor`
+ * says whether they can receive a referral.
  */
 async function findByCrudocId(request: CallableRequest) {
   const uid = requireUid(request);
-  const id = normalizeCrudocId(request.data?.crudocId);
-  if (!id) {
-    throw new HttpsError("invalid-argument",
-      "A CruDoc ID is 8 letters and numbers, like K7Q9-2XMB.");
-  }
-  await spend(uid, "crudocIdLookup", 1, LOOKUPS_PER_HOUR, 3600_000,
-    "That's a lot of lookups. Try again in an hour.");
-  const found = await uidForCrudocId(id);
-  if (found === uid) {
-    throw new HttpsError("invalid-argument", "That's your own CruDoc ID.");
-  }
-  const notFound = () => new HttpsError("not-found",
-    "No one on CruDoc has that ID. Check it and try again.");
-  if (!found) throw notFound();
-  const doctor = await loadDoctor(found);
+  const person = await resolveCrudocId(uid, request.data?.crudocId);
+  const doctor = await loadDoctor(person.uid);
   if (doctor) {
-    if (!doctor.discoverable) throw notFound();
-    return {...cardJson(doctor), crudocId: formatCrudocId(id), isDoctor: true};
+    return {...cardJson(doctor), crudocId: person.crudocId, isDoctor: true};
   }
-  const user = (await admin.firestore().collection("users").doc(found).get()).data();
-  if (!user || user.discoverable === false) throw notFound();
-  const name = decryptProfileField(user.name, found) ||
-    decryptProfileField(user.displayName, found) || "CruDoc user";
   return {
-    uid: found, name, specialty: "", clinicName: "", city: "", handle: "",
-    crudocId: formatCrudocId(id), isDoctor: false,
+    uid: person.uid, name: person.name || "CruDoc user", specialty: "", clinicName: "",
+    city: "", handle: "", crudocId: person.crudocId, isDoctor: false,
   };
 }
 

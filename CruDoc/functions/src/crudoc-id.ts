@@ -2,6 +2,7 @@ import * as admin from "firebase-admin";
 import {FieldValue} from "firebase-admin/firestore";
 import {HttpsError} from "firebase-functions/v2/https";
 import * as crypto from "crypto";
+import {decryptProfileField} from "./crypto/profileCipher";
 
 /**
  * CruDoc IDs: every account's permanent, unique ID ("K7Q9-2XMB"), so two
@@ -11,6 +12,10 @@ import * as crypto from "crypto";
  * `crudoc_ids/{id}` = {uid}, which only the functions read or write (see
  * firestore.rules). Lookups are exact (no partial matches, no listing) and
  * rate-limited, so IDs can't be guessed through the app.
+ *
+ * An exact ID always finds its owner: sharing it is how someone asks to be
+ * found. `users/{uid}.discoverable` only governs matching by phone number
+ * or contacts, as its switch says.
  */
 
 export const CRUDOC_IDS = "crudoc_ids";
@@ -81,4 +86,61 @@ export async function uidForCrudocId(id: string): Promise<string | null> {
   const snap = await admin.firestore().collection(CRUDOC_IDS).doc(id).get();
   const uid = snap.data()?.uid;
   return typeof uid === "string" && uid ? uid : null;
+}
+
+/** Counts [n] uses of [key] against [limit] per [windowMs]; throws when over. */
+export async function spend(uid: string, key: string, n: number, limit: number,
+  windowMs: number, message: string): Promise<void> {
+  const db = admin.firestore();
+  const ref = db.collection("rate_limits").doc(uid);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const prev = snap.data()?.[key] || {};
+    const now = Date.now();
+    const fresh = !(typeof prev.windowStart === "number" && now - prev.windowStart < windowMs);
+    const windowStart = fresh ? now : prev.windowStart;
+    const used = fresh ? 0 : Number(prev.count || 0);
+    if (used + n > limit) {
+      throw new HttpsError("resource-exhausted", message);
+    }
+    tx.set(ref, {[key]: {windowStart, count: used + n}}, {merge: true});
+  });
+}
+
+export interface CrudocTarget {
+  uid: string;
+  /** Formatted, "K7Q9-2XMB". */
+  crudocId: string;
+  /** Their profile name, "" when they have none. */
+  name: string;
+}
+
+/**
+ * The account whose CruDoc ID [raw] someone typed: the one exact-ID lookup
+ * behind every "find a person" (referrals, clinic invites). Spends one of
+ * the caller's hourly lookups, refuses their own ID, and is not-found when
+ * no profile holds the ID.
+ */
+export async function resolveCrudocId(callerUid: string, raw: unknown): Promise<CrudocTarget> {
+  const id = normalizeCrudocId(raw);
+  if (!id) {
+    throw new HttpsError("invalid-argument",
+      "A CruDoc ID is 8 letters and numbers, like K7Q9-2XMB.");
+  }
+  await spend(callerUid, "crudocIdLookup", 1, LOOKUPS_PER_HOUR, 3600_000,
+    "That's a lot of lookups. Try again in an hour.");
+  const uid = await uidForCrudocId(id);
+  if (uid === callerUid) {
+    throw new HttpsError("invalid-argument", "That is your own CruDoc ID.");
+  }
+  const user = uid ? await admin.firestore().collection("users").doc(uid).get() : null;
+  if (!uid || !user?.exists) {
+    throw new HttpsError("not-found", "No one on CruDoc has that ID.");
+  }
+  const u = user.data() || {};
+  return {
+    uid,
+    crudocId: formatCrudocId(id),
+    name: decryptProfileField(u.name, uid) || decryptProfileField(u.displayName, uid),
+  };
 }

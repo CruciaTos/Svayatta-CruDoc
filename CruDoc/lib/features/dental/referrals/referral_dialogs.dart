@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/core/people/person_picker.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
@@ -146,6 +147,22 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
     );
     if (newContact != null && mounted) {
       setState(() => _selectedContact = newContact);
+    }
+  }
+
+  /// Finds a doctor by CruDoc ID (or in the directory), saves them as a
+  /// contact (the one already saved for that account, if any) and picks
+  /// them.
+  Future<void> _findOnCruDoc() async {
+    final person = await showDoctorPicker(context);
+    if (person == null || !mounted) return;
+    try {
+      final contact = await saveCrudocContact(ref, person);
+      if (mounted) setState(() => _selectedContact = contact);
+    } catch (e) {
+      if (mounted) {
+        recToast(context, "Couldn't save ${drName(person.name)}: $e");
+      }
     }
   }
 
@@ -309,6 +326,54 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
     final dental = ref.watch(isDentalProvider);
     final shared = widget.initialReferral?.isShared ?? false;
+    // A contact saved a moment ago may not be in the list yet; the dropdown
+    // needs the picked one among its items.
+    final picked = _selectedContact;
+    final items = [
+      ...contacts,
+      if (picked != null && !contacts.any((cnt) => cnt.id == picked.id))
+        picked,
+    ];
+    final contactDropdown = DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        isExpanded: true,
+        value: picked?.id,
+        hint: Text(
+          'Select contact / doctor',
+          style: CruType.body.tint(c.label3),
+        ),
+        items: [
+          for (final cnt in items)
+            DropdownMenuItem<String>(
+              value: cnt.id,
+              child: Text(
+                '${cnt.name}${cnt.specialty.isNotEmpty ? ' · ${cnt.specialty}' : ''}'
+                '${cnt.onCruDoc ? ' · On CruDoc' : ''}',
+                style: CruType.body.tint(c.label),
+              ),
+            ),
+        ],
+        onChanged: (id) {
+          setState(() {
+            _selectedContact = items.where((cnt) => cnt.id == id).firstOrNull;
+          });
+        },
+      ),
+    );
+    final contactButtons = [
+      CruCapsuleButton(
+        label: 'CruDoc ID',
+        semanticLabel: 'Find by CruDoc ID',
+        icon: CruIcons.search,
+        onPressed: _findOnCruDoc,
+      ),
+      const SizedBox(width: CruSpace.s8),
+      CruCapsuleButton(
+        label: 'Add contact',
+        icon: CruIcons.plus,
+        onPressed: _addNewContact,
+      ),
+    ];
 
     return CruFormDialog(
       title: widget.initialReferral == null ? 'New referral' : 'Edit referral',
@@ -374,46 +439,26 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
             label: _direction == ReferralDirection.out
                 ? 'Referring to'
                 : 'Referred by',
-            child: Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _selectedContact?.id,
-                      hint: Text(
-                        'Select contact / doctor',
-                        style: CruType.body.tint(c.label3),
+            // A phone has no room for the buttons beside the list.
+            child: cruIsPhone(context)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      contactDropdown,
+                      const SizedBox(height: CruSpace.s8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: contactButtons,
                       ),
-                      items: [
-                        for (final cnt in contacts)
-                          DropdownMenuItem<String>(
-                            value: cnt.id,
-                            child: Text(
-                              '${cnt.name}${cnt.specialty.isNotEmpty ? ' · ${cnt.specialty}' : ''}'
-                              '${cnt.onCruDoc ? ' · On CruDoc' : ''}',
-                              style: CruType.body.tint(c.label),
-                            ),
-                          ),
-                      ],
-                      onChanged: (id) {
-                        setState(() {
-                          _selectedContact = contacts
-                              .where((cnt) => cnt.id == id)
-                              .firstOrNull;
-                        });
-                      },
-                    ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: contactDropdown),
+                      const SizedBox(width: CruSpace.s8),
+                      ...contactButtons,
+                    ],
                   ),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                CruCapsuleButton(
-                  label: 'Add contact',
-                  icon: CruIcons.plus,
-                  onPressed: _addNewContact,
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: CruSpace.s12),
 
@@ -559,9 +604,16 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
 /// Dialog to add or edit an external referral contact.
 class EditContactDialog extends ConsumerStatefulWidget {
-  const EditContactDialog({super.key, this.contact});
+  const EditContactDialog({
+    super.key,
+    this.contact,
+    this.initialSpecialty = '',
+  });
 
   final ReferralContact? contact;
+
+  /// For a new contact: the specialty filled in ("Dental lab").
+  final String initialSpecialty;
 
   @override
   ConsumerState<EditContactDialog> createState() => _EditContactDialogState();
@@ -579,9 +631,13 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
   bool _busy = false;
 
   /// Linked CruDoc account (uid, name, specialty), and whether it was
-  /// picked by hand from the directory rather than matched by number.
+  /// picked by hand (from the directory or by CruDoc ID) rather than
+  /// matched by number.
   late CruDocDoctor? _crudoc;
   late bool _linkedByHand;
+
+  /// The CruDoc ID it was found by; empty when it wasn't.
+  late String _crudocId;
 
   @override
   void initState() {
@@ -589,7 +645,9 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
     final c = widget.contact;
     _name = TextEditingController(text: c?.name ?? '');
     _clinic = TextEditingController(text: c?.clinic ?? '');
-    _specialty = TextEditingController(text: c?.specialty ?? '');
+    _specialty = TextEditingController(
+      text: c?.specialty ?? widget.initialSpecialty,
+    );
     _phone = TextEditingController(text: c?.phone ?? '');
     _email = TextEditingController(text: c?.email ?? '');
     _city = TextEditingController(text: c?.city ?? '');
@@ -608,17 +666,20 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
         (ref.read(clinicRecordsProvider(RecKind.referralContact)).value ?? [])
             .where((r) => r.id == c?.id)
             .firstOrNull;
-    _linkedByHand = record?.str('crudocSource') == 'directory';
+    _linkedByHand = record != null && linkedByHand(record);
+    _crudocId = c?.crudocId ?? '';
   }
 
   Future<void> _findOnCruDoc() async {
-    final picked = await showDialog<CruDocDoctor>(
-      context: context,
-      builder: (_) => FindDoctorDialog(initialQuery: _name.text.trim()),
+    final person = await showDoctorPicker(
+      context,
+      initialQuery: _name.text.trim(),
     );
-    if (picked == null || !mounted) return;
+    if (person == null || !mounted) return;
+    final picked = person.doctor;
     setState(() {
       _crudoc = picked;
+      _crudocId = person.crudocId;
       _linkedByHand = true;
       if (_name.text.trim().isEmpty) _name.text = picked.name;
       if (_specialty.text.trim().isEmpty) _specialty.text = picked.specialty;
@@ -684,6 +745,7 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
         'crudocUid': _crudoc?.uid ?? '',
         'crudocName': _crudoc?.name ?? '',
         'crudocSpecialty': _crudoc?.specialty ?? '',
+        'crudocId': _crudoc != null && _linkedByHand ? _crudocId : '',
         'crudocSource': _crudoc == null
             ? ''
             : (_linkedByHand ? 'directory' : 'match'),
@@ -740,9 +802,11 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
           _CruDocLinkRow(
             doctor: _crudoc,
             byHand: _linkedByHand,
+            crudocId: _crudocId,
             onFind: _findOnCruDoc,
             onUnlink: () => setState(() {
               _crudoc = null;
+              _crudocId = '';
               _linkedByHand = false;
             }),
           ),
@@ -816,26 +880,21 @@ class _ContactDirectoryDialogState
   }
 
   Future<void> _addFromCruDoc() async {
-    final picked = await showDialog<CruDocDoctor>(
-      context: context,
-      builder: (_) => const FindDoctorDialog(),
-    );
-    if (picked == null || !mounted) return;
-    final rec = DentalRecord.create('', RecKind.referralContact, {
-      'name': picked.name,
-      'clinic': picked.clinicName,
-      'specialty': picked.specialty,
-      'city': picked.city,
-      'phone': '',
-      'email': '',
-      'notes': '',
-      'crudocUid': picked.uid,
-      'crudocName': picked.name,
-      'crudocSpecialty': picked.specialty,
-      'crudocSource': 'directory',
-    });
-    await saveDentalRecord(ref, rec);
-    if (mounted) recToast(context, 'Added ${drName(picked.name)}');
+    final person = await showDoctorPicker(context);
+    if (person == null || !mounted) return;
+    final had = ref
+        .read(referralContactsProvider)
+        .any((cnt) => cnt.crudocUid == person.uid);
+    try {
+      await saveCrudocContact(ref, person);
+      if (mounted) {
+        recToast(context, '${had ? 'Updated' : 'Added'} ${drName(person.name)}');
+      }
+    } catch (e) {
+      if (mounted) {
+        recToast(context, "Couldn't save ${drName(person.name)}: $e");
+      }
+    }
   }
 
   @override
@@ -914,13 +973,7 @@ class _ContactDirectoryDialogState
                   onPressed: () => showDialog<void>(
                     context: context,
                     builder: (_) => EditContactDialog(
-                      contact: _labsOnly
-                          ? const ReferralContact(
-                              id: '',
-                              name: '',
-                              specialty: 'Dental lab',
-                            )
-                          : null,
+                      initialSpecialty: _labsOnly ? 'Dental lab' : '',
                     ),
                   ),
                 ),
@@ -1329,12 +1382,16 @@ class _CruDocLinkRow extends StatelessWidget {
   const _CruDocLinkRow({
     required this.doctor,
     required this.byHand,
+    required this.crudocId,
     required this.onFind,
     required this.onUnlink,
   });
 
   final CruDocDoctor? doctor;
   final bool byHand;
+
+  /// The CruDoc ID it was found by; empty when it wasn't.
+  final String crudocId;
   final VoidCallback onFind;
   final VoidCallback onUnlink;
 
@@ -1362,24 +1419,30 @@ class _CruDocLinkRow extends StatelessWidget {
                 ),
                 Text(
                   d == null
-                      ? 'Their phone or email is checked when you save. Or find them in the directory.'
-                      : (byHand
-                            ? 'Picked from the directory. Referrals reach them in the app.'
-                            : 'Matched by phone or email. Referrals reach them in the app.'),
+                      ? 'Their phone or email is checked when you save. Or find them by CruDoc ID or in the directory.'
+                      : !byHand
+                      ? 'Matched by phone or email. Referrals reach them in the app.'
+                      : crudocId.isNotEmpty
+                      ? 'Found by CruDoc ID $crudocId. Referrals reach them in the app.'
+                      : 'Picked from the directory. Referrals reach them in the app.',
                   style: CruType.caption.tint(c.label2),
                 ),
               ],
             ),
           ),
           const SizedBox(width: CruSpace.s8),
-          if (d == null)
-            CruCapsuleButton(
-              label: 'Find',
-              icon: CruIcons.search,
-              onPressed: onFind,
-            )
-          else if (byHand)
+          CruCapsuleButton(
+            label: d == null ? 'Find' : 'Change',
+            semanticLabel: d == null
+                ? 'Find on CruDoc'
+                : 'Link to a different CruDoc account',
+            icon: CruIcons.search,
+            onPressed: onFind,
+          ),
+          if (d != null && byHand) ...[
+            const SizedBox(width: CruSpace.s8),
             CruCapsuleButton(label: 'Unlink', onPressed: onUnlink),
+          ],
         ],
       ),
     );

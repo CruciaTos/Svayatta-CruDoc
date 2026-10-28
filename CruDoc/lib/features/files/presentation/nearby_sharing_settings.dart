@@ -216,10 +216,7 @@ class _NearbySharingSettingsCardState
                     ),
                     title: Row(
                       children: [
-                        Text(
-                          dev.name,
-                          style: CruType.body.w600.tint(c.label),
-                        ),
+                        Text(dev.name, style: CruType.body.w600.tint(c.label)),
                         if (isMe) ...[
                           const SizedBox(width: CruSpace.s8),
                           Container(

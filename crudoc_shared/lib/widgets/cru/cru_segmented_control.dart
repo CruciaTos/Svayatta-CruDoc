@@ -90,11 +90,21 @@ class _Segment extends StatelessWidget {
             shape: cruShape(CruRadius.segmentInner),
             shadows: const [],
           ),
-          child: Text(
-            label,
-            style: CruType.subhead.tabular.copyWith(
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              color: selected || hovered ? c.label : c.label2,
+          child: AnimatedSwitcher(
+            duration: CruMotion.of(context, CruMotion.fast),
+            switchInCurve: CruMotion.curve,
+            switchOutCurve: CruMotion.curve,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+            child: Text(
+              label,
+              key: ValueKey<String>(label),
+              style: CruType.subhead.tabular.copyWith(
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected || hovered ? c.label : c.label2,
+              ),
             ),
           ),
         ),

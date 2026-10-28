@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/file_offer_model.dart';
 import 'package:doctor_management_app/features/files/data/file_offers_repository.dart';
 import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
+import 'package:doctor_management_app/features/files/data/wifi_offers.dart';
 import 'package:doctor_management_app/features/files/lan/lan_server.dart';
 import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
@@ -15,20 +17,24 @@ import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Files colleagues sent to this person, any status, newest first.
-final receivedOffersProvider = StreamProvider.autoDispose<List<FileOffer>>(
-  (ref) => FileOffersRepository.instance.watchReceivedOffers(
-    clinicId: FilesRepository.instance.doctorId,
-    myUid: FilesRepository.instance.uid,
-  ),
-);
+final receivedOffersProvider = StreamProvider.autoDispose<List<FileOffer>>((
+  ref,
+) {
+  final scope = ref.watch(offersScopeProvider);
+  return FileOffersRepository.instance.watchReceivedOffers(
+    clinicId: scope.clinicId,
+    myUid: scope.uid,
+  );
+});
 
 /// Files this person sent, any status, newest first.
-final sentOffersProvider = StreamProvider.autoDispose<List<FileOffer>>(
-  (ref) => FileOffersRepository.instance.watchSentOffers(
-    clinicId: FilesRepository.instance.doctorId,
-    myUid: FilesRepository.instance.uid,
-  ),
-);
+final sentOffersProvider = StreamProvider.autoDispose<List<FileOffer>>((ref) {
+  final scope = ref.watch(offersScopeProvider);
+  return FileOffersRepository.instance.watchSentOffers(
+    clinicId: scope.clinicId,
+    myUid: scope.uid,
+  );
+});
 
 /// Received files waiting for Accept or Decline: the count on the
 /// Transfers button.
@@ -36,8 +42,9 @@ final waitingTransfersProvider = Provider<int>(
   (ref) => ref.watch(incomingOffersProvider).value?.length ?? 0,
 );
 
-/// Whether there is anyone in the clinic to send to or receive from. A solo
-/// doctor never sees Transfers.
+/// Whether there is anyone in the clinic to send to or receive from: the
+/// desktop colleague strip shows only then. Transfers always shows (its
+/// history and errors are worth seeing even with no one to send to).
 final hasColleaguesProvider = Provider<bool>((ref) {
   final me = FilesRepository.instance.uid;
   final clinic = FilesRepository.instance.doctorId;
@@ -124,8 +131,22 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
   }
 
   void _accept(FileOffer o) => _run(o.id, () async {
-    await _repo.acceptOffer(o);
-    markOfferHandled(o.id);
+    try {
+      await _repo.acceptOffer(o);
+      markOfferHandled(o.id);
+    } on SenderNotOnWifiException {
+      await WifiOffers.instance.wait(o);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'It will download when you’re on the same Wi-Fi as the sender',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }, "Couldn't accept");
 
   void _decline(FileOffer o) => _run(o.id, () async {
@@ -144,8 +165,10 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
     // Waiting ones include files that came only over Wi-Fi (no cloud copy
     // of the offer yet), so they come from the merged incoming list.
     final waiting = ref.watch(incomingOffersProvider).value ?? const [];
-    final history = ref.watch(receivedOffersProvider).value ?? const [];
-    final sent = ref.watch(sentOffersProvider).value ?? const [];
+    final historyAsync = ref.watch(receivedOffersProvider);
+    final sentAsync = ref.watch(sentOffersProvider);
+    final history = historyAsync.value ?? const [];
+    final sent = sentAsync.value ?? const [];
     final members = ref.watch(clinicMembersProvider).value ?? const [];
     final patients = ref.watch(patientsStreamProvider).value ?? const [];
     final canKeep = ref.watch(clinicCanProvider(ClinicPermission.clinicalEdit));
@@ -167,6 +190,7 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
     }
 
     String patient(String id) {
+      if (isUnassignedPatientId(id)) return 'No patient yet';
       for (final p in patients) {
         if (p.id == id) return p.fullName.trim();
       }
@@ -175,6 +199,11 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
 
     final incoming = _tab == _Tab.received;
     final items = incoming ? received : sent;
+    // A refused or failed list is not an empty one.
+    final listError = (incoming ? historyAsync : sentAsync).error;
+    final errorText = listError == null
+        ? null
+        : "Couldn't load ${incoming ? 'received' : 'sent'} files: $listError";
 
     return Padding(
       padding: const EdgeInsets.all(CruSpace.s20),
@@ -214,13 +243,16 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
             onChanged: (t) => setState(() => _tab = t),
           ),
           const SizedBox(height: CruSpace.s8),
+          if (errorText != null && items.isNotEmpty)
+            Text(errorText, style: CruType.caption.tint(c.label2)),
           if (items.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: CruSpace.s32),
               child: Text(
-                incoming
-                    ? 'Nothing received yet. Files colleagues send you show here.'
-                    : 'Nothing sent yet.',
+                errorText ??
+                    (incoming
+                        ? 'Nothing received yet. Files colleagues send you show here.'
+                        : 'Nothing sent yet.'),
                 textAlign: TextAlign.center,
                 style: CruType.text.tint(c.label2),
               ),
@@ -287,8 +319,18 @@ class _OfferRow extends StatelessWidget {
   final VoidCallback onCancel;
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   static String _ago(DateTime t) {
@@ -315,6 +357,7 @@ class _OfferRow extends StatelessWidget {
     final waiting = offer.status == FileOfferStatus.sent;
     final detail = [
       if (waiting && !incoming) 'Waiting',
+      if (offer.subject.isNotEmpty) offer.subject,
       incoming ? 'From $who' : 'To $who',
       if (patient.isNotEmpty) patient,
       _ago(offer.createdAt),
@@ -346,21 +389,21 @@ class _OfferRow extends StatelessWidget {
     } else if (waiting) {
       trailing = CruCapsuleButton(label: 'Cancel', onPressed: onCancel);
     } else {
-      trailing = _StatusPill(
-        switch (offer.status) {
-          FileOfferStatus.accepted => incoming ? 'Saved' : 'Accepted',
-          FileOfferStatus.declined => 'Declined',
-          _ => 'Cancelled',
-        },
-        done: offer.status == FileOfferStatus.accepted,
-      );
+      trailing = _StatusPill(switch (offer.status) {
+        FileOfferStatus.accepted => incoming ? 'Saved' : 'Accepted',
+        FileOfferStatus.declined => 'Declined',
+        _ => 'Cancelled',
+      }, done: offer.status == FileOfferStatus.accepted);
     }
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
       child: Row(
         children: [
-          CruIconTile(icon: _icon(offer.contentType), tone: CruTileTone.neutral),
+          CruIconTile(
+            icon: _icon(offer.contentType),
+            tone: CruTileTone.neutral,
+          ),
           const SizedBox(width: CruSpace.s12),
           Expanded(
             child: Column(
@@ -379,6 +422,15 @@ class _OfferRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: CruType.caption.tint(c.label2),
                 ),
+                if (offer.note.isNotEmpty) ...[
+                  const SizedBox(height: CruSpace.s2),
+                  Text(
+                    offer.note,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.caption.tint(c.label3),
+                  ),
+                ],
               ],
             ),
           ),

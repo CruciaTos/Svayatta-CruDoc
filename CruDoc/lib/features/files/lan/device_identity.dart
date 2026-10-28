@@ -56,7 +56,9 @@ class DeviceIdentity {
   Future<void> _load() async {
     if (_initialized) return;
 
-    _platform = Platform.isAndroid ? 'android' : (Platform.isWindows ? 'windows' : Platform.operatingSystem);
+    _platform = Platform.isAndroid
+        ? 'android'
+        : (Platform.isWindows ? 'windows' : Platform.operatingSystem);
 
     final storedId = await _storage.read(key: _keyDeviceId);
     final storedPrivKey = await _storage.read(key: _keyPrivKey);
@@ -145,7 +147,10 @@ class DeviceIdentity {
       clientCertSha256: clientCertSha256,
     );
     final privKey = CryptoUtils.ecPrivateKeyFromPem(_privateKeyPem);
-    final sig = CryptoUtils.ecSign(privKey, Uint8List.fromList(utf8.encode(message)));
+    final sig = CryptoUtils.ecSign(
+      privKey,
+      Uint8List.fromList(utf8.encode(message)),
+    );
     // Serialize r and s as 32-byte hex or DER
     final rBytes = _bigIntTo32Bytes(sig.r);
     final sBytes = _bigIntTo32Bytes(sig.s);
@@ -180,7 +185,11 @@ class DeviceIdentity {
       final s = _bytesToBigInt(sigBytes.sublist(32, 64));
       final sig = ECSignature(r, s);
 
-      return CryptoUtils.ecVerify(pubKey, Uint8List.fromList(utf8.encode(message)), sig);
+      return CryptoUtils.ecVerify(
+        pubKey,
+        Uint8List.fromList(utf8.encode(message)),
+        sig,
+      );
     } catch (e) {
       debugPrint('[DeviceIdentity] Verification error: $e');
       return false;
@@ -221,7 +230,10 @@ class DeviceIdentity {
   static String _generateRandomId(int length) {
     const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
     final random = Random.secure();
-    return List.generate(length, (_) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   static Uint8List _bigIntTo32Bytes(BigInt number) {

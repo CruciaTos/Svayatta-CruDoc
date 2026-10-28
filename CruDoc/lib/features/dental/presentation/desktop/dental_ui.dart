@@ -418,10 +418,9 @@ class DentalPageHeader extends StatelessWidget {
     }
 
     final headerRow = Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // The back button sits level with the header's own buttons, the
-        // title keeping its height on every page.
+        // The back button sits vertically centered before the title.
         if (back != null && pageTabs == null) ...[
           CruSquareButton(
             icon: CruIcons.chevronLeft,

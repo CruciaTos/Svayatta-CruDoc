@@ -152,8 +152,10 @@ class PatientFilesCard extends ConsumerWidget {
                     CruCapsuleButton(
                       label: 'Add files',
                       icon: FileIcons.upload,
-                      onPressed: () =>
-                          FilesActions.pickAndAdd(context, patientId: patient.id),
+                      onPressed: () => FilesActions.pickAndAdd(
+                        context,
+                        patientId: patient.id,
+                      ),
                     ),
                     if (ScanCapture.hasCamera)
                       CruCapsuleButton(

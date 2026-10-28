@@ -222,4 +222,32 @@ void main() {
     expect(find.text('Add files'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('sort icon inside search bar opens sort menu and updates sort', (
+    tester,
+  ) async {
+    setSize(tester, const Size(1440, 900));
+    await tester.pumpWidget(app(const FilesScreen()));
+    await settle(tester);
+
+    // The sort icon button is present with its tooltip/semantics.
+    final sortButton = find.byTooltip('Sort: Newest first');
+    expect(sortButton, findsOneWidget);
+
+    // Tap to open the sort menu.
+    await tester.tap(sortButton);
+    await tester.pumpAndSettle();
+
+    // Menu options are displayed.
+    expect(find.text('Oldest first'), findsOneWidget);
+    expect(find.text('Size'), findsOneWidget);
+
+    // Select 'Oldest first' sort.
+    await tester.tap(find.text('Oldest first'));
+    await tester.pumpAndSettle();
+
+    // Tooltip / semantic label updates to reflect new sort.
+    expect(find.byTooltip('Sort: Oldest first'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

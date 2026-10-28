@@ -398,16 +398,15 @@ test('refuses without the patient\'s consent', async () => {
 test('only to a doctor who can receive referrals', async () => {
   seedPeople();
   await rejects('invalid-argument', call(A, sendData({recipientUid: A})), '(self)');
-  for (const uid of ['recep', 'manager', 'super', 'dr-hidden', 'nobody']) {
+  for (const uid of ['recep', 'manager', 'super', 'nobody']) {
     await rejects('not-found', call(A, sendData({recipientUid: uid})), `(${uid})`);
   }
 });
 
-test('a hidden doctor who listed themselves can still be referred to', async () => {
+test('a doctor who turned off being found by number can still be referred to', async () => {
   seedPeople();
-  db.seed('doctor_directory/dr-hidden', {listed: true, displayName: 'Hidden Listed'});
   await call(A, sendData({recipientUid: 'dr-hidden'}));
-  assert.strictEqual(db.peek(`${SHARES}/${SHARE}`).recipientName, 'Hidden Listed');
+  assert.strictEqual(db.peek(`${SHARES}/${SHARE}`).recipientName, 'Hidden');
 });
 
 test('only doctors with clinical access send, from their own clinic', async () => {

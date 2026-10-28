@@ -44,7 +44,9 @@ class LanDevice {
         if (ip is String && ip.isNotEmpty) ips.add(ip);
       }
     }
-    final port = lan != null && lan['port'] is num ? (lan['port'] as num).toInt() : 0;
+    final port = lan != null && lan['port'] is num
+        ? (lan['port'] as num).toInt()
+        : 0;
 
     DateTime? parseTs(dynamic val) {
       if (val is Timestamp) return val.toDate();

@@ -405,17 +405,53 @@ class ScheduleTitle extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        wrapTitle?.call(line) ?? line,
+        AnimatedSwitcher(
+          duration: CruMotion.of(context, CruMotion.fast),
+          switchInCurve: CruMotion.curve,
+          switchOutCurve: CruMotion.curve,
+          layoutBuilder: (currentChild, previousChildren) => Stack(
+            alignment: Alignment.centerLeft,
+            children: [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          ),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+          child: KeyedSubtree(
+            key: ValueKey<String>(title),
+            child: wrapTitle?.call(line) ?? line,
+          ),
+        ),
         SizedBox(
           height: _summaryHeight,
-          child: summary == null
-              ? const SizedBox.shrink()
-              : Text.rich(
-                  summary!,
-                  style: CruType.dateLine.tabular.tint(c.accentText),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+          child: AnimatedSwitcher(
+            duration: CruMotion.of(context, CruMotion.fast),
+            switchInCurve: CruMotion.curve,
+            switchOutCurve: CruMotion.curve,
+            layoutBuilder: (currentChild, previousChildren) => Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                ...previousChildren,
+                if (currentChild != null) currentChild,
+              ],
+            ),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+            child: summary == null
+                ? const SizedBox.shrink(key: ValueKey<String>('empty'))
+                : Text.rich(
+                    summary!,
+                    key: ValueKey<String>(summary!.toPlainText()),
+                    style: CruType.dateLine.tabular.tint(c.accentText),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+          ),
         ),
       ],
     );
@@ -469,10 +505,10 @@ class ApptsHeader extends ConsumerWidget {
   }
 }
 
-/// Live · Week · Month · Agenda, shared by the Live (queue) header and the
-/// calendar header. Live needs the queue module, the calendar views need
-/// appointments; hidden when only one view is left. Day isn't listed: it
-/// opens from a date in Week, Month or Agenda (no segment is lit there).
+/// Live · Week (or Day) · Month · Agenda, shared by the Live (queue) header
+/// and the calendar header. Live needs the queue module, the calendar views
+/// need appointments; hidden when only one view is left. When Day view is open,
+/// the Week segment changes to Day.
 class ScheduleViewSwitcher extends ConsumerWidget {
   const ScheduleViewSwitcher({super.key});
 
@@ -481,6 +517,8 @@ class ScheduleViewSwitcher extends ConsumerWidget {
     final queueOn = ref.watch(isQueueFeatureEnabledProvider);
     final apptsOn = ref.watch(isAppointmentsFeatureEnabledProvider);
     final physio = ref.watch(isPhysiotherapyProvider);
+    final current = ref.watch(effectiveApptsViewProvider);
+    final isDay = current == ApptsView.day;
     final views = [
       for (final v in ApptsView.values)
         if (switch (v) {
@@ -497,11 +535,24 @@ class ScheduleViewSwitcher extends ConsumerWidget {
       radius: CruRadius.segmentOuter,
       child: CruSegmentedControl<ApptsView>(
         semanticLabel: 'Schedule view',
-        segments: [for (final v in views) CruSegment(v, v.label)],
+        segments: [
+          for (final v in views)
+            if (v == ApptsView.week && isDay)
+              const CruSegment(ApptsView.day, 'Day')
+            else
+              CruSegment(v, v.label),
+        ],
         // The open view, on every page: the switcher is pinned, so the
         // copies must match.
-        selected: ref.watch(effectiveApptsViewProvider),
-        onChanged: ref.read(apptsControllerProvider.notifier).setView,
+        selected: current,
+        onChanged: (v) {
+          final controller = ref.read(apptsControllerProvider.notifier);
+          if (v == ApptsView.day) {
+            controller.setView(ApptsView.week);
+          } else {
+            controller.setView(v);
+          }
+        },
       ),
     );
   }

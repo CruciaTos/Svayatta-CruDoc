@@ -4,19 +4,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/services/auth_providers.dart';
+import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/file_offer_model.dart';
 import 'package:doctor_management_app/features/files/data/file_offers_repository.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
+import 'package:doctor_management_app/features/files/data/wifi_offers.dart';
 import 'package:doctor_management_app/features/files/lan/lan_server.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+/// The clinic and person the offer lists are for. Watching it rebuilds a
+/// list when someone else signs in on this device or the clinic changes
+/// (joining one mid-session included).
+final offersScopeProvider = Provider<({String clinicId, String uid})>((ref) {
+  ref.watch(authStateProvider.select((u) => u.value?.uid));
+  ref.watch(
+    clinicAccessProvider.select((a) => (a.value?.clinicId, a.value?.uid)),
+  );
+  return (
+    clinicId: FilesRepository.instance.doctorId,
+    uid: FilesRepository.instance.uid,
+  );
+});
+
 /// Provider for stream of incoming file offers for the signed-in user,
 /// merging both cloud offers and real-time direct LAN offers (Tasks O3, N2, M4).
 final incomingOffersProvider = StreamProvider<List<FileOffer>>((ref) {
-  final clinicId = FilesRepository.instance.doctorId;
-  final myUid = FilesRepository.instance.uid;
+  final (:clinicId, uid: myUid) = ref.watch(offersScopeProvider);
   if (clinicId.isEmpty || myUid.isEmpty) {
     return Stream.value(const []);
   }
@@ -28,14 +45,15 @@ final incomingOffersProvider = StreamProvider<List<FileOffer>>((ref) {
   final cloudSeen = <String>{};
 
   void emit() {
-    final list = offersMap.values
-        .where(
-          (o) =>
-              o.status == FileOfferStatus.sent &&
-              !_handledOfferIds.contains(o.id),
-        )
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final list =
+        offersMap.values
+            .where(
+              (o) =>
+                  o.status == FileOfferStatus.sent &&
+                  !_handledOfferIds.contains(o.id),
+            )
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     if (!controller.isClosed) controller.add(list);
   }
 
@@ -100,7 +118,10 @@ class IncomingOffersCard extends ConsumerStatefulWidget {
 class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
   final Set<String> _processingBatches = {};
 
-  Future<void> _acceptBatch(List<FileOffer> batch, {bool alwaysAccept = false}) async {
+  Future<void> _acceptBatch(
+    List<FileOffer> batch, {
+    bool alwaysAccept = false,
+  }) async {
     final batchId = batch.first.batchId;
     if (_processingBatches.contains(batchId)) return;
     setState(() => _processingBatches.add(batchId));
@@ -108,12 +129,35 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
     try {
       if (alwaysAccept) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('crudoc.files.autoAccept.${batch.first.from}', true);
+        await prefs.setBool(
+          'crudoc.files.autoAccept.${batch.first.from}',
+          true,
+        );
       }
 
+      var waiting = 0;
       for (final offer in batch) {
-        await FileOffersRepository.instance.acceptOffer(offer);
-        markOfferHandled(offer.id);
+        try {
+          await FileOffersRepository.instance.acceptOffer(offer);
+          markOfferHandled(offer.id);
+        } on SenderNotOnWifiException {
+          await WifiOffers.instance.wait(offer);
+          waiting++;
+        }
+      }
+      if (waiting > 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${waiting == 1 ? 'It' : '$waiting files'} will download '
+                'when you’re on the same Wi-Fi as the sender',
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
       }
 
       if (mounted) {
@@ -218,9 +262,12 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
         ? patient!.fullName.trim()
         : 'Patient';
 
+    // Sent straight from a computer: no patient yet.
+    final unassigned = isUnassignedPatientId(first.patientId);
+    final forWhom = unassigned ? '' : ' for $patientName';
     final title = batch.length == 1
-        ? '$senderName shared “${first.name}” for $patientName'
-        : '$senderName shared ${batch.length} files for $patientName';
+        ? '$senderName shared “${first.name}”$forWhom'
+        : '$senderName shared ${batch.length} files$forWhom';
 
     return Container(
       margin: const EdgeInsets.only(bottom: CruSpace.s12),
@@ -258,9 +305,27 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
                     Text(title, style: CruType.body.w600),
                     const SizedBox(height: 2),
                     Text(
-                      'Ready to add to your records for $patientName',
+                      unassigned
+                          ? 'No patient yet: assign one after you accept'
+                          : 'Ready to add to your records for $patientName',
                       style: CruType.caption.tint(c.label2),
                     ),
+                    if (first.subject.isNotEmpty) ...[
+                      const SizedBox(height: CruSpace.s4),
+                      Text(
+                        first.subject,
+                        style: CruType.body.w600.tint(c.label),
+                      ),
+                    ],
+                    if (first.note.isNotEmpty) ...[
+                      const SizedBox(height: CruSpace.s4),
+                      Text(
+                        first.note,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.caption.tint(c.label2),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -275,23 +340,31 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
               children: [
                 TextButton(
                   onPressed: () => _declineBatch(batch),
-                  child: Text(
-                    'Decline',
-                    style: TextStyle(color: c.label2),
-                  ),
+                  child: Text('Decline', style: TextStyle(color: c.label2)),
                 ),
                 const SizedBox(width: CruSpace.s8),
-                ElevatedButton(
-                  onPressed: () => _acceptBatch(batch),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: c.accent,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                if (batch.every((o) => o.via == FileOfferVia.lan))
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s8,
                     ),
+                    child: Text(
+                      'Arrives by itself on clinic Wi-Fi',
+                      style: CruType.caption.tint(c.amberText),
+                    ),
+                  )
+                else
+                  ElevatedButton(
+                    onPressed: () => _acceptBatch(batch),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: c.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Accept'),
                   ),
-                  child: const Text('Accept'),
-                ),
               ],
             ),
           ],

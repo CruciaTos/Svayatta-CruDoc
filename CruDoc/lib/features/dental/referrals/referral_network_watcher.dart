@@ -56,7 +56,8 @@ import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 /// the app runs: shows a notification for each new one and each answer,
 /// keeps this device registered for pushes, copies the other doctor's
 /// progress into the local referral (so the rest of the clinic sees it),
-/// and opens Referrals when a notification is tapped.
+/// and opens what a tapped notification is about: Files for a shared
+/// file, Referrals for everything else.
 class ReferralNetworkWatcher extends ConsumerStatefulWidget {
   const ReferralNetworkWatcher({super.key, required this.child});
 
@@ -87,7 +88,9 @@ class _ReferralNetworkWatcherState extends ConsumerState<ReferralNetworkWatcher>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    PushNotifications.instance.onOpen = _openReferrals;
+    PushNotifications.instance
+      ..setRoute(null, _openReferrals)
+      ..setRoute('file_offer', _openFiles);
     // Closed with the widget.
     ref.listenManual(authStateProvider, (_, next) {
       final uid = next.value?.uid;
@@ -95,12 +98,12 @@ class _ReferralNetworkWatcherState extends ConsumerState<ReferralNetworkWatcher>
     }, fireImmediately: true);
     ref.listenManual(
       incomingSharesProvider,
-      (_, next) => _onShares(next.value, true),
+      (_, next) => _onShares(next, true),
       fireImmediately: true,
     );
     ref.listenManual(
       outgoingSharesProvider,
-      (_, next) => _onShares(next.value, false),
+      (_, next) => _onShares(next, false),
       fireImmediately: true,
     );
   }
@@ -108,9 +111,9 @@ class _ReferralNetworkWatcherState extends ConsumerState<ReferralNetworkWatcher>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    if (PushNotifications.instance.onOpen == _openReferrals) {
-      PushNotifications.instance.onOpen = null;
-    }
+    PushNotifications.instance
+      ..clearRoute(null, _openReferrals)
+      ..clearRoute('file_offer', _openFiles);
     super.dispose();
   }
 
@@ -119,11 +122,17 @@ class _ReferralNetworkWatcherState extends ConsumerState<ReferralNetworkWatcher>
     _foreground = state == AppLifecycleState.resumed;
   }
 
-  void _openReferrals() {
+  void _openReferrals(Map<String, dynamic> data) =>
+      _openTab(DesktopTab.dentalReferrals);
+
+  /// Files shows the files waiting for Accept at the top.
+  void _openFiles(Map<String, dynamic> data) => _openTab(DesktopTab.files);
+
+  void _openTab(int tab) {
     if (!mounted) return;
     final shell = ref.read(shellNavigatorProvider);
-    if (shell != null && shell(DesktopTab.dentalReferrals)) return;
-    openMobileDestination(context, DesktopTab.dentalReferrals);
+    if (shell != null && shell(tab)) return;
+    openMobileDestination(context, tab);
   }
 
   String _key(String uid) => 'referrals.announced.$uid';
@@ -159,7 +168,18 @@ class _ReferralNetworkWatcherState extends ConsumerState<ReferralNetworkWatcher>
     } catch (_) {}
   }
 
-  Future<void> _onShares(List<ReferralShare>? shares, bool incoming) async {
+  Future<void> _onShares(
+    AsyncValue<List<ReferralShare>> next,
+    bool incoming,
+  ) async {
+    if (next.hasError && !next.isLoading) {
+      // The Referrals screen shows it too (referralSharesErrorProvider).
+      debugPrint(
+        '[referrals] ${incoming ? 'incoming' : 'outgoing'} shares failed: '
+        '${next.error}',
+      );
+    }
+    final shares = next.value;
     final uid = ref.read(authStateProvider).value?.uid;
     if (shares == null || uid == null) return;
     await _copyIntoLocal(shares);
@@ -177,6 +197,7 @@ class _ReferralNetworkWatcherState extends ConsumerState<ReferralNetworkWatcher>
         id: key.hashCode & 0x7fffffff,
         title: news.title,
         body: news.body,
+        data: {'type': 'referral', 'shareId': s.id},
       );
     }
     await _save(uid, _announced);

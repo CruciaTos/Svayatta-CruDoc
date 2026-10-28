@@ -9,6 +9,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+/// Opens what a tapped notification is about. Gets the message data; its
+/// 'type' says what it is ('referral', 'file_offer'...).
+typedef PushRoute = void Function(Map<String, dynamic> data);
+
 /// System notifications for this device, and its push registration.
 ///
 /// Pushes (Firebase Cloud Messaging) reach Android and iOS even when the app
@@ -31,6 +35,15 @@ class PushNotifications {
     importance: Importance.high,
   );
 
+  /// Android channel for files colleagues send (pushes of type
+  /// 'file_offer'; functions/src/file_offers.ts sends them to it).
+  static const filesChannel = AndroidNotificationChannel(
+    'files',
+    'Files',
+    description: 'Files colleagues in your clinic send you',
+    importance: Importance.high,
+  );
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   Future<bool>? _ready;
@@ -38,8 +51,47 @@ class PushNotifications {
   final List<StreamSubscription<RemoteMessage>> _openSubs = [];
   String? _registeredUid;
 
-  /// Runs when a notification (local or push) is tapped.
-  VoidCallback? onOpen;
+  /// What a tapped notification (local or push) opens, by its data
+  /// 'type'; [_fallbackRoute] for any type without a route of its own.
+  final Map<String, PushRoute> _routes = {};
+  PushRoute? _fallbackRoute;
+
+  /// Sets what tapping a notification whose data 'type' is [type] opens.
+  /// A null [type] covers every type without a route of its own.
+  void setRoute(String? type, PushRoute open) {
+    if (type == null) {
+      _fallbackRoute = open;
+    } else {
+      _routes[type] = open;
+    }
+  }
+
+  /// Removes [open] from [type] (null: the fallback), if it is still the
+  /// route there.
+  void clearRoute(String? type, PushRoute open) {
+    if (type == null) {
+      if (_fallbackRoute == open) _fallbackRoute = null;
+    } else if (_routes[type] == open) {
+      _routes.remove(type);
+    }
+  }
+
+  void _open(Map<String, dynamic> data) {
+    final type = data['type'];
+    final route = (type is String ? _routes[type] : null) ?? _fallbackRoute;
+    route?.call(data);
+  }
+
+  /// A local notification's payload (its data as JSON) back as data.
+  static Map<String, dynamic> _payloadData(String? payload) {
+    if (payload == null || payload.isEmpty) return const {};
+    try {
+      final data = jsonDecode(payload);
+      return data is Map ? Map<String, dynamic>.from(data) : const {};
+    } catch (_) {
+      return const {};
+    }
+  }
 
   static bool get _hasPush => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
@@ -64,13 +116,14 @@ class PushNotifications {
             guid: '6f1d6c1e-5a43-4c8e-9b7e-2f6a1d3c9e41',
           ),
         ),
-        onDidReceiveNotificationResponse: (_) => onOpen?.call(),
+        onDidReceiveNotificationResponse: (r) => _open(_payloadData(r.payload)),
       );
       final android = _plugin
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >();
       await android?.createNotificationChannel(referralChannel);
+      await android?.createNotificationChannel(filesChannel);
       await android?.requestNotificationsPermission();
       return true;
     } catch (e) {
@@ -80,22 +133,29 @@ class PushNotifications {
   }
 
   /// Shows a notification now, on any platform the plugin supports.
+  /// [data] is what a push would carry ('type' and ids): tapping it opens
+  /// the route for that type.
   Future<void> show({
     required int id,
     required String title,
     required String body,
+    Map<String, String> data = const {},
   }) async {
     if (!await _init()) return;
+    final channel = data['type'] == 'file_offer'
+        ? filesChannel
+        : referralChannel;
     try {
       await _plugin.show(
         id: id,
         title: title,
         body: body,
+        payload: data.isEmpty ? null : jsonEncode(data),
         notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
-            referralChannel.id,
-            referralChannel.name,
-            channelDescription: referralChannel.description,
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
             importance: Importance.high,
             priority: Priority.high,
           ),
@@ -126,10 +186,11 @@ class PushNotifications {
       _tokenSub = fm.onTokenRefresh.listen((t) => _saveToken(uid, t));
       if (_openSubs.isEmpty) {
         _openSubs.add(
-          FirebaseMessaging.onMessageOpenedApp.listen((_) => onOpen?.call()),
+          FirebaseMessaging.onMessageOpenedApp.listen((m) => _open(m.data)),
         );
         // Opened from a push while the app was closed.
-        if (await fm.getInitialMessage() != null) onOpen?.call();
+        final initial = await fm.getInitialMessage();
+        if (initial != null) _open(initial.data);
       }
     } catch (e) {
       debugPrint('[PushNotifications] register failed: $e');

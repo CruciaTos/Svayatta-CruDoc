@@ -64,11 +64,20 @@ class FilePanel extends ConsumerWidget {
         rows: [
           (
             'Patient',
-            CruLink(
-              label: entry.patientName,
-              onPressed: () =>
-                  FilesActions.openPatient(context, ref, f.patientId),
-            ),
+            // Sent straight from a computer: no patient until assigned.
+            isUnassignedPatientId(f.patientId)
+                ? entry.canManage
+                      ? CruLink(
+                          label: 'No patient yet · Assign',
+                          onPressed: () =>
+                              FilesActions.changePatient(context, entry),
+                        )
+                      : _value(context, 'No patient yet')
+                : CruLink(
+                    label: entry.patientName,
+                    onPressed: () =>
+                        FilesActions.openPatient(context, ref, f.patientId),
+                  ),
           ),
           (
             'Folder',

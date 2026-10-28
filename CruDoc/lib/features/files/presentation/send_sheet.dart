@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
-import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/files/data/colleague_send.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/file_offer_model.dart';
-import 'package:doctor_management_app/features/files/data/file_offers_repository.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/files/lan/device_registry_service.dart';
-import 'package:doctor_management_app/features/files/lan/lan_client.dart';
-import 'package:doctor_management_app/features/files/lan/lan_server.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
@@ -87,19 +84,7 @@ class _SendSheetState extends State<_SendSheet> {
   String? _sendingToName;
 
   String? _ineligibleReason(ClinicMember m) {
-    if (!m.perms.contains(ClinicPermission.clinicalView)) {
-      return "Can't receive patient files";
-    }
-    if (!m.perms.contains(ClinicPermission.clinicalEdit)) {
-      return "Can't save files";
-    }
-    if (widget.isScopedClinic && m.kind == MemberKind.doctor) {
-      final assigned = widget.patient?.assignedDoctorUids ?? const [];
-      if (assigned.isNotEmpty && !assigned.contains(m.uid)) {
-        return "Not assigned to this patient";
-      }
-    }
-    return null;
+    return colleagueBlockReason(m, patient: widget.patient);
   }
 
   Future<void> _sendTo(ClinicMember colleague) async {
@@ -110,50 +95,12 @@ class _SendSheetState extends State<_SendSheet> {
     });
 
     try {
-      FileOfferVia via = FileOfferVia.cloud;
-      final peerDevice = await DeviceRegistryService.instance.findColleagueDevice(
+      final offers = await sendFilesToColleague(
         clinicId: widget.clinicId,
-        colleagueUid: colleague.uid,
-      );
-
-      String? lanSessionToken;
-      ({String ip, int port, String nonce, String deviceId})? probeResult;
-
-      if (peerDevice != null) {
-        probeResult = await LanClient.instance.probePeer(peerDevice);
-        if (probeResult != null) {
-          lanSessionToken = await LanClient.instance.createSession(
-            peerIp: probeResult.ip,
-            peerPort: probeResult.port,
-            peerCertSha256: peerDevice.certSha256,
-            peerDeviceId: probeResult.deviceId,
-            nonce: probeResult.nonce,
-          );
-          if (lanSessionToken != null) {
-            via = FileOfferVia.lan;
-          }
-        }
-      }
-
-      final offers = await FileOffersRepository.instance.createOffers(
-        clinicId: widget.clinicId,
-        recipientUid: colleague.uid,
+        colleague: colleague,
         files: widget.files,
-        via: via,
       );
-
-      if (via == FileOfferVia.lan && probeResult != null && lanSessionToken != null) {
-        for (final offer in offers) {
-          LanServer.instance.registerOpenOffer(offer);
-          await LanClient.instance.sendOfferOverLan(
-            peerIp: probeResult.ip,
-            peerPort: probeResult.port,
-            peerCertSha256: peerDevice!.certSha256,
-            sessionToken: lanSessionToken,
-            offer: offer,
-          );
-        }
-      }
+      final via = offers.isNotEmpty ? offers.first.via : FileOfferVia.cloud;
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -261,44 +208,48 @@ class _SendSheetState extends State<_SendSheet> {
                   final reason = _ineligibleReason(colleague);
                   final eligible = reason == null;
 
-                    final cachedPeer = DeviceRegistryService.instance.cachedDevices
-                        .where((d) => d.uid == colleague.uid && d.hasLanEndpoint)
-                        .firstOrNull;
-                    final transportLabel = cachedPeer != null
-                        ? '⚡ Nearby on Wi-Fi'
-                        : '☁ Will go through the cloud';
+                  final cachedPeer = DeviceRegistryService
+                      .instance
+                      .cachedDevices
+                      .where((d) => d.uid == colleague.uid && d.hasLanEndpoint)
+                      .firstOrNull;
+                  final transportLabel = cachedPeer != null
+                      ? '⚡ Nearby on Wi-Fi'
+                      : '☁ Will go through the cloud';
 
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: CruSpace.s8,
-                        vertical: CruSpace.s4,
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s8,
+                      vertical: CruSpace.s4,
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor: eligible ? c.accentWash : c.hoverFill,
+                      foregroundColor: eligible ? c.accentText : c.label3,
+                      child: Text(
+                        colleague.name.isNotEmpty
+                            ? colleague.name.characters.first.toUpperCase()
+                            : '?',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      leading: CircleAvatar(
-                        backgroundColor: eligible ? c.accentWash : c.hoverFill,
-                        foregroundColor: eligible ? c.accentText : c.label3,
-                        child: Text(
-                          colleague.name.isNotEmpty
-                              ? colleague.name.characters.first.toUpperCase()
-                              : '?',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                    ),
+                    title: Text(
+                      colleague.name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: eligible ? c.label : c.label3,
                       ),
-                      title: Text(
-                        colleague.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: eligible ? c.label : c.label3,
-                        ),
+                    ),
+                    subtitle: Text(
+                      reason ?? transportLabel,
+                      style: CruType.caption.tint(
+                        eligible
+                            ? (cachedPeer != null ? Colors.green : c.label2)
+                            : c.label3,
                       ),
-                      subtitle: Text(
-                        reason ?? transportLabel,
-                        style: CruType.caption.tint(
-                          eligible ? (cachedPeer != null ? Colors.green : c.label2) : c.label3,
-                        ),
-                      ),
-                      enabled: eligible,
-                      onTap: eligible ? () => _sendTo(colleague) : null,
-                    );
+                    ),
+                    enabled: eligible,
+                    onTap: eligible ? () => _sendTo(colleague) : null,
+                  );
                 },
               ),
             ),

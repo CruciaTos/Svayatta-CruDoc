@@ -233,9 +233,9 @@ class _MembersView extends ConsumerWidget {
 
     Widget inviteRow(ClinicInvite i) => TeamRow(
       monogram: i.name.isEmpty ? '?' : i.name,
-      title: i.name.isEmpty ? (i.phone.isEmpty ? i.email : i.phone) : i.name,
+      title: i.name.isEmpty ? _invitedTo(i) : i.name,
       detail: [
-        if (i.phone.isNotEmpty) i.phone else if (i.email.isNotEmpty) i.email,
+        if (_invitedTo(i).isNotEmpty) _invitedTo(i),
         if (i.roleName.isNotEmpty) i.roleName,
       ].join(' · '),
       trailing: Row(
@@ -253,9 +253,9 @@ class _MembersView extends ConsumerWidget {
 
     Widget declinedRow(ClinicInvite i) => TeamRow(
       monogram: i.name.isEmpty ? '?' : i.name,
-      title: i.name.isEmpty ? (i.phone.isEmpty ? i.email : i.phone) : i.name,
+      title: i.name.isEmpty ? _invitedTo(i) : i.name,
       detail: [
-        if (i.phone.isNotEmpty) i.phone else if (i.email.isNotEmpty) i.email,
+        if (_invitedTo(i).isNotEmpty) _invitedTo(i),
         if (i.roleName.isNotEmpty) i.roleName,
       ].join(' · '),
       trailing: Text('Declined', style: CruType.caption.tint(c.label3)),
@@ -283,6 +283,13 @@ class _MembersView extends ConsumerWidget {
           TeamGroupCard(title: 'Staff', rows: staffRows),
       ],
     );
+  }
+
+  /// Who an invite went to: "CruDoc ID K7Q9-2XMB", the phone or the email.
+  static String _invitedTo(ClinicInvite i) {
+    final id = i.crudocId;
+    if (id != null) return 'CruDoc ID $id';
+    return i.phone.isNotEmpty ? i.phone : i.email;
   }
 
   Future<void> _cancelInvite(

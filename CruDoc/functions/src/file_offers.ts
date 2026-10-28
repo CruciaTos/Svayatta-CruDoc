@@ -1,6 +1,7 @@
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {pushTo, drName} from "./referrals";
+import {decryptProfileField} from "./crypto/profileCipher";
 
 /**
  * Sends a push notification to the recipient when a new file offer is created.
@@ -25,20 +26,24 @@ export const onFileOfferCreated = onDocumentCreated(
 
     let senderName = "A colleague";
     try {
-      const memberDoc = await admin
+      const member = (await admin
         .firestore()
         .collection("clinics")
         .doc(clinicId)
         .collection("members")
         .doc(fromUid)
-        .get();
-      if (memberDoc.exists && memberDoc.data()?.name) {
-        senderName = drName(memberDoc.data()!.name);
-      } else {
-        const userDoc = await admin.firestore().collection("users").doc(fromUid).get();
-        const rawName = userDoc.data()?.name || userDoc.data()?.displayName;
-        if (rawName) senderName = drName(rawName);
+        .get()).data();
+      // Profile names are encrypted (see profileCipher.ts); an unreadable
+      // one comes back "", so the push never shows cipher text.
+      let name = decryptProfileField(member?.name, fromUid);
+      let staff = member?.kind === "staff";
+      if (!name) {
+        const user = (await admin.firestore().collection("users").doc(fromUid).get()).data();
+        name = decryptProfileField(user?.name, fromUid) ||
+          decryptProfileField(user?.displayName, fromUid);
+        if (!member) staff = user?.memberKind === "staff";
       }
+      if (name) senderName = staff ? name : drName(name);
     } catch (_) {
       // Keep the generic sender name.
     }
@@ -52,7 +57,9 @@ export const onFileOfferCreated = onDocumentCreated(
         clinicId,
         offerId,
         batchId: data.batchId || "",
-      }
+      },
+      // The app's Files channel (push_notifications.dart filesChannel).
+      "files"
     );
   }
 );

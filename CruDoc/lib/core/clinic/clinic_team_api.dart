@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'package:doctor_management_app/core/services/callable_client.dart';
 
 import 'clinic_models.dart';
@@ -156,8 +158,9 @@ class ClinicTeamApi {
     required String inviteId,
   }) => _call('declineInvite', {'clinicId': clinicId, 'inviteId': inviteId});
 
-  /// Invites someone by [phone] or [email] (exactly one). [modules] null
-  /// means no personal limit.
+  /// Invites someone by [phone], [email] or [crudocId] (exactly one). An ID
+  /// invite goes to that account, never copying its phone or email, and is
+  /// always [InviteResult.onCruDoc]. [modules] null means no personal limit.
   Future<InviteResult> invite({
     required String clinicId,
     required String name,
@@ -317,19 +320,24 @@ class ClinicTeamApi {
       });
       return raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     } on CallableException catch (e) {
+      debugPrint('[clinicTeam] $action failed: ${e.code} ${e.message}');
       throw ClinicTeamException(_messageFor(e));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[clinicTeam] $action failed: $e');
       throw const ClinicTeamException("Couldn't reach CruDoc. Try again.");
     }
   }
 
+  /// The server's own message for a refusal it explains; a generic one for
+  /// everything else.
   static String _messageFor(CallableException e) => switch (e.code) {
     'resource-exhausted' ||
     'already-exists' ||
     'failed-precondition' ||
     'invalid-argument' ||
     'not-found' => e.message.isNotEmpty ? e.message : "That didn't work. Try again.",
-    'permission-denied' => "You don't have permission to do that.",
+    'permission-denied' =>
+      e.message.isNotEmpty ? e.message : "You don't have permission to do that.",
     'unauthenticated' => 'Sign in again to continue.',
     _ => "Couldn't reach CruDoc. Try again.",
   };

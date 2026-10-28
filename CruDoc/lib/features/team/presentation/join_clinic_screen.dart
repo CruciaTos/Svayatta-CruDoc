@@ -6,6 +6,7 @@ import 'package:doctor_management_app/core/clinic/clinic_invites.dart';
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_team_api.dart';
+import 'package:doctor_management_app/core/people/crudoc_id.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -126,12 +127,20 @@ class _JoinClinicScreenState extends State<JoinClinicScreen> {
                 const SizedBox(height: CruSpace.s6),
                 Text(
                   empty
-                      ? 'Your clinic admin invites you by phone number. '
-                            'The invite shows up here.'
+                      ? 'Your clinic admin invites you, and the invite shows '
+                            'up here.'
                       : 'Join your clinic to see its patients and schedule.',
                   style: CruType.lead.tint(c.label2),
                 ),
                 const SizedBox(height: CruSpace.s20),
+                if (empty) ...[
+                  const CrudocIdCard(
+                    description:
+                        'Give your clinic admin your phone number or CruDoc '
+                        'ID.',
+                  ),
+                  const SizedBox(height: CruSpace.s12),
+                ],
                 if (widget.loading && empty)
                   const Padding(
                     padding: EdgeInsets.all(CruSpace.s24),
@@ -192,13 +201,13 @@ class _NoInvites extends StatelessWidget {
           const SizedBox(height: CruSpace.s4),
           if (number != null && number.isNotEmpty)
             Text(
-              'Ask your clinic admin to invite $number',
+              'Ask your clinic admin to invite $number or your CruDoc ID.',
               style: CruType.text.tabular.tint(c.label2),
             )
           else ...[
             Text(
-              'Clinics invite you by phone number. Confirm yours so the '
-              'invite finds you.',
+              'Give your clinic admin your CruDoc ID, or confirm your phone '
+              'number so an invite to it finds you.',
               style: CruType.text.tint(c.label2),
             ),
             const SizedBox(height: CruSpace.s12),

@@ -19,13 +19,16 @@ class TransferNotificationService {
   Future<void> _init() async {
     if (_initialized || !Platform.isAndroid) return;
     try {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       await android?.createNotificationChannel(
         const AndroidNotificationChannel(
           _channelId,
           _channelName,
-          description: 'Shows progress for direct Wi-Fi file transfers with colleagues.',
+          description:
+              'Shows progress for direct Wi-Fi file transfers with colleagues.',
           importance: Importance.low,
         ),
       );

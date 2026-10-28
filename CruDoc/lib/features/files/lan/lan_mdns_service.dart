@@ -31,10 +31,7 @@ class LanMdnsService {
         name: 'CruDoc-$deviceId',
         type: serviceType,
         port: port,
-        attributes: {
-          'v': '1',
-          'deviceId': deviceId,
-        },
+        attributes: {'v': '1', 'deviceId': deviceId},
       );
 
       _broadcast = BonsoirBroadcast(service: service);
@@ -60,7 +57,8 @@ class LanMdnsService {
   /// Starts browsing for `_crudoc._tcp` peers on the local network.
   /// Runs only while Files or Send sheet is open to preserve battery.
   Future<void> startDiscovery({
-    required void Function(String deviceId, String host, int port) onPeerDiscovered,
+    required void Function(String deviceId, String host, int port)
+    onPeerDiscovered,
   }) async {
     if (_isDiscovering) return;
 

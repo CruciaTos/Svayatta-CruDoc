@@ -9,6 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/features/files/data/colleague_send.dart';
+import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/file_viewer.dart';
@@ -16,6 +19,7 @@ import 'package:doctor_management_app/features/files/presentation/files_actions.
 import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/files/presentation/transfer_progress_tray.dart';
 import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/colleague_strip.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_list.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_panel.dart';
@@ -316,6 +320,70 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     );
   }
 
+  final _stripKey = GlobalKey(debugLabel: 'colleague row');
+  final _dropStackKey = GlobalKey(debugLabel: 'files drop area');
+
+  /// Where the colleague row ends inside the drop area, so the drop overlay
+  /// starts below it; 0 when the row isn't on screen.
+  double _belowStrip() {
+    final strip = _stripKey.currentContext?.findRenderObject();
+    final stack = _dropStackKey.currentContext?.findRenderObject();
+    if (strip is! RenderBox || stack is! RenderBox) return 0;
+    if (!strip.attached || !stack.attached) return 0;
+    if (!strip.hasSize || !stack.hasSize) return 0;
+    final bottom =
+        strip.localToGlobal(Offset(0, strip.size.height)).dy -
+        stack.localToGlobal(Offset.zero).dy;
+    return bottom.clamp(0, stack.size.height).toDouble();
+  }
+
+  /// Files from Explorer dropped on a colleague's avatar. They have no
+  /// patient yet, so they are saved under that doctor's id (see
+  /// [unassignedPatientIdFor]) and sent; the doctor assigns the patient
+  /// later with Change patient.
+  Future<void> _sendDroppedTo(
+    ClinicMember colleague,
+    List<String> paths,
+  ) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    void say(String text) => messenger?.showSnackBar(
+      SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
+    );
+    final reason = colleagueBlockReason(colleague);
+    if (reason != null) {
+      say('${colleague.name}: $reason');
+      return;
+    }
+    final sources = [
+      for (final path in paths) ?await FileSource.fromPath(path),
+    ];
+    final usable = [
+      for (final s in sources)
+        if (s.problem == null) s,
+    ];
+    if (usable.isEmpty) {
+      say(
+        sources.isEmpty
+            ? 'Folders can’t be sent. Drop the files inside them.'
+            : 'These files can’t be sent: type not supported or too large.',
+      );
+      return;
+    }
+    try {
+      final ids = await FilesRepository.instance.addFilesWithIds(
+        usable,
+        patientId: unassignedPatientIdFor(colleague.uid),
+      );
+      final files = [
+        for (final id in ids) ?await FilesRepository.instance.file(id),
+      ];
+      if (files.isEmpty) return;
+      await sendToColleagueWithUndo(messenger, colleague, files);
+    } catch (e) {
+      say("Couldn't send to ${colleague.name}: $e");
+    }
+  }
+
   // ---- Layout ------------------------------------------------------------
 
   @override
@@ -331,15 +399,14 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         : CruSpace.mainPadding;
 
     final canEdit = ref.watch(clinicCanProvider(ClinicPermission.clinicalEdit));
+    final showStrip = !cruIsPhone(context) && ref.watch(hasColleaguesProvider);
     final top = <Widget>[
       const IncomingOffersCard(),
       FilesHeader(
         view: view,
         onNewFolder: canEdit ? _newFolder : null,
         onAddFiles: canEdit ? _addFiles : null,
-        onTransfers: ref.watch(hasColleaguesProvider)
-            ? () => showTransfersSheet(context)
-            : null,
+        onTransfers: () => showTransfersSheet(context),
         waitingTransfers: ref.watch(waitingTransfersProvider),
       ),
       const SizedBox(height: CruSpace.s20),
@@ -348,9 +415,23 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         searchFocus: _searchFocus,
         sort: view?.sort ?? state.sort,
       ),
-      if (view != null && !view.isEmpty) ...[
-        const SizedBox(height: CruSpace.s20),
-        FilesChips(view: view),
+      // Filter chips on the left, colleague drop targets on the right,
+      // under the patient filter.
+      if ((view != null && !view.isEmpty) || showStrip) ...[
+        const SizedBox(height: CruSpace.s16),
+        Row(
+          children: [
+            Expanded(
+              child: view != null && !view.isEmpty
+                  ? FilesChips(view: view)
+                  : const SizedBox.shrink(),
+            ),
+            if (showStrip) ...[
+              const SizedBox(width: CruSpace.s16),
+              Flexible(child: ColleagueStrip(key: _stripKey)),
+            ],
+          ],
+        ),
       ],
       if (view != null) ...[
         const SizedBox(height: CruSpace.s16),
@@ -371,33 +452,56 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     if (filesOnDesktop && canEdit) {
       body = DropTarget(
         onDragEntered: (_) => setState(() => _dragging = true),
-        onDragExited: (_) => setState(() => _dragging = false),
-        onDragDone: (detail) {
+        onDragUpdated: (d) {
+          colleagueDragMoved(d.globalPosition);
+          final over = colleagueAt(d.globalPosition)?.uid;
+          if (explorerHoverUid.value != over) explorerHoverUid.value = over;
+        },
+        onDragExited: (_) {
+          colleagueDragEnded();
+          explorerHoverUid.value = null;
           setState(() => _dragging = false);
-          _onDropped([for (final f in detail.files) f.path]);
+        },
+        onDragDone: (detail) {
+          final colleague = colleagueAt(detail.globalPosition);
+          colleagueDragEnded();
+          explorerHoverUid.value = null;
+          setState(() => _dragging = false);
+          final paths = [for (final f in detail.files) f.path];
+          if (colleague != null) {
+            flyFileIntoColleague(colleague.uid, detail.globalPosition);
+            _sendDroppedTo(colleague, paths);
+          } else {
+            _onDropped(paths);
+          }
         },
         child: Stack(
+          key: _dropStackKey,
           children: [
             body,
             if (_dragging)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: _DropOverlay(
-                    folderName: view?.current?.folder.name,
-                  ),
-                ),
+              // Over a colleague the drop sends, not adds: no overlay. It
+              // also starts below the colleague row, so the avatars stay in
+              // view to aim at.
+              ValueListenableBuilder<String?>(
+                valueListenable: explorerHoverUid,
+                builder: (_, overColleague, _) => overColleague != null
+                    ? const SizedBox.shrink()
+                    : Positioned.fill(
+                        top: _belowStrip(),
+                        child: IgnorePointer(
+                          child: _DropOverlay(
+                            folderName: view?.current?.folder.name,
+                          ),
+                        ),
+                      ),
               ),
           ],
         ),
       );
     }
 
-    final layeredBody = Stack(
-      children: [
-        body,
-        const TransferProgressTray(),
-      ],
-    );
+    final layeredBody = Stack(children: [body, const TransferProgressTray()]);
 
     return Shortcuts(
       shortcuts: _shortcuts,

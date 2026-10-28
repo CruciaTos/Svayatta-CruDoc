@@ -178,6 +178,11 @@ class ClinicInvite {
   final DateTime? expiresAt;
   final String invitedByName;
 
+  /// Set when the invite was sent by CruDoc ID: the ID ("K7Q9-2XMB") and
+  /// the account it belongs to. Such invites carry no phone or email.
+  final String? crudocId;
+  final String? inviteeUid;
+
   const ClinicInvite({
     required this.id,
     required this.clinicId,
@@ -192,6 +197,8 @@ class ClinicInvite {
     required this.status,
     this.expiresAt,
     required this.invitedByName,
+    this.crudocId,
+    this.inviteeUid,
   });
 
   factory ClinicInvite.fromMap(String id, Map<String, dynamic> map) {
@@ -216,6 +223,14 @@ class ClinicInvite {
       status: map['status'] as String? ?? 'pending',
       expiresAt: exp,
       invitedByName: map['invitedByName'] as String? ?? '',
+      crudocId: switch (map['crudocId']) {
+        final String s when s.isNotEmpty => s,
+        _ => null,
+      },
+      inviteeUid: switch (map['inviteeUid']) {
+        final String s when s.isNotEmpty => s,
+        _ => null,
+      },
     );
   }
 
@@ -232,6 +247,8 @@ class ClinicInvite {
     'status': status,
     if (expiresAt != null) 'expiresAt': Timestamp.fromDate(expiresAt!),
     'invitedByName': invitedByName,
+    'crudocId': ?crudocId,
+    'inviteeUid': ?inviteeUid,
   };
 }
 

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/files/domain/files_builder.dart';
+import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 
 const me = 'doc-a';
@@ -320,5 +321,18 @@ void main() {
     );
     expect(FilesBuilder.dateLabel(DateTime(2026, 3, 12), now), '12 Mar');
     expect(FilesBuilder.dateLabel(DateTime(2025, 3, 12), now), '12 Mar 2025');
+  });
+
+  group('FilesViewMode', () {
+    test('defaults to grid view when null or unrecognized', () {
+      expect(FilesViewMode.fromName(null), FilesViewMode.grid);
+      expect(FilesViewMode.fromName('unknown'), FilesViewMode.grid);
+      expect(FilesViewMode.fromName('list'), FilesViewMode.list);
+      expect(FilesViewMode.fromName('grid'), FilesViewMode.grid);
+    });
+
+    test('FilesState defaults to grid viewMode', () {
+      expect(const FilesState().viewMode, FilesViewMode.grid);
+    });
   });
 }

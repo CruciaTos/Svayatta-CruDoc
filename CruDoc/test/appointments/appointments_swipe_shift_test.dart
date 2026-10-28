@@ -79,5 +79,41 @@ void main() {
       await swipe(-400);
       expect(view(), ApptsView.month);
     });
+
+    testWidgets(
+      'ScheduleViewSwitcher shows Day when day is open and toggles back to Week',
+      (tester) async {
+        await pumpAppointments(
+          tester,
+          visits: apptsVisits,
+          patients: apptsPatients,
+          queue: apptsQueue,
+          now: apptsNow,
+          view: ApptsView.week,
+        );
+
+        final container = appointmentsContainer(tester);
+        expect(find.text('Week'), findsWidgets);
+        expect(find.text('Day'), findsNothing);
+
+        // Open Day view
+        container.read(apptsControllerProvider.notifier).openDay(apptsNow);
+        await tester.pumpAndSettle();
+
+        // The Week segment in the filter bar should change to Day
+        expect(find.text('Day'), findsWidgets);
+        expect(find.text('Week'), findsNothing);
+
+        // Tapping Day should toggle back to Week
+        await tester.tap(find.text('Day').first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pumpAndSettle();
+
+        expect(container.read(apptsControllerProvider).view, ApptsView.week);
+        expect(find.text('Week'), findsWidgets);
+        expect(find.text('Day'), findsNothing);
+      },
+    );
   });
 }

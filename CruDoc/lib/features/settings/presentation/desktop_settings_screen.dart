@@ -39,6 +39,7 @@ import 'package:doctor_management_app/features/settings/data/appearance_provider
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
+import 'package:doctor_management_app/features/settings/presentation/call_forwarding_section.dart';
 import 'package:doctor_management_app/features/files/presentation/nearby_sharing_settings.dart';
 import 'package:doctor_management_app/features/team/presentation/team_section.dart';
 import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
@@ -69,6 +70,10 @@ enum SettingsSection {
 
   /// Not on the web, which keeps nothing on the device.
   storage('Storage', CruIcons.download),
+
+  /// Forwards the doctor's number to the clinic's AI receptionist. People
+  /// who may use the AI ('ai'), which is also what the line's rules ask.
+  callForwarding('Call forwarding', CruIcons.phone),
 
   /// Clinics whose plan includes messaging.
   reminders('Patient reminders', CruIcons.whatsapp),
@@ -103,6 +108,8 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
     SettingsSection.team => access != null && access.can(ClinicPermission.team),
     SettingsSection.myFeatures => !isOwner,
     SettingsSection.storage => !kIsWeb,
+    SettingsSection.callForwarding =>
+      access == null || access.can(ClinicPermission.ai),
     _ => true,
   };
 }
@@ -150,6 +157,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.devices => _DevicesSection(user: user),
       SettingsSection.appearance => const _AppearanceSection(),
       SettingsSection.storage => const StorageSection(),
+      SettingsSection.callForwarding => const CallForwardingSection(),
       SettingsSection.reminders => const _RemindersSection(),
       SettingsSection.dental => const _DentalSection(),
       SettingsSection.radiology => const RadSettingsSection(),

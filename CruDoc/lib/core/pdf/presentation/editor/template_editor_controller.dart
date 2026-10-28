@@ -11,9 +11,16 @@ class TemplateEditorController extends ChangeNotifier {
   TemplateEditorController(DocTemplate initial)
     : _t = initial,
       _savedJson = jsonEncode(initial.toMap()),
-      loadedUpdatedAt = initial.updatedAt;
+      loadedUpdatedAt = initial.updatedAt,
+      _base = {for (final b in initial.blocks) b.id: b};
 
   DocTemplate _t;
+
+  /// Each block as it was when the editor opened (or when it was added):
+  /// the 100 % for the size slider and what "Reset" puts back.
+  final Map<String, DocBlock> _base;
+
+  DocBlock baseOf(DocBlock b) => _base[b.id] ?? b;
   String _savedJson;
   final int loadedUpdatedAt;
 
@@ -258,6 +265,110 @@ class TemplateEditorController extends ChangeNotifier {
     endDrag();
   }
 
+  // ---------------------------------------------------------------------------
+  // Size and transparency sliders. A slide is one undo step: call
+  // [beginLive] when it starts, then the live setters as it moves.
+
+  void beginLive() => checkpoint();
+
+  void endLive() => notifyListeners();
+
+  /// Size against the block's starting size (1.0 = 100 %).
+  double scaleOf(DocBlock b) {
+    final o = baseOf(b);
+    if (o.type == DocBlockType.line) return o.w > 0 ? b.w / o.w : 1;
+    if (o.w > 0) return b.w / o.w;
+    return 1;
+  }
+
+  /// The largest size that still fits in the block's zone.
+  double maxScaleOf(DocBlock b) {
+    final o = baseOf(b);
+    final zw = _t.paper.contentWidthMm;
+    final zh = _t.zoneHeight(b.zone);
+    var m = o.w > 0 ? zw / o.w : 2.0;
+    if (o.type != DocBlockType.line && o.h > 0) m = math.min(m, zh / o.h);
+    return m;
+  }
+
+  /// Grows or shrinks the block around its centre: box, text size and
+  /// line length together, so it keeps its shape.
+  void setScaleLive(String id, double k) {
+    final b = _t.blocks.where((x) => x.id == id).firstOrNull;
+    if (b == null || b.locked) return;
+    final o = baseOf(b);
+    final kk = _c(k, 0.3, math.max(0.3, maxScaleOf(b)));
+    final zw = _t.paper.contentWidthMm;
+    final zh = _t.zoneHeight(b.zone);
+    final w = r1(o.w * kk);
+    final h = o.type == DocBlockType.line ? b.h : r1(o.h * kk);
+    final cx = b.x + b.w / 2;
+    final cy = b.y + b.h / 2;
+    _replace(
+      b.copyWith(
+        w: w,
+        h: h,
+        x: r1(_c(cx - w / 2, 0, zw - w)),
+        y: r1(_c(cy - h / 2, 0, zh - h)),
+        fontPt: r1(_c(o.fontPt * kk, 5, 40)),
+      ),
+    );
+  }
+
+  /// 0 = solid, 0.8 = mostly see-through (never invisible: hide it instead).
+  void setTransparencyLive(String id, double transparency) {
+    final b = _t.blocks.where((x) => x.id == id).firstOrNull;
+    if (b == null || b.locked) return;
+    final t = _c(transparency, 0, 0.8);
+    _replace(b.copyWith(opacity: ((1 - t) * 100).roundToDouble() / 100));
+  }
+
+  /// Puts one block back where and how it was when the editor opened.
+  void resetBlock(String id) {
+    final b = _t.blocks.where((x) => x.id == id).firstOrNull;
+    final o = _base[id];
+    if (b == null || o == null) return;
+    checkpoint();
+    _replace(o.copyWith(hidden: b.hidden, locked: b.locked));
+  }
+
+  bool isChanged(DocBlock b) {
+    final o = _base[b.id];
+    if (o == null) return true;
+    return o.x != b.x ||
+        o.y != b.y ||
+        o.w != b.w ||
+        o.h != b.h ||
+        o.fontPt != b.fontPt ||
+        o.opacity != b.opacity;
+  }
+
+  /// The whole layout back to [preset] (header, footer and every block),
+  /// scaled to this template's paper. One undo step.
+  void resetLayout(DocTemplate preset) {
+    checkpoint();
+    final f = _t.paper.contentWidthMm / preset.paper.contentWidthMm;
+    DocBlock s(DocBlock b) => f == 1
+        ? b
+        : b.copyWith(
+            x: r1(b.x * f),
+            y: r1(b.y * f),
+            w: r1(b.w * f),
+            h: r1(b.h * f),
+            fontPt: _c(b.fontPt * f, 5, 40),
+          );
+    _t = _t.copyWith(
+      headerMm: r1(preset.headerMm * f),
+      footerMm: r1(preset.footerMm * f),
+      blocks: [for (final b in preset.blocks) s(b)],
+    );
+    for (final b in _t.blocks) {
+      _base[b.id] = b;
+    }
+    selectedId = null;
+    notifyListeners();
+  }
+
   /// Adds [b] centred in the header (footer if the header is closed).
   /// Returns false when both zones are closed or blocks reach max 80.
   bool add(DocBlock b) {
@@ -280,6 +391,7 @@ class TemplateEditorController extends ChangeNotifier {
       y: r1(_c((zh - b.h) / 2, 0, zh - b.h)),
     );
     _t = _t.copyWith(blocks: [..._t.blocks, placed]);
+    _base[placed.id] = placed;
     selectedId = placed.id;
     notifyListeners();
     return true;
@@ -298,6 +410,7 @@ class TemplateEditorController extends ChangeNotifier {
       y: r1(_c(b.y + 3.0, 0, zh - b.h)),
     );
     _t = _t.copyWith(blocks: [..._t.blocks, copy]);
+    _base[copy.id] = copy;
     selectedId = copy.id;
     notifyListeners();
   }

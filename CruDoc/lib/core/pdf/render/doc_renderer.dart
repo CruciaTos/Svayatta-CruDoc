@@ -108,7 +108,14 @@ class DocRenderer {
           pw.Positioned(
             left: (b.x + (noLogo ? b.noLogoDx : 0)) * mm,
             top: (b.y + (noLogo ? b.noLogoDy : 0)) * mm,
-            child: pw.SizedBox(width: b.w * mm, height: b.h * mm, child: w),
+            child: pw.SizedBox(
+              width: b.w * mm,
+              height: b.h * mm,
+              // Transparency applies to every kind of block.
+              child: b.opacity < 1
+                  ? pw.Opacity(opacity: b.opacity.clamp(0.0, 1.0), child: w)
+                  : w,
+            ),
           ),
         );
       }
@@ -140,13 +147,10 @@ class DocRenderer {
       DocBlockType.image => () {
         final bytes = ctx.images.forBlock(b);
         if (bytes == null) return null;
-        return pw.Opacity(
-          opacity: b.opacity,
-          child: pw.Image(
-            pw.MemoryImage(bytes),
-            fit: pw.BoxFit.contain,
-            alignment: align(b),
-          ),
+        return pw.Image(
+          pw.MemoryImage(bytes),
+          fit: pw.BoxFit.contain,
+          alignment: align(b),
         );
       }(),
       DocBlockType.line => pw.Align(

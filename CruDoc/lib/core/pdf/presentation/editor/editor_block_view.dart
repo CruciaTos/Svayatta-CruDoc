@@ -81,7 +81,7 @@ class EditorBlockView extends StatelessWidget {
       height: 1.25,
     );
 
-    return switch (block.type) {
+    final view = switch (block.type) {
       DocBlockType.field => _buildField(textStyle),
       DocBlockType.text => _buildText(textStyle),
       DocBlockType.image => _buildImage(),
@@ -90,6 +90,10 @@ class EditorBlockView extends StatelessWidget {
       DocBlockType.qr => _buildQr(),
       DocBlockType.doctorList => _buildDoctorList(textStyle),
     };
+    // Transparency applies to every kind of block, as in the PDF.
+    return block.opacity < 1
+        ? Opacity(opacity: block.opacity.clamp(0.0, 1.0), child: view)
+        : view;
   }
 
   Widget _buildField(TextStyle style) {
@@ -165,9 +169,11 @@ class EditorBlockView extends StatelessWidget {
   Widget _buildImage() {
     final bytes = previewCtx.images.forBlock(block);
     if (bytes != null && bytes.isNotEmpty) {
-      return Opacity(
-        opacity: block.opacity.clamp(0.0, 1.0),
-        child: Image.memory(bytes, fit: BoxFit.contain, alignment: _alignment),
+      return Image.memory(
+        bytes,
+        fit: BoxFit.contain,
+        alignment: _alignment,
+        gaplessPlayback: true,
       );
     }
 

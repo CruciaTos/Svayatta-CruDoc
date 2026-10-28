@@ -63,22 +63,20 @@ DateTime? _doneOn(Map<String, dynamic> q) => q['date'] is int
   return (planned: planned, done: done);
 }
 
-/// What the Clinical records card says about root planing: "2 of 4
-/// quadrants done" while the course is running, then "Re-evaluation due
-/// 12 Oct". [courses] is newest first.
-({String text, bool warn}) srpCardLine(List<DentalRecord> courses) {
+/// What the Clinical records tile says about root planing: "2 of 4 done"
+/// while the course is running, then "Re-eval 12 Oct". Null text when
+/// nothing is planned. [courses] is newest first.
+({String? text, bool warn}) srpTileLine(List<DentalRecord> courses) {
   final course = courses.firstOrNull;
   final p = _progress(course);
-  if (course == null || p.planned == 0) {
-    return (text: 'None planned', warn: false);
-  }
+  if (course == null || p.planned == 0) return (text: null, warn: false);
   if (p.done < p.planned) {
-    return (text: '${p.done} of ${p.planned} quadrants done', warn: false);
+    return (text: '${p.done} of ${p.planned} done', warn: false);
   }
   final due = course.date('reevaluationDue');
-  if (due == null) return (text: 'All quadrants done', warn: false);
+  if (due == null) return (text: 'All done', warn: false);
   return (
-    text: 'Re-evaluation due ${DentalFormat.shortDate(due)}',
+    text: 'Re-eval ${DentalFormat.shortDate(due)}',
     warn: due.isBefore(DateTime.now()),
   );
 }

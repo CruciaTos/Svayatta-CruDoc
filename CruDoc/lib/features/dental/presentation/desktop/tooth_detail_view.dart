@@ -362,23 +362,31 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
       ),
     );
 
-    final shown = _allHistory ? timeline : timeline.take(4).toList();
+    // Wide dialogs fit the screen height: History and Plan split what the
+    // finding tiles leave, half each, and scroll inside. Matches the
+    // three-column breakpoint below (dialog width minus its padding).
+    final screen = MediaQuery.sizeOf(context);
+    final fill =
+        screen.width >= 600 &&
+        (screen.width - CruSpace.s24 * 2).clamp(0, 1280) - CruSpace.s16 * 2 >=
+            1060;
+    final shown = _allHistory || fill ? timeline : timeline.take(4).toList();
     // Phones: each entry on two lines instead of a four-column table.
     final narrowHistory = MediaQuery.sizeOf(context).width < 600;
     final history = CruCard(
       semanticLabel: 'History',
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Title(
-            'History',
-            trailing: CruCapsuleButton(
-              label: 'Log procedure',
-              onPressed: () =>
-                  showProcedureLogDialog(context, patient: p, teeth: [_tooth]),
-            ),
+      child: _CardBody(
+        fill: fill,
+        title: _Title(
+          'History',
+          trailing: CruCapsuleButton(
+            label: 'Log procedure',
+            onPressed: () =>
+                showProcedureLogDialog(context, patient: p, teeth: [_tooth]),
           ),
+        ),
+        children: [
           const SizedBox(height: CruSpace.s10),
           if (timeline.isEmpty)
             Padding(
@@ -431,7 +439,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                   ],
                 ),
               ),
-            if (timeline.length > 4)
+            if (!fill && timeline.length > 4)
               Padding(
                 padding: const EdgeInsets.only(
                   left: CruSpace.s12,
@@ -534,7 +542,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                   ],
                 ),
               ),
-            if (timeline.length > 4)
+            if (!fill && timeline.length > 4)
               Padding(
                 padding: const EdgeInsets.only(
                   left: CruSpace.s12,
@@ -565,17 +573,17 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     final planCard = CruCard(
       semanticLabel: 'Plan for this tooth',
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Title(
-            'Plan for this tooth',
-            trailing: CruCapsuleButton(
-              label: 'Add to plan',
-              onPressed: () =>
-                  showPlanItemDialog(context, patient: p, teeth: [_tooth]),
-            ),
+      child: _CardBody(
+        fill: fill,
+        title: _Title(
+          'Plan for this tooth',
+          trailing: CruCapsuleButton(
+            label: 'Add to plan',
+            onPressed: () =>
+                showPlanItemDialog(context, patient: p, teeth: [_tooth]),
           ),
+        ),
+        children: [
           const SizedBox(height: CruSpace.s8),
           if (planned.isEmpty)
             Text(
@@ -703,7 +711,15 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     const gap = SizedBox(height: CruSpace.s16, width: CruSpace.s16);
     final middle = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [history, gap, tiles, gap, planCard],
+      children: fill
+          ? [
+              tiles,
+              gap,
+              Expanded(child: history),
+              gap,
+              Expanded(child: planCard),
+            ]
+          : [tiles, gap, history, gap, planCard],
     );
     final right = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -712,15 +728,16 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     final body = LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
-        if (w >= 1060) {
+        if (fill) {
+          // Full height: the side columns scroll on their own.
           return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              left,
+              SingleChildScrollView(child: left),
               gap,
               Expanded(child: middle),
               gap,
-              SizedBox(width: 340, child: right),
+              SizedBox(width: 340, child: SingleChildScrollView(child: right)),
             ],
           );
         }
@@ -785,20 +802,32 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
               maxWidth: phone ? size.width : 1280,
               maxHeight: phone ? size.height : size.height - CruSpace.s24 * 2,
             ),
-            child: SingleChildScrollView(
-              padding: phone
-                  ? EdgeInsets.fromLTRB(
-                      CruSpace.s12,
-                      MediaQuery.paddingOf(context).top + CruSpace.s8,
-                      CruSpace.s12,
-                      MediaQuery.paddingOf(context).bottom + CruSpace.s16,
-                    )
-                  : const EdgeInsets.all(CruSpace.s16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [header, gap, body],
-              ),
-            ),
+            child: fill
+                ? Padding(
+                    padding: const EdgeInsets.all(CruSpace.s16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        header,
+                        gap,
+                        Expanded(child: body),
+                      ],
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: phone
+                        ? EdgeInsets.fromLTRB(
+                            CruSpace.s12,
+                            MediaQuery.paddingOf(context).top + CruSpace.s8,
+                            CruSpace.s12,
+                            MediaQuery.paddingOf(context).bottom + CruSpace.s16,
+                          )
+                        : const EdgeInsets.all(CruSpace.s16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [header, gap, body],
+                    ),
+                  ),
           ),
         ),
       ),
@@ -816,6 +845,35 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
       return c.greenText;
     }
     return c.accent;
+  }
+}
+
+/// A card's title over its body. With [fill] the card takes the height it
+/// is given and the body scrolls under the title.
+class _CardBody extends StatelessWidget {
+  const _CardBody({
+    required this.fill,
+    required this.title,
+    required this.children,
+  });
+
+  final bool fill;
+  final Widget title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        title,
+        if (fill) Expanded(child: SingleChildScrollView(child: body)) else body,
+      ],
+    );
   }
 }
 

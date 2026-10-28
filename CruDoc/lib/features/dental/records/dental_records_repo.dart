@@ -180,6 +180,21 @@ class DentalRecordsRepository {
     return rows.map(_fromRow).toList();
   }
 
+  /// Every record of one patient, newest first, in a single query.
+  Future<List<DentalRecord>> allForPatient(
+    String doctorId,
+    String patientId,
+  ) async {
+    final db = await _db.localDatabase;
+    final rows = await db.query(
+      'dental_records',
+      where: 'doctorId = ? AND patientId = ? AND isDeleted = 0',
+      whereArgs: [doctorId, patientId],
+      orderBy: 'recordedAt DESC',
+    );
+    return rows.map(_fromRow).toList();
+  }
+
   Future<DentalRecord?> byId(String id) async {
     final db = await _db.localDatabase;
     final rows = await db.query(
@@ -287,6 +302,25 @@ final patientRecordsProvider =
           .forPatient(doctorId, k.patientId, k.kind);
     });
 
+/// All of one patient's records grouped by kind, each list newest first.
+/// One query, so a card showing every kind stays light.
+final patientRecordsByKindProvider =
+    FutureProvider.family<Map<String, List<DentalRecord>>, String>((
+      ref,
+      patientId,
+    ) async {
+      ref.watch(dentalRecordsVersionProvider);
+      final doctorId = ref.watch(dentalDoctorIdProvider);
+      final all = await ref
+          .watch(dentalRecordsRepoProvider)
+          .allForPatient(doctorId, patientId);
+      final byKind = <String, List<DentalRecord>>{};
+      for (final r in all) {
+        (byKind[r.kind] ??= []).add(r);
+      }
+      return byKind;
+    });
+
 /// Every record of a kind in the clinic, newest first.
 final clinicRecordsProvider = FutureProvider.family<List<DentalRecord>, String>(
   (ref, kind) {
@@ -358,6 +392,29 @@ abstract final class RecIcons {
   static const frankl = CruIconData(
     'M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8',
     circles: [(12, 12, 8.5), (9, 10, 0.6), (15, 10, 0.6)],
+  );
+
+  /// Medical history: a page with a medical cross.
+  static const history = CruIconData(
+    'M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8zM14 3.5V8h4.5'
+    'M12 11.5v6M9 14.5h6',
+  );
+
+  /// Root planing: a curette.
+  static const srp = CruIconData(
+    'M4.5 19.5l9.5-9.5M14 10c-1-2-.5-4 1.3-5.2 1.6-1.1 3.7-.6 4.2 1',
+  );
+
+  /// Photo series: a camera.
+  static const camera = CruIconData(
+    'M4 8.5a2 2 0 0 1 2-2h2l1.5-2h5l1.5 2h2a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',
+    circles: [(12, 12.5, 3.5)],
+  );
+
+  /// Forms: a page with ticked lines.
+  static const form = CruIconData(
+    'M7.5 3.5h9a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z'
+    'M8.5 9l1 1 2-2M13.5 9H16M8.5 14l1 1 2-2M13.5 14H16',
   );
 
   /// Checklist: a clipboard with a tick.

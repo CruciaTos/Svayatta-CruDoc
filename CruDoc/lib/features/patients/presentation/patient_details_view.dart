@@ -10,7 +10,6 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_chart_card.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
@@ -32,7 +31,6 @@ import 'package:doctor_management_app/features/scribe/data/providers/scribe_prov
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
-import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -147,13 +145,17 @@ class _DetailsBody extends ConsumerWidget {
     // Scans and reports for dentists with radiology enabled.
     // Who treats this patient. Hides itself unless the clinic scopes its
     // doctors to the patients they treat.
-    final assignedDoctors = AssignedDoctorsCard(
-      patientId: s.id,
-      assignedDoctorUids: p.assignedDoctorUids,
-    );
-    final imaging = ref.watch(hasDentalRadiologyProvider)
-        ? PatientImagingCard(patientId: s.id)
+    // Left out of the layout otherwise, so its empty slot leaves no gap.
+    final assignedDoctors =
+        ref.watch(clinicAccessProvider).value?.clinicalAccessScope == 'assigned'
+        ? AssignedDoctorsCard(
+            patientId: s.id,
+            assignedDoctorUids: p.assignedDoctorUids,
+          )
         : null;
+    // Imaging studies show inside the Files card: one card for everything
+    // filed to the patient.
+    final showImaging = ref.watch(hasDentalRadiologyProvider);
 
     // Dental plan (dentists only). Declined items are dropped.
     final plan = isDentist
@@ -203,29 +205,21 @@ class _DetailsBody extends ConsumerWidget {
     void edit() => PatientActions.edit(context, ref, p);
     void recordPayment() => PatientActions.recordPayment(context, ref, s);
 
-    final Widget planOrPayments = planLoading
-        ? const SkeletonCard(rows: 3)
-        : items.isNotEmpty
-        ? TreatmentPlanCard(
-            summary: s,
-            items: items,
-            onEditPlan: () => showTreatmentPlanDialog(context, patient: p),
-            onBook: newVisit,
-            onRecordPayment: recordPayment,
-          )
-        : PaymentsCard(summary: s, onRecordPayment: recordPayment);
+    // The treatment plan opens from its Clinical records tile.
+    final Widget planOrPayments = PaymentsCard(
+      summary: s,
+      onRecordPayment: recordPayment,
+    );
     final notes = clinical ? ClinicalNotesCard(summary: s, now: now) : null;
     // Dentists: the tooth chart, their procedures, and a way into a plan.
     final chart = isDentist ? ToothChartCard(patient: p) : null;
-    final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
-    final records = isDentist ? DentalRecordsButton(patient: p) : null;
+    final records = isDentist ? DentalRecordsCard(patient: p) : null;
     final physioPhotos = isPhysio ? PhysioPhotosCard(patient: p) : null;
     // X-rays, photos and reports from the Files screen.
-    final files = clinical ? PatientFilesCard(patient: p) : null;
-    final muscleChart = isPhysio ? MuscleChartCard(patient: p) : null;
-    final noPlan = isDentist && !planLoading && items.isEmpty
-        ? NoPlanCard(patient: p)
+    final files = clinical || showImaging
+        ? PatientFilesCard(patient: p, showImaging: showImaging)
         : null;
+    final muscleChart = isPhysio ? MuscleChartCard(patient: p) : null;
     // Consultations recorded with the AI scribe; hidden until there is one.
     final sessions = clinical
         ? ref.watch(sessionHistoryProvider(s.id)).value
@@ -304,6 +298,23 @@ class _DetailsBody extends ConsumerWidget {
                         );
                       }
                     : null,
+                // Dentists: the procedure log opens from the top bar.
+                onProcedures: isDentist
+                    ? () => showDialog<void>(
+                        context: context,
+                        builder: (_) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          elevation: 0,
+                          insetPadding: const EdgeInsets.all(CruSpace.s24),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 520),
+                            child: SingleChildScrollView(
+                              child: DentalProceduresCard(patient: p),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
                 onCertificate: canClinicalEdit
                     ? () => showCertificateDialog(context, patient: p)
                     : null,
@@ -344,11 +355,9 @@ class _DetailsBody extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: _Stack([
-                        ?imaging,
                         ?chart,
                         ?sessionHistory,
                         ?muscleChart,
-                        ?noPlan,
                         planOrPayments,
                         ?notes,
                       ]),
@@ -357,12 +366,11 @@ class _DetailsBody extends ConsumerWidget {
                     SizedBox(
                       width: CruSize.rightColumn,
                       child: _Stack([
-                        assignedDoctors,
-                        ?procedures,
                         ?records,
+                        ?assignedDoctors,
+                        visits,
                         ?files,
                         ?physioPhotos,
-                        visits,
                         ?history,
                       ]),
                     ),
@@ -370,18 +378,15 @@ class _DetailsBody extends ConsumerWidget {
                 )
               else
                 _Stack([
-                  assignedDoctors,
-                  ?imaging,
+                  ?assignedDoctors,
                   ?chart,
+                  ?records,
                   ?sessionHistory,
                   ?muscleChart,
-                  ?noPlan,
                   planOrPayments,
-                  ?procedures,
-                  ?records,
+                  visits,
                   ?files,
                   ?physioPhotos,
-                  visits,
                   ?notes,
                   ?history,
                 ]),

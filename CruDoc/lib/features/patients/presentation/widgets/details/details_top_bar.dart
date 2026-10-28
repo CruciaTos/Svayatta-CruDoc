@@ -19,6 +19,7 @@ class DetailsTopBar extends StatelessWidget {
     this.onPrescription,
     this.onReport,
     this.onCertificate,
+    this.onProcedures,
   });
 
   final String patientName;
@@ -39,6 +40,9 @@ class DetailsTopBar extends StatelessWidget {
   final VoidCallback? onReport;
   final VoidCallback? onCertificate;
 
+  /// Dentists only: the patient's procedure log.
+  final VoidCallback? onProcedures;
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -51,6 +55,14 @@ class DetailsTopBar extends StatelessWidget {
             kind: CruButtonKind.secondary,
             icon: CruIcons.pen,
             onPressed: onEdit,
+          ),
+          const SizedBox(width: CruSpace.s10),
+        ],
+        if (onProcedures != null) ...[
+          CruButton(
+            label: 'Procedures',
+            kind: CruButtonKind.secondary,
+            onPressed: onProcedures,
           ),
           const SizedBox(width: CruSpace.s10),
         ],

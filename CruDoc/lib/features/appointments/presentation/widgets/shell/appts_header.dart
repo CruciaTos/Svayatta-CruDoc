@@ -280,8 +280,9 @@ class _MonthYearPickerState extends State<_MonthYearPicker> {
   }
 }
 
-/// The title line of a view that doesn't show today: outlined in light
-/// blue, and clicking it goes back to today.
+/// The title line of a view that doesn't show today: always on a light
+/// blue fill with a blue outline; hover makes the outline solid. Clicking
+/// it goes back to today.
 class _BackToToday extends ConsumerWidget {
   const _BackToToday({required this.child});
 
@@ -308,12 +309,12 @@ class _BackToToday extends ConsumerWidget {
               duration: CruMotion.of(context, CruMotion.fast),
               curve: CruMotion.curve,
               decoration: ShapeDecoration(
-                color: hovered
-                    ? c.accentTint
-                    : c.accentTint.withValues(alpha: 0),
+                color: c.accentTint,
                 shape: cruShape(
                   CruRadius.control,
-                  side: BorderSide(color: c.accent.withValues(alpha: 0.5)),
+                  side: BorderSide(
+                    color: hovered ? c.accent : c.accent.withValues(alpha: 0.5),
+                  ),
                 ),
               ),
             ),
@@ -416,10 +417,8 @@ class ScheduleTitle extends StatelessWidget {
               if (currentChild != null) currentChild,
             ],
           ),
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
           child: KeyedSubtree(
             key: ValueKey<String>(title),
             child: wrapTitle?.call(line) ?? line,
@@ -438,10 +437,8 @@ class ScheduleTitle extends StatelessWidget {
                 if (currentChild != null) currentChild,
               ],
             ),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
             child: summary == null
                 ? const SizedBox.shrink(key: ValueKey<String>('empty'))
                 : Text.rich(

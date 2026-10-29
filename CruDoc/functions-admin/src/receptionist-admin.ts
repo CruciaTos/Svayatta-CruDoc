@@ -145,6 +145,7 @@ async function audit(
  *  - deactivateLine:  {twilioNumber}
  *  - setEntitlement:  {clinicId, enabled}
  *  - getStatus:       {deep?}  -- deep makes one real Sarvam + Gemini call
+ *  - getConfig:       {}  -- the voice service's settings, secrets masked
  *  - listCalls:       {clinicId?, twilioNumber?, days?, limit?}
  *  - listAppointments:{clinicId?, days?, limit?}  -- bookings made by the AI
  */
@@ -165,6 +166,9 @@ export const manageReceptionistLines = onCall(
     case "getStatus":
       return callVoiceService(
         "GET", `/api/admin/status${data.deep === true ? "?deep=true" : ""}`);
+
+    case "getConfig":
+      return callVoiceService("GET", "/api/admin/config");
 
     case "listCalls":
       return callVoiceService("GET", `/api/admin/calls${queryString({

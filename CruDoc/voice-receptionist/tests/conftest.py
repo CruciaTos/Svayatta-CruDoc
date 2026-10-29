@@ -26,6 +26,9 @@ async def db_session():
         yield session
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    # Close pooled connections: each holds an aiosqlite thread that keeps
+    # pytest from exiting after the last test.
+    await engine.dispose()
 
 
 @pytest.fixture

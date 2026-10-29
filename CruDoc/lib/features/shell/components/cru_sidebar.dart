@@ -204,6 +204,7 @@ class SidebarCallbacks {
     required this.onSettings,
     this.onProfile,
     required this.onHelp,
+    this.onFeedback,
     required this.onLogout,
     required this.onToggleCollapsed,
     this.appearanceMenu,
@@ -218,6 +219,9 @@ class SidebarCallbacks {
   /// Settings opened on the Profile section; the item is hidden if null.
   final VoidCallback? onProfile;
   final VoidCallback onHelp;
+
+  /// Report a bug or send feedback to the CruDoc team; hidden if null.
+  final VoidCallback? onFeedback;
   final VoidCallback onLogout;
   final VoidCallback onToggleCollapsed;
   final VoidCallback? onToggleTheme;
@@ -1012,6 +1016,13 @@ class _ProfileButton extends StatelessWidget {
           _item(c, CruIcons.user, 'Profile', callbacks.onProfile!),
         _item(c, CruIcons.settings, 'Settings', callbacks.onSettings),
         _item(c, CruIcons.help, 'Help & shortcuts', callbacks.onHelp),
+        if (callbacks.onFeedback != null)
+          _item(
+            c,
+            CruIcons.megaphone,
+            'Report a bug or feedback',
+            callbacks.onFeedback!,
+          ),
         if (canExpand)
           _item(
             c,

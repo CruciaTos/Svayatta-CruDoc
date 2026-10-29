@@ -1,6 +1,7 @@
 import {setGlobalOptions} from "firebase-functions/v2";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import {FieldValue} from "firebase-admin/firestore";
 
 admin.initializeApp();
 setGlobalOptions({region: "asia-south1", maxInstances: 10});
@@ -51,7 +52,9 @@ export const claimSuperAdmin = onCall(async (request) => {
     });
   }
 
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  // The modular import: the Functions emulator's wrapped admin.firestore
+  // has no FieldValue, so the namespaced form crashed sign-in there.
+  const now = FieldValue.serverTimestamp();
   await profileRef.set(
     {
       email,

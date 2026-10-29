@@ -1070,10 +1070,25 @@ service cloud.firestore {
     // SUPPORT TICKETS COLLECTION
     // ============================================================
 
+    // Bug reports and feedback sent from the app (SupportTicketService),
+    // shown on the Super Admin's Support screen. The sender files and reads
+    // their own; only the Super Admin reads them all. A new one is always
+    // 'open' and not archived, with a short text, so a client can't file it
+    // as already handled or stuff a huge document in. Categories are the
+    // Super Admin's TicketCategory names.
     match /support_tickets/{ticketId} {
       allow read: if isSuperAdmin()
         || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
-      allow create: if isAuthenticated() && writesOwnDoctorId();
+      allow create: if isAuthenticated() && writesOwnDoctorId()
+        && request.resource.data.category in
+          ['bug', 'complaint', 'feedback', 'suggestion', 'featureRequest']
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 4000
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() <= 200
+        && request.resource.data.status == 'open'
+        && request.resource.data.get('isArchived', false) == false;
       allow update: if isSuperAdmin()
         || (isAuthenticated()
           && resource.data.doctorId == request.auth.uid

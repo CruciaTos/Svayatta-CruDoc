@@ -33,6 +33,7 @@ import 'package:doctor_management_app/features/dental/referrals/referrers_screen
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
+import 'package:doctor_management_app/features/support/presentation/feedback_dialog.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
@@ -580,6 +581,16 @@ class _MobileSettingsList extends ConsumerWidget {
               titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
               chevron: true,
               onTap: () => showMobileGestureGuide(context),
+            ),
+            MobileRow(
+              leading: const MobileIconTile(
+                icon: CruIcons.megaphone,
+                tone: MobileTone.slate,
+              ),
+              title: 'Report a bug or send feedback',
+              titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
+              chevron: true,
+              onTap: () => showFeedbackDialog(context),
             ),
             MobileRow(
               leading: const MobileIconTile(

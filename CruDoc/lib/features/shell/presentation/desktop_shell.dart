@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:doctor_management_app/core/services/feature_usage_service.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/features/support/presentation/feedback_dialog.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/features/shell/components/desktop_page_tabs.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
@@ -486,6 +487,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         _onNavTap(DesktopTab.settings);
       },
       onHelp: () => showDesktopShellHelpDialog(root),
+      onFeedback: () => showFeedbackDialog(root),
       onLogout: () async {
         try {
           await AuthService().signOut();

@@ -102,6 +102,20 @@ class TemplateEditorController extends ChangeNotifier {
   static double _c(double v, double lo, double hi) =>
       v < lo ? lo : (v > math.max(lo, hi) ? math.max(lo, hi) : v);
 
+  /// Where a block of width [w] may start so it stays on the page both
+  /// with a logo and without one (when it slides by its no-logo shift).
+  (double, double) _xRange(DocBlock b, double w) {
+    final zw = _t.paper.contentWidthMm;
+    final dx = b.noLogoDx;
+    return (math.max(0, -dx), math.min(zw - w, zw - w - dx));
+  }
+
+  (double, double) _yRange(DocBlock b, double h) {
+    final zh = _t.zoneHeight(b.zone);
+    final dy = b.noLogoDy;
+    return (math.max(0, -dy), math.min(zh - h, zh - h - dy));
+  }
+
   /// Drag: [orig] is the block as it was when the drag started.
   void moveTo(DocBlock orig, double dxMm, double dyMm) {
     final zw = _t.paper.contentWidthMm;
@@ -121,9 +135,9 @@ class TemplateEditorController extends ChangeNotifier {
     guideX = gx;
     guideY = gy;
     guideZone = orig.zone;
-    _replace(
-      orig.copyWith(x: r1(_c(x, 0, zw - orig.w)), y: r1(_c(y, 0, zh - orig.h))),
-    );
+    final (xLo, xHi) = _xRange(orig, orig.w);
+    final (yLo, yHi) = _yRange(orig, orig.h);
+    _replace(orig.copyWith(x: r1(_c(x, xLo, xHi)), y: r1(_c(y, yLo, yHi))));
   }
 
   List<double> _targets(
@@ -273,6 +287,18 @@ class TemplateEditorController extends ChangeNotifier {
 
   void endLive() => notifyListeners();
 
+  /// A block change while typing or sliding (no undo step of its own).
+  void updateBlockLive(String id, DocBlock Function(DocBlock b) change) {
+    final idx = _t.blocks.indexWhere((b) => b.id == id);
+    if (idx != -1) _replace(change(_t.blocks[idx]));
+  }
+
+  /// A whole-template change during a slide (no undo step of its own).
+  void updateLive(DocTemplate Function(DocTemplate t) change) {
+    _t = change(_t);
+    notifyListeners();
+  }
+
   /// Size against the block's starting size (1.0 = 100 %).
   double scaleOf(DocBlock b) {
     final o = baseOf(b);
@@ -284,8 +310,8 @@ class TemplateEditorController extends ChangeNotifier {
   /// The largest size that still fits in the block's zone.
   double maxScaleOf(DocBlock b) {
     final o = baseOf(b);
-    final zw = _t.paper.contentWidthMm;
-    final zh = _t.zoneHeight(b.zone);
+    final zw = _t.paper.contentWidthMm - b.noLogoDx.abs();
+    final zh = _t.zoneHeight(b.zone) - b.noLogoDy.abs();
     var m = o.w > 0 ? zw / o.w : 2.0;
     if (o.type != DocBlockType.line && o.h > 0) m = math.min(m, zh / o.h);
     return m;
@@ -298,18 +324,18 @@ class TemplateEditorController extends ChangeNotifier {
     if (b == null || b.locked) return;
     final o = baseOf(b);
     final kk = _c(k, 0.3, math.max(0.3, maxScaleOf(b)));
-    final zw = _t.paper.contentWidthMm;
-    final zh = _t.zoneHeight(b.zone);
     final w = r1(o.w * kk);
     final h = o.type == DocBlockType.line ? b.h : r1(o.h * kk);
     final cx = b.x + b.w / 2;
     final cy = b.y + b.h / 2;
+    final (xLo, xHi) = _xRange(b, w);
+    final (yLo, yHi) = _yRange(b, h);
     _replace(
       b.copyWith(
         w: w,
         h: h,
-        x: r1(_c(cx - w / 2, 0, zw - w)),
-        y: r1(_c(cy - h / 2, 0, zh - h)),
+        x: r1(_c(cx - w / 2, xLo, xHi)),
+        y: r1(_c(cy - h / 2, yLo, yHi)),
         fontPt: r1(_c(o.fontPt * kk, 5, 40)),
       ),
     );

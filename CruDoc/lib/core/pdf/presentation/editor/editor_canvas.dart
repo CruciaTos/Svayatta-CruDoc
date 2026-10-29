@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:doctor_management_app/core/pdf/presentation/editor/editor_block_view.dart';
 import 'package:doctor_management_app/core/pdf/presentation/editor/template_editor_controller.dart';
@@ -38,6 +39,8 @@ class EditorCanvas extends StatefulWidget {
     required this.onDragLock,
     this.bodyImage,
     this.touch = false,
+    this.bodyAspect,
+    this.onLongPress,
   });
 
   final TemplateEditorController controller;
@@ -49,8 +52,16 @@ class EditorCanvas extends StatefulWidget {
   /// body under the blocks. Placeholder rows until it arrives.
   final Uint8List? bodyImage;
 
-  /// Fingers: bigger handles and a faint outline on everything movable.
+  /// Fingers: a clean page. No handles (the Size slider resizes), no zone
+  /// tints or edge bars; outlines show only while something is dragged.
   final bool touch;
+
+  /// Holding a finger on an element (its actions menu).
+  final ValueChanged<DocBlock>? onLongPress;
+
+  /// Width ÷ height of [bodyImage]: a receipt roll is as long as its
+  /// content, so its shape comes from the rendered page.
+  final double? bodyAspect;
 
   @override
   State<EditorCanvas> createState() => _EditorCanvasState();
@@ -59,13 +70,46 @@ class EditorCanvas extends StatefulWidget {
 class _EditorCanvasState extends State<EditorCanvas> {
   _DragState? _drag;
   final Set<int> _pointers = {};
+  Timer? _hold;
+  Offset? _holdStart;
+
+  /// An element is being moved: show the zone and the other elements.
+  bool get _moving =>
+      _drag?.kind == _DragTargetKind.block && (_drag?.checkpointDone ?? false);
+
+  @override
+  void dispose() {
+    _hold?.cancel();
+    super.dispose();
+  }
+
+  void _cancelHold() {
+    _hold?.cancel();
+    _hold = null;
+    _holdStart = null;
+  }
+
+  /// A detail with nothing to print yet (no tagline, no address…).
+  bool _isEmpty(DocBlock b) => switch (b.type) {
+    DocBlockType.field => widget.previewCtx.field(b.field).trim().isEmpty,
+    DocBlockType.text => widget.previewCtx.fill(b.text).trim().isEmpty,
+    _ => false,
+  };
 
   TemplateEditorController get ctrl => widget.controller;
   DocTemplate get t => ctrl.template;
   double get s => widget.pxPerMm;
 
   double get _paperWidthPx => t.paper.widthMm * s;
-  double get _paperHeightPx => t.paper.heightMm * s;
+
+  /// A receipt roll: one long strip with a fixed layout, no zones.
+  bool get _roll => t.paper.isRoll || t.paper.heightMm <= 0;
+
+  double get _paperHeightPx {
+    if (!_roll) return t.paper.heightMm * s;
+    final a = widget.bodyAspect;
+    return a != null && a > 0 ? _paperWidthPx / a : _paperWidthPx * 1.6;
+  }
 
   double get _headerTopPx => t.paper.margins.top * s;
   double get _headerHeightPx => t.headerMm * s;
@@ -122,6 +166,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
     _pointers.add(e.pointer);
     // A second finger means pinch-to-zoom: let go of the block.
     if (_pointers.length > 1) {
+      _cancelHold();
       if (_drag != null) {
         _drag = null;
         ctrl.endDrag();
@@ -131,9 +176,9 @@ class _EditorCanvasState extends State<EditorCanvas> {
     }
     final pos = e.localPosition;
 
-    // 1. Check corner handles of selected block
+    // 1. Check corner handles of selected block (mouse only)
     final sel = ctrl.selected;
-    if (sel != null && !sel.locked && !sel.hidden) {
+    if (!widget.touch && sel != null && !sel.locked && !sel.hidden) {
       final rect = _blockRect(sel);
       for (final h in DocHandle.values) {
         if (_handleRect(rect, h).contains(pos)) {
@@ -149,10 +194,14 @@ class _EditorCanvasState extends State<EditorCanvas> {
       }
     }
 
-    // 2. Check zone edge handles
+    // 2. Check zone edge handles (a receipt has none)
+    if (_roll) {
+      ctrl.select(null);
+      return;
+    }
     const edgeHitHeight = 16.0;
     final headerEdgeY = _headerTopPx + _headerHeightPx;
-    if ((pos.dy - headerEdgeY).abs() <= edgeHitHeight / 2) {
+    if (!widget.touch && (pos.dy - headerEdgeY).abs() <= edgeHitHeight / 2) {
       _drag = _DragState(
         kind: _DragTargetKind.headerEdge,
         startPos: pos,
@@ -163,7 +212,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
     }
 
     final footerEdgeY = _footerTopPx;
-    if ((pos.dy - footerEdgeY).abs() <= edgeHitHeight / 2) {
+    if (!widget.touch && (pos.dy - footerEdgeY).abs() <= edgeHitHeight / 2) {
       _drag = _DragState(
         kind: _DragTargetKind.footerEdge,
         startPos: pos,
@@ -180,6 +229,21 @@ class _EditorCanvasState extends State<EditorCanvas> {
       if (!_shows(b)) continue;
       if (_blockRect(b).contains(pos)) {
         ctrl.select(b.id);
+        if (widget.onLongPress != null) {
+          _holdStart = pos;
+          _hold = Timer(const Duration(milliseconds: 450), () {
+            _hold = null;
+            // Still holding, not dragging: open the actions.
+            if (_drag?.checkpointDone ?? false) return;
+            if (_drag != null) {
+              _drag = null;
+              ctrl.endDrag();
+              widget.onDragLock(false);
+            }
+            HapticFeedback.mediumImpact();
+            widget.onLongPress!(b);
+          });
+        }
         if (!b.locked) {
           _drag = _DragState(
             kind: _DragTargetKind.block,
@@ -203,11 +267,20 @@ class _EditorCanvasState extends State<EditorCanvas> {
     final diff = e.localPosition - drag.startPos;
     final dxMm = diff.dx / s;
     final dyMm = diff.dy / s;
+    if (_holdStart != null && (e.localPosition - _holdStart!).distance > 8) {
+      _cancelHold();
+    }
+    final wasSnapped = ctrl.guideX.length + ctrl.guideY.length;
 
-    // Call checkpoint only on the first actual move
-    if (!drag.checkpointDone && (diff.dx.abs() > 1 || diff.dy.abs() > 1)) {
+    // Call checkpoint only on the first actual move (past touch slop, so
+    // a held finger that wobbles still opens the menu).
+    final slop = widget.touch ? 6.0 : 1.0;
+    if (!drag.checkpointDone &&
+        (diff.dx.abs() > slop || diff.dy.abs() > slop)) {
       ctrl.checkpoint();
       drag.checkpointDone = true;
+      _cancelHold();
+      setState(() {});
     }
 
     if (!drag.checkpointDone) return;
@@ -216,6 +289,11 @@ class _EditorCanvasState extends State<EditorCanvas> {
       case _DragTargetKind.block:
         if (drag.origBlock != null) {
           ctrl.moveTo(drag.origBlock!, dxMm, dyMm);
+          // A light tick when it snaps into line with something.
+          final snapped = ctrl.guideX.length + ctrl.guideY.length;
+          if (widget.touch && snapped > wasSnapped) {
+            HapticFeedback.selectionClick();
+          }
         }
         break;
       case _DragTargetKind.handle:
@@ -234,6 +312,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
   void _onPointerUp(PointerUpEvent e) {
     _pointers.remove(e.pointer);
+    _cancelHold();
     if (_drag != null) {
       _drag = null;
       ctrl.endDrag();
@@ -243,6 +322,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
 
   void _onPointerCancel(PointerCancelEvent e) {
     _pointers.remove(e.pointer);
+    _cancelHold();
     if (_drag != null) {
       _drag = null;
       ctrl.endDrag();
@@ -312,26 +392,24 @@ class _EditorCanvasState extends State<EditorCanvas> {
                 ),
               ),
 
-            // Margins outline (faint dashed border)
-            Positioned(
-              left: contentLeft,
-              top: headerZoneTop,
-              width: contentWidth,
-              height: (t.paper.contentHeightMm) * s,
-              child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: const Color(0xFFCBD5E1),
-                      width: 0.5,
+            // Margins outline (on a phone only while moving something)
+            if (!_roll && (!widget.touch || _moving))
+              Positioned(
+                left: contentLeft,
+                top: headerZoneTop,
+                width: contentWidth,
+                height: (t.paper.contentHeightMm) * s,
+                child: IgnorePointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: c.separator, width: 0.5),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Header Zone Tint
-            if (t.headerMm > 0)
+            // Header Zone Tint (mouse only)
+            if (!_roll && !widget.touch && t.headerMm > 0)
               Positioned(
                 left: contentLeft,
                 top: headerZoneTop,
@@ -358,8 +436,8 @@ class _EditorCanvasState extends State<EditorCanvas> {
                 ),
               ),
 
-            // Footer Zone Tint
-            if (t.footerMm > 0)
+            // Footer Zone Tint (mouse only)
+            if (!_roll && !widget.touch && t.footerMm > 0)
               Positioned(
                 left: contentLeft,
                 top: footerZoneTop,
@@ -387,7 +465,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
               ),
 
             // Body placeholder rows until the rendered page arrives
-            if (widget.bodyImage == null)
+            if (widget.bodyImage == null && !_roll)
               Positioned(
                 left: contentLeft,
                 top: headerZoneTop + headerZoneHeight,
@@ -397,6 +475,22 @@ class _EditorCanvasState extends State<EditorCanvas> {
                   footerZoneTop - (headerZoneTop + headerZoneHeight),
                 ),
                 child: IgnorePointer(child: _buildBodyPlaceholders()),
+              ),
+
+            // While moving on a phone: the zone it can go in, faintly.
+            if (widget.touch && _moving && ctrl.selected != null)
+              Positioned(
+                left: contentLeft,
+                top: ctrl.selected!.zone == DocZone.header
+                    ? headerZoneTop
+                    : footerZoneTop,
+                width: contentWidth,
+                height: ctrl.selected!.zone == DocZone.header
+                    ? headerZoneHeight
+                    : footerZoneHeight,
+                child: IgnorePointer(
+                  child: ColoredBox(color: c.label.withValues(alpha: 0.03)),
+                ),
               ),
 
             // Blocks
@@ -435,51 +529,53 @@ class _EditorCanvasState extends State<EditorCanvas> {
                 ),
             ],
 
-            // Zone Edge Handle: Header
-            Positioned(
-              left: contentLeft,
-              top: headerZoneTop + headerZoneHeight - 6,
-              width: contentWidth,
-              height: 12,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.resizeUpDown,
-                child: Container(
-                  color: Colors.transparent,
-                  alignment: Alignment.center,
+            // Zone Edge Handle: Header (mouse only)
+            if (!_roll && !widget.touch)
+              Positioned(
+                left: contentLeft,
+                top: headerZoneTop + headerZoneHeight - 6,
+                width: contentWidth,
+                height: 12,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeUpDown,
                   child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.accent.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(2),
+                    color: Colors.transparent,
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: c.accent.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
 
-            // Zone Edge Handle: Footer
-            Positioned(
-              left: contentLeft,
-              top: footerZoneTop - 6,
-              width: contentWidth,
-              height: 12,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.resizeUpDown,
-                child: Container(
-                  color: Colors.transparent,
-                  alignment: Alignment.center,
+            // Zone Edge Handle: Footer (mouse only)
+            if (!_roll && !widget.touch)
+              Positioned(
+                left: contentLeft,
+                top: footerZoneTop - 6,
+                width: contentWidth,
+                height: 12,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeUpDown,
                   child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.accent.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(2),
+                    color: Colors.transparent,
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: c.accent.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -553,22 +649,33 @@ class _EditorCanvasState extends State<EditorCanvas> {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: EditorBlockView(
-              block: b,
-              template: t,
-              previewCtx: widget.previewCtx,
-              pxPerMm: s,
+          // On a phone a detail with nothing to print is a faint dotted
+          // box; its name shows only when it is selected.
+          if (widget.touch && _isEmpty(b) && !isSelected)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: _DashedRect(c.label3.withValues(alpha: 0.3)),
+                ),
+              ),
+            )
+          else
+            Positioned.fill(
+              child: EditorBlockView(
+                block: b,
+                template: t,
+                previewCtx: widget.previewCtx,
+                pxPerMm: s,
+              ),
             ),
-          ),
-          // Everything movable shows a faint outline on a touch screen.
-          if (widget.touch && !isSelected)
+          // While something moves, the others show faintly to line up with.
+          if (widget.touch && _moving && !isSelected && !_isEmpty(b))
             Positioned.fill(
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: c.accent.withValues(alpha: 0.28),
+                      color: c.label3.withValues(alpha: 0.35),
                       width: 1,
                     ),
                   ),
@@ -613,7 +720,7 @@ class _EditorCanvasState extends State<EditorCanvas> {
                   child: Icon(Icons.lock, size: 11, color: c.accentText),
                 ),
               )
-            else ...[
+            else if (!widget.touch) ...[
               _buildCornerSquare(Alignment.topLeft),
               _buildCornerSquare(Alignment.topRight),
               _buildCornerSquare(Alignment.bottomLeft),
@@ -650,4 +757,38 @@ class _EditorCanvasState extends State<EditorCanvas> {
       ),
     );
   }
+}
+
+/// A thin dotted outline: an empty detail that prints nothing yet.
+class _DashedRect extends CustomPainter {
+  _DashedRect(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    const dash = 3.0;
+    const gap = 3.0;
+    void line(Offset a, Offset b) {
+      final len = (b - a).distance;
+      if (len == 0) return;
+      final dir = (b - a) / len;
+      for (var d = 0.0; d < len; d += dash + gap) {
+        canvas.drawLine(a + dir * d, a + dir * math.min(d + dash, len), paint);
+      }
+    }
+
+    final r = Offset.zero & size;
+    line(r.topLeft, r.topRight);
+    line(r.topRight, r.bottomRight);
+    line(r.bottomRight, r.bottomLeft);
+    line(r.bottomLeft, r.topLeft);
+  }
+
+  @override
+  bool shouldRepaint(_DashedRect old) => old.color != color;
 }

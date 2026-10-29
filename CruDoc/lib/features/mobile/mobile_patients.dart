@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -18,7 +20,11 @@ import 'package:doctor_management_app/features/tutorial/presentation/tutorial_ta
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Patients: search, the same filters as the desktop, and one row per
-/// patient. Tap opens the record; hold for call, WhatsApp, book or pay.
+/// patient. On a row:
+/// - tap opens the record;
+/// - long press: call, WhatsApp, reminders, book, payment, dictate,
+///   edit, delete;
+/// - swipe right calls, swipe left books a visit.
 class MobilePatientsScreen extends ConsumerStatefulWidget {
   const MobilePatientsScreen({super.key});
 
@@ -46,15 +52,39 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     return false;
   }
 
-  void _sheet(PatientSummary s) {
+  bool _can(ClinicPermission p) => ref.read(clinicCanProvider(p));
+
+  String _who(PatientSummary s) {
     final p = s.patient;
+    return [
+      PatientFormat.ageSex(p),
+      if (p.phone.trim().isNotEmpty) PatientFormat.phone(p.phone),
+    ].where((t) => t.isNotEmpty).join(' · ');
+  }
+
+  /// Long press: get in touch, then everything that can be done to the
+  /// record. Each choice shows only when it applies and the role allows it.
+  void _actionsSheet(PatientSummary s) {
+    final p = s.patient;
+    final now = ref.read(dashboardNowProvider);
+    final clinic = ref.read(doctorIdentityProvider).clinicName;
     final hasPhone = p.phone.trim().isNotEmpty;
+    final canMessage = hasPhone && _can(ClinicPermission.messaging);
+    final canEdit = _can(ClinicPermission.patientsEdit);
+    final canBook = _can(ClinicPermission.schedule);
+    final canBill = _can(ClinicPermission.billing);
+    final canDictate =
+        _can(ClinicPermission.clinicalEdit) &&
+        _can(ClinicPermission.ai) &&
+        PatientActions.todaysVisit(s, now) != null;
+    final next = s.nextVisit;
     showMobileActionSheet(
       context,
       title: s.name,
       subtitle: [
-        PatientFormat.ageSex(p),
-        if (hasPhone) PatientFormat.phone(p.phone),
+        _who(s),
+        if (next != null)
+          'Next ${PatientFormat.dayTimeInline(next.scheduledStart, now)}',
       ].where((t) => t.isNotEmpty).join(' · '),
       leading: MobileAvatar(name: s.name, size: 34),
       actions: [
@@ -72,13 +102,43 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
             onTap: () => PatientActions.whatsApp(context, p),
           ),
         ],
-        MobileSheetAction(
-          label: 'Book a visit',
-          icon: CruIcons.calendar,
-          tone: MobileTone.blue,
-          onTap: () => PatientActions.newVisit(mobileRoot(context), ref, p),
-        ),
-        if (s.hasBalance)
+        if (canMessage && s.hasBalance)
+          MobileSheetAction(
+            label: 'Send payment reminder',
+            detail: '${PatientFormat.rupees(s.balance)} due',
+            icon: CruIcons.megaphone,
+            tone: MobileTone.amber,
+            onTap: () => PatientActions.whatsApp(
+              context,
+              p,
+              message: PatientActions.paymentReminderText(
+                s,
+                clinicName: clinic,
+              ),
+            ),
+          ),
+        if (canMessage && s.followUpOverdue)
+          MobileSheetAction(
+            label: 'Send follow-up reminder',
+            icon: CruIcons.megaphone,
+            tone: MobileTone.amber,
+            onTap: () => PatientActions.whatsApp(
+              context,
+              p,
+              message: PatientActions.followUpReminderText(
+                s,
+                clinicName: clinic,
+              ),
+            ),
+          ),
+        if (canBook)
+          MobileSheetAction(
+            label: 'Book a visit',
+            icon: CruIcons.calendar,
+            tone: MobileTone.blue,
+            onTap: () => PatientActions.newVisit(mobileRoot(context), ref, p),
+          ),
+        if (canBill && s.hasBalance)
           MobileSheetAction(
             label: 'Record payment',
             detail: '${PatientFormat.rupees(s.balance)} due',
@@ -87,13 +147,58 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
             onTap: () =>
                 PatientActions.recordPayment(mobileRoot(context), ref, s),
           ),
+        if (canDictate)
+          MobileSheetAction(
+            label: 'Dictate a note',
+            detail: "For today's visit",
+            icon: CruIcons.mic,
+            tone: MobileTone.violet,
+            onTap: () => PatientActions.dictate(mobileRoot(context), s, now),
+          ),
         MobileSheetAction(
           label: 'Open record',
           icon: CruIcons.fileText,
           tone: MobileTone.sky,
           onTap: () => openMobilePatient(context, p),
         ),
+        if (canEdit) ...[
+          MobileSheetAction(
+            label: 'Edit details',
+            detail: hasPhone ? null : 'No phone number yet',
+            icon: CruIcons.pen,
+            tone: MobileTone.slate,
+            onTap: () => PatientActions.edit(mobileRoot(context), ref, p),
+          ),
+          MobileSheetAction(
+            label: 'Delete patient',
+            icon: CruIcons.close,
+            destructive: true,
+            onTap: () => PatientActions.delete(mobileRoot(context), ref, p),
+          ),
+        ],
       ],
+    );
+  }
+
+  /// Right swipe: call. Left swipe: book a visit.
+  MobileSwipeAction? _callSwipe(PatientSummary s) {
+    if (s.patient.phone.trim().isEmpty) return null;
+    return MobileSwipeAction(
+      label: 'Call',
+      icon: CruIcons.phone,
+      tone: MobileTone.green,
+      onCommit: () => PatientActions.call(context, s.patient),
+    );
+  }
+
+  MobileSwipeAction? _bookSwipe(PatientSummary s, {required bool canBook}) {
+    if (!canBook) return null;
+    return MobileSwipeAction(
+      label: 'Book visit',
+      icon: CruIcons.calendar,
+      tone: MobileTone.blue,
+      onCommit: () =>
+          PatientActions.newVisit(mobileRoot(context), ref, s.patient),
     );
   }
 
@@ -361,6 +466,7 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     final async = ref.watch(patientsListViewProvider);
     final now = ref.watch(dashboardNowProvider);
     final view = async.value;
+    final canBook = ref.watch(clinicCanProvider(ClinicPermission.schedule));
     // Recalls left More for an icon here, for those whose sidebar has it.
     final recalls = sidebarTabs(
       dental: ref.watch(dentalFeaturesProvider),
@@ -483,11 +589,16 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                     title: g.title,
                     children: [
                       for (final s in g.rows)
-                        _PatientRow(
-                          summary: s,
-                          now: now,
-                          onTap: () => openMobilePatient(context, s.patient),
-                          onLongPress: () => _sheet(s),
+                        MobileSwipeRow(
+                          key: ValueKey(s.id),
+                          action: _callSwipe(s),
+                          leftAction: _bookSwipe(s, canBook: canBook),
+                          child: _PatientRow(
+                            summary: s,
+                            now: now,
+                            onTap: () => openMobilePatient(context, s.patient),
+                            onLongPress: () => _actionsSheet(s),
+                          ),
                         ),
                     ],
                   ),

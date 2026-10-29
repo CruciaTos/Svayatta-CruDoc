@@ -934,7 +934,7 @@ class MobileRowGroup extends StatelessWidget {
   }
 }
 
-/// What a right swipe on a row does.
+/// What a swipe on a row does.
 class MobileSwipeAction {
   const MobileSwipeAction({
     required this.label,
@@ -949,17 +949,26 @@ class MobileSwipeAction {
   final Future<void> Function() onCommit;
 }
 
-/// A row that can be swiped right to run [action]: the action shows
-/// underneath as the row slides, a firm tap marks the point of no return
-/// and letting go past it runs the action. Swipes the other way pass
-/// through, so the tabs still change on a left swipe.
+/// A row that can be swiped to run an action: [action] on a right swipe,
+/// [leftAction] on a left one. The action shows underneath as the row
+/// slides, a firm tap marks the point of no return and letting go past it
+/// runs the action. A direction with no action passes through, so the
+/// tabs still change that way.
 class MobileSwipeRow extends StatefulWidget {
-  const MobileSwipeRow({super.key, required this.child, this.action});
+  const MobileSwipeRow({
+    super.key,
+    required this.child,
+    this.action,
+    this.leftAction,
+  });
 
   final Widget child;
 
-  /// Null: a plain row.
+  /// Runs on a right swipe. Null: right swipes pass through.
   final MobileSwipeAction? action;
+
+  /// Runs on a left swipe. Null: left swipes pass through.
+  final MobileSwipeAction? leftAction;
 
   @override
   State<MobileSwipeRow> createState() => _MobileSwipeRowState();
@@ -983,6 +992,7 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
         );
   }
 
+  /// Positive: sliding right. Negative: sliding left.
   double _dx = 0;
   double _settleFrom = 0;
   bool _armed = false;
@@ -996,11 +1006,16 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
   void _update(DragUpdateDetails d) {
     _settle.stop();
     final width = context.size?.width ?? 360;
-    var next = math.max(0.0, _dx + d.delta.dx);
+    var next = _dx + d.delta.dx;
+    if (widget.action == null) next = math.min(0.0, next);
+    if (widget.leftAction == null) next = math.max(0.0, next);
     // Past the commit point the row follows less, like a rubber band.
     final limit = width * 0.62;
-    if (next > limit) next = limit + (next - limit) * 0.25;
-    final armed = next >= _commitAt;
+    final reach = next.abs();
+    if (reach > limit) {
+      next = next.sign * (limit + (reach - limit) * 0.25);
+    }
+    final armed = next.abs() >= _commitAt;
     if (armed != _armed) {
       armed ? MobileHaptics.commit() : MobileHaptics.select();
     }
@@ -1011,69 +1026,90 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
   }
 
   void _end([DragEndDetails? _]) {
-    final commit = _armed;
+    final commit = _armed ? (_dx > 0 ? widget.action : widget.leftAction) : null;
     _settleFrom = _dx;
     _armed = false;
     _settle.forward(from: 0);
-    if (commit) widget.action?.onCommit();
+    commit?.onCommit();
   }
 
   @override
   Widget build(BuildContext context) {
-    final action = widget.action;
-    if (action == null) return widget.child;
+    final right = widget.action;
+    final left = widget.leftAction;
+    if (right == null && left == null) return widget.child;
     final c = context.cru;
-    final (bg, fg) = mobileTone(c, action.tone);
+    // The action being revealed: the right swipe's on the left edge, the
+    // left swipe's on the right edge.
+    final showing = _dx > 0 ? right : (_dx < 0 ? left : null);
+    final onLeftEdge = _dx > 0;
+    final (bg, fg) = showing == null
+        ? (c.surface, c.label)
+        : mobileTone(c, showing.tone);
     return RawGestureDetector(
       gestures: {
-        _RightSwipeRecognizer:
-            GestureRecognizerFactoryWithHandlers<_RightSwipeRecognizer>(
-              () => _RightSwipeRecognizer(debugOwner: this),
-              (r) => r
-                ..onUpdate = _update
-                ..onEnd = _end
-                ..onCancel = _end,
-            ),
+        _SwipeRecognizer: GestureRecognizerFactoryWithHandlers<_SwipeRecognizer>(
+          () => _SwipeRecognizer(debugOwner: this),
+          (r) => r
+            // The device's touch slop, as the tab pager uses. Without it
+            // the row waits for Flutter's larger default and the pager
+            // always claims the swipe first.
+            ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
+            ..allowRight = right != null
+            ..allowLeft = left != null
+            ..onUpdate = _update
+            ..onEnd = _end
+            ..onCancel = _end,
+        ),
       },
       child: Stack(
         children: [
-          Positioned.fill(
-            child: ColoredBox(
-              color: _armed ? fg : bg,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: CruSpace.s20),
-                  child: Opacity(
-                    opacity: (_dx / 48).clamp(0.0, 1.0),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AnimatedScale(
-                          scale: _armed ? 1.15 : 1,
-                          duration: CruMotion.fast,
-                          curve: CruMotion.curve,
-                          child: CruIcon(
-                            action.icon,
-                            size: 20,
-                            strokeWidth: 2.2,
-                            color: _armed ? c.surface : fg,
+          if (showing != null)
+            Positioned.fill(
+              child: ColoredBox(
+                color: _armed ? fg : bg,
+                child: Align(
+                  alignment: onLeftEdge
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: onLeftEdge ? CruSpace.s20 : 0,
+                      right: onLeftEdge ? 0 : CruSpace.s20,
+                    ),
+                    child: Opacity(
+                      opacity: (_dx.abs() / 48).clamp(0.0, 1.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: onLeftEdge
+                            ? TextDirection.ltr
+                            : TextDirection.rtl,
+                        children: [
+                          AnimatedScale(
+                            scale: _armed ? 1.15 : 1,
+                            duration: CruMotion.fast,
+                            curve: CruMotion.curve,
+                            child: CruIcon(
+                              showing.icon,
+                              size: 20,
+                              strokeWidth: 2.2,
+                              color: _armed ? c.surface : fg,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: CruSpace.s8),
-                        Text(
-                          action.label,
-                          style: MobileType.callout.tint(
-                            _armed ? c.surface : fg,
+                          const SizedBox(width: CruSpace.s8),
+                          Text(
+                            showing.label,
+                            style: MobileType.callout.tint(
+                              _armed ? c.surface : fg,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
           Transform.translate(offset: Offset(_dx, 0), child: widget.child),
         ],
       ),
@@ -1081,10 +1117,14 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
   }
 }
 
-/// A horizontal drag that only claims right swipes. Left swipes never
-/// win the gesture arena, so the tab pager behind takes them.
-class _RightSwipeRecognizer extends HorizontalDragGestureRecognizer {
-  _RightSwipeRecognizer({super.debugOwner});
+/// A horizontal drag that only claims the directions that have an action.
+/// The others never win the gesture arena, so the tab pager behind takes
+/// them.
+class _SwipeRecognizer extends HorizontalDragGestureRecognizer {
+  _SwipeRecognizer({super.debugOwner});
+
+  bool allowRight = true;
+  bool allowLeft = false;
 
   Offset? _down;
   double _dx = 0;
@@ -1109,7 +1149,7 @@ class _RightSwipeRecognizer extends HorizontalDragGestureRecognizer {
     PointerDeviceKind pointerDeviceKind,
     double? deviceTouchSlop,
   ) =>
-      _dx > 0 &&
+      ((allowRight && _dx > 0) || (allowLeft && _dx < 0)) &&
       super.hasSufficientGlobalDistanceToAccept(
         pointerDeviceKind,
         deviceTouchSlop,

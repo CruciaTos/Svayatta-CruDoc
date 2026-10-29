@@ -38,6 +38,11 @@ class Settings(BaseSettings):
 
     stt_failure_threshold: int = 2
 
+    # Kept in .env but not read by the service yet; declared so Super Admin's
+    # settings view lists them (GET /api/admin/config).
+    sarvam_webhook_secret: str = ""
+    crudoc_voice_api_url: str = ""
+
     # Connection pool sizing -- production defaults, override via env if needed.
     db_pool_size: int = 10
     db_max_overflow: int = 20

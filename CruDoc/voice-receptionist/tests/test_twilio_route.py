@@ -35,6 +35,8 @@ def client_and_clinic():
     async def teardown():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
+        # See conftest.db_session: pooled aiosqlite threads block exit.
+        await engine.dispose()
 
     asyncio.run(teardown())
 

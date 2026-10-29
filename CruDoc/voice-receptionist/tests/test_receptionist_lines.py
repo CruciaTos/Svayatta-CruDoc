@@ -198,6 +198,37 @@ async def test_status_reports_without_calling_providers(api):
     assert "twilio_configured" in r
 
 
+async def test_config_lists_settings_with_secrets_masked(api, monkeypatch):
+    monkeypatch.setenv("SARVAM_API_KEY", "sk_live_abcdefgh1234")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "short")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://voice:hunter2@db.example:5432/voice")
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-test")
+    monkeypatch.setenv("REDIS_URL", "")
+    get_settings.cache_clear()
+
+    r = await api.get("/api/admin/config")
+    assert r.status_code == 200
+    rows = {row["key"]: row for row in r.json()["settings"]}
+
+    assert rows["SARVAM_API_KEY"] == {
+        "group": "Sarvam", "key": "SARVAM_API_KEY", "value": "••••1234", "secret": True, "set": True,
+    }
+    assert rows["TWILIO_AUTH_TOKEN"]["value"] == "••••"
+    assert rows["VOICE_BOT_API_KEY"]["value"] == "••••-key"
+    assert KEY not in r.text
+    assert "hunter2" not in r.text and "abcdefgh" not in r.text
+    assert rows["DATABASE_URL"]["value"] == "postgresql+asyncpg://voice:••••@db.example:5432/voice"
+    assert rows["GEMINI_MODEL"]["value"] == "gemini-test"
+    assert rows["REDIS_URL"] == {
+        "group": "Storage", "key": "REDIS_URL", "value": None, "secret": False, "set": False,
+    }
+
+
+async def test_config_needs_the_admin_key(api):
+    r = await api.get("/api/admin/config", headers={"x-api-key": "wrong"})
+    assert r.status_code in {401, 403}
+
+
 async def test_successful_booking_marks_the_call_booked():
     import uuid
 

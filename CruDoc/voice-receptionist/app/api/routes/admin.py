@@ -15,6 +15,7 @@ ship in a client app.
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -250,6 +251,78 @@ async def service_status(deep: bool = False, db: AsyncSession = Depends(get_db))
         # The clinic check only makes sense for the browser sandbox.
         result["providers"] = {k: v for k, v in report["checks"].items() if k != "clinic"}
     return result
+
+
+# What Super Admin's settings view lists, grouped as it shows them.
+_SETTING_GROUPS: list[tuple[str, list[str]]] = [
+    ("App", ["app_env", "log_level", "stt_failure_threshold"]),
+    ("Storage", ["database_url", "redis_url", "db_pool_size", "db_max_overflow"]),
+    ("Sarvam", ["sarvam_api_key", "sarvam_tts_model", "sarvam_webhook_secret"]),
+    ("Gemini", ["google_api_key", "gemini_model"]),
+    ("Twilio", ["twilio_account_sid", "twilio_auth_token", "public_base_url"]),
+    ("CruDoc", ["voice_bot_api_key", "crudoc_voice_api_url"]),
+    ("Local voice test", ["local_voice_test_clinic_id", "local_voice_test_allow_booking"]),
+]
+
+# Never sent in full: only that they are set, and their last 4 characters.
+_SECRET_SETTINGS = {
+    "sarvam_api_key",
+    "sarvam_webhook_secret",
+    "google_api_key",
+    "twilio_account_sid",
+    "twilio_auth_token",
+    "voice_bot_api_key",
+}
+
+# Connection URLs can carry a password; it is replaced, the rest is shown.
+_URL_SETTINGS = {"database_url", "redis_url"}
+
+
+def _mask_secret(value: str) -> str:
+    return f"••••{value[-4:]}" if len(value) > 8 else "••••"
+
+
+def _hide_url_password(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.password is None:
+        return url
+    host = parts.hostname or ""
+    if parts.port is not None:
+        host = f"{host}:{parts.port}"
+    netloc = f"{parts.username or ''}:••••@{host}"
+    return urlunsplit(parts._replace(netloc=netloc))
+
+
+@router.get("/config")
+async def service_config() -> dict:
+    """The service's settings (its .env and environment), for Super Admin.
+
+    Secrets come back masked and URL passwords hidden, so nothing here can
+    be used to call Sarvam, Gemini, Twilio or CruDoc.
+    """
+    settings = get_settings()
+    rows: list[dict[str, Any]] = []
+    for group, keys in _SETTING_GROUPS:
+        for key in keys:
+            raw = getattr(settings, key)
+            is_set = raw is not None and raw != ""
+            value: str | None = None
+            if is_set:
+                text = str(raw).lower() if isinstance(raw, bool) else str(raw)
+                if key in _SECRET_SETTINGS:
+                    value = _mask_secret(text)
+                elif key in _URL_SETTINGS:
+                    value = _hide_url_password(text)
+                else:
+                    value = text
+            rows.append({
+                "group": group,
+                "key": key.upper(),
+                "value": value,
+                "secret": key in _SECRET_SETTINGS,
+                "set": is_set,
+            })
+    return {"settings": rows}
 
 
 def _since(days: int) -> datetime:

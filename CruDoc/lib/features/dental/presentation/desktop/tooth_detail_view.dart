@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
@@ -232,17 +234,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     }
   }
 
-  void _openPerio() {
-    final theme = Theme.of(context);
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Theme(
-          data: theme,
-          child: PerioChartScreen(patient: p),
-        ),
-      ),
-    );
-  }
+  void _openPerio() => openCharting(context, p, tab: ChartingTab.perio);
 
   String _summary(ToothNumbering n) => [
     toothLabel(_tooth, n),

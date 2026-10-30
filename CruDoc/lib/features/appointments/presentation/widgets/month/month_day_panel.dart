@@ -8,6 +8,8 @@ import 'package:doctor_management_app/features/appointments/presentation/appoint
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/schedule_morph.dart';
+import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 import 'appt_time_label.dart';
@@ -56,6 +58,18 @@ class MonthDayPanel extends ConsumerWidget {
     final counts = ref.watch(apptDayCountsProvider(date)).value;
     final controller = ref.read(apptsControllerProvider.notifier);
     final canBook = !date.isBefore(today);
+    // The panel grows into Day; its rows travel to their blocks.
+    void open({String? visitId}) => ref
+        .read(scheduleMorphProvider)
+        .openDay(
+          context,
+          from: ApptsView.month,
+          date: date,
+          visitId: visitId,
+          copy: MonthDayPanel(date: date),
+          radius: CruRadius.card,
+          controller: controller,
+        );
 
     return CruCard(
       padding: const EdgeInsets.fromLTRB(
@@ -125,10 +139,12 @@ class MonthDayPanel extends ConsumerWidget {
                           )
                         else
                           const SizedBox(height: 1),
-                        MonthPanelRow(
-                          item: items[i],
-                          onTap: () =>
-                              controller.openDay(date, visitId: items[i].id),
+                        MorphTag(
+                          id: 'visit:${items[i].id}',
+                          child: MonthPanelRow(
+                            item: items[i],
+                            onTap: () => open(visitId: items[i].id),
+                          ),
                         ),
                       ],
                     ),
@@ -153,7 +169,7 @@ class MonthDayPanel extends ConsumerWidget {
                     CruButton(
                       label: 'Open day',
                       kind: CruButtonKind.inset,
-                      onPressed: () => controller.openDay(date),
+                      onPressed: open,
                     ),
                   ],
                 )
@@ -161,7 +177,7 @@ class MonthDayPanel extends ConsumerWidget {
                   label: 'Open day',
                   kind: CruButtonKind.inset,
                   expand: true,
-                  onPressed: () => controller.openDay(date),
+                  onPressed: open,
                 ),
         ],
       ),

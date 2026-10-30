@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
+
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
@@ -153,14 +155,7 @@ class _PerioPatientsScreenState extends ConsumerState<PerioPatientsScreen> {
       recToast(context, "This patient's record isn't loaded yet.");
       return;
     }
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Theme(
-          data: Theme.of(context),
-          child: PerioChartScreen(patient: p),
-        ),
-      ),
-    );
+    openCharting(context, p, tab: ChartingTab.perio);
   }
 
   @override

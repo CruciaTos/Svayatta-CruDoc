@@ -64,6 +64,10 @@ abstract final class RecKind {
 
   /// Physiotherapy 3D muscle chart findings (patientId = patient).
   static const muscleChart = 'muscleChart';
+
+  /// Files added from a visit's session pop-up: one record per visit,
+  /// `{visitId, fileIds}` (any specialty).
+  static const visitFiles = 'visitFiles';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

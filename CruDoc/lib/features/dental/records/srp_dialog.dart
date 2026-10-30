@@ -81,25 +81,35 @@ DateTime? _doneOn(Map<String, dynamic> q) => q['date'] is int
   );
 }
 
-/// The patient's root planing: four quadrant tiles laid out like the
-/// mouth. Tap a tile to plan it or record it done; once every planned
-/// quadrant is done, set the re-evaluation recall.
+/// The patient's root planing, in a dialog (the card below on its own).
 Future<void> showSrpDialog(BuildContext context, Patient patient) =>
     showDialog<void>(
       context: context,
-      builder: (_) => _SrpDialog(patient: patient),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.all(CruSpace.s24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(child: SrpCourseCard(patient: patient)),
+        ),
+      ),
     );
 
-class _SrpDialog extends ConsumerStatefulWidget {
-  const _SrpDialog({required this.patient});
+/// The patient's root planing: four quadrant tiles laid out like the
+/// mouth as you face the patient. Tap a tile to plan it or record it
+/// done; once every planned quadrant is done, the card offers the
+/// re-evaluation recall. Lives on Charting's Perio tab.
+class SrpCourseCard extends ConsumerStatefulWidget {
+  const SrpCourseCard({super.key, required this.patient});
 
   final Patient patient;
 
   @override
-  ConsumerState<_SrpDialog> createState() => _SrpDialogState();
+  ConsumerState<SrpCourseCard> createState() => _SrpCourseCardState();
 }
 
-class _SrpDialogState extends ConsumerState<_SrpDialog> {
+class _SrpCourseCardState extends ConsumerState<SrpCourseCard> {
   /// A course started here but not saved yet (nothing planned so far).
   bool _fresh = false;
 
@@ -183,33 +193,54 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
     final due = course?.date('reevaluationDue');
     final recallSet = (course?.str('recallId') ?? '').isNotEmpty;
 
-    return DentalPanelDialog(
-      title: 'Root planing',
-      subtitle: [
-        widget.patient.fullName,
-        if (p.planned > 0) '${p.done} of ${p.planned} quadrants done',
-      ].join(' · '),
-      leading: const CruIconTile(
-        icon: RecIcons.perio,
-        tone: CruTileTone.accent,
-      ),
-      body: Column(
+    return CruCard(
+      semanticLabel: 'Root planing',
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
-            child: Text(
-              'As you face the patient. Tap a quadrant to plan it or record '
-              'it done.',
-              style: CruType.subhead.tint(c.label2),
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Root planing',
+                        style: CruType.headline.tint(c.label),
+                      ),
+                    ),
+                    const SizedBox(height: CruSpace.s2),
+                    Text(
+                      p.planned > 0
+                          ? '${p.done} of ${p.planned} quadrants done'
+                          : 'As you face the patient. Tap a quadrant to '
+                                'plan it.',
+                      style: CruType.subhead.tabular.tint(c.label2),
+                    ),
+                  ],
+                ),
+              ),
+              if (complete) ...[
+                const SizedBox(width: CruSpace.s12),
+                CruCapsuleButton(
+                  label: 'New course',
+                  icon: CruIcons.plus,
+                  onPressed: () => setState(() => _fresh = true),
+                ),
+              ],
+            ],
           ),
+          const SizedBox(height: CruSpace.s14),
           for (var row = 0; row < _grid.length; row++) ...[
-            if (row > 0) const SizedBox(height: CruSpace.s12),
+            if (row > 0) const SizedBox(height: CruSpace.s10),
             Row(
               children: [
                 for (var col = 0; col < _grid[row].length; col++) ...[
-                  if (col > 0) const SizedBox(width: CruSpace.s12),
+                  if (col > 0) const SizedBox(width: CruSpace.s10),
                   Expanded(
                     child: _QuadrantTile(
                       quadrant: _grid[row][col],
@@ -223,9 +254,9 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
             ),
           ],
           if (complete && due != null) ...[
-            const SizedBox(height: CruSpace.s16),
+            const SizedBox(height: CruSpace.s14),
             Container(
-              padding: const EdgeInsets.all(CruSpace.s14),
+              padding: const EdgeInsets.all(CruSpace.s12),
               decoration: ShapeDecoration(
                 color: c.accentTint,
                 shape: cruShape(CruRadius.control),
@@ -251,25 +282,13 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
               ),
             ),
           ],
-        ],
-      ),
-      footer: Row(
-        children: [
-          Expanded(
-            child: Text(
-              courses.length > 1
-                  ? '${courses.length} courses on record · showing the latest'
-                  : '',
+          if (courses.length > 1) ...[
+            const SizedBox(height: CruSpace.s10),
+            Text(
+              '${courses.length} courses on record · showing the latest',
               style: CruType.caption.tint(c.label3),
             ),
-          ),
-          if (complete)
-            CruButton(
-              label: 'New course',
-              icon: CruIcons.plus,
-              kind: CruButtonKind.secondary,
-              onPressed: () => setState(() => _fresh = true),
-            ),
+          ],
         ],
       ),
     );

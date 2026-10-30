@@ -8,7 +8,6 @@ import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/schedule_visit_sheet.dart';
-import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
@@ -145,11 +144,6 @@ abstract final class PatientActions {
       repository: ref.read(patientRepositoryProvider),
     );
   }
-
-  /// Opens the session sheet so a past visit can be marked done, missed
-  /// or cancelled.
-  static Future<void> updateVisit(BuildContext context, Visit v, Patient p) =>
-      showSessionDetailsSheet(context, VisitWithPatient(visit: v, patient: p));
 
   /// Asks, then soft-deletes the patient. True when deleted.
   static Future<bool> delete(

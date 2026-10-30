@@ -6,7 +6,7 @@ import 'package:doctor_management_app/features/dental/data/models/treatment_plan
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
-import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 /// The last chart built per patient, with the lists it came from. The
@@ -65,13 +65,6 @@ ToothChartData watchPatientChart(WidgetRef ref, String patientId) {
   return data;
 }
 
-/// Opens the patient's perio chart full screen.
+/// Opens the patient's perio chart: Charting on its Perio tab.
 Future<void> openPerioChart(BuildContext context, Patient patient) =>
-    Navigator.of(context, rootNavigator: true).push<void>(
-      MaterialPageRoute(
-        builder: (_) => Theme(
-          data: Theme.of(context),
-          child: PerioChartScreen(patient: patient),
-        ),
-      ),
-    );
+    openCharting(context, patient, tab: ChartingTab.perio);

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
@@ -155,10 +156,28 @@ class ApptsController extends Notifier<ApptsState> {
   /// [fold]: Day → Week folds the day back into the week. A swipe passes
   /// false, since its pages have already slid into place.
   void setView(ApptsView view, {bool fold = true}) {
+    // A day opened from Month or Agenda folds back into it first.
+    if (state.view == ApptsView.day && view != ApptsView.day) {
+      final hook = foldBackHook;
+      if (hook != null &&
+          hook(view, state.anchor, fold, () => _setView(view, fold))) {
+        return;
+      }
+    }
+    _setView(view, fold);
+  }
+
+  void _setView(ApptsView view, bool fold) {
     _weekFromDay =
         fold && state.view == ApptsView.day && view == ApptsView.week;
     state = state.copyWith(view: view);
   }
+
+  /// Set by the Schedule screen: given the view Day is switching to, the
+  /// day shown, whether it's a fold (not a swipe) and the switch itself,
+  /// returns true when it plays a fold first and switches at its end.
+  bool Function(ApptsView to, DateTime anchor, bool fold, VoidCallback apply)?
+  foldBackHook;
 
   /// True once after Day switched to Week: Week then opens with the day's
   /// column filling the grid and folds back into the week.

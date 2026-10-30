@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
+import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
@@ -10,7 +18,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 typedef PatientRowTap = void Function(PatientSummary summary);
 
 /// Table mode: the full-width list card with grouped 64 px rows.
-class PatientsTable extends StatelessWidget {
+class PatientsTable extends ConsumerWidget {
   const PatientsTable({
     super.key,
     required this.view,
@@ -46,8 +54,21 @@ class PatientsTable extends StatelessWidget {
   final Widget? empty;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
+    // Dentists with Charting in the sidebar get a chart button per row.
+    final goToTab = ref.watch(shellNavigatorProvider);
+    final chart =
+        goToTab != null &&
+        sidebarTabs(
+          dental: ref.watch(dentalFeaturesProvider),
+          access: ref.watch(clinicAccessProvider).value,
+        ).any((t) => t.tab == DesktopTab.charting);
+    void openChart(PatientSummary s) {
+      ref.read(chartingPatientIdProvider.notifier).state = s.id;
+      goToTab?.call(DesktopTab.charting);
+    }
+
     return CruCard(
       semanticLabel: 'Patient list',
       padding: const EdgeInsets.fromLTRB(
@@ -60,7 +81,7 @@ class PatientsTable extends StatelessWidget {
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < CruSize.tableNarrow;
           final children = <Widget>[
-            _TableHeader(narrow: narrow),
+            _TableHeader(narrow: narrow, chart: chart),
             if (view.visible.isEmpty && empty != null) empty!,
           ];
           for (final g in view.groups) {
@@ -92,6 +113,7 @@ class PatientsTable extends StatelessWidget {
                 narrow: narrow,
                 selected: selected,
                 onTap: () => onTap(s),
+                onChart: chart ? () => openChart(s) : null,
               );
               children.add(
                 selected && selectedRowKey != null
@@ -161,9 +183,13 @@ class _Columns extends StatelessWidget {
     required this.next,
     required this.balance,
     required this.chevron,
+    this.chart,
   });
 
   final bool narrow;
+
+  /// The Charting button column, for dentists; null leaves it out.
+  final Widget? chart;
   final Widget patient;
   final Widget age;
   final Widget condition;
@@ -192,6 +218,10 @@ class _Columns extends StatelessWidget {
         ],
         gap,
         SizedBox(width: CruSize.tableBalanceColumn, child: balance),
+        if (chart != null) ...[
+          const SizedBox(width: CruSpace.s12),
+          SizedBox(width: _chartColumn, child: chart),
+        ],
         gap,
         SizedBox(width: CruSize.tableChevronColumn, child: chevron),
       ],
@@ -199,10 +229,50 @@ class _Columns extends StatelessWidget {
   }
 }
 
+/// Width of the Charting button column.
+const double _chartColumn = 32;
+
+/// A square inset button with the tooth: opens Charting for the row's
+/// patient.
+class _ChartButton extends StatelessWidget {
+  const _ChartButton({required this.name, required this.onTap});
+
+  final String name;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: 'Open charting for $name',
+      tooltip: 'Charting',
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        width: _chartColumn,
+        height: _chartColumn,
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          color: hovered ? c.hoverFill : c.inset,
+          shape: cruShape(CruRadius.iconTile),
+        ),
+        child: CruIcon(
+          DentalIcons.tooth,
+          size: 18,
+          strokeWidth: 1.8,
+          color: hovered ? c.label : c.label2,
+        ),
+      ),
+    );
+  }
+}
+
 class _TableHeader extends StatelessWidget {
-  const _TableHeader({required this.narrow});
+  const _TableHeader({required this.narrow, required this.chart});
 
   final bool narrow;
+  final bool chart;
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +300,7 @@ class _TableHeader extends StatelessWidget {
         next: t('Next visit'),
         balance: t('Balance', TextAlign.end),
         chevron: const SizedBox.shrink(),
+        chart: chart ? const SizedBox.shrink() : null,
       ),
     );
   }
@@ -279,11 +350,15 @@ class PatientTableRow extends StatelessWidget {
     required this.onTap,
     this.narrow = false,
     this.selected = false,
+    this.onChart,
   });
 
   final PatientSummary summary;
   final DateTime now;
   final VoidCallback onTap;
+
+  /// Opens Charting for this patient; null hides the button.
+  final VoidCallback? onChart;
   final bool narrow;
   final bool selected;
 
@@ -432,6 +507,9 @@ class PatientTableRow extends StatelessWidget {
           last: lastCell,
           next: nextCell,
           balance: balanceCell,
+          chart: onChart == null
+              ? null
+              : _ChartButton(name: s.name, onTap: onChart!),
           chevron: CruIcon(
             CruIcons.chevronRight,
             size: 16,

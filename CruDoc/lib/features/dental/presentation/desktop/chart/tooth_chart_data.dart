@@ -303,5 +303,8 @@ class ToothChartData {
 
   int get plannedTeeth => _teeth.values.where((t) => t.isPlanned).length;
 
+  /// Every tooth with something charted, planned or measured.
+  Iterable<ToothVisual> get teeth => _teeth.values;
+
   bool get hasEndo => _teeth.values.any((t) => t.endo != null || t.rootCanal);
 }

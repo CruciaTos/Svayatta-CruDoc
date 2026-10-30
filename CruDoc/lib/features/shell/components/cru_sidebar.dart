@@ -71,16 +71,18 @@ const _referralTabs = {DesktopTab.dentalReferrals, DesktopTab.referrers};
 const _litBy = {
   DesktopTab.recalls: DesktopTab.patients,
   DesktopTab.perioPatients: DesktopTab.patients,
+  DesktopTab.charting: DesktopTab.patients,
   DesktopTab.scribe: DesktopTab.appointments,
   DesktopTab.sterilization: DesktopTab.inventory,
 };
 
 /// Pages reached from somewhere other than the sidebar: a button on their
 /// parent page (Recalls, Scribe), a tab (Sterilization), a Patients filter
-/// (Perio), Settings › Dental (Procedures, form templates) or the fixed
-/// Emergency button.
+/// (Perio), Settings › Dental (Procedures, form templates), the fixed
+/// Emergency button, or a patient row's chart button (Charting).
 const _notDrawn = {
   DesktopTab.recalls,
+  DesktopTab.charting,
   DesktopTab.perioPatients,
   DesktopTab.scribe,
   DesktopTab.sterilization,
@@ -162,6 +164,8 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       ]),
     _NavGroup('Patients', [
       const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
+      if (dental.contains(DentalFeature.chairside))
+        const _NavItem(DesktopTab.charting, 'Charting', DentalIcons.tooth),
       const _NavItem(DesktopTab.files, 'Files', FileIcons.folder),
       if (dental.contains(DentalFeature.chairside)) ...const [
         _NavItem(

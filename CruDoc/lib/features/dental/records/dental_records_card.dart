@@ -2,15 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/clinical_forms.dart';
 import 'package:doctor_management_app/features/dental/records/consent_dialog.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
-import 'package:doctor_management_app/features/dental/records/endo_dialog.dart';
-import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
-import 'package:doctor_management_app/features/dental/records/recalls.dart';
-import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
-import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
@@ -18,15 +12,14 @@ import 'package:doctor_management_app/features/dental/specialties/anaesthesia/pr
 import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/form_fill.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
-import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
-import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// The dentist's clinical records on Patient details, as an icon grid.
-/// Tiles stay in one fixed order. A tile with records is active (filled
-/// icon, bold name, a short status); one with nothing yet is quiet.
-/// Every tile opens its record.
+/// The dentist's clinical records on the Clinical tab. Records in use are
+/// rows with their status; the rest wait under "Add a record" as quiet
+/// icon tiles. Both keep one fixed order, and each opens its record. The
+/// tooth chart, perio, root planing and root canals are in Charting, the
+/// plan has its own card, Recall sits in the header; the oral medicine
+/// history sits in Medical history.
 class DentalRecordsCard extends ConsumerWidget {
   const DentalRecordsCard({super.key, required this.patient});
 
@@ -41,34 +34,7 @@ class DentalRecordsCard extends ConsumerWidget {
         const <String, List<DentalRecord>>{};
     List<DentalRecord> of(String kind) => byKind[kind] ?? const [];
     String plural(int n, String word) => '$n $word${n == 1 ? '' : 's'}';
-    final now = DateTime.now();
     final child = patient.age < 16;
-
-    final om = omHistoryOf(of(RecKind.omHistory));
-    final allergy = omAllergyText(om);
-    final hasAllergy = allergy != null && allergy != 'None';
-    final highRisk = om != null && omHighRisk(om);
-
-    // Declined and deleted items dropped, as on the rest of Patient details.
-    final planItems = DentalPlan.active(
-      ref.watch(patientTreatmentPlanProvider(patient.id)).value ?? const [],
-    );
-    final planDone = planItems.where(DentalPlan.isDone).length;
-
-    final perio = of(RecKind.perio);
-    final srp = srpTileLine(of(RecKind.srp));
-
-    final endo = of(RecKind.endo);
-    final endoOpen = endo.where((r) => r.str('status') != 'obturated').length;
-    final endoTeeth = endo
-        .map((r) => r.str('tooth'))
-        .where((t) => t.isNotEmpty)
-        .toSet();
-
-    final recalls =
-        of(RecKind.recall).where((r) => recallStatusOf(r).isOpen).toList()
-          ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final nextRecall = recalls.firstOrNull;
 
     final consents = of(RecKind.consent);
     final referrals = of(RecKind.referral);
@@ -103,85 +69,6 @@ class DentalRecordsCard extends ConsumerWidget {
         .length;
 
     final tiles = <_RecTile>[
-      _RecTile(
-        icon: RecIcons.history,
-        name: 'Medical history',
-        status: om == null
-            ? null
-            : hasAllergy
-            ? 'Allergy'
-            : highRisk
-            ? 'High risk'
-            : 'Recorded',
-        tone: hasAllergy
-            ? _Tone.alert
-            : highRisk
-            ? _Tone.warn
-            : _Tone.plain,
-        onTap: () => showOmHistoryDialog(context, patient, existing: om),
-      ),
-      _RecTile(
-        icon: DentalIcons.plan,
-        name: 'Treatment plan',
-        status: planItems.isEmpty
-            ? null
-            : '$planDone of ${planItems.length} done',
-        onTap: () async {
-          await showTreatmentPlanDialog(context, patient: patient);
-          ref.invalidate(patientTreatmentPlanProvider(patient.id));
-        },
-      ),
-      _RecTile(
-        icon: RecIcons.perio,
-        name: 'Perio chart',
-        status: perio.isEmpty
-            ? null
-            : DentalFormat.shortDate(perio.first.recordedAt),
-        onTap: () => Navigator.of(context, rootNavigator: true).push(
-          MaterialPageRoute<void>(
-            builder: (_) => Theme(
-              data: Theme.of(context),
-              child: PerioChartScreen(patient: patient),
-            ),
-          ),
-        ),
-      ),
-      _RecTile(
-        icon: RecIcons.srp,
-        name: 'Root planing',
-        status: srp.text,
-        tone: srp.warn ? _Tone.warn : _Tone.plain,
-        onTap: () => showSrpDialog(context, patient),
-      ),
-      _RecTile(
-        icon: RecIcons.endo,
-        name: 'Endodontics',
-        status: endo.isEmpty
-            ? null
-            : endoOpen > 0
-            ? '$endoOpen ongoing'
-            : endoTeeth.length == 1
-            ? 'Tooth ${endoTeeth.first}'
-            : endoTeeth.isEmpty
-            ? plural(endo.length, 'record')
-            : '${endoTeeth.length} teeth',
-        onTap: () => showEndoListDialog(context, patient),
-      ),
-      _RecTile(
-        icon: RecIcons.recall,
-        name: 'Recall',
-        status: nextRecall == null
-            ? null
-            : 'Due ${DentalFormat.shortDate(nextRecall.recordedAt)}',
-        tone: nextRecall != null && nextRecall.recordedAt.isBefore(now)
-            ? _Tone.warn
-            : _Tone.plain,
-        onTap: () => showSetRecallDialog(
-          context,
-          patient: patient,
-          existing: nextRecall,
-        ),
-      ),
       _RecTile(
         icon: RecIcons.consent,
         name: 'Consents',
@@ -291,34 +178,143 @@ class DentalRecordsCard extends ConsumerWidget {
       ),
     ];
 
+    final inUse = [
+      for (final t in tiles)
+        if (t.status != null) t,
+    ];
+    final unused = [
+      for (final t in tiles)
+        if (t.status == null) t,
+    ];
+
     return CruCard(
       semanticLabel: 'Clinical records',
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-            child: Text(
-              'Clinical records',
-              style: CruType.headline.tint(c.label),
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Clinical records',
+                style: CruType.headline.tint(c.label),
+              ),
             ),
           ),
-          const SizedBox(height: CruSpace.s12),
-          LayoutBuilder(
-            builder: (context, box) {
-              // About 76 px a tile: four across on a phone, more when wide.
-              final columns = (box.maxWidth / 76).floor().clamp(4, 8);
-              final width = box.maxWidth / columns;
-              return Wrap(
-                runSpacing: CruSpace.s4,
-                children: [
-                  for (final t in tiles) SizedBox(width: width, child: t),
-                ],
-              );
-            },
-          ),
+          if (inUse.isNotEmpty) ...[
+            const SizedBox(height: CruSpace.s8),
+            for (var i = 0; i < inUse.length; i++) ...[
+              if (i > 0)
+                const CruSeparator(
+                  indent: CruSpace.s12 + CruSize.iconTile + CruSpace.s12,
+                  endIndent: CruSpace.s12,
+                ),
+              _RecRow(tile: inUse[i]),
+            ],
+          ],
+          if (unused.isNotEmpty) ...[
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                CruSpace.s12,
+                inUse.isEmpty ? CruSpace.s12 : CruSpace.s16,
+                CruSpace.s12,
+                CruSpace.s8,
+              ),
+              child: Semantics(
+                header: true,
+                child: Text(
+                  'Add a record',
+                  style: CruType.groupLabel.tint(c.label2),
+                ),
+              ),
+            ),
+            LayoutBuilder(
+              builder: (context, box) {
+                // About 76 px a tile: four across on a phone, more when
+                // wide.
+                final columns = (box.maxWidth / 76).floor().clamp(4, 8);
+                final width = box.maxWidth / columns;
+                return Wrap(
+                  runSpacing: CruSpace.s4,
+                  children: [
+                    for (final t in unused) SizedBox(width: width, child: t),
+                  ],
+                );
+              },
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// A record in use: icon, name and its status, opening the record.
+class _RecRow extends StatelessWidget {
+  const _RecRow({required this.tile});
+
+  final _RecTile tile;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final statusColor = switch (tile.tone) {
+      _Tone.plain => c.label2,
+      _Tone.warn => c.amberText,
+      _Tone.alert => c.redText,
+    };
+    return CruPressable(
+      onTap: tile.onTap,
+      scaleOnPress: false,
+      semanticLabel: '${tile.name}. ${tile.status}',
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s12,
+          vertical: CruSpace.s8,
+        ),
+        decoration: ShapeDecoration(
+          color: hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0),
+          shape: cruShape(CruRadius.control),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: CruSize.iconTile,
+              height: CruSize.iconTile,
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                color: c.inset,
+                shape: cruShape(CruRadius.iconTile),
+              ),
+              child: CruIcon(
+                tile.icon,
+                size: 18,
+                strokeWidth: 1.8,
+                color: c.label,
+              ),
+            ),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Text(
+                tile.name,
+                style: CruType.callout.tint(c.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: CruSpace.s12),
+            Text(
+              tile.status!,
+              style: CruType.subhead.tabular.tint(statusColor),
+            ),
+            const SizedBox(width: CruSpace.s6),
+            CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+          ],
+        ),
       ),
     );
   }

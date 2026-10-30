@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/chart
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_view.dart';
@@ -17,13 +18,168 @@ import 'package:doctor_management_app/features/dental/presentation/providers/den
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+/// Opens the patient's Charting on its Teeth tab.
+Future<void> openToothChart(BuildContext context, Patient patient) =>
+    openCharting(context, patient);
+
+/// "3 need care · 4 treated · 1 missing · 2 planned"; empty when nothing
+/// is charted.
+List<String> toothChartCounts(ToothChartData data) => [
+  if (data.count(ToothState.needsCare) > 0)
+    '${data.count(ToothState.needsCare)} need care',
+  if (data.count(ToothState.treated) > 0)
+    '${data.count(ToothState.treated)} treated',
+  if (data.count(ToothState.missing) > 0)
+    '${data.count(ToothState.missing)} missing',
+  if (data.plannedTeeth > 0) '${data.plannedTeeth} planned',
+];
+
+/// Milk teeth first: only milk teeth charted, or nothing charted and the
+/// patient is under six.
+bool defaultMilkTeeth(ToothChartData data, Patient p) {
+  if (data.hasPrimary && !data.hasPermanent) return true;
+  if (data.hasPermanent) return false;
+  final age = DateTime.now().difference(p.dateOfBirth).inDays / 365.25;
+  return age > 0 && age < 6;
+}
+
+/// Charting on the Clinical tab: the biting surfaces as a small map of
+/// what was found, done and planned, and pills for the gums and root
+/// canals that open those tabs. The card opens Charting on Teeth.
+class ToothChartPreviewCard extends ConsumerWidget {
+  const ToothChartPreviewCard({super.key, required this.patient});
+
+  final Patient patient;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final data = watchPatientChart(ref, patient.id);
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final counts = toothChartCounts(data);
+    void open([ChartingTab tab = ChartingTab.teeth]) =>
+        openCharting(context, patient, tab: tab);
+    final exam = data.perioExam;
+    final ongoing = data.teeth
+        .where((t) => t.endo != null && !t.endo!.obturated)
+        .length;
+    final canals = data.teeth.where((t) => t.endo != null).length;
+    Widget pill(String text, Color fill, Color ink, ChartingTab tab) =>
+        CruPressable(
+          onTap: () => open(tab),
+          scaleOnPress: false,
+          semanticLabel: 'Open $text',
+          builder: (context, hovered) =>
+              CruPill(text: text, background: fill, foreground: ink),
+        );
+    return CruPressable(
+      onTap: open,
+      scaleOnPress: false,
+      semanticLabel: 'Open the tooth chart',
+      builder: (context, hovered) => CruCard(
+        semanticLabel: 'Tooth chart',
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          'Charting',
+                          style: CruType.headline.tint(c.label),
+                        ),
+                      ),
+                      const SizedBox(height: CruSpace.s2),
+                      Text(
+                        counts.isEmpty
+                            ? 'Nothing charted yet'
+                            : counts.join(' · '),
+                        style: CruType.subhead.tabular.tint(c.label2),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: CruSpace.s12),
+                CruLink(label: 'Open charting', onPressed: open),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s12),
+            Wrap(
+              spacing: CruSpace.s6,
+              runSpacing: CruSpace.s6,
+              children: [
+                pill(
+                  exam == null
+                      ? 'No perio exam'
+                      : 'Perio ${DentalFormat.shortDate(exam.recordedAt)}',
+                  c.inset,
+                  exam == null ? c.label2 : c.label,
+                  ChartingTab.perio,
+                ),
+                if (canals > 0)
+                  ongoing > 0
+                      ? pill(
+                          '$ongoing root canal${ongoing == 1 ? '' : 's'} '
+                          'in progress',
+                          c.amberTint,
+                          c.amberText,
+                          ChartingTab.rootCanals,
+                        )
+                      : pill(
+                          '$canals root canal${canals == 1 ? '' : 's'}',
+                          c.inset,
+                          c.label,
+                          ChartingTab.rootCanals,
+                        ),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s16),
+            // A picture here: the teeth answer on the full chart.
+            IgnorePointer(
+              child: ToothChart2D(
+                data: data,
+                child: defaultMilkTeeth(data, patient),
+                selected: null,
+                onSelect: (_) {},
+                rows: ChartRows.occlusal,
+                numbering: numbering,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The patient's teeth as a realistic chart (or 3D jaws): what was found
 /// and done, the plan, gums and canals as layers, adult or milk teeth.
 /// Clicking a tooth opens it.
 class ToothChartCard extends ConsumerStatefulWidget {
-  const ToothChartCard({super.key, required this.patient});
+  const ToothChartCard({
+    super.key,
+    required this.patient,
+    this.fullScreen = false,
+    this.onOpenPerio,
+  });
 
   final Patient patient;
+
+  /// On Charting's Teeth tab: the toolbar carries the counts, and the
+  /// teeth grow with the window.
+  final bool fullScreen;
+
+  /// The perio notice's button (Charting switches to its Perio tab);
+  /// without it Charting opens on Perio.
+  final VoidCallback? onOpenPerio;
 
   @override
   ConsumerState<ToothChartCard> createState() => _ToothChartCardState();
@@ -37,13 +193,6 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
 
   Patient get p => widget.patient;
 
-  bool _defaultChild(ToothChartData data) {
-    if (data.hasPrimary && !data.hasPermanent) return true;
-    if (data.hasPermanent) return false;
-    final age = DateTime.now().difference(p.dateOfBirth).inDays / 365.25;
-    return age > 0 && age < 6;
-  }
-
   Future<void> _open(String tooth) async {
     setState(() => _selected = tooth);
     await showToothDetail(context, patient: p, tooth: tooth);
@@ -55,39 +204,36 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     final data = watchPatientChart(ref, p.id);
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
-    final child = _child ?? _defaultChild(data);
+    final child = _child ?? defaultMilkTeeth(data, p);
     // 3D shows findings or the plan; the other layers are chart-only.
     final layer = _threeD && _layer != ChartLayer.plan
         ? ChartLayer.dental
         : _layer;
 
-    final counts = [
-      if (data.count(ToothState.needsCare) > 0)
-        '${data.count(ToothState.needsCare)} need care',
-      if (data.count(ToothState.treated) > 0)
-        '${data.count(ToothState.treated)} treated',
-      if (data.count(ToothState.missing) > 0)
-        '${data.count(ToothState.missing)} missing',
-      if (data.plannedTeeth > 0) '${data.plannedTeeth} planned',
-    ];
+    final counts = toothChartCounts(data);
 
-    final header = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Semantics(
-          header: true,
-          child: Text('Tooth chart', style: CruType.headline.tint(c.label)),
-        ),
-        const SizedBox(height: CruSpace.s2),
-        Text(
-          counts.isEmpty
-              ? 'No findings yet · click a tooth to open it'
-              : counts.join(' · '),
-          style: CruType.subhead.tabular.tint(c.label2),
-        ),
-      ],
-    );
+    final header = widget.fullScreen
+        ? const SizedBox.shrink()
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  'Tooth chart',
+                  style: CruType.headline.tint(c.label),
+                ),
+              ),
+              const SizedBox(height: CruSpace.s2),
+              Text(
+                counts.isEmpty
+                    ? 'No findings yet · click a tooth to open it'
+                    : counts.join(' · '),
+                style: CruType.subhead.tabular.tint(c.label2),
+              ),
+            ],
+          );
     final controls = Wrap(
       spacing: CruSpace.s8,
       runSpacing: CruSpace.s8,
@@ -148,8 +294,10 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (narrow) ...[
-                header,
-                const SizedBox(height: CruSpace.s12),
+                if (!widget.fullScreen) ...[
+                  header,
+                  const SizedBox(height: CruSpace.s12),
+                ],
                 controls,
               ] else
                 Row(
@@ -176,7 +324,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                         onOpen: _open,
                         height: (constraints.maxWidth * 0.62).clamp(
                           380.0,
-                          540.0,
+                          widget.fullScreen ? 760.0 : 540.0,
                         ),
                         numbering: numbering,
                       )
@@ -188,11 +336,17 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                         selected: _selected,
                         onSelect: _open,
                         numbering: numbering,
+                        // Full screen: past the card's size cap.
+                        maxScale: widget.fullScreen ? 10 : null,
                       ),
               ),
               if (!_threeD && layer.showsPerio && data.perioExam == null) ...[
                 const SizedBox(height: CruSpace.s12),
-                _PerioNotice(patient: p),
+                _PerioNotice(
+                  onOpen:
+                      widget.onOpenPerio ??
+                      () => openCharting(context, p, tab: ChartingTab.perio),
+                ),
               ],
               if (_threeD && _selected != null) ...[
                 const SizedBox(height: CruSpace.s12),
@@ -225,9 +379,9 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
 
 /// Perio layer without an exam: say so and offer the perio chart.
 class _PerioNotice extends StatelessWidget {
-  const _PerioNotice({required this.patient});
+  const _PerioNotice({required this.onOpen});
 
-  final Patient patient;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -254,9 +408,9 @@ class _PerioNotice extends StatelessWidget {
           ),
           const SizedBox(width: CruSpace.s12),
           CruCapsuleButton(
-            label: 'Open perio chart',
+            label: 'Start perio exam',
             kind: CruCapsuleKind.surface,
-            onPressed: () => openPerioChart(context, patient),
+            onPressed: onOpen,
           ),
         ],
       ),
@@ -476,9 +630,13 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
 
 /// Dentists without a plan yet: say so and offer to start one.
 class NoPlanCard extends StatelessWidget {
-  const NoPlanCard({super.key, required this.patient});
+  const NoPlanCard({super.key, required this.patient, this.onCreatePlan});
 
   final Patient patient;
+
+  /// Opens the plan editor (and refreshes what shows the plan); without
+  /// it the editor opens on its own.
+  final VoidCallback? onCreatePlan;
 
   @override
   Widget build(BuildContext context) {
@@ -509,7 +667,9 @@ class NoPlanCard extends StatelessWidget {
           const SizedBox(width: CruSpace.s12),
           CruCapsuleButton(
             label: 'Create plan',
-            onPressed: () => showTreatmentPlanDialog(context, patient: patient),
+            onPressed:
+                onCreatePlan ??
+                () => showTreatmentPlanDialog(context, patient: patient),
           ),
         ],
       ),

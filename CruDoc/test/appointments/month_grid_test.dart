@@ -22,7 +22,7 @@ void main() {
                   selected: today,
                   loading: false,
                   onSelect: (_) {},
-                  onOpen: (_) {},
+                  onOpen: (_, _) {},
                 ),
               ),
             ),

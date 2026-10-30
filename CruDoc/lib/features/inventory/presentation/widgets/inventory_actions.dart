@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:image_picker/image_picker.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/inventory/presentation/desktop_add_edit_medicine_dialog.dart';
@@ -10,7 +14,10 @@ import 'package:doctor_management_app/features/inventory/presentation/desktop_bi
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
+import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
+import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
+import 'package:doctor_management_app/features/scan/presentation/scan_bill_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// What the Inventory screen can do. Every write goes through the
@@ -23,6 +30,10 @@ abstract final class InventoryActions {
       );
 
   static Future<void> scanItem(BuildContext context, WidgetRef ref) async {
+    // Phones: the document camera, then the AI reads the bill. The desktop
+    // reader below runs a local tool (tool/paddle_ocr_test) that a phone
+    // does not have.
+    if (ScanCapture.hasCamera) return _scanBillOnPhone(context, ref);
     final imagePicker = ImagePicker();
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -148,6 +159,36 @@ abstract final class InventoryActions {
         SnackBar(content: Text('Could not open camera or image: $e')),
       );
     }
+  }
+
+  /// Scans the bill's pages (gallery photos can be added from the camera
+  /// screen too) and opens the same bill review as the Scan quick action.
+  static Future<void> _scanBillOnPhone(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final List<ScannedPage> pages;
+    try {
+      pages = await ScanCapture.capture(context);
+    } on ScanCaptureException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+    if (pages.isEmpty || !context.mounted) return;
+    final profile = ref.read(doctorProfileProvider).value;
+    final modules =
+        (profile?['enabledModules'] as List?)
+            ?.map((m) => m.toString().toLowerCase())
+            .toList() ??
+        const <String>[];
+    final revenue =
+        DoctorFeatureGuard.isEnabled(modules, 'revenue') &&
+        ref.read(clinicCanProvider(ClinicPermission.revenue));
+    await pushMobile(context, ScanBillPage(pages: pages, revenue: revenue));
   }
 
   /// "Added 4 new items and restocked 2 from the bill."

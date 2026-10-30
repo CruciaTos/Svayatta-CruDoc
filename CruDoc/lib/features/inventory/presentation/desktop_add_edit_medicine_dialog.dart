@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/inventory/data/services/bill_scan
 import 'package:doctor_management_app/features/inventory/domain/inventory_builder.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_format.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
+import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
@@ -253,10 +254,15 @@ class _DesktopAddEditMedicineDialogState
 
   Future<void> _pickReceiptImage(ImageSource source) async {
     try {
-      final image = await _imagePicker.pickImage(
-        source: source,
-        imageQuality: 88,
-      );
+      final XFile? image;
+      if (source == ImageSource.camera && ScanCapture.hasCamera) {
+        // The document camera: waits for a sharp, steady page and
+        // straightens it, so the reader gets clean text.
+        final path = await ScanCapture.captureOneToFile(context);
+        image = path == null ? null : XFile(path);
+      } else {
+        image = await _imagePicker.pickImage(source: source, imageQuality: 88);
+      }
       if (image == null || !mounted) return;
 
       setState(() => _receiptImage = image);

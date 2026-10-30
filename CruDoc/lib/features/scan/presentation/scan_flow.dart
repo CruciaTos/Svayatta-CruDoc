@@ -12,8 +12,8 @@ import 'package:doctor_management_app/features/scan/presentation/scan_note_page.
 import 'package:doctor_management_app/features/scan/presentation/scan_record_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// The Scan quick action: the document camera finds the page, crops and
-/// straightens it, then the person says what the pages are for and the AI
+/// The Scan quick action: the document camera finds the page, saves it
+/// once it is steady and sharp, and straightens it, then the person says what the pages are for and the AI
 /// reads them into that place. The pages themselves are always kept with
 /// what they became.
 ///
@@ -39,7 +39,7 @@ Future<void> startScanFlow(
   }
   final List<ScannedPage> pages;
   try {
-    pages = await ScanCapture.capture();
+    pages = await ScanCapture.capture(root);
   } on ScanCaptureException catch (e) {
     if (root.mounted) mobileSay(root, e.message);
     return;
@@ -230,10 +230,8 @@ class ScanPagesStrip extends StatelessWidget {
         itemCount: pages.length,
         separatorBuilder: (_, _) => const SizedBox(width: CruSpace.s10),
         itemBuilder: (context, i) => GestureDetector(
-          onTap: () => pushMobile(
-            context,
-            _ScanPagesViewer(pages: pages, initial: i),
-          ),
+          onTap: () =>
+              pushMobile(context, _ScanPagesViewer(pages: pages, initial: i)),
           child: _Paper(
             page: pages[i],
             width: (height - 8) * pages[i].aspectRatio.clamp(0.5, 1.6),
@@ -408,9 +406,7 @@ class ScanAiNote extends StatelessWidget {
               children: [
                 CruIcon(CruIcons.sparkle, size: 16, color: fg),
                 const SizedBox(width: CruSpace.s8),
-                Expanded(
-                  child: Text(text, style: MobileType.caption.tint(fg)),
-                ),
+                Expanded(child: Text(text, style: MobileType.caption.tint(fg))),
               ],
             ),
           ),

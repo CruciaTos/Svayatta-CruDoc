@@ -36,8 +36,8 @@ class MonthDayTile extends ConsumerStatefulWidget {
   /// Click: select the tile.
   final VoidCallback onSelect;
 
-  /// Double-click: open that Day.
-  final VoidCallback onOpen;
+  /// Double-click: open that Day (from this tile's [BuildContext]).
+  final ValueChanged<BuildContext> onOpen;
 
   @override
   ConsumerState<MonthDayTile> createState() => _MonthDayTileState();
@@ -53,7 +53,7 @@ class _MonthDayTileState extends ConsumerState<MonthDayTile> {
     final last = _lastTap;
     if (last != null && t.difference(last) <= kDoubleTapTimeout) {
       _lastTap = null;
-      widget.onOpen();
+      widget.onOpen(context);
       return;
     }
     _lastTap = t;

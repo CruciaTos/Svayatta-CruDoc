@@ -1,110 +1,40 @@
 import 'package:flutter/material.dart';
-
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 
-/// "‹ Patients" on the left; Edit, "…" and New visit on the right.
-class DetailsTopBar extends StatelessWidget {
-  const DetailsTopBar({
-    super.key,
-    required this.patientName,
-    required this.onBack,
-    required this.onEdit,
-    required this.onNewVisit,
-    required this.onDelete,
-    this.onDentalChart,
-    this.onCaseSheet,
-    this.onNewBill,
-    this.onPrescription,
-    this.onReport,
-    this.onCertificate,
-    this.onProcedures,
-  });
-
-  final String patientName;
-  final VoidCallback onBack;
-  // Null hides the action (not part of the person's role).
-  final VoidCallback? onEdit;
-  final VoidCallback? onNewVisit;
-  final VoidCallback? onDelete;
-
-  /// Dentists only.
-  final VoidCallback? onDentalChart;
-
-  /// Homeopaths only.
-  final VoidCallback? onCaseSheet;
-
-  final VoidCallback? onNewBill;
-  final VoidCallback? onPrescription;
-  final VoidCallback? onReport;
-  final VoidCallback? onCertificate;
-
-  /// Dentists only: the patient's procedure log.
-  final VoidCallback? onProcedures;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        DetailsBackLink(onBack: onBack),
-        const Spacer(),
-        if (onEdit != null) ...[
-          CruButton(
-            label: 'Edit',
-            kind: CruButtonKind.secondary,
-            icon: CruIcons.pen,
-            onPressed: onEdit,
-          ),
-          const SizedBox(width: CruSpace.s10),
-        ],
-        if (onProcedures != null) ...[
-          CruButton(
-            label: 'Procedures',
-            kind: CruButtonKind.secondary,
-            onPressed: onProcedures,
-          ),
-          const SizedBox(width: CruSpace.s10),
-        ],
-        if (onDentalChart != null ||
-            onCaseSheet != null ||
-            onNewBill != null ||
-            onPrescription != null ||
-            onReport != null ||
-            onCertificate != null ||
-            onDelete != null)
-          _MoreMenu(
-            patientName: patientName,
-            onDentalChart: onDentalChart,
-            onCaseSheet: onCaseSheet,
-            onNewBill: onNewBill,
-            onPrescription: onPrescription,
-            onReport: onReport,
-            onCertificate: onCertificate,
-            onDelete: onDelete,
-          ),
-        if (onNewVisit != null) ...[
-          const SizedBox(width: CruSpace.s10),
-          CruButton(
-            label: 'New visit',
-            icon: CruIcons.plus,
-            onPressed: onNewVisit,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 /// "‹ Patients" (15/500 accentText, 40 px tall); "‹ Schedule" etc. when
 /// details were opened from another screen.
 class DetailsBackLink extends ConsumerWidget {
-  const DetailsBackLink({super.key, required this.onBack});
+  const DetailsBackLink({super.key, required this.onBack, this.label});
   final VoidCallback onBack;
+
+  /// In place of where details were opened from ("Overview" inside a
+  /// sub-screen).
+  final String? label;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final back = ref.watch(patientDetailsReturnTabProvider);
+    final label = this.label;
+    if (label != null) {
+      return SizedBox(
+        height: CruSize.control,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: CruLink(
+            label: label,
+            onPressed: onBack,
+            style: CruType.input.w500,
+            leading: const CruIcon(
+              CruIcons.chevronLeft,
+              size: 20,
+              strokeWidth: 2,
+            ),
+          ),
+        ),
+      );
+    }
     return SizedBox(
       height: CruSize.control,
       child: Align(
@@ -124,29 +54,27 @@ class DetailsBackLink extends ConsumerWidget {
   }
 }
 
-class _MoreMenu extends StatelessWidget {
-  const _MoreMenu({
+/// One item in the ••• menu.
+typedef DetailsMenuItem = ({String label, VoidCallback onPressed});
+
+/// The ••• menu on Patient details: "Create" (bill, prescription, report,
+/// certificate) and "Patient" (edit, delete). Only what the person's role
+/// allows is passed in; with nothing to show the button is left out.
+class DetailsMoreMenu extends StatelessWidget {
+  const DetailsMoreMenu({
+    super.key,
     required this.patientName,
-    this.onDelete,
-    this.onDentalChart,
-    this.onCaseSheet,
-    this.onNewBill,
-    this.onPrescription,
-    this.onReport,
-    this.onCertificate,
+    required this.create,
+    required this.manage,
   });
 
   final String patientName;
-  final VoidCallback? onDelete;
-  final VoidCallback? onDentalChart;
-  final VoidCallback? onCaseSheet;
-  final VoidCallback? onNewBill;
-  final VoidCallback? onPrescription;
-  final VoidCallback? onReport;
-  final VoidCallback? onCertificate;
+  final List<DetailsMenuItem> create;
+  final List<DetailsMenuItem> manage;
 
   @override
   Widget build(BuildContext context) {
+    if (create.isEmpty && manage.isEmpty) return const SizedBox.shrink();
     final c = context.cru;
     final itemStyle = ButtonStyle(
       textStyle: WidgetStatePropertyAll(CruType.text.w500),
@@ -162,6 +90,23 @@ class _MoreMenu extends StatelessWidget {
         ),
       ),
     );
+    Widget label(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s14,
+        CruSpace.s8,
+        CruSpace.s14,
+        CruSpace.s4,
+      ),
+      child: Text(text, style: CruType.groupLabel.tint(c.label3)),
+    );
+    List<Widget> items(List<DetailsMenuItem> list) => [
+      for (final i in list)
+        MenuItemButton(
+          style: itemStyle,
+          onPressed: i.onPressed,
+          child: Text(i.label),
+        ),
+    ];
     return MenuAnchor(
       alignmentOffset: const Offset(0, CruSpace.s6),
       style: MenuStyle(
@@ -180,53 +125,19 @@ class _MoreMenu extends StatelessWidget {
         ),
       ),
       menuChildren: [
-        if (onNewBill != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onNewBill,
-            child: const Text('New bill'),
+        if (create.isNotEmpty) ...[label('Create'), ...items(create)],
+        if (create.isNotEmpty && manage.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: CruSpace.s4),
+            child: CruSeparator(),
           ),
-        if (onPrescription != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onPrescription,
-            child: const Text('Prescription'),
-          ),
-        if (onReport != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onReport,
-            child: const Text('Medical report'),
-          ),
-        if (onCertificate != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onCertificate,
-            child: const Text('Medical certificate'),
-          ),
-        if (onDentalChart != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onDentalChart,
-            child: const Text('Dental chart and procedures'),
-          ),
-        if (onCaseSheet != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onCaseSheet,
-            child: const Text('Case sheet'),
-          ),
-        if (onDelete != null)
-          MenuItemButton(
-            style: itemStyle,
-            onPressed: onDelete,
-            child: const Text('Delete patient'),
-          ),
+        if (manage.isNotEmpty) ...[label('Patient'), ...items(manage)],
       ],
       builder: (context, controller, _) => CruSquareButton(
         icon: CruIcons.more,
         secondary: true,
         semanticLabel: 'More actions for $patientName',
+        tooltip: 'More',
         onPressed: () =>
             controller.isOpen ? controller.close() : controller.open(),
       ),

@@ -30,6 +30,7 @@ import 'package:doctor_management_app/features/scribe/presentation/desktop_scrib
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/subscription/presentation/feature_upgrade_sheet.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/page_search.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
@@ -210,6 +211,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Emergency',
     'Files',
     'Documents',
+    'Charting',
   ];
 
   static const List<IconData> _icons = [
@@ -246,6 +248,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.medical_services_outlined,
     Icons.folder_outlined,
     Icons.description_outlined,
+    Icons.grid_view_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -365,6 +368,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           backTab: DesktopTab.settings,
           child: FormsScreen(),
         );
+      case DesktopTab.charting:
+        return const ChartingPage();
       case DesktopTab.recalls:
         return const DesktopBackPage(
           backLabel: 'Patients',
@@ -547,7 +552,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 
         final width = MediaQuery.sizeOf(context).width;
         final forcedCompact = width < CruBreakpoint.compact;
-        final collapsed = forcedCompact || !_isSidebarExpanded;
+        final collapsed =
+            forcedCompact ||
+            !_isSidebarExpanded ||
+            ref.watch(shellFocusProvider);
 
         Widget content = isTabEnabled
             ? _buildScreen(shown)

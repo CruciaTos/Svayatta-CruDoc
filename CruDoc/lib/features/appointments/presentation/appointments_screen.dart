@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/visits/appointments_home_visits_view.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/week/appointments_week_view.dart';
 import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/schedule_morph.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
@@ -33,6 +34,14 @@ class AppointmentsScreen extends ConsumerStatefulWidget {
 
 class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
   final FocusNode _keys = FocusNode(debugLabel: 'Appointments keys');
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(apptsControllerProvider.notifier).foldBackHook = ref
+        .read(scheduleMorphProvider)
+        .foldBack;
+  }
 
   @override
   void dispose() {
@@ -99,8 +108,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
           values: ref.watch(availableApptsViewsProvider),
           value: view,
           pageOf: (v) => v == ApptsView.day ? ApptsView.week : v,
-          // Week ⇄ Day from a date folds in place instead.
-          slides: (_, _) => !controller.isWeekDayMorph,
+          // Week ⇄ Day from a date folds in place instead, and so does a
+          // day opened from Month or Agenda (the box grows over the swap).
+          slides: (_, _) =>
+              !controller.isWeekDayMorph &&
+              !ref.read(scheduleMorphProvider).takeSwap(),
           onChanged: (v) {
             controller.setView(v, fold: false);
             if (v != ApptsView.live && !_textFieldFocused()) {
@@ -132,15 +144,21 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
           const ApptsHeader(),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(
-            child: switch (view) {
-              // Shown above instead (never reached).
-              ApptsView.live => const SizedBox.shrink(),
-              ApptsView.day => const AppointmentsDayView(),
-              ApptsView.week => const AppointmentsWeekView(),
-              ApptsView.month => const AppointmentsMonthView(),
-              ApptsView.agenda => const AppointmentsAgendaView(),
-              ApptsView.visits => const AppointmentsHomeVisitsView(),
-            },
+            child: ScheduleMorphArea(
+              view: view,
+              child: RepaintBoundary(
+                key: ref.read(scheduleMorphProvider).areaFor(view),
+                child: switch (view) {
+                  // Shown above instead (never reached).
+                  ApptsView.live => const SizedBox.shrink(),
+                  ApptsView.day => const AppointmentsDayView(),
+                  ApptsView.week => const AppointmentsWeekView(),
+                  ApptsView.month => const AppointmentsMonthView(),
+                  ApptsView.agenda => const AppointmentsAgendaView(),
+                  ApptsView.visits => const AppointmentsHomeVisitsView(),
+                },
+              ),
+            ),
           ),
         ],
       ),

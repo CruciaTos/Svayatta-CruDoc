@@ -71,16 +71,18 @@ const _referralTabs = {DesktopTab.dentalReferrals, DesktopTab.referrers};
 const _litBy = {
   DesktopTab.recalls: DesktopTab.patients,
   DesktopTab.perioPatients: DesktopTab.patients,
+  DesktopTab.charting: DesktopTab.patients,
   DesktopTab.scribe: DesktopTab.appointments,
   DesktopTab.sterilization: DesktopTab.inventory,
 };
 
 /// Pages reached from somewhere other than the sidebar: a button on their
 /// parent page (Recalls, Scribe), a tab (Sterilization), a Patients filter
-/// (Perio), Settings › Dental (Procedures, form templates) or the fixed
-/// Emergency button.
+/// (Perio), Settings › Dental (Procedures, form templates), the fixed
+/// Emergency button, or a patient row's chart button (Charting).
 const _notDrawn = {
   DesktopTab.recalls,
+  DesktopTab.charting,
   DesktopTab.perioPatients,
   DesktopTab.scribe,
   DesktopTab.sterilization,
@@ -162,6 +164,8 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       ]),
     _NavGroup('Patients', [
       const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
+      if (dental.contains(DentalFeature.chairside))
+        const _NavItem(DesktopTab.charting, 'Charting', DentalIcons.tooth),
       const _NavItem(DesktopTab.files, 'Files', FileIcons.folder),
       if (dental.contains(DentalFeature.chairside)) ...const [
         _NavItem(
@@ -1106,29 +1110,39 @@ class _ProfileButton extends StatelessWidget {
                   opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
                   child: Transform.translate(
                     offset: Offset((1.0 - progress) * 16.0, 0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          display,
-                          style: CruType.profileName.tint(
-                            c.isEvening
-                                ? CruBrand.white
-                                : const Color(0xFF0F172A),
+                    // While the sidebar opens or closes the card is
+                    // narrow and short: one line each, and the card clips
+                    // the rest rather than overflowing.
+                    child: OverflowBox(
+                      alignment: Alignment.centerLeft,
+                      minHeight: 0,
+                      maxHeight: double.infinity,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            display,
+                            style: CruType.profileName.tint(
+                              c.isEvening
+                                  ? CruBrand.white
+                                  : const Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'Account & settings',
-                          style: CruType.caption.tint(
-                            c.isEvening
-                                ? CruBrand.white.withValues(alpha: 0.85)
-                                : const Color(0xFF475569),
+                          Text(
+                            'Account & settings',
+                            style: CruType.caption.tint(
+                              c.isEvening
+                                  ? CruBrand.white.withValues(alpha: 0.85)
+                                  : const Color(0xFF475569),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -50,7 +50,8 @@ abstract final class DesktopTab {
       tab == population ||
       tab == surgeries ||
       tab == implants ||
-      tab == emergency;
+      tab == emergency ||
+      tab == charting;
 
   /// Dentists: who should come back.
   static const recalls = 15;
@@ -98,6 +99,10 @@ abstract final class DesktopTab {
   /// Templates, letterhead and signatures for printed documents.
   static const documents = 32;
 
+  /// Dentists: chairside charting (teeth, perio, root canals) for the
+  /// patient picked on the page.
+  static const charting = 33;
+
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
   static const reports = 13;
@@ -140,6 +145,7 @@ abstract final class DesktopTab {
     emergency => 'Emergency',
     files => 'Files',
     documents => 'Documents',
+    charting => 'Charting',
     _ => 'Back',
   };
 }
@@ -154,6 +160,10 @@ final shellNavigatorProvider = StateProvider<bool Function(int tab)?>(
 final shellCurrentTabProvider = StateProvider<int>(
   (ref) => DesktopTab.dashboard,
 );
+
+/// A screen has opened something full screen (Charting's perio chart):
+/// the sidebar shows collapsed until it closes. Never saved.
+final shellFocusProvider = StateProvider<bool>((ref) => false);
 
 /// Where patient details go back to when opened from another screen
 /// ("Open patient" in Schedule); null when opened from the Patients list.

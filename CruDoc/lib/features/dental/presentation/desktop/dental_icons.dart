@@ -12,6 +12,21 @@ abstract final class DentalIcons {
     'C15.4 3.5 14.1 4.4 12 4.4C9.9 4.4 8.6 3.5 7 3.5Z',
   );
 
+  /// The tooth chart: upper and lower teeth in two rows.
+  static const chart = CruIconData(
+    '',
+    rects: [
+      (3, 5.5, 3.5, 5.5, 1.5),
+      (7.83, 5.5, 3.5, 5.5, 1.5),
+      (12.67, 5.5, 3.5, 5.5, 1.5),
+      (17.5, 5.5, 3.5, 5.5, 1.5),
+      (3, 13, 3.5, 5.5, 1.5),
+      (7.83, 13, 3.5, 5.5, 1.5),
+      (12.67, 13, 3.5, 5.5, 1.5),
+      (17.5, 13, 3.5, 5.5, 1.5),
+    ],
+  );
+
   /// Sterilization: a shield with a tick.
   static const shield = CruIconData(
     'M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6z'

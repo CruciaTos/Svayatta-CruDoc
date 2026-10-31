@@ -89,7 +89,8 @@ enum DentalFeature {
     DesktopTab.recalls ||
     // Referrals are not here: every specialty refers patients, dental or not.
     DesktopTab.sterilization ||
-    DesktopTab.procedures => chairside,
+    DesktopTab.procedures ||
+    DesktopTab.charting => chairside,
     // Referrers are not here either: everyone keeps one list of them.
     DesktopTab.worklist || DesktopTab.reports => radiology,
     DesktopTab.perioPatients => perio,

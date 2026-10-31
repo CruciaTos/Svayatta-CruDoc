@@ -7,6 +7,8 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/month/month_metrics.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/schedule_morph.dart';
+import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 import 'agenda_row.dart';
@@ -126,9 +128,29 @@ class AppointmentsAgendaView extends ConsumerWidget {
                 count: countByDay[e.date!] ?? 0,
               );
             }
-            return AgendaRow(
-              item: e.item!,
-              onTap: () => controller.openDay(e.date!, visitId: e.item!.id),
+            final item = e.item!;
+            final tag = 'visit:${item.id}';
+            return Builder(
+              builder: (row) => MorphTag(
+                id: tag,
+                child: AgendaRow(
+                  item: item,
+                  onTap: () => ref
+                      .read(scheduleMorphProvider)
+                      .openDay(
+                        row,
+                        from: ApptsView.agenda,
+                        date: e.date!,
+                        visitId: item.id,
+                        copy: MorphTag(
+                          id: tag,
+                          child: AgendaRow(item: item, onTap: () {}),
+                        ),
+                        radius: CruRadius.control,
+                        controller: controller,
+                      ),
+                ),
+              ),
             );
           },
         ),

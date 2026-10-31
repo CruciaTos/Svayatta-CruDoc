@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dar
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/perio_staging.dart';
+import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -173,9 +174,17 @@ PlaqueSummary plaqueSummaryOf(DentalRecord r) =>
 /// Full-screen periodontal chart: six sites per tooth, keyboard entry,
 /// automatic attachment levels, exam history with a trend, and print.
 class PerioChartScreen extends ConsumerStatefulWidget {
-  const PerioChartScreen({super.key, required this.patient});
+  const PerioChartScreen({
+    super.key,
+    required this.patient,
+    this.embedded = false,
+  });
 
   final Patient patient;
+
+  /// Inside Charting's Perio tab: no page header of its own, the status
+  /// and buttons in the tab's toolbar, root planing beside the history.
+  final bool embedded;
 
   @override
   ConsumerState<PerioChartScreen> createState() => _PerioChartScreenState();
@@ -210,6 +219,15 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
   final _focus = FocusNode();
 
   RecKey get _key => (patientId: widget.patient.id, kind: RecKind.perio);
+
+  @override
+  void deactivate() {
+    if (!_saved && (_debounce?.isActive ?? false)) {
+      _debounce?.cancel();
+      _saveNow();
+    }
+    super.deactivate();
+  }
 
   @override
   void dispose() {
@@ -622,15 +640,223 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
       }
     }
 
+    final status = _record == null
+        ? 'No exam yet'
+        : [
+            'Exam ${DentalFormat.date(_record!.recordedAt)}',
+            if (dx != null) perioDxSummary(dx),
+            _saved ? 'saved' : 'saving…',
+          ].join(' · ');
+    final actions = <Widget>[
+      if (_record != null)
+        CruButton(
+          label: 'Stage and grade',
+          icon: RecIcons.checklist,
+          kind: CruButtonKind.secondary,
+          onPressed: _openStaging,
+        ),
+      if (_record != null)
+        CruButton(
+          label: 'Print',
+          icon: CruIcons.download,
+          kind: CruButtonKind.secondary,
+          onPressed: _print,
+        ),
+      CruButton(
+        label: 'New exam',
+        icon: CruIcons.plus,
+        onPressed: exams == null ? null : () => _newExam(exams),
+      ),
+    ];
+
+    Widget chart({required bool fill}) => CruCard(
+      semanticLabel: 'Chart',
+      padding: const EdgeInsets.all(CruSpace.s16),
+      child: _record == null
+          ? Padding(
+              padding: const EdgeInsets.symmetric(vertical: CruSpace.s32),
+              child: Center(
+                child: DentalEmptyState(
+                  icon: RecIcons.perio,
+                  title: 'No perio exam yet',
+                  body:
+                      'Start an exam and type depths: each number moves to the '
+                      'next site. B marks bleeding, S suppuration, minus makes '
+                      'recession negative. Attachment levels work themselves out.',
+                  actions: [
+                    CruButton(
+                      label: 'New exam',
+                      icon: CruIcons.plus,
+                      onPressed: exams == null ? null : () => _newExam(exams),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Focus(
+              focusNode: _focus,
+              autofocus: !widget.embedded,
+              onKeyEvent: _onKey,
+              child: SingleChildScrollView(
+                primary: false,
+                physics: fill ? null : const NeverScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: CruSegmentedControl<_ChartMode>(
+                        semanticLabel: 'Chart mode',
+                        segments: const [
+                          CruSegment(_ChartMode.pockets, 'Pockets'),
+                          CruSegment(_ChartMode.plaque, 'Plaque'),
+                        ],
+                        selected: _mode,
+                        onChanged: (m) => setState(() => _mode = m),
+                      ),
+                    ),
+                    const SizedBox(height: CruSpace.s12),
+                    _SummaryLine(sum: sum, plaque: plaqueSum),
+                    const SizedBox(height: CruSpace.s12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _arch(
+                            context,
+                            DentalChart.adultUpper,
+                            'Upper',
+                            'Buccal',
+                            'Palatal',
+                          ),
+                          const SizedBox(height: CruSpace.s20),
+                          _arch(
+                            context,
+                            DentalChart.adultLower,
+                            'Lower',
+                            'Buccal',
+                            'Lingual',
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: CruSpace.s16),
+                    Text(
+                      _mode == _ChartMode.pockets
+                          ? 'Type a number to fill the site and move on · B bleeding · '
+                                'S suppuration · − recession above the CEJ · ⌫ clear · '
+                                'tap a tooth number to mark it missing'
+                          : 'Tap a surface to toggle plaque · '
+                                'tap a tooth number to mark it missing',
+                      style: CruType.caption.tint(c.label3),
+                    ),
+                    const SizedBox(height: CruSpace.s12),
+                    CruTextField(
+                      label: 'Notes',
+                      optional: true,
+                      controller: _notes,
+                      maxLines: 2,
+                      onChanged: (_) => _schedule(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+
+    Widget history({required bool fill}) => _History(
+      fill: fill,
+      exams: exams ?? const [],
+      selectedId: _record?.id,
+      onSelect: (r) async {
+        if (!_saved) await _saveNow();
+        _load(r);
+      },
+      onDelete: (r) async {
+        final ok = await confirmDental(
+          context,
+          title: 'Delete this exam?',
+          body:
+              'The ${DentalFormat.date(r.recordedAt)} perio chart will be removed.',
+          action: 'Delete',
+        );
+        if (!ok) return;
+        await deleteDentalRecord(ref, r);
+        if (_record?.id == r.id) _load(null);
+      },
+    );
+
     // Unsaved entries are saved on the way out (the screen still has its
     // providers then).
+    void saveOnLeave(bool didPop, Object? _) {
+      if (!_saved) {
+        _debounce?.cancel();
+        _saveNow();
+      }
+    }
+
+    if (widget.embedded) {
+      // Charting's Perio tab: status and buttons in the tab's toolbar,
+      // root planing beside the history; one column on phones.
+      return PopScope(
+        onPopInvokedWithResult: saveOnLeave,
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final wide = box.maxWidth >= CruBreakpoint.detailsTwoColumn;
+            final toolbar = DentalTabToolbar(status: status, actions: actions);
+            if (!wide) {
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    toolbar,
+                    const SizedBox(height: CruSpace.cardGap),
+                    chart(fill: false),
+                    const SizedBox(height: CruSpace.cardGap),
+                    SrpCourseCard(patient: widget.patient),
+                    const SizedBox(height: CruSpace.cardGap),
+                    history(fill: false),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                toolbar,
+                const SizedBox(height: CruSpace.cardGap),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: chart(fill: true)),
+                      const SizedBox(width: CruSpace.cardGap),
+                      SizedBox(
+                        width: CruSize.rightColumn,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SrpCourseCard(patient: widget.patient),
+                              const SizedBox(height: CruSpace.cardGap),
+                              history(fill: false),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
     return PopScope(
-      onPopInvokedWithResult: (didPop, _) {
-        if (!_saved) {
-          _debounce?.cancel();
-          _saveNow();
-        }
-      },
+      onPopInvokedWithResult: saveOnLeave,
       child: Scaffold(
         backgroundColor: c.canvas,
         body: SafeArea(
@@ -651,34 +877,8 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                     Expanded(
                       child: DentalPageHeader(
                         title: 'Perio chart',
-                        subtitle: _record == null
-                            ? widget.patient.fullName
-                            : '${widget.patient.fullName} · ${DentalFormat.date(_record!.recordedAt)}'
-                                  '${dx != null ? ' · ${perioDxSummary(dx)}' : ''}'
-                                  '${_saved ? ' · saved' : ' · saving…'}',
-                        actions: [
-                          if (_record != null)
-                            CruButton(
-                              label: 'Stage and grade',
-                              icon: RecIcons.checklist,
-                              kind: CruButtonKind.secondary,
-                              onPressed: _openStaging,
-                            ),
-                          if (_record != null)
-                            CruButton(
-                              label: 'Print',
-                              icon: CruIcons.download,
-                              kind: CruButtonKind.secondary,
-                              onPressed: _print,
-                            ),
-                          CruButton(
-                            label: 'New exam',
-                            icon: CruIcons.plus,
-                            onPressed: exams == null
-                                ? null
-                                : () => _newExam(exams),
-                          ),
-                        ],
+                        subtitle: '${widget.patient.fullName} · $status',
+                        actions: actions,
                       ),
                     ),
                   ],
@@ -688,135 +888,9 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: CruCard(
-                          semanticLabel: 'Chart',
-                          padding: const EdgeInsets.all(CruSpace.s16),
-                          child: _record == null
-                              ? Center(
-                                  child: DentalEmptyState(
-                                    icon: RecIcons.perio,
-                                    title: 'No perio exam yet',
-                                    body:
-                                        'Start an exam and type depths: each number moves to the '
-                                        'next site. B marks bleeding, S suppuration, minus makes '
-                                        'recession negative. Attachment levels work themselves out.',
-                                    actions: [
-                                      CruButton(
-                                        label: 'New exam',
-                                        icon: CruIcons.plus,
-                                        onPressed: exams == null
-                                            ? null
-                                            : () => _newExam(exams),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : Focus(
-                                  focusNode: _focus,
-                                  autofocus: true,
-                                  onKeyEvent: _onKey,
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        CruSegmentedControl<_ChartMode>(
-                                          semanticLabel: 'Chart mode',
-                                          segments: const [
-                                            CruSegment(
-                                              _ChartMode.pockets,
-                                              'Pockets',
-                                            ),
-                                            CruSegment(
-                                              _ChartMode.plaque,
-                                              'Plaque',
-                                            ),
-                                          ],
-                                          selected: _mode,
-                                          onChanged: (m) =>
-                                              setState(() => _mode = m),
-                                        ),
-                                        const SizedBox(height: CruSpace.s12),
-                                        _SummaryLine(
-                                          sum: sum,
-                                          plaque: plaqueSum,
-                                        ),
-                                        const SizedBox(height: CruSpace.s12),
-                                        SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              _arch(
-                                                context,
-                                                DentalChart.adultUpper,
-                                                'Upper',
-                                                'Buccal',
-                                                'Palatal',
-                                              ),
-                                              const SizedBox(
-                                                height: CruSpace.s20,
-                                              ),
-                                              _arch(
-                                                context,
-                                                DentalChart.adultLower,
-                                                'Lower',
-                                                'Buccal',
-                                                'Lingual',
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: CruSpace.s16),
-                                        Text(
-                                          _mode == _ChartMode.pockets
-                                              ? 'Type a number to fill the site and move on · B bleeding · '
-                                                    'S suppuration · − recession above the CEJ · ⌫ clear · '
-                                                    'tap a tooth number to mark it missing'
-                                              : 'Tap a surface to toggle plaque · '
-                                                    'tap a tooth number to mark it missing',
-                                          style: CruType.caption.tint(c.label3),
-                                        ),
-                                        const SizedBox(height: CruSpace.s12),
-                                        CruTextField(
-                                          label: 'Notes',
-                                          optional: true,
-                                          controller: _notes,
-                                          maxLines: 2,
-                                          onChanged: (_) => _schedule(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
+                      Expanded(child: chart(fill: true)),
                       const SizedBox(width: CruSpace.cardGap),
-                      SizedBox(
-                        width: 300,
-                        child: _History(
-                          exams: exams ?? const [],
-                          selectedId: _record?.id,
-                          onSelect: (r) async {
-                            if (!_saved) await _saveNow();
-                            _load(r);
-                          },
-                          onDelete: (r) async {
-                            final ok = await confirmDental(
-                              context,
-                              title: 'Delete this exam?',
-                              body:
-                                  'The ${DentalFormat.date(r.recordedAt)} perio chart will be removed.',
-                              action: 'Delete',
-                            );
-                            if (!ok) return;
-                            await deleteDentalRecord(ref, r);
-                            if (_record?.id == r.id) _load(null);
-                          },
-                        ),
-                      ),
+                      SizedBox(width: 300, child: history(fill: true)),
                     ],
                   ),
                 ),
@@ -1208,7 +1282,12 @@ class _History extends StatelessWidget {
     required this.selectedId,
     required this.onSelect,
     required this.onDelete,
+    this.fill = true,
   });
+
+  /// Fills a bounded height (the exam list scrolls); otherwise it takes
+  /// the height it needs.
+  final bool fill;
 
   final List<DentalRecord> exams;
   final String? selectedId;
@@ -1254,8 +1333,12 @@ class _History extends StatelessWidget {
           const SizedBox(height: CruSpace.s16),
           Text('Exams', style: CruType.headline.tint(c.label)),
           const SizedBox(height: CruSpace.s4),
-          Expanded(
-            child: ListView(
+          _fill(
+            fill,
+            ListView(
+              shrinkWrap: !fill,
+              primary: false,
+              physics: fill ? null : const NeverScrollableScrollPhysics(),
               children: [
                 if (exams.isEmpty)
                   Text('None yet.', style: CruType.subhead.tint(c.label2)),
@@ -1318,6 +1401,8 @@ class _History extends StatelessWidget {
     );
   }
 }
+
+Widget _fill(bool fill, Widget child) => fill ? Expanded(child: child) : child;
 
 class _Legend extends StatelessWidget {
   const _Legend({required this.color, required this.text});

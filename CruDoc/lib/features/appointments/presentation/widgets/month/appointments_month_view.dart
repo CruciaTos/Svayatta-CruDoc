@@ -5,10 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/schedule_morph.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
+import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
+
 import 'month_day_panel.dart';
+import 'month_metrics.dart';
+import 'month_tile.dart';
 import 'month_grid.dart';
 import 'month_sheet.dart';
 
@@ -72,7 +77,28 @@ class _MonthBodyState extends ConsumerState<_MonthBody> {
               controller.selectMonthDay(d);
               if (!wide) setState(() => _sheetOpen = true);
             },
-            onOpen: (d) => controller.openDay(d),
+            onOpen: (d, tile) {
+              final t = tile.widget;
+              ref
+                  .read(scheduleMorphProvider)
+                  .openDay(
+                    tile,
+                    from: ApptsView.month,
+                    date: d,
+                    copy: t is MonthDayTile
+                        ? MonthDayTile(
+                            date: t.date,
+                            kind: t.kind,
+                            selected: t.selected,
+                            height: t.height,
+                            onSelect: () {},
+                            onOpen: (_) {},
+                          )
+                        : const SizedBox.shrink(),
+                    radius: MonthMetrics.tileRadius,
+                    controller: controller,
+                  );
+            },
           ),
         ),
       ),

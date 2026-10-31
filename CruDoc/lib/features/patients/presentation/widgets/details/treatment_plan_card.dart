@@ -3,10 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
-import 'package:doctor_management_app/features/patients/presentation/widgets/details/facts_strip.dart';
-import 'package:doctor_management_app/features/patients/presentation/widgets/details/payments_block.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_stepper.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+/// Plan steps done out of the total (dentists with a treatment plan).
+class PlanProgress {
+  const PlanProgress({required this.done, required this.total});
+  final int done;
+  final int total;
+}
 
 /// Dental plan line items as the details screen reads them: declined and
 /// deleted items dropped, in plan order. Invoiced = done.
@@ -83,8 +88,8 @@ abstract final class DentalPlan {
   }
 }
 
-/// Treatment plan card (dentists with plan items): heading, stepper and
-/// the package panel.
+/// Treatment plan card (dentists with plan items): heading, Edit plan and
+/// the stepper. Payments live on the Payments tab.
 class TreatmentPlanCard extends StatelessWidget {
   const TreatmentPlanCard({
     super.key,
@@ -92,7 +97,6 @@ class TreatmentPlanCard extends StatelessWidget {
     required this.items,
     required this.onEditPlan,
     required this.onBook,
-    required this.onRecordPayment,
   });
 
   final PatientSummary summary;
@@ -101,7 +105,6 @@ class TreatmentPlanCard extends StatelessWidget {
   final List<TreatmentPlanLineItemModel> items;
   final VoidCallback onEditPlan;
   final VoidCallback onBook;
-  final VoidCallback onRecordPayment;
 
   @override
   Widget build(BuildContext context) {
@@ -146,11 +149,6 @@ class TreatmentPlanCard extends StatelessWidget {
           ),
           const SizedBox(height: CruSpace.s20),
           TreatmentStepper(steps: DentalPlan.steps(items), onBook: onBook),
-          const SizedBox(height: CruSpace.s20),
-          PackageBalancePanel(
-            summary: summary,
-            onRecordPayment: onRecordPayment,
-          ),
         ],
       ),
     );

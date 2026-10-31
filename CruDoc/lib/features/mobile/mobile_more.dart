@@ -163,6 +163,8 @@ class MobileMoreScreen extends ConsumerWidget {
     DesktopTab.sterilization,
     DesktopTab.procedures,
     DesktopTab.oralMedForms,
+    // Charting is a desktop screen.
+    DesktopTab.charting,
   };
 
   void _open(BuildContext context, int tab) =>

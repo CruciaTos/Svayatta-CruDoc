@@ -301,6 +301,78 @@ Widget desktopEmptyCard(BuildContext context, Widget empty) =>
         child: empty,
       );
 
+/// The toolbar on top of each Charting tab: what the tab shows on the
+/// left ("Exam 12 Oct · saved"), its buttons on the right, so every tab
+/// keeps its actions in the same place. Phones put the buttons under the
+/// status.
+class DentalTabToolbar extends StatelessWidget {
+  const DentalTabToolbar({
+    super.key,
+    required this.status,
+    this.actions = const [],
+    this.leading,
+  });
+
+  final String status;
+  final List<Widget> actions;
+
+  /// Shown before the status (summary pills on Teeth).
+  final Widget? leading;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final text = Text(
+      status,
+      style: CruType.subhead.tabular.tint(c.label2),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+    final info = leading == null
+        ? text
+        : Wrap(
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [leading!, if (status.isNotEmpty) text],
+          );
+    final buttons = Wrap(
+      spacing: CruSpace.s8,
+      runSpacing: CruSpace.s8,
+      children: actions,
+    );
+    return LayoutBuilder(
+      builder: (context, box) {
+        if (box.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              info,
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: CruSpace.s10),
+                buttons,
+              ],
+            ],
+          );
+        }
+        return ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: CruSize.control),
+          child: Row(
+            children: [
+              Expanded(child: info),
+              if (actions.isNotEmpty) ...[
+                const SizedBox(width: CruSpace.s12),
+                buttons,
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class DentalPageHeader extends StatelessWidget {
   const DentalPageHeader({
     super.key,

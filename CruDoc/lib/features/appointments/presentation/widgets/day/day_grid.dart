@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/appointments/presentation/appoint
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_block.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_grid_marks.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_grid_metrics.dart';
+import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The Day grid card: sessions at 1.6 px per minute with an hour line
@@ -325,12 +326,15 @@ class _SessionCanvas extends ConsumerWidget {
         DayGridMetrics.minutes(item.durationMinutes) - 2,
         DayGridMetrics.minutes(5),
       ),
-      child: DayBlock(
-        item: item,
-        ringed: ringedIds.contains(item.id),
-        onTap: () =>
-            unsorted ? controller.selectGroup(g) : controller.select(item.id),
-        onDoubleTap: () => ApptActions.openVisit(context, item),
+      child: MorphTag(
+        id: 'visit:${item.id}',
+        child: DayBlock(
+          item: item,
+          ringed: ringedIds.contains(item.id),
+          onTap: () =>
+              unsorted ? controller.selectGroup(g) : controller.select(item.id),
+          onDoubleTap: () => ApptActions.openVisit(context, item),
+        ),
       ),
     );
   }

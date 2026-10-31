@@ -47,7 +47,8 @@ class MonthGrid extends StatelessWidget {
   /// Visits are still loading: tiles show placeholders.
   final bool loading;
   final ValueChanged<DateTime> onSelect;
-  final ValueChanged<DateTime> onOpen;
+  /// Double-click on a tile: the date and the tile, to grow from.
+  final void Function(DateTime date, BuildContext tile) onOpen;
   final double tileHeight;
 
   MonthTileKind _kind(DateTime d) {
@@ -113,7 +114,7 @@ class MonthGrid extends StatelessWidget {
                         selected: d == selected,
                         height: tileHeight,
                         onSelect: () => onSelect(d),
-                        onOpen: () => onOpen(d),
+                        onOpen: (tile) => onOpen(d, tile),
                       ),
               ),
           ]),

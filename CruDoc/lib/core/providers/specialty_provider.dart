@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -57,8 +56,8 @@ final activeDoctorSpecialtyProvider = StreamProvider<DoctorSpecialty>((ref) {
 
 // ────────────────── Save specialty to Firestore ──────────────────
 
-/// Persists a selected specialty to the user's Firestore profile.
-/// Call this during onboarding or when the doctor changes their specialty.
+/// Persists the specialty a doctor picks during onboarding to their
+/// Firestore profile. After that only the Super Admin changes it.
 Future<void> saveDoctorSpecialty(DoctorSpecialty spec, {User? user}) async {
   final currentUser = user ?? FirebaseAuth.instance.currentUser;
   if (currentUser == null) return;
@@ -77,46 +76,6 @@ Future<void> saveDoctorSpecialty(DoctorSpecialty spec, {User? user}) async {
     'specialization': encryptedSpec,
     'updatedAt': FieldValue.serverTimestamp(),
   }, SetOptions(merge: true));
-}
-
-/// Instant real-time specialty switch helper for development & demo accounts.
-/// Persists the change to Firestore, updates providers, and displays an animated confirmation snackbar.
-Future<void> switchDoctorSpecialty(
-  BuildContext context,
-  DoctorSpecialty newSpecialty, {
-  WidgetRef? ref,
-  bool showFeedback = true,
-}) async {
-  try {
-    if (DemoSessionService.isDemoMode) {
-      DemoSessionService.setSpecialty(newSpecialty);
-    }
-    try {
-      await saveDoctorSpecialty(newSpecialty);
-    } catch (_) {}
-
-    if (ref != null) {
-      ref.read(authSpecialtyProvider.notifier).select(newSpecialty);
-      ref.invalidate(activeDoctorSpecialtyProvider);
-    }
-
-    if (showFeedback && context.mounted) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Specialty switched to ${newSpecialty.label}'),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  } catch (e) {
-    debugPrint('Failed to switch specialty: $e');
-    if (context.mounted && showFeedback) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to switch specialty: $e')));
-    }
-  }
 }
 
 /// Physiotherapists hold several sessions at once (the queue lets more

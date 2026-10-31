@@ -91,18 +91,22 @@ class DeviceSessionService {
     // 1. Demo sessions always permit multi-device testing
     if (DemoSessionService.isDemoMode) return true;
 
-    if (userData['isDemoAccount'] == true) {
-      return true;
-    }
+    // Demo accounts and the demo domain only skip the device limit while
+    // demo login is switched on; real accounts always follow the rules.
+    if (DemoSessionService.loginEnabled) {
+      if (userData['isDemoAccount'] == true) {
+        return true;
+      }
 
-    String? email = userData['email'] as String?;
-    if (email == null) {
-      try {
-        email = FirebaseAuth.instance.currentUser?.email;
-      } catch (_) {}
-    }
-    if (email != null && email.toLowerCase().endsWith('@crudoc.com')) {
-      return true;
+      String? email = userData['email'] as String?;
+      if (email == null) {
+        try {
+          email = FirebaseAuth.instance.currentUser?.email;
+        } catch (_) {}
+      }
+      if (email != null && email.toLowerCase().endsWith('@crudoc.com')) {
+        return true;
+      }
     }
 
     bool allowMultiDevice = userData['allowMultiDevice'] as bool? ?? false;

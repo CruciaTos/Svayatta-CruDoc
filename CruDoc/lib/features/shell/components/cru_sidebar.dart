@@ -701,7 +701,7 @@ class _ClinicSwitcher extends StatelessWidget {
 
     return CruPressable(
       onTap: onTap,
-      semanticLabel: 'Clinic: $title. Switch specialty',
+      semanticLabel: 'Clinic: $title. Open clinic settings',
       tooltip: collapsed ? title : null,
       builder: (context, hovered) => AnimatedContainer(
         duration: CruMotion.of(context, CruMotion.fast),

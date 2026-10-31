@@ -329,8 +329,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       return;
     }
 
-    if (email.toLowerCase().endsWith(_demoEmailDomain)) {
+    if (DemoSessionService.loginEnabled &&
+        email.toLowerCase().endsWith(_demoEmailDomain)) {
       await _enterDemo(email);
+      return;
+    }
+
+    // The shared demo accounts' password is in the source, so they can't
+    // be used as real logins while demo login is off.
+    if (!DemoSessionService.loginEnabled &&
+        DoctorSpecialty.all.any((s) => s.demoEmail == email.toLowerCase())) {
+      _showUserDoesNotExistDialog(
+        title: 'Demo Accounts Disabled',
+        message:
+            'Demo accounts are turned off. Sign in with your own CruDoc account.',
+      );
       return;
     }
 

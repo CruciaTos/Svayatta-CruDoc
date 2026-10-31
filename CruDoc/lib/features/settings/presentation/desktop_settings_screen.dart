@@ -35,7 +35,6 @@ import 'package:doctor_management_app/features/subscription/data/doctor_subscrip
 import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
-import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/call_forwarding_section.dart';
@@ -428,7 +427,7 @@ class _Stack extends StatelessWidget {
 class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.title,
-    required this.action,
+    this.action,
     this.detail,
     this.leading,
   });
@@ -436,7 +435,7 @@ class _ActionRow extends StatelessWidget {
   final String title;
   final String? detail;
   final Widget? leading;
-  final Widget action;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -456,8 +455,10 @@ class _ActionRow extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: CruSpace.s16),
-        action,
+        if (action != null) ...[
+          const SizedBox(width: CruSpace.s16),
+          action!,
+        ],
       ],
     );
   }
@@ -586,20 +587,9 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
       const DoctorLoyaltyCard(),
       _SettingsCard(
         title: 'Specialty',
-        description: specialty == null
-            ? 'Quick actions, templates and prescription formats follow your specialty.'
-            : 'Quick actions, templates and prescription formats are set up for ${specialty.label}.',
         child: _ActionRow(
           title: specialty?.label ?? 'Loading…',
           detail: specialty?.tagline,
-          action: CruButton(
-            label: 'Switch specialty',
-            kind: CruButtonKind.secondary,
-            // The switcher predates the tokens: open it on the app's Day theme.
-            onPressed: () => showSpecialtySwitcherDialog(
-              Navigator.of(context, rootNavigator: true).context,
-            ),
-          ),
         ),
       ),
       const CrudocIdCard(),

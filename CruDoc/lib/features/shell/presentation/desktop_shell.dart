@@ -11,7 +11,6 @@ import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/features/shell/components/desktop_page_tabs.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
-import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 import 'package:doctor_management_app/features/shell/data/desktop_shell_preferences.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
@@ -465,12 +464,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     final root = Navigator.of(context, rootNavigator: true).context;
     return SidebarCallbacks(
       onNavigate: _onNavTap,
-      // The specialty switcher changes the signed-in profile; a team member
-      // works in the clinic's specialty instead.
+      // The clinic tile opens the clinic's settings for its owner; a team
+      // member can't edit the clinic, so it does nothing for them.
       onClinicSwitcher: () {
         final access = ref.read(clinicAccessProvider).value;
         if (access != null && !access.isOwner) return;
-        showSpecialtySwitcherDialog(root);
+        ref.read(settingsSectionProvider.notifier).state =
+            SettingsSection.clinic;
+        _onNavTap(DesktopTab.settings);
       },
       onUpgrade: () {
         final info = ref.read(subscriptionInfoProvider).value;

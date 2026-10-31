@@ -8,6 +8,14 @@ import 'package:doctor_management_app/features/dental/dental_features.dart';
 class DemoSessionService {
   DemoSessionService._();
 
+  /// Demo logins (any `@crudoc.com` email opening a shared sample account)
+  /// are off: the app works with real accounts and data only. Build with
+  /// `--dart-define=CRUDOC_DEMO_LOGIN=true` to bring them back for testing.
+  static const bool loginEnabled = bool.fromEnvironment(
+    'CRUDOC_DEMO_LOGIN',
+    defaultValue: false,
+  );
+
   static bool _isDemoMode = false;
   static bool get isDemoMode => _isDemoMode;
 
@@ -86,14 +94,6 @@ class DemoSessionService {
     sessionStateNotifier.value = true;
     sessionRevisionNotifier.value++;
     specialtyNotifier.value = _activeSpecialty;
-    _profileStreamController.add(currentMockProfile);
-  }
-
-  /// Switches the active specialty in trial demo mode instantly.
-  static void setSpecialty(DoctorSpecialty specialty) {
-    _activeSpecialty = specialty;
-    _demoDentalFeatures = null;
-    specialtyNotifier.value = specialty;
     _profileStreamController.add(currentMockProfile);
   }
 

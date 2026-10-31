@@ -551,7 +551,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 
         final width = MediaQuery.sizeOf(context).width;
         final forcedCompact = width < CruBreakpoint.compact;
-        final collapsed = forcedCompact || !_isSidebarExpanded;
+        final collapsed =
+            forcedCompact ||
+            !_isSidebarExpanded ||
+            ref.watch(shellFocusProvider);
 
         Widget content = isTabEnabled
             ? _buildScreen(shown)

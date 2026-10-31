@@ -231,10 +231,12 @@ class ToothChartData {
   factory ToothChartData.from(
     List<ToothChartEntryModel> entries,
     List<TreatmentPlanLineItemModel> plan, {
+    Map<String, ToothChartEntryModel>? latest,
     DentalRecord? perioExam,
     List<DentalRecord> endo = const [],
   }) {
-    final latest = DentalChart.latest(entries);
+    // A session's view when given; else the newest row per tooth.
+    final latestRows = latest ?? DentalChart.latest(entries);
     final planned = <String, List<String>>{};
     final work = <String, List<ToothTreatment?>>{};
     for (final i in plan) {
@@ -267,12 +269,12 @@ class ToothChartData {
     }
     final teeth = <String, ToothVisual>{};
     for (final n in {
-      ...latest.keys,
+      ...latestRows.keys,
       ...planned.keys,
       ...perio.keys,
       ...endoOf.keys,
     }) {
-      final e = latest[n];
+      final e = latestRows[n];
       teeth[n] = ToothVisual(
         number: n,
         state: DentalChart.stateOf(e),

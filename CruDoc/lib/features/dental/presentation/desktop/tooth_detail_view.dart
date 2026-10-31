@@ -17,7 +17,9 @@ import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dar
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/cached_paint.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_anatomy.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_render.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/chart_session_providers.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
@@ -130,6 +132,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
   bool _saved = false;
   bool _allHistory = false;
   String? _notice;
+  String? _carryNote;
 
   Patient get p => widget.patient;
 
@@ -152,6 +155,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     _dirty = false;
     _saved = false;
     _notice = null;
+    _carryNote = null;
     _allHistory = false;
     _grid = _treatment != null && _condition == null
         ? _Grid.treatment
@@ -163,6 +167,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     _dirty = true;
     _saved = false;
     _notice = null;
+    _carryNote = null;
   });
 
   Future<bool> _discardOk() async {
@@ -188,8 +193,11 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     setState(() {
       _saving = true;
       _notice = null;
+      _carryNote = null;
     });
     try {
+      final visit = chartWriteVisit(ref, p.id);
+      final timelineBefore = ref.read(chartTimelineProvider(p.id));
       final now = DateTime.now();
       final at = DateTime(
         _date.year,
@@ -210,8 +218,11 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
               condition: _condition?.name,
               treatment: _treatment?.name,
               surface: DentalChart.storeSurfaces(_surfaces),
+              procedureLogId: null,
+              visitId: visit?.id,
+              baseEntryId: chartBaseFor(ref, p.id, visit, _tooth),
               notes: _notes.text.trim(),
-              recordedAt: at,
+              recordedAt: visit?.scheduledStart ?? at,
               createdAt: now,
               updatedAt: now,
               syncStatus: 'pending',
@@ -219,6 +230,15 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
           );
       refreshDentalPatient(ref, p.id);
       if (!mounted) return;
+      final later = visit == null
+          ? const <Visit>[]
+          : timelineBefore.laterChanges(visit.id, _tooth);
+      _carryNote = later.isEmpty
+          ? null
+          : 'Saved in the ${DentalFormat.shortDate(visit!.scheduledStart)} visit. '
+                'The ${DentalFormat.shortDate(later.first.scheduledStart)} visit '
+                'also changed this tooth, so from then on the chart keeps '
+                'that change.';
       setState(() {
         _saving = false;
         _dirty = false;
@@ -275,8 +295,12 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
             .value ??
         const <DentalRecord>[];
 
-    final data = ToothChartData.from(entries, plan);
-    final latest = DentalChart.latest(entries);
+    // The loaded session's view (Latest when none).
+    final timeline = ref.watch(chartTimelineProvider(p.id));
+    final session = watchChartSession(ref, p.id);
+    final visible = timeline.visibleAt(session);
+    final latest = timeline.latestAt(session);
+    final data = ToothChartData.from(entries, plan, latest: latest);
     if (_draftFor != _tooth && chart.hasValue) _load(latest[_tooth]);
 
     final spec = ToothSpec.of(_tooth);
@@ -287,8 +311,8 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     final endo = _newest(endoRecords.where((r) => r.str('tooth') == _tooth));
     final entry = latest[_tooth];
 
-    final timeline = <(DateTime, String, String?, Widget?, VoidCallback?)>[
-      for (final e in entries)
+    final history = <(DateTime, String, String?, Widget?, VoidCallback?)>[
+      for (final e in visible)
         if (e.toothNumber == _tooth && !e.isDeleted)
           (
             e.recordedAt,
@@ -362,10 +386,10 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
         screen.width >= 600 &&
         (screen.width - CruSpace.s24 * 2).clamp(0, 1280) - CruSpace.s16 * 2 >=
             1060;
-    final shown = _allHistory || fill ? timeline : timeline.take(4).toList();
+    final shown = _allHistory || fill ? history : history.take(4).toList();
     // Phones: each entry on two lines instead of a four-column table.
     final narrowHistory = MediaQuery.sizeOf(context).width < 600;
-    final history = CruCard(
+    final historyCard = CruCard(
       semanticLabel: 'History',
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
       child: _CardBody(
@@ -380,7 +404,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
         ),
         children: [
           const SizedBox(height: CruSpace.s10),
-          if (timeline.isEmpty)
+          if (history.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
               child: Text(
@@ -431,7 +455,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                   ],
                 ),
               ),
-            if (!fill && timeline.length > 4)
+            if (!fill && history.length > 4)
               Padding(
                 padding: const EdgeInsets.only(
                   left: CruSpace.s12,
@@ -440,7 +464,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                 child: CruLink(
                   label: _allHistory
                       ? 'Show fewer'
-                      : 'Show all ${timeline.length}',
+                      : 'Show all ${history.length}',
                   onPressed: () => setState(() => _allHistory = !_allHistory),
                 ),
               ),
@@ -534,7 +558,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                   ],
                 ),
               ),
-            if (!fill && timeline.length > 4)
+            if (!fill && history.length > 4)
               Padding(
                 padding: const EdgeInsets.only(
                   left: CruSpace.s12,
@@ -543,7 +567,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                 child: CruLink(
                   label: _allHistory
                       ? 'Show fewer'
-                      : 'Show all ${timeline.length}',
+                      : 'Show all ${history.length}',
                   onPressed: () => setState(() => _allHistory = !_allHistory),
                 ),
               ),
@@ -605,6 +629,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
       ),
     );
 
+    final writeVisit = chartWriteVisit(ref, p.id);
     final record = CruCard(
       semanticLabel: 'Record finding',
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
@@ -635,6 +660,21 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                     _dirty ? c.amberText : (_saved ? c.greenText : c.label3),
                   ),
                 ),
+                if (writeVisit != null &&
+                    timeline.ownRows(writeVisit.id, _tooth).isNotEmpty) ...[
+                  const SizedBox(height: CruSpace.s6),
+                  CruLink(
+                    label: "Undo this visit's change",
+                    onPressed: () async {
+                      final repo = ref.read(dentalRepositoryProvider);
+                      for (final r in timeline.ownRows(writeVisit.id, _tooth)) {
+                        await repo.deleteToothChartEntry(r.id);
+                      }
+                      refreshDentalPatient(ref, p.id);
+                      if (mounted) setState(() => _draftFor = null);
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -642,19 +682,25 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
           CruPickerField(
             label: 'Date',
             icon: CruIcons.calendar,
-            value: DentalFormat.date(_date),
+            value: writeVisit != null
+                ? 'Visit · ${DentalFormat.shortDate(writeVisit.scheduledStart)}'
+                : DentalFormat.date(_date),
             placeholder: 'Pick a date',
-            trailing: DentalFormat.sameDay(_date, DateTime.now())
-                ? const CruInfoPill(text: 'Today')
-                : null,
-            onTap: () async {
-              final d = await pickDentalDate(
-                context,
-                initial: _date,
-                last: DateTime.now(),
-              );
-              if (d != null) _edit(() => _date = d);
-            },
+            trailing: writeVisit != null
+                ? null
+                : (DentalFormat.sameDay(_date, DateTime.now())
+                    ? const CruInfoPill(text: 'Today')
+                    : null),
+            onTap: writeVisit != null
+                ? () {}
+                : () async {
+                    final d = await pickDentalDate(
+                      context,
+                      initial: _date,
+                      last: DateTime.now(),
+                    );
+                    if (d != null) _edit(() => _date = d);
+                  },
           ),
           const SizedBox(height: CruSpace.s12),
           CruTextField(
@@ -669,6 +715,10 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
           if (_notice != null) ...[
             const SizedBox(height: CruSpace.s8),
             Text(_notice!, style: CruType.subhead.tint(c.redText)),
+          ],
+          if (_carryNote != null) ...[
+            const SizedBox(height: CruSpace.s8),
+            Text(_carryNote!, style: CruType.subhead.tint(c.amberText)),
           ],
           const SizedBox(height: CruSpace.s14),
           Row(
@@ -707,11 +757,11 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
           ? [
               tiles,
               gap,
-              Expanded(child: history),
+              Expanded(child: historyCard),
               gap,
               Expanded(child: planCard),
             ]
-          : [tiles, gap, history, gap, planCard],
+          : [tiles, gap, historyCard, gap, planCard],
     );
     final right = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

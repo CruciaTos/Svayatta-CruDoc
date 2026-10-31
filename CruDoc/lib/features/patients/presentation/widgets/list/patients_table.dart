@@ -229,11 +229,11 @@ class _Columns extends StatelessWidget {
   }
 }
 
-/// Width of the Charting button column.
-const double _chartColumn = 32;
+/// Width of the Charting button column: fits the button below.
+const double _chartColumn = 120;
 
-/// A square inset button with the tooth: opens Charting for the row's
-/// patient.
+/// "Charting" with the tooth, the same button as the header's Recalls:
+/// opens Charting for the row's patient.
 class _ChartButton extends StatelessWidget {
   const _ChartButton({required this.name, required this.onTap});
 
@@ -241,31 +241,16 @@ class _ChartButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return CruPressable(
-      onTap: onTap,
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerRight,
+    child: CruButton(
+      label: 'Charting',
+      kind: CruButtonKind.secondary,
+      icon: DentalIcons.tooth,
       semanticLabel: 'Open charting for $name',
-      tooltip: 'Charting',
-      builder: (context, hovered) => AnimatedContainer(
-        duration: CruMotion.of(context, CruMotion.fast),
-        curve: CruMotion.curve,
-        width: _chartColumn,
-        height: _chartColumn,
-        alignment: Alignment.center,
-        decoration: ShapeDecoration(
-          color: hovered ? c.hoverFill : c.inset,
-          shape: cruShape(CruRadius.iconTile),
-        ),
-        child: CruIcon(
-          DentalIcons.tooth,
-          size: 18,
-          strokeWidth: 1.8,
-          color: hovered ? c.label : c.label2,
-        ),
-      ),
-    );
-  }
+      onPressed: onTap,
+    ),
+  );
 }
 
 class _TableHeader extends StatelessWidget {

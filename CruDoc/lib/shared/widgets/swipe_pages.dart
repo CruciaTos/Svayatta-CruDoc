@@ -34,9 +34,16 @@ class SwipePages<T extends Object> extends StatefulWidget {
     this.pageOf,
     this.slides,
     this.axis = Axis.horizontal,
+    this.keepAlive = false,
   });
 
   final Axis axis;
+
+  /// Keep every page opened so far built (hidden, its tickers paused)
+  /// instead of only the open one, so a page's state (scroll, picked
+  /// layer, entries) survives a look elsewhere. For a few heavy pages,
+  /// like Charting's workspaces.
+  final bool keepAlive;
 
   /// The pages, in swipe order.
   final List<T> values;
@@ -89,6 +96,9 @@ class _SwipePagesState<T extends Object> extends State<SwipePages<T>>
 
   /// Keeps a page's state as it moves from beside to open.
   final Map<T, GlobalKey> _keys = {};
+
+  /// With [SwipePages.keepAlive]: pages opened so far, kept built.
+  final Set<T> _kept = {};
 
   @override
   void initState() {
@@ -254,6 +264,24 @@ class _SwipePagesState<T extends Object> extends State<SwipePages<T>>
     // of a slide.
     final openPage = _pageFor(open);
     final besidePage = beside == null ? null : _pageFor(beside);
+    // Kept pages that are neither open nor sliding: built but hidden. A
+    // page keeps its state moving between here and the slide (its key).
+    if (widget.keepAlive) {
+      _kept
+        ..add(open)
+        ..addAll([?beside])
+        ..removeWhere((v) => v != open && !widget.values.contains(v));
+    } else {
+      _kept.clear();
+    }
+    final hidden = [
+      for (final v in _kept)
+        if (v != open && v != beside)
+          Offstage(
+            key: ValueKey<Object>(('kept', v)),
+            child: TickerMode(enabled: false, child: _pageFor(v)),
+          ),
+    ];
 
     const devices = {
       PointerDeviceKind.touch,
@@ -293,6 +321,7 @@ class _SwipePagesState<T extends Object> extends State<SwipePages<T>>
                 fit: bounded ? StackFit.expand : StackFit.passthrough,
                 clipBehavior: Clip.none,
                 children: [
+                  ...hidden,
                   shifted(open, openPage, -_side * t),
                   if (beside != null)
                     bounded

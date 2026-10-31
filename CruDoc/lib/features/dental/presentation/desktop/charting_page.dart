@@ -6,9 +6,8 @@ import 'package:doctor_management_app/features/appointments/data/providers/appoi
 import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
@@ -18,31 +17,12 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// other pages and come back.
 final chartingPatientIdProvider = StateProvider<String?>((ref) => null);
 
-/// Charting in the sidebar: the chairside screen itself, with a patient
-/// search on top. It opens on the patient in the chair (in consultation,
-/// else waiting, else today's next booking) until you pick another.
+/// A patient's Charting inside the shell (the sidebar stays), opened from
+/// a patient's chart button on the Patients screen. The search on top
+/// switches patient. It has no empty page: with no patient picked it goes
+/// back to Patients.
 class ChartingPage extends ConsumerWidget {
   const ChartingPage({super.key});
-
-  /// Who is in the chair now, or comes next today.
-  static Patient? suggested(List<ApptItem> items, DateTime now) {
-    final sorted = [...items]
-      ..sort((a, b) => a.visit.scheduledStart.compareTo(b.visit.scheduledStart));
-    for (final status in [ApptStatus.inConsultation, ApptStatus.waiting]) {
-      for (final i in sorted) {
-        if (i.status == status && i.patient != null) return i.patient;
-      }
-    }
-    final from = now.subtract(const Duration(minutes: 15));
-    for (final i in sorted) {
-      if (i.status == ApptStatus.booked &&
-          i.patient != null &&
-          i.visit.scheduledStart.isAfter(from)) {
-        return i.patient;
-      }
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,10 +33,11 @@ class ChartingPage extends ConsumerWidget {
         ? CruSpace.mainPaddingCompact
         : CruSpace.mainPadding;
     final now = ref.watch(apptsNowProvider);
-    final items =
-        ref.watch(apptDayItemsProvider(ApptsBuilder.dateOnly(now))).value ??
-        const <ApptItem>[];
-    final patients = ref.watch(patientsStreamProvider).value ?? const [];
+    final day = ref.watch(apptDayItemsProvider(ApptsBuilder.dateOnly(now)));
+    final items = day.value ?? const <ApptItem>[];
+    final patientsAsync = ref.watch(patientsStreamProvider);
+    final patientsLoaded = patientsAsync.hasValue;
+    final patients = patientsAsync.value ?? const [];
     final chosen = ref.watch(chartingPatientIdProvider);
 
     Patient? patient;
@@ -67,17 +48,6 @@ class ChartingPage extends ConsumerWidget {
           break;
         }
       }
-    } else {
-      patient = suggested(items, now);
-      // Hold on to it, so the chart doesn't change under you when the
-      // queue moves on.
-      if (patient != null) {
-        final id = patient.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final n = ref.read(chartingPatientIdProvider.notifier);
-          if (n.state == null) n.state = id;
-        });
-      }
     }
 
     final picker = _PatientSearch(
@@ -87,41 +57,25 @@ class ChartingPage extends ConsumerWidget {
       onPick: (p) => ref.read(chartingPatientIdProvider.notifier).state = p.id,
     );
 
+    // No patient picked (or theirs is gone): Charting has no page of its
+    // own; patients are picked on the Patients screen, so go there.
+    if (patient == null) {
+      if (chosen == null || patientsLoaded) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(shellNavigatorProvider)?.call(DesktopTab.patients);
+        });
+      }
+      return const SizedBox.shrink();
+    }
+
     return Padding(
       padding: padding,
-      child: patient == null
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                chartingTitle(context),
-                const SizedBox(height: CruSpace.s16),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: picker,
-                  ),
-                ),
-                const SizedBox(height: CruSpace.cardGap),
-                const Expanded(
-                  child: Center(
-                    child: DentalEmptyState(
-                      icon: DentalIcons.tooth,
-                      title: 'Pick a patient',
-                      body:
-                          'Search by name or phone above. Today\'s patients '
-                          'are listed first.',
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : ChartingScreen(
-              key: ValueKey(patient.id),
-              patient: patient,
-              embedded: true,
-              picker: picker,
-            ),
+      child: ChartingScreen(
+        key: ValueKey(patient.id),
+        patient: patient,
+        embedded: true,
+        picker: picker,
+      ),
     );
   }
 }
@@ -171,8 +125,9 @@ class _PatientSearchState extends State<_PatientSearch> {
   List<_Option> _options(String text) {
     // Today's patients in appointment order, each once.
     final today = <String, _Option>{};
-    final sorted = [...widget.items]
-      ..sort((a, b) => a.visit.scheduledStart.compareTo(b.visit.scheduledStart));
+    final sorted = [
+      ...widget.items,
+    ]..sort((a, b) => a.visit.scheduledStart.compareTo(b.visit.scheduledStart));
     for (final item in sorted) {
       for (final m in item.members.isEmpty ? [item] : item.members) {
         final p = m.patient;
@@ -190,16 +145,11 @@ class _PatientSearchState extends State<_PatientSearch> {
 
     final q = text.trim().toLowerCase();
     if (q.isEmpty) {
-      final recent =
-          ([
-                  ...widget.patients.where(
-                    (p) =>
-                        !today.containsKey(p.id) &&
-                        p.id != widget.current?.id,
-                  ),
-                ]
-                ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
-              .take(_recent);
+      final recent = ([
+        ...widget.patients.where(
+          (p) => !today.containsKey(p.id) && p.id != widget.current?.id,
+        ),
+      ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt))).take(_recent);
       return [...today.values, for (final p in recent) plain(p)];
     }
     final digits = q.replaceAll(RegExp(r'\D'), '');
@@ -320,7 +270,12 @@ class _SearchField extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Row(
             children: [
-              CruIcon(CruIcons.search, size: 17, strokeWidth: 2, color: c.label3),
+              CruIcon(
+                CruIcons.search,
+                size: 17,
+                strokeWidth: 2,
+                color: c.label3,
+              ),
               const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: TextField(

@@ -135,6 +135,21 @@ class DentalRepository {
     );
   }
 
+  /// Soft-deletes a chart row (undoing a change in its own visit).
+  Future<void> deleteToothChartEntry(String id) async {
+    final db = await _localDbService.localDatabase;
+    await db.update(
+      'tooth_chart_entries',
+      {
+        'isDeleted': 1,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'syncStatus': 'pending',
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // PROCEDURE LOG ENTRIES
   // ---------------------------------------------------------------------------

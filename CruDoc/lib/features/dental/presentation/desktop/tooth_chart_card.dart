@@ -168,7 +168,6 @@ class ToothChartCard extends ConsumerStatefulWidget {
     super.key,
     required this.patient,
     this.fullScreen = false,
-    this.onOpenPerio,
   });
 
   final Patient patient;
@@ -176,10 +175,6 @@ class ToothChartCard extends ConsumerStatefulWidget {
   /// On Charting's Teeth tab: the toolbar carries the counts, and the
   /// teeth grow with the window.
   final bool fullScreen;
-
-  /// The perio notice's button (Charting switches to its Perio tab);
-  /// without it Charting opens on Perio.
-  final VoidCallback? onOpenPerio;
 
   @override
   ConsumerState<ToothChartCard> createState() => _ToothChartCardState();
@@ -342,11 +337,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
               ),
               if (!_threeD && layer.showsPerio && data.perioExam == null) ...[
                 const SizedBox(height: CruSpace.s12),
-                _PerioNotice(
-                  onOpen:
-                      widget.onOpenPerio ??
-                      () => openCharting(context, p, tab: ChartingTab.perio),
-                ),
+                const _PerioNotice(),
               ],
               if (_threeD && _selected != null) ...[
                 const SizedBox(height: CruSpace.s12),
@@ -377,11 +368,10 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
   }
 }
 
-/// Perio layer without an exam: say so and offer the perio chart.
+/// Perio layer without an exam: say so. The perio chart opens only from
+/// Clinical records' Perio button.
 class _PerioNotice extends StatelessWidget {
-  const _PerioNotice({required this.onOpen});
-
-  final VoidCallback onOpen;
+  const _PerioNotice();
 
   @override
   Widget build(BuildContext context) {
@@ -405,12 +395,6 @@ class _PerioNotice extends StatelessWidget {
               'the teeth once you chart one.',
               style: CruType.subhead.tint(c.label2),
             ),
-          ),
-          const SizedBox(width: CruSpace.s12),
-          CruCapsuleButton(
-            label: 'Start perio exam',
-            kind: CruCapsuleKind.surface,
-            onPressed: onOpen,
           ),
         ],
       ),

@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dar
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/chart_session_providers.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
@@ -124,6 +125,7 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
       _notice = null;
     });
     try {
+      final visit = chartWriteVisit(ref, widget.patient.id);
       final now = DateTime.now();
       final at = DateTime(
         _date.year,
@@ -144,8 +146,11 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
               condition: _condition?.name,
               treatment: _treatment?.name,
               surface: DentalChart.storeSurfaces(_surfaces),
+              procedureLogId: null,
+              visitId: visit?.id,
+              baseEntryId: chartBaseFor(ref, widget.patient.id, visit, widget.tooth),
               notes: _notes.text.trim(),
-              recordedAt: at,
+              recordedAt: visit?.scheduledStart ?? at,
               createdAt: now,
               updatedAt: now,
               syncStatus: 'pending',
@@ -450,7 +455,7 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
         id: e?.id ?? _uuid.v4(),
         doctorId: doctorId,
         patientId: widget.patient.id,
-        visitId: e?.visitId,
+        visitId: e?.visitId ?? chartWriteVisit(ref, widget.patient.id)?.id,
         procedureCatalogId: _catalogId,
         procedureName: _name.text.trim(),
         toothNumbers: teeth,
@@ -489,6 +494,13 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
                   ? ToothCondition.missing.name
                   : null,
               procedureLogId: log.id,
+              visitId: log.visitId,
+              baseEntryId: chartBaseFor(
+                ref,
+                widget.patient.id,
+                ref.read(chartTimelineProvider(widget.patient.id)).sessionOf(log.visitId),
+                tooth,
+              ),
               notes: log.procedureName,
               recordedAt: _date,
               createdAt: now,

@@ -9,11 +9,6 @@ import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
-import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_chart_card.dart';
-import 'package:doctor_management_app/features/dental/records/dental_records_card.dart';
-import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_patient_details_screen.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
@@ -29,7 +24,6 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/session_history_card.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
-import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visit_session_dialog.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
@@ -38,6 +32,10 @@ import 'package:doctor_management_app/features/therapy/presentation/widgets/musc
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
@@ -299,13 +297,6 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
     final hasClinical = isDentist || isPhysio || isHomeopath;
     final hasFiles = clinical || showImaging;
 
-    // Dental plan (dentists only). Declined items are dropped.
-    final items = isDentist
-        ? DentalPlan.active(
-            ref.watch(patientTreatmentPlanProvider(s.id)).value ??
-                const <TreatmentPlanLineItemModel>[],
-          )
-        : const <TreatmentPlanLineItemModel>[];
     // Homeopathy case sheet (homeopaths only): allergies and history.
     final caseSheet = isHomeopath
         ? ref.watch(homeopathyCaseSheetProvider(s.id)).value
@@ -333,13 +324,10 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
     void newVisit() => PatientActions.newVisit(context, ref, p);
     void edit() => PatientActions.edit(context, ref, p);
     void recordPayment() => PatientActions.recordPayment(context, ref, s);
-    void newBill() => showDesktopCreateInvoiceDialog(context, initialPatient: p);
+    void newBill() =>
+        showDesktopCreateInvoiceDialog(context, initialPatient: p);
     void openVisit(Visit v) =>
         showVisitSessionDialog(context, visit: v, patient: p);
-    Future<void> editPlan() async {
-      await showTreatmentPlanDialog(context, patient: p);
-      if (context.mounted) ref.invalidate(patientTreatmentPlanProvider(s.id));
-    }
 
     DoctorLetterheadConfig letterhead() =>
         DoctorLetterheadConfig.fromProfileData(
@@ -439,7 +427,9 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
       ),
     };
     final open = sources.containsKey(_open) ? _open : null;
-    final tabs = [_Tab.overview, if (hasClinical) _Tab.clinical];
+    // Dentists chart in Charting (the header's button), so they have no
+    // Clinical page; physio and homeopathy keep theirs.
+    final tabs = [_Tab.overview, if (hasClinical && !isDentist) _Tab.clinical];
     final tab = tabs.contains(_tab) ? _tab : _Tab.overview;
 
     return PopScope(
@@ -503,27 +493,6 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
           );
 
           Widget clinicalScreen() {
-            if (isDentist) {
-              final plan = items.isEmpty
-                  ? NoPlanCard(patient: p, onCreatePlan: editPlan)
-                  : TreatmentPlanCard(
-                      summary: s,
-                      items: items,
-                      onEditPlan: editPlan,
-                      onBook: newVisit,
-                    );
-              final records = DentalRecordsCard(patient: p);
-              final procedures = DentalProceduresCard(patient: p);
-              return DetailsStack([
-                ToothChartPreviewCard(patient: p),
-                DetailsColumns(
-                  wide: wide,
-                  left: [plan, procedures],
-                  right: [records],
-                  narrow: [plan, records, procedures],
-                ),
-              ]);
-            }
             if (isPhysio) {
               return DetailsColumns(
                 wide: wide,
@@ -602,7 +571,12 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                   onWhatsApp: () => PatientActions.whatsApp(context, p),
                   menu: menu,
                   onNewVisit: canBook ? newVisit : null,
-                  actions: [if (isDentist) _RecallButton(patient: p)],
+                  actions: [
+                    if (isDentist) ...[
+                      _ChartingButton(patient: p),
+                      _RecallButton(patient: p),
+                    ],
+                  ],
                   tabs: tabs.length < 2
                       ? null
                       : CruSegmentedControl<_Tab>(
@@ -722,6 +696,31 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
 }
 
 /// Dentists: the patient's next recall, set or changed from the header.
+/// Opens the patient's Charting: in the shell (the sidebar stays) on
+/// desktop, as its own screen where there is no shell.
+class _ChartingButton extends ConsumerWidget {
+  const _ChartingButton({required this.patient});
+
+  final Patient patient;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => CruButton(
+    label: 'Charting',
+    kind: CruButtonKind.secondary,
+    icon: DentalIcons.tooth,
+    semanticLabel: 'Open charting for ${patient.fullName}',
+    onPressed: () {
+      final goToTab = ref.read(shellNavigatorProvider);
+      if (goToTab == null) {
+        openCharting(context, patient);
+        return;
+      }
+      ref.read(chartingPatientIdProvider.notifier).state = patient.id;
+      goToTab(DesktopTab.charting);
+    },
+  );
+}
+
 /// "Recall · 12 Apr" ("Recall overdue · 12 Apr" once past); an icon
 /// button on phones.
 class _RecallButton extends ConsumerWidget {

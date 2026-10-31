@@ -92,6 +92,14 @@ class ToothChartEntryModel {
   final String? condition;
   final String? treatment;
   final String? procedureLogId;
+
+  /// The visit (session) this change was saved in; null for older rows
+  /// and changes saved outside a visit.
+  final String? visitId;
+
+  /// The row this change replaced on its tooth when it was saved ('' when
+  /// there was none; null on older rows). Used to flag conflicts only.
+  final String? baseEntryId;
   final String notes;
   final DateTime recordedAt;
   final bool isDeleted;
@@ -113,6 +121,8 @@ class ToothChartEntryModel {
     this.condition,
     this.treatment,
     this.procedureLogId,
+    this.visitId,
+    this.baseEntryId,
     this.notes = '',
     required this.recordedAt,
     this.isDeleted = false,
@@ -145,6 +155,8 @@ class ToothChartEntryModel {
       condition: map['condition'] as String?,
       treatment: map['treatment'] as String?,
       procedureLogId: map['procedureLogId'] as String?,
+      visitId: map['visitId'] as String?,
+      baseEntryId: map['baseEntryId'] as String?,
       notes: FieldCipher.decrypt(rawNotes),
       recordedAt: _toDate(map['recordedAt']) ?? DateTime.now(),
       isDeleted: map['isDeleted'] as bool? ?? false,
@@ -167,6 +179,8 @@ class ToothChartEntryModel {
       'condition': condition,
       'treatment': treatment,
       'procedureLogId': procedureLogId,
+      'visitId': visitId,
+      'baseEntryId': baseEntryId,
       'notes': FieldCipher.encrypt(notes),
       'recordedAt': Timestamp.fromDate(recordedAt),
       'isDeleted': isDeleted,
@@ -192,6 +206,8 @@ class ToothChartEntryModel {
       'condition': condition,
       'treatment': treatment,
       'procedureLogId': procedureLogId,
+      'visitId': visitId,
+      'baseEntryId': baseEntryId,
       'notes': FieldCipher.encrypt(notes),
       'recordedAt': recordedAt.millisecondsSinceEpoch,
       'isDeleted': isDeleted ? 1 : 0,
@@ -215,6 +231,8 @@ class ToothChartEntryModel {
       condition: map['condition'] as String?,
       treatment: map['treatment'] as String?,
       procedureLogId: map['procedureLogId'] as String?,
+      visitId: map['visitId'] as String?,
+      baseEntryId: map['baseEntryId'] as String?,
       notes: FieldCipher.decrypt(rawNotes),
       recordedAt: _toDate(map['recordedAt']) ?? DateTime.now(),
       isDeleted: map['isDeleted'] == 1 || map['isDeleted'] == true,
@@ -240,6 +258,10 @@ class ToothChartEntryModel {
     bool clearTreatment = false,
     String? procedureLogId,
     bool clearProcedureLogId = false,
+    String? visitId,
+    bool clearVisitId = false,
+    String? baseEntryId,
+    bool clearBaseEntryId = false,
     String? notes,
     DateTime? recordedAt,
     bool? isDeleted,
@@ -262,6 +284,8 @@ class ToothChartEntryModel {
       procedureLogId: clearProcedureLogId
           ? null
           : (procedureLogId ?? this.procedureLogId),
+      visitId: clearVisitId ? null : (visitId ?? this.visitId),
+      baseEntryId: clearBaseEntryId ? null : (baseEntryId ?? this.baseEntryId),
       notes: notes ?? this.notes,
       recordedAt: recordedAt ?? this.recordedAt,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -297,6 +321,8 @@ class ToothChartEntryModel {
           condition == other.condition &&
           treatment == other.treatment &&
           procedureLogId == other.procedureLogId &&
+          visitId == other.visitId &&
+          baseEntryId == other.baseEntryId &&
           notes == other.notes &&
           recordedAt == other.recordedAt &&
           isDeleted == other.isDeleted &&
@@ -317,6 +343,8 @@ class ToothChartEntryModel {
     condition,
     treatment,
     procedureLogId,
+    visitId,
+    baseEntryId,
     notes,
     recordedAt,
     isDeleted,

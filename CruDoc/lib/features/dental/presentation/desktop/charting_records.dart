@@ -79,13 +79,14 @@ class ChartRecord {
 /// The shelf's clusters, in order: exam, treat, after, paperwork.
 typedef RecordCluster = ({String label, List<ChartRecord> records});
 
-/// Every record type for [p], with live status. Perio and Root planing
-/// open their workspace ([go]); the rest open their record.
+/// Every record type for [p], with live status. Perio opens through
+/// [go]; the rest open their record.
 List<RecordCluster> chartRecords(
   BuildContext context,
   WidgetRef ref,
   Patient p, {
   required ValueChanged<ChartingTab> go,
+  VoidCallback? onPerio,
 }) {
   final byKind =
       ref.watch(patientRecordsByKindProvider(p.id)).value ??
@@ -151,7 +152,7 @@ List<RecordCluster> chartRecords(
           status: perio.isEmpty
               ? null
               : DentalFormat.shortDate(perio.first.recordedAt),
-          onOpen: () => go(ChartingTab.perio),
+          onOpen: onPerio ?? () => go(ChartingTab.perio),
         ),
         ChartRecord(
           id: 'endo',
@@ -211,7 +212,7 @@ List<RecordCluster> chartRecords(
           detail: 'Deep cleaning by quadrant, then the re-evaluation.',
           status: srp.text,
           tone: srp.warn ? RecordTone.warn : RecordTone.plain,
-          onOpen: () => go(ChartingTab.perio),
+          onOpen: () => showSrpDialog(context, p),
         ),
         ChartRecord(
           id: 'checklist',
@@ -432,9 +433,12 @@ class RecordShelf extends StatelessWidget {
 /// panel: the shelf's buttons in a three-across grid, under the cluster
 /// names.
 class RecordPanel extends StatelessWidget {
-  const RecordPanel({super.key, required this.clusters});
+  const RecordPanel({super.key, required this.clusters, this.perioKey});
 
   final List<RecordCluster> clusters;
+
+  /// On the Perio button, so Charting can grow the perio chart from it.
+  final GlobalKey? perioKey;
 
   static const _names = {
     'Exam': 'Exam',
@@ -446,9 +450,10 @@ class RecordPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    // Tight enough to fit Charting's right column whole.
     return CruCard(
       semanticLabel: 'Clinical records',
-      padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -460,7 +465,7 @@ class RecordPanel extends StatelessWidget {
             Padding(
               padding: EdgeInsets.fromLTRB(
                 CruSpace.s8,
-                i == 0 ? CruSpace.s4 : CruSpace.s12,
+                i == 0 ? CruSpace.s4 : CruSpace.s8,
                 CruSpace.s8,
                 CruSpace.s4,
               ),
@@ -473,12 +478,32 @@ class RecordPanel extends StatelessWidget {
               builder: (context, box) {
                 const cols = 3;
                 final each = box.maxWidth / cols;
-                return Wrap(
+                final all = clusters[i].records;
+                return Column(
                   children: [
-                    for (final r in clusters[i].records)
-                      SizedBox(
-                        width: each,
-                        child: _PanelTile(record: r),
+                    for (var at = 0; at < all.length; at += cols)
+                      Builder(
+                        builder: (context) {
+                          final row = all.sublist(
+                            at,
+                            (at + cols).clamp(0, all.length),
+                          );
+                          // A status line only in rows that have one.
+                          final status = row.any((r) => r.status != null);
+                          return Row(
+                            children: [
+                              for (final r in row)
+                                SizedBox(
+                                  key: r.id == 'perio' ? perioKey : null,
+                                  width: each,
+                                  child: RecordPanelTile(
+                                    record: r,
+                                    statusLine: status,
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                   ],
                 );
@@ -491,12 +516,20 @@ class RecordPanel extends StatelessWidget {
   }
 }
 
-/// One record in the panel: icon tile, name, and its status in tone (a
-/// blank line when there is none, so rows line up).
-class _PanelTile extends StatelessWidget {
-  const _PanelTile({required this.record});
+/// One button in the Clinical records card (also drawn inside Perio's growing box).
+///
+/// One record in the panel: icon tile, name, and its status in tone.
+/// With [statusLine] the status line is kept (blank when there is none)
+/// so the row lines up; rows without any status leave it out.
+class RecordPanelTile extends StatelessWidget {
+  const RecordPanelTile({
+    super.key,
+    required this.record,
+    this.statusLine = true,
+  });
 
   final ChartRecord record;
+  final bool statusLine;
 
   @override
   Widget build(BuildContext context) {
@@ -513,12 +546,7 @@ class _PanelTile extends StatelessWidget {
         builder: (context, hovered) => AnimatedContainer(
           duration: CruMotion.of(context, CruMotion.fast),
           curve: CruMotion.curve,
-          padding: const EdgeInsets.fromLTRB(
-            CruSpace.s4,
-            CruSpace.s8,
-            CruSpace.s4,
-            CruSpace.s6,
-          ),
+          padding: const EdgeInsets.all(CruSpace.s4),
           decoration: ShapeDecoration(
             color: hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0),
             shape: cruShape(CruRadius.control),
@@ -527,8 +555,8 @@ class _PanelTile extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 alignment: Alignment.center,
                 decoration: ShapeDecoration(
                   color: c.inset,
@@ -541,7 +569,7 @@ class _PanelTile extends StatelessWidget {
                   color: active ? c.label : c.label2,
                 ),
               ),
-              const SizedBox(height: CruSpace.s6),
+              const SizedBox(height: CruSpace.s4),
               Text(
                 record.label,
                 maxLines: 1,
@@ -549,13 +577,14 @@ class _PanelTile extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: CruType.caption.w500.tint(c.label),
               ),
-              Text(
-                record.status ?? ' ',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: CruType.micro.tabular.tint(_toneColor(c, record.tone)),
-              ),
+              if (statusLine || record.status != null)
+                Text(
+                  record.status ?? ' ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CruType.micro.tabular.tint(_toneColor(c, record.tone)),
+                ),
             ],
           ),
         ),

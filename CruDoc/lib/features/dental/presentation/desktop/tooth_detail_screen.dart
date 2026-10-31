@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
+import 'package:doctor_management_app/features/dental/domain/chart_timeline.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/chart_session_providers.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
@@ -20,6 +22,8 @@ final _charts =
         List<Object?>,
         List<Object?>,
         List<Object?>,
+        ChartTimeline,
+        String?,
         ToothChartData,
       )
     >{};
@@ -47,21 +51,30 @@ ToothChartData watchPatientChart(WidgetRef ref, String patientId) {
           )
           .value ??
       const <DentalRecord>[];
+  final timeline = ref.watch(chartTimelineProvider(patientId));
+  final session = watchChartSession(ref, patientId);
   final last = _charts[patientId];
   if (last != null &&
       identical(last.$1, entries) &&
       identical(last.$2, plan) &&
       identical(last.$3, perio) &&
-      identical(last.$4, endo)) {
-    return last.$5;
+      identical(last.$4, endo) &&
+      identical(last.$5, timeline) &&
+      last.$6 == session) {
+    return last.$7;
   }
+  // An older session shows the records from before the next visit.
+  final cutoff = timeline.cutoff(session);
+  bool asOf(DentalRecord r) => cutoff == null || r.recordedAt.isBefore(cutoff);
+  final perioAsOf = perio.where(asOf).toList();
   final data = ToothChartData.from(
     entries,
     plan,
-    perioExam: perio.isEmpty ? null : perio.first,
-    endo: endo,
+    latest: timeline.latestAt(session),
+    perioExam: perioAsOf.isEmpty ? null : perioAsOf.first,
+    endo: endo.where(asOf).toList(),
   );
-  _charts[patientId] = (entries, plan, perio, endo, data);
+  _charts[patientId] = (entries, plan, perio, endo, timeline, session, data);
   return data;
 }
 

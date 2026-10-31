@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -8,11 +10,10 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
-import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_records.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
@@ -20,6 +21,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_chart_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_view.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/chart_session_providers.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/endo_dialog.dart';
@@ -41,7 +43,11 @@ import 'package:doctor_management_app/features/reports/presentation/certificate_
 import 'package:doctor_management_app/features/reports/presentation/medical_report_generation_sheet.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/snap_column.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 
 export 'charting_records.dart' show ChartingTab;
 
@@ -59,18 +65,15 @@ Future<void> openCharting(
   ),
 );
 
-/// Widths the studio steps through: below [_studio] one column (the
-/// panels' contents move into the workspaces); from it the inspector sits
-/// on the right; from [_studioWide] the patient pool sits on the left too.
+/// Below this width one column (the inspector's contents move into the
+/// workspaces); from it the inspector sits on the right.
 const double _studio = 1000;
-const double _studioWide = 1360;
 
 /// Charting, laid out like an editing studio. On top: the title, the
 /// patient (search to switch, allergies, history, DMFT) and recall; the
 /// workspace switch (Chart, Plan, Perio, Endo, Surgery, Kids & ortho,
-/// Records, Wrap-up), each with its status. Below: the patient pool (mouth
-/// map, what needs care, the plan) on the left, the workspace in the
-/// middle, and the inspector (visits with +, the record buttons) on the
+/// Records, Wrap-up), each with its status. Below: the workspace, and the
+/// inspector (what needs care, visits with +, the record buttons) on the
 /// right. Every chairside record opens from here.
 class ChartingScreen extends ConsumerStatefulWidget {
   const ChartingScreen({
@@ -96,16 +99,121 @@ class ChartingScreen extends ConsumerStatefulWidget {
   ConsumerState<ChartingScreen> createState() => _ChartingScreenState();
 }
 
-class _ChartingScreenState extends ConsumerState<ChartingScreen> {
-  late ChartingTab _tab = widget.initialTab;
+class _ChartingScreenState extends ConsumerState<ChartingScreen>
+    with SingleTickerProviderStateMixin {
+  /// Perio isn't a tab: opened on Perio, Charting starts on the chart and
+  /// opens perio full screen.
+  late ChartingTab _tab =
+      widget.initialTab == ChartingTab.perio ||
+          widget.initialTab == ChartingTab.rootCanals
+      ? ChartingTab.teeth
+      : widget.initialTab;
 
-  /// Workspaces opened so far: built once, then kept (with their state).
-  late final Set<ChartingTab> _built = {widget.initialTab};
+  /// Perio full screen, opened from the Clinical records Perio button:
+  /// the button's box grows over everything under the title
+  /// (design/motion-transitions.md, "Opening from a button").
+  late final AnimationController _morph = AnimationController(vsync: this);
 
-  void _go(ChartingTab tab) => setState(() {
-    _tab = tab;
-    _built.add(tab);
-  });
+  /// Slower and softer than the usual 250 ms (asked for this one): eases
+  /// in and out, so the box starts and lands gently; closing is the same
+  /// path backwards.
+  static const _perioMotion = Duration(milliseconds: 420);
+  late final CurvedAnimation _t = CurvedAnimation(
+    parent: _morph,
+    curve: Curves.easeInOutCubicEmphasized,
+    reverseCurve: Curves.easeInOutCubicEmphasized,
+  );
+  late final StateController<bool> _shellFocus;
+
+  /// Everything under the title row; perio fills it.
+  final GlobalKey _area = GlobalKey(debugLabel: 'charting area');
+  final GlobalKey _perioTile = GlobalKey(debugLabel: 'perio button');
+  bool _perio = false;
+
+  /// The Perio button's rectangle in [_area] when perio opened.
+  Rect? _from;
+
+  @override
+  void initState() {
+    super.initState();
+    // Each time Charting opens it starts on the latest chart.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(chartSessionProvider(widget.patient.id).notifier).state = null;
+      }
+    });
+    _shellFocus = ref.read(shellFocusProvider.notifier);
+    _morph.addStatusListener((_) {
+      if (mounted) setState(() {});
+    });
+    // Opened on Perio from another screen: open it full screen once the
+    // Perio button is laid out, so it grows from there.
+    if (widget.initialTab == ChartingTab.perio) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openPerio();
+      });
+    }
+    // Opened on Endo: the chart, with the Endo dialog over it.
+    if (widget.initialTab == ChartingTab.rootCanals) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showEndoDialog(context, widget.patient);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    // Left Charting with perio open: give the sidebar back.
+    if (_perio) {
+      final focus = _shellFocus;
+      Future.microtask(() => focus.state = false);
+    }
+    _t.dispose();
+    _morph.dispose();
+    super.dispose();
+  }
+
+  Rect? _tileRect() {
+    final tile = _perioTile.currentContext?.findRenderObject();
+    final area = _area.currentContext?.findRenderObject();
+    if (tile is! RenderBox || area is! RenderBox || !tile.hasSize) return null;
+    return tile.localToGlobal(Offset.zero, ancestor: area) & tile.size;
+  }
+
+  void _openPerio() {
+    if (_perio) return;
+    setState(() {
+      _perio = true;
+      _from = _tileRect();
+    });
+    // Perio is built (unseen) this frame; it and the sidebar start moving
+    // together next frame, so the heavy first build doesn't eat the
+    // opening frames.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_perio) return;
+      _shellFocus.state = true;
+      _morph.duration = CruMotion.of(context, _perioMotion);
+      _morph.forward(from: 0);
+    });
+  }
+
+  Future<void> _closePerio() async {
+    if (!_perio || _morph.status == AnimationStatus.reverse) return;
+    // Fold back while the sidebar is still collapsed, so the button is
+    // where it was measured; then give the sidebar back.
+    _from = _tileRect() ?? _from;
+    _morph.duration = CruMotion.of(context, _perioMotion);
+    await _morph.reverse();
+    if (!mounted) return;
+    setState(() => _perio = false);
+    _shellFocus.state = false;
+  }
+
+  void _go(ChartingTab tab) {
+    // Perio isn't a tab: it opens full screen.
+    if (tab == ChartingTab.perio) return _openPerio();
+    setState(() => _tab = tab);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,14 +248,29 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
       ref.watch(patientTreatmentPlanProvider(p.id)).value ??
           const <TreatmentPlanLineItemModel>[],
     );
-    final records = chartRecords(context, ref, p, go: _go);
+    final records = chartRecords(context, ref, p, go: _go, onPerio: _openPerio);
+    final perioRecord = findRecord(records, 'perio');
     final today = summary == null
         ? null
         : PatientActions.todaysVisit(summary, now);
 
     void newVisit() => PatientActions.newVisit(context, ref, p);
-    void openVisit(Visit v) =>
+    final session = watchChartSession(ref, p.id);
+    final timeline = ref.watch(chartTimelineProvider(p.id));
+    // A visit row loads that visit as a session; tapping the one already
+    // shown (today's on Latest) opens its notes. Visits that aren't a
+    // session yet (future, cancelled) open their notes too.
+    void openVisit(Visit v) {
+      final shown = session ?? today?.id;
+      if (!timeline.isSession(v.id) || v.id == shown) {
         showVisitSessionDialog(context, visit: v, patient: p);
+        return;
+      }
+      ref.read(chartSessionProvider(p.id).notifier).state = v.id == today?.id
+          ? null
+          : v.id;
+    }
+
     Future<void> editPlan() async {
       await showTreatmentPlanDialog(context, patient: p);
       ref.invalidate(patientTreatmentPlanProvider(p.id));
@@ -196,15 +319,69 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
         ),
       ],
     );
-    final title = chartingTitle(context, phone: phone);
-    final back = widget.picker == null
-        ? CruIconButton(
-            icon: CruIcons.chevronLeft,
-            semanticLabel: 'Back',
-            tooltip: 'Back',
-            onPressed: () => Navigator.of(context).maybePop(),
-          )
-        : null;
+    // Perio full screen reads like a sub-screen of Charting: the title
+    // turns from "Charting" to "Periodontal" in place (the back link above
+    // turns to "‹ Charting"), the patient stays under it.
+    final titleStyle = (phone ? CruType.title2 : CruType.largeTitle).tint(
+      c.label,
+    );
+    final title = AnimatedBuilder(
+      animation: _t,
+      builder: (context, _) {
+        final turn = const Interval(0.2, 0.8).transform(_t.value);
+        return Stack(
+          children: [
+            Opacity(
+              opacity: 1 - turn,
+              child: chartingTitle(context, phone: phone),
+            ),
+            if (_perio)
+              Opacity(
+                opacity: turn,
+                child: Semantics(
+                  header: true,
+                  child: Text('Periodontal', style: titleStyle),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+    // A blue back link on top, like every sub-page: "‹ Patients" (or
+    // "‹ Back" when Charting was opened as its own screen). With perio
+    // open the same link reads "‹ Charting" and folds perio away; the
+    // words cross-fade in place, so nothing below it moves.
+    final restLabel = widget.picker == null ? 'Back' : 'Patients';
+    void restBack() {
+      if (widget.picker == null) {
+        Navigator.of(context).maybePop();
+      } else {
+        ref.read(shellNavigatorProvider)?.call(DesktopTab.patients);
+      }
+    }
+
+    final backLink = AnimatedBuilder(
+      animation: _t,
+      builder: (context, _) {
+        final turn = const Interval(0.2, 0.8).transform(_t.value);
+        return Stack(
+          children: [
+            IgnorePointer(
+              ignoring: _perio,
+              child: Opacity(
+                opacity: 1 - turn,
+                child: DetailsBackLink(label: restLabel, onBack: restBack),
+              ),
+            ),
+            if (_perio)
+              Opacity(
+                opacity: turn,
+                child: DetailsBackLink(label: 'Charting', onBack: _closePerio),
+              ),
+          ],
+        );
+      },
+    );
 
     final Widget topRow;
     if (phone) {
@@ -212,10 +389,9 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          backLink,
           Row(
             children: [
-              ?back,
-              if (back != null) const SizedBox(width: CruSpace.s6),
               title,
               const Spacer(),
               _RecallChip(patient: p),
@@ -243,14 +419,8 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ?back,
-                    if (back != null) const SizedBox(width: CruSpace.s8),
-                    title,
-                  ],
-                ),
+                backLink,
+                title,
                 const SizedBox(height: CruSpace.s2),
                 Text.rich(
                   TextSpan(
@@ -271,26 +441,51 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
               ],
             ),
           ),
-          const SizedBox(width: CruSpace.s20),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (final w in pills) ...[
-                    w,
-                    const SizedBox(width: CruSpace.s6),
-                  ],
-                ],
-              ),
+            child: Stack(
+              alignment: Alignment.centerRight,
+              children: [
+                // Pills, search and recall fade while perio is open.
+                AnimatedBuilder(
+                  animation: _t,
+                  builder: (context, child) => Opacity(
+                    opacity: 1 - const Interval(0, 0.5).transform(_t.value),
+                    child: child,
+                  ),
+                  child: IgnorePointer(
+                    ignoring: _perio,
+                    child: ExcludeFocus(
+                      excluding: _perio,
+                      child: Row(
+                        children: [
+                          const SizedBox(width: CruSpace.s20),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (final w in pills) ...[
+                                    w,
+                                    const SizedBox(width: CruSpace.s6),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: CruSpace.s12),
+                          if (widget.picker != null) ...[
+                            SizedBox(width: 300, child: widget.picker),
+                            const SizedBox(width: CruSpace.s10),
+                          ],
+                          _RecallChip(patient: p),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: CruSpace.s12),
-          if (widget.picker != null) ...[
-            SizedBox(width: 300, child: widget.picker),
-            const SizedBox(width: CruSpace.s10),
-          ],
-          _RecallChip(patient: p),
         ],
       );
     }
@@ -299,104 +494,56 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
     final needsCare = _inOrder(
       data.teeth.where((t) => t.state == ToothState.needsCare),
     );
-    final planned = _inOrder(data.teeth.where((t) => t.isPlanned));
-    final planDone = items.where(DentalPlan.isDone).length;
     final kids =
         p.age < 16 ||
         findRecord(records, 'ortho')?.status != null ||
         findRecord(records, 'eruption')?.status != null;
     final tabs = [
       for (final t in ChartingTab.values)
-        if (t != ChartingTab.kids || kids) t,
+        // Perio and Endo aren't workspaces: their buttons open them.
+        if (t != ChartingTab.perio &&
+            t != ChartingTab.rootCanals &&
+            (t != ChartingTab.kids || kids))
+          t,
     ];
-    ({String text, RecordTone tone})? statusOf(ChartingTab t) {
-      ({String text, RecordTone tone})? from(String id) {
-        final r = findRecord(records, id);
-        return r?.status == null ? null : (text: r!.status!, tone: r.tone);
-      }
 
-      return switch (t) {
-        ChartingTab.teeth =>
-          needsCare.isNotEmpty
-              ? (text: '${needsCare.length} need care', tone: RecordTone.warn)
-              : data.count(ToothState.treated) > 0
-              ? (
-                  text: '${data.count(ToothState.treated)} treated',
-                  tone: RecordTone.plain,
-                )
-              : null,
-        ChartingTab.plan =>
-          items.isEmpty
-              ? null
-              : (
-                  text: '$planDone of ${items.length}',
-                  tone: planDone == items.length
-                      ? RecordTone.done
-                      : RecordTone.plain,
-                ),
-        ChartingTab.perio => from('perio'),
-        ChartingTab.rootCanals => from('endo'),
-        ChartingTab.surgery => from('checklist') ?? from('sedation'),
-        ChartingTab.kids =>
-          from('eruption') ?? from('behaviour') ?? from('ortho'),
-        ChartingTab.records => from('forms'),
-        ChartingTab.wrapUp =>
-          today == null
-              ? null
-              : today.status == VisitStatus.completed
-              ? (text: "Today's visit done", tone: RecordTone.done)
-              : (text: 'Visit today', tone: RecordTone.warn),
-      };
-    }
-
+    // The same switch as every other screen's sub-screens. It scrolls
+    // sideways when the window is too narrow for every tab.
+    final shownTab = tabs.contains(_tab) ? _tab : ChartingTab.teeth;
     final switcher = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          // Endo has no tab: its Clinical records button opens it.
-          for (final t in tabs)
-            if (t != ChartingTab.rootCanals)
-              _WorkspaceTab(
-                label: t.label,
-                status: statusOf(t),
-                selected: t == _tab,
-                onTap: () => _go(t),
-              ),
-        ],
+      child: CruSegmentedControl<ChartingTab>(
+        semanticLabel: 'Charting',
+        segments: [for (final t in tabs) CruSegment(t, t.label)],
+        selected: shownTab,
+        onChanged: _go,
       ),
     );
 
     // ---- The panels.
-    final pool = DetailsStack([
-      _ToothListCard(
-        title: 'Needs care',
-        teeth: needsCare,
-        empty: 'Nothing waiting.',
-        line: (t) => t.detail(ChartLayer.dental) ?? 'Needs care',
-        onOpen: (t) => showToothDetail(context, patient: p, tooth: t.number),
-      ),
-      _ToothListCard(
-        title: 'Planned work',
-        teeth: planned,
-        empty: 'No work planned yet.',
-        line: (t) => t.planned.join(', '),
-        onOpen: (t) => showToothDetail(context, patient: p, tooth: t.number),
-        trailing: CruLink(
-          label: planned.isEmpty ? 'Create plan' : 'Edit plan',
-          onPressed: editPlan,
-        ),
-      ),
-    ]);
+    // The plan lives on the Plan tab; only what needs care sits here.
+    final needsCareCard = _ToothListCard(
+      title: 'Needs care',
+      teeth: needsCare,
+      empty: 'Nothing waiting.',
+      line: (t) => t.detail(ChartLayer.dental) ?? 'Needs care',
+      onOpen: (t) => showToothDetail(context, patient: p, tooth: t.number),
+    );
     final visitsCard = _VisitsCard(
       visits: summary?.visits ?? const <Visit>[],
       now: now,
+      viewing: session,
       onOpen: openVisit,
       onNew: canBook ? newVisit : null,
     );
-    final inspector = DetailsStack([
-      visitsCard,
-      RecordPanel(clusters: records),
-    ]);
+    // Scrolls card by card: one always rests at the top.
+    final inspector = SnapColumn(
+      children: [
+        needsCareCard,
+        visitsCard,
+        RecordPanel(clusters: records, perioKey: _perioTile),
+      ],
+    );
     final historyCard = _HistoryCard(
       line: omHistory == null ? null : omCardLine(omHistory),
       allergies: allergies,
@@ -424,17 +571,12 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
     final studio = LayoutBuilder(
       builder: (context, box) {
         final studio = box.maxWidth >= _studio;
-        final wide = box.maxWidth >= _studioWide;
 
         Widget workspace(ChartingTab t) => switch (t) {
           ChartingTab.teeth => scroll(
             DetailsStack([
-              ToothChartCard(
-                patient: p,
-                fullScreen: true,
-                onOpenPerio: () => _go(ChartingTab.perio),
-              ),
-              if (!wide) pool,
+              ToothChartCard(patient: p, fullScreen: true),
+              if (!studio) needsCareCard,
             ]),
           ),
           ChartingTab.plan => scroll(
@@ -452,8 +594,10 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
               DentalProceduresCard(patient: p),
             ]),
           ),
-          ChartingTab.perio => PerioChartScreen(patient: p, embedded: true),
-          ChartingTab.rootCanals => _RootCanalsTab(patient: p),
+          // Not a tab: the Perio button opens it full screen.
+          ChartingTab.perio => const SizedBox.shrink(),
+          // Not a workspace: the Endo button opens its dialog.
+          ChartingTab.rootCanals => const SizedBox.shrink(),
           ChartingTab.surgery => scroll(
             RecordGrid(
               records: pick(['checklist', 'sedation', 'la', 'consent']),
@@ -535,30 +679,39 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
           ),
         };
 
-        // Workspaces are built when first opened, then kept, so entries,
-        // layers and scroll survive a look elsewhere.
+        // Workspaces sit side by side and swipe like every sub-screen (the
+        // header stays put). Each is built when first opened, then kept,
+        // so entries, layers and scroll survive a look elsewhere.
         final shown = tabs.contains(_tab) ? _tab : ChartingTab.teeth;
-        final centre = IndexedStack(
-          index: tabs.indexOf(shown),
-          sizing: StackFit.expand,
-          children: [
-            for (final t in tabs)
-              ExcludeFocus(
-                key: ValueKey(t),
-                excluding: t != shown,
-                child: _built.contains(t)
-                    ? workspace(t)
-                    : const SizedBox.shrink(),
-              ),
-          ],
+        final centre = SwipePages<ChartingTab>(
+          values: tabs,
+          value: shown,
+          onChanged: _go,
+          keepAlive: true,
+          builder: (context, t) =>
+              ExcludeFocus(excluding: t != shown, child: workspace(t)),
         );
 
-        final body = Column(
+        // Everything under the title row: tabs, shelf, the three columns.
+        final below = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            topRow,
-            const SizedBox(height: CruSpace.s12),
             switcher,
+            if (session != null) ...[
+              const SizedBox(height: CruSpace.s10),
+              _SessionBar(
+                visit: timeline.sessionOf(session)!,
+                changed: timeline.changedIn(session),
+                conflicts: timeline.conflictsIn(session),
+                onNotes: () => showVisitSessionDialog(
+                  context,
+                  visit: timeline.sessionOf(session)!,
+                  patient: p,
+                ),
+                onLatest: () =>
+                    ref.read(chartSessionProvider(p.id).notifier).state = null,
+              ),
+            ],
             // Below the inspector's width the buttons stay on top.
             if (!studio) ...[
               const SizedBox(height: CruSpace.s10),
@@ -569,16 +722,90 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (wide) ...[
-                    SizedBox(width: 280, child: scroll(pool)),
-                    const SizedBox(width: CruSpace.cardGap),
-                  ],
                   Expanded(child: centre),
                   if (studio) ...[
                     const SizedBox(width: CruSpace.cardGap),
-                    SizedBox(width: 300, child: scroll(inspector)),
+                    SizedBox(width: 300, child: inspector),
                   ],
                 ],
+              ),
+            ),
+          ],
+        );
+
+        final body = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            topRow,
+            const SizedBox(height: CruSpace.s12),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, areaBox) {
+                  final area = Offset.zero & areaBox.biggest;
+                  return Stack(
+                    key: _area,
+                    children: [
+                      // The studio fades out as perio grows over it. It
+                      // stays built, so scroll and workspaces survive.
+                      Positioned.fill(
+                        child: AnimatedBuilder(
+                          animation: _t,
+                          builder: (context, child) => Opacity(
+                            opacity:
+                                1 - const Interval(0, 0.5).transform(_t.value),
+                            child: child,
+                          ),
+                          child: IgnorePointer(
+                            ignoring: _perio,
+                            child: ExcludeFocus(
+                              excluding: _perio,
+                              // Its own layer: fading it doesn't repaint
+                              // the whole studio every frame.
+                              child: RepaintBoundary(child: below),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Perio, growing out of the Perio button.
+                      if (_perio)
+                        AnimatedBuilder(
+                          animation: _t,
+                          builder: (context, child) => MorphBox(
+                            t: _t.value,
+                            from: _from,
+                            fromRadius: CruRadius.control,
+                            area: area,
+                            settled: _morph.isCompleted,
+                            source: perioRecord == null
+                                ? const SizedBox.shrink()
+                                // Top-aligned and clipped: its row may
+                                // have no status line, so the button can
+                                // be shorter than this copy.
+                                : UnconstrainedBox(
+                                    constrainedAxis: Axis.horizontal,
+                                    alignment: Alignment.topCenter,
+                                    clipBehavior: Clip.hardEdge,
+                                    child: RecordPanelTile(record: perioRecord),
+                                  ),
+                            child: child!,
+                          ),
+                          child: CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(LogicalKeyboardKey.escape):
+                                  _closePerio,
+                            },
+                            // Painted once, then only scaled and faded.
+                            child: RepaintBoundary(
+                              child: PerioChartScreen(
+                                patient: p,
+                                embedded: true,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -670,80 +897,6 @@ class _RecallChip extends ConsumerWidget {
   }
 }
 
-/// One workspace in the switch: its name and status under it; the open
-/// one is raised with an accent line under it.
-class _WorkspaceTab extends StatelessWidget {
-  const _WorkspaceTab({
-    required this.label,
-    required this.status,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final ({String text, RecordTone tone})? status;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    final s = status;
-    final tone = switch (s?.tone) {
-      RecordTone.warn => c.amberText,
-      RecordTone.done => c.greenText,
-      _ => c.label3,
-    };
-    return CruPressable(
-      onTap: onTap,
-      scaleOnPress: false,
-      semanticLabel: '$label${s == null ? '' : ', ${s.text}'}',
-      builder: (context, hovered) => AnimatedContainer(
-        duration: CruMotion.of(context, CruMotion.fast),
-        curve: CruMotion.curve,
-        margin: const EdgeInsets.only(right: CruSpace.s4),
-        padding: const EdgeInsets.fromLTRB(
-          CruSpace.s14,
-          CruSpace.s6,
-          CruSpace.s14,
-          CruSpace.s6,
-        ),
-        decoration: ShapeDecoration(
-          color: selected
-              ? c.surface
-              : hovered
-              ? c.hoverFill
-              : c.hoverFill.withValues(alpha: 0),
-          shape: cruShape(CruRadius.control),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: (selected ? CruType.subhead.w600 : CruType.subhead.w500)
-                  .tint(selected ? c.label : c.label2),
-            ),
-            Text(s?.text ?? ' ', style: CruType.micro.tabular.tint(tone)),
-            const SizedBox(height: CruSpace.s2),
-            AnimatedContainer(
-              duration: CruMotion.of(context, CruMotion.fast),
-              curve: CruMotion.curve,
-              height: 2,
-              width: selected ? 24 : 0,
-              decoration: ShapeDecoration(
-                color: c.accent,
-                shape: const StadiumBorder(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// "Charting", in the page-title style every desktop page uses.
 Widget chartingTitle(BuildContext context, {bool phone = false}) => Semantics(
   header: true,
@@ -763,6 +916,7 @@ class _VisitsCard extends StatefulWidget {
     required this.now,
     required this.onOpen,
     required this.onNew,
+    required this.viewing,
   });
 
   /// Newest first.
@@ -770,6 +924,7 @@ class _VisitsCard extends StatefulWidget {
   final DateTime now;
   final ValueChanged<Visit> onOpen;
   final VoidCallback? onNew;
+  final String? viewing;
 
   @override
   State<_VisitsCard> createState() => _VisitsCardState();
@@ -822,6 +977,7 @@ class _VisitsCardState extends State<_VisitsCard> {
               _VisitRow(
                 visit: v,
                 now: widget.now,
+                viewing: v.id == widget.viewing,
                 onTap: () => widget.onOpen(v),
               ),
             if (more > 0 || _all && visits.length > _recent)
@@ -850,11 +1006,13 @@ class _VisitRow extends StatelessWidget {
     required this.visit,
     required this.now,
     required this.onTap,
+    required this.viewing,
   });
 
   final Visit visit;
   final DateTime now;
   final VoidCallback onTap;
+  final bool viewing;
 
   @override
   Widget build(BuildContext context) {
@@ -879,12 +1037,22 @@ class _VisitRow extends StatelessWidget {
           vertical: CruSpace.s6,
         ),
         decoration: ShapeDecoration(
-          color: today
+          color: viewing
+              ? c.inset
+              : today
               ? c.accentTint
               : hovered
               ? c.hoverFill
               : c.hoverFill.withValues(alpha: 0),
-          shape: cruShape(CruRadius.iconTile),
+          // The visit loaded as a session gets a blue ring (clear on the
+          // rest, so rows don't shift).
+          shape: cruShape(
+            CruRadius.iconTile,
+            side: BorderSide(
+              color: viewing ? c.accent : c.accent.withValues(alpha: 0),
+              width: 1.5,
+            ),
+          ),
         ),
         child: Row(
           children: [
@@ -906,7 +1074,12 @@ class _VisitRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: CruSpace.s6),
-            Text(VisitStatusLabel.of(status), style: CruType.caption.tint(ink)),
+            Text(
+              viewing ? 'Viewing' : VisitStatusLabel.of(status),
+              style: viewing
+                  ? CruType.caption.w600.tint(c.label)
+                  : CruType.caption.tint(ink),
+            ),
           ],
         ),
       ),
@@ -976,45 +1149,6 @@ class _HistoryCard extends StatelessWidget {
   }
 }
 
-/// Two columns from this width: the chart, and the panels beside it.
-const double _twoColumns = 900;
-
-/// The chart beside its panels when wide; one scrolling column on
-/// phones.
-Widget _tabLayout({
-  required Widget toolbar,
-  required Widget main,
-  required List<Widget> side,
-}) => LayoutBuilder(
-  builder: (context, box) {
-    if (box.maxWidth < _twoColumns) {
-      return SingleChildScrollView(
-        child: DetailsStack([toolbar, main, ...side]),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        toolbar,
-        const SizedBox(height: CruSpace.cardGap),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: SingleChildScrollView(child: main)),
-              const SizedBox(width: CruSpace.cardGap),
-              SizedBox(
-                width: CruSize.rightColumn,
-                child: SingleChildScrollView(child: DetailsStack(side)),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  },
-);
-
 /// Teeth in chart order (upper right to lower right, then milk teeth).
 final Map<String, int> _chartOrder = {
   for (final (i, t) in [
@@ -1040,7 +1174,6 @@ class _ToothListCard extends StatelessWidget {
     required this.empty,
     required this.line,
     required this.onOpen,
-    this.trailing,
   });
 
   final String title;
@@ -1048,7 +1181,6 @@ class _ToothListCard extends StatelessWidget {
   final String empty;
   final String Function(ToothVisual tooth) line;
   final ValueChanged<ToothVisual> onOpen;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1063,14 +1195,12 @@ class _ToothListCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
             child: DetailsCardHeader(
               title: title,
-              trailing:
-                  trailing ??
-                  (teeth.isEmpty
-                      ? null
-                      : Text(
-                          '${teeth.length}',
-                          style: CruType.subhead.tabular.tint(c.label2),
-                        )),
+              trailing: teeth.isEmpty
+                  ? null
+                  : Text(
+                      '${teeth.length}',
+                      style: CruType.subhead.tabular.tint(c.label2),
+                    ),
             ),
           ),
           if (teeth.isEmpty)
@@ -1158,222 +1288,85 @@ class _ToothRow extends StatelessWidget {
   }
 }
 
-/// Root canals: the chart's canal layer (tap a tooth to open its root
-/// canal or start one), and a card per tooth, those in progress first.
-class _RootCanalsTab extends ConsumerWidget {
-  const _RootCanalsTab({required this.patient});
-
-  final Patient patient;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final data = watchPatientChart(ref, patient.id);
-    final numbering =
-        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
-    final records =
-        ref
-            .watch(
-              patientRecordsProvider((
-                patientId: patient.id,
-                kind: RecKind.endo,
-              )),
-            )
-            .value ??
-        const <DentalRecord>[];
-    bool done(DentalRecord r) => r.str('status') == 'obturated';
-    final ongoing = records.where((r) => !done(r)).toList()
-      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-    final finished = records.where(done).toList()
-      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
-
-    void openTooth(String tooth) {
-      DentalRecord? existing;
-      for (final r in [...ongoing, ...finished]) {
-        if (r.str('tooth') == tooth) {
-          existing = r;
-          break;
-        }
-      }
-      showEndoDialog(context, patient, existing: existing, tooth: tooth);
-    }
-
-    final chart = CruCard(
-      semanticLabel: 'Canals',
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Pulp and canals', style: CruType.headline.tint(c.label)),
-          const SizedBox(height: CruSpace.s2),
-          Text(
-            'Tap a tooth to open its root canal, or start one.',
-            style: CruType.subhead.tint(c.label2),
-          ),
-          const SizedBox(height: CruSpace.s16),
-          ToothChart2D(
-            data: data,
-            child: defaultMilkTeeth(data, patient),
-            layer: ChartLayer.endo,
-            selected: null,
-            onSelect: openTooth,
-            numbering: numbering,
-          ),
-        ],
-      ),
-    );
-
-    return _tabLayout(
-      toolbar: DentalTabToolbar(
-        status: records.isEmpty
-            ? 'No root canals yet'
-            : [
-                if (ongoing.isNotEmpty) '${ongoing.length} in progress',
-                if (finished.isNotEmpty) '${finished.length} done',
-              ].join(' · '),
-        actions: [
-          CruButton(
-            label: 'New root canal',
-            icon: CruIcons.plus,
-            onPressed: () => showEndoDialog(context, patient),
-          ),
-        ],
-      ),
-      main: chart,
-      side: records.isEmpty
-          ? [
-              CruCard(
-                semanticLabel: 'Root canals',
-                padding: const EdgeInsets.all(CruSpace.s24),
-                child: DentalEmptyState(
-                  icon: RecIcons.endo,
-                  title: 'No root canals yet',
-                  body:
-                      'Record the diagnosis, vitality tests, each canal with '
-                      'its working length, and the filling once it is done.',
-                  actions: [
-                    CruButton(
-                      label: 'New root canal',
-                      icon: CruIcons.plus,
-                      kind: CruButtonKind.secondary,
-                      onPressed: () => showEndoDialog(context, patient),
-                    ),
-                  ],
-                ),
-              ),
-            ]
-          : [
-              for (final r in [...ongoing, ...finished])
-                _RootCanalCard(
-                  record: r,
-                  state: data.of(r.str('tooth')).state,
-                  numbering: numbering,
-                  onTap: () => showEndoDialog(context, patient, existing: r),
-                ),
-            ],
-    );
-  }
-}
-
-/// One tooth's root canal: diagnosis, canals with working lengths, its
-/// status (amber while in progress, green once filled) and dates.
-class _RootCanalCard extends StatelessWidget {
-  const _RootCanalCard({
-    required this.record,
-    required this.state,
-    required this.numbering,
-    required this.onTap,
+/// Above the workspaces while an older visit is loaded: which visit, what
+/// it changed, any conflicts, and the way back to the latest chart.
+class _SessionBar extends StatelessWidget {
+  const _SessionBar({
+    required this.visit,
+    required this.changed,
+    required this.conflicts,
+    required this.onNotes,
+    required this.onLatest,
   });
 
-  final DentalRecord record;
-  final ToothState state;
-  final ToothNumbering numbering;
-  final VoidCallback onTap;
+  final Visit visit;
+  final Set<String> changed;
+  final Set<String> conflicts;
+  final VoidCallback onNotes;
+  final VoidCallback onLatest;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final r = record;
-    final tooth = r.str('tooth');
-    final done = r.str('status') == 'obturated';
-    final filled = r.date('obturatedOn');
-    final diagnosis = [
-      if (r.str('pulpal').isNotEmpty) r.str('pulpal'),
-      if (r.str('periapical').isNotEmpty) r.str('periapical'),
-    ].join(' · ');
-    final canals = [
-      if (r.data['canals'] is List)
-        for (final k in r.data['canals'] as List)
-          if (k is Map && '${k['name'] ?? ''}'.isNotEmpty)
-            [
-              '${k['name']}',
-              if (k['wl'] is num) '${(k['wl'] as num).toStringAsFixed(1)} mm',
-            ].join(' '),
-    ];
-    return CruPressable(
-      onTap: onTap,
-      scaleOnPress: false,
-      semanticLabel: 'Root canal, ${DentalChart.name(tooth)}',
-      builder: (context, hovered) => CruCard(
-        semanticLabel: 'Root canal',
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+    String teeth(Set<String> s) => (s.toList()..sort()).join(', ');
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s16,
+        CruSpace.s12,
+        CruSpace.s12,
+        CruSpace.s12,
+      ),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (tooth.isNotEmpty) ToothBadge(tooth: tooth, state: state),
-                const SizedBox(width: CruSpace.s12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tooth.isEmpty ? 'Root canal' : DentalChart.name(tooth),
-                        style: CruType.callout.w600.tint(c.label),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (diagnosis.isNotEmpty)
-                        Text(
-                          diagnosis,
-                          style: CruType.subhead.tint(c.label2),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
+                Text(
+                  'Viewing the ${DentalFormat.shortDate(visit.scheduledStart)} '
+                  'visit · ${visitTitle(visit)}',
+                  style: CruType.callout.w600.tint(c.label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  changed.isEmpty
+                      ? 'No changes in this visit yet. Changes made here carry '
+                            'forward to later visits, except on teeth they changed.'
+                      : 'Changed here: ${teeth(changed)}. Changes carry forward '
+                            'to later visits, except on teeth they changed.',
+                  style: CruType.subhead.tint(c.label2),
+                ),
+                if (conflicts.isNotEmpty) ...[
+                  const SizedBox(height: CruSpace.s2),
+                  Text(
+                    'An earlier visit changed ${teeth(conflicts)} after this '
+                    'visit did. Save the tooth again here to keep it as it is.',
+                    style: CruType.subhead.tint(c.amberText),
                   ),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                CruPill(
-                  text: done ? 'Filled' : 'In progress',
-                  background: done ? c.greenTint : c.amberTint,
-                  foreground: done ? c.greenText : c.amberText,
-                ),
+                ],
               ],
             ),
-            if (canals.isNotEmpty) ...[
-              const SizedBox(height: CruSpace.s12),
-              Wrap(
-                spacing: CruSpace.s6,
-                runSpacing: CruSpace.s6,
-                children: [
-                  for (final k in canals)
-                    CruPill(text: k, background: c.inset, foreground: c.label),
-                ],
-              ),
-            ],
-            const SizedBox(height: CruSpace.s10),
-            Text(
-              [
-                'Started ${DentalFormat.date(r.recordedAt)}',
-                if (filled != null) 'filled ${DentalFormat.date(filled)}',
-              ].join(' · '),
-              style: CruType.caption.tabular.tint(c.label3),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: CruSpace.s12),
+          CruButton(
+            label: 'Visit notes',
+            kind: CruButtonKind.secondary,
+            onPressed: onNotes,
+          ),
+          const SizedBox(width: CruSpace.s8),
+          CruButton(
+            label: 'Back to latest',
+            kind: CruButtonKind.secondary,
+            onPressed: onLatest,
+          ),
+        ],
       ),
     );
   }

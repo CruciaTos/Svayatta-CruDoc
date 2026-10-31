@@ -161,6 +161,10 @@ final shellCurrentTabProvider = StateProvider<int>(
   (ref) => DesktopTab.dashboard,
 );
 
+/// A screen has opened something full screen (Charting's perio chart):
+/// the sidebar shows collapsed until it closes. Never saved.
+final shellFocusProvider = StateProvider<bool>((ref) => false);
+
 /// Where patient details go back to when opened from another screen
 /// ("Open patient" in Schedule); null when opened from the Patients list.
 final patientDetailsReturnTabProvider = StateProvider<int?>((ref) => null);

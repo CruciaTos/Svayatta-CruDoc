@@ -441,10 +441,75 @@ describe('notifications and support tickets', () => {
     await assertFails(setDoc(doc(doctor(A), 'notifications/n2'), { doctorId: A }));
   });
 
+  const newTicket = (extra = {}) => ({
+    doctorId: A, status: 'open', category: 'bug', messages: [], ...extra,
+  });
+  const msg = (senderId, senderRole, content) => ({
+    senderId, senderRole, senderName: senderId, content,
+  });
+
   it('a doctor opens tickets in their own name only', async () => {
-    await assertSucceeds(setDoc(doc(doctor(A), 'support_tickets/t1'), { doctorId: A }));
-    await assertFails(setDoc(doc(doctor(B), 'support_tickets/t2'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(doctor(A), 'support_tickets/t1'), newTicket()));
+    await assertFails(setDoc(doc(doctor(B), 'support_tickets/t2'), newTicket()));
     await assertFails(getDoc(doc(doctor(B), 'support_tickets/t1')));
+  });
+
+  it('a new ticket starts open and unapproved', async () => {
+    const ref = (id) => doc(doctor(A), `support_tickets/${id}`);
+    await assertSucceeds(setDoc(ref('f1'), newTicket({
+      category: 'featureRequest', approval: 'pending',
+    })));
+    await assertFails(setDoc(ref('f2'), newTicket({ approval: 'approved' })));
+    await assertFails(setDoc(ref('f3'), newTicket({ status: 'resolved' })));
+    await assertFails(setDoc(ref('f4'), newTicket({ resolution: 'done' })));
+    await assertFails(setDoc(ref('f5'), newTicket({ isArchived: true })));
+    await assertFails(setDoc(ref('f6'), newTicket({
+      messages: [msg('admin-1', 'admin', 'fake reply')],
+    })));
+  });
+
+  it('a doctor replies but cannot approve or resolve', async () => {
+    await seed('support_tickets/t1', newTicket({
+      category: 'featureRequest', approval: 'pending',
+      messages: [msg(ADMIN, 'admin', 'Tell us more')],
+    }));
+    const ref = doc(doctor(A), 'support_tickets/t1');
+    const before = [msg(ADMIN, 'admin', 'Tell us more')];
+
+    await assertSucceeds(updateDoc(ref, {
+      messages: [...before, msg(A, 'doctor', 'Sure')],
+      adminUnread: true,
+      doctorUnread: false,
+    }));
+    // Not as the admin, not rewriting history, not two at once.
+    await assertFails(updateDoc(ref, {
+      messages: [...before, msg(A, 'doctor', 'Sure'), msg(ADMIN, 'admin', 'Approved')],
+    }));
+    await assertFails(updateDoc(ref, { messages: [msg(A, 'doctor', 'Only me')] }));
+    await assertFails(updateDoc(ref, { approval: 'approved' }));
+    await assertFails(updateDoc(ref, { status: 'resolved' }));
+    await assertFails(updateDoc(ref, { priority: 'critical' }));
+    // Withdrawing is fine.
+    await assertSucceeds(updateDoc(ref, { status: 'closed' }));
+    // Another doctor can't touch it.
+    await assertFails(updateDoc(doc(doctor(B), 'support_tickets/t1'), { status: 'closed' }));
+  });
+
+  it('a doctor may reopen a resolved ticket', async () => {
+    await seed('support_tickets/t1', newTicket({ status: 'resolved' }));
+    await seed('support_tickets/t2', newTicket({ status: 'inProgress' }));
+    await assertSucceeds(updateDoc(doc(doctor(A), 'support_tickets/t1'), { status: 'open' }));
+    await assertFails(updateDoc(doc(doctor(A), 'support_tickets/t2'), { status: 'open' }));
+  });
+
+  it('Super Admin approves, resolves and keeps private notes', async () => {
+    await seed('support_tickets/t1', newTicket({ category: 'featureRequest', approval: 'pending' }));
+    await assertSucceeds(updateDoc(doc(admin(), 'support_tickets/t1'), {
+      approval: 'approved', status: 'inProgress',
+    }));
+    await assertSucceeds(setDoc(doc(admin(), 'support_tickets/t1/notes/n1'), { content: 'x' }));
+    await assertFails(getDoc(doc(doctor(A), 'support_tickets/t1/notes/n1')));
+    await assertFails(setDoc(doc(doctor(A), 'support_tickets/t1/notes/n2'), { content: 'x' }));
   });
 });
 

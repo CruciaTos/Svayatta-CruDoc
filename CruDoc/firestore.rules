@@ -1070,15 +1070,58 @@ service cloud.firestore {
     // SUPPORT TICKETS COLLECTION
     // ============================================================
 
+    // Doctors raise tickets (problems, feature requests, feedback) from the
+    // clinic app and reply on them. Only Super Admin approves a feature
+    // request, resolves, archives, or reads the internal notes.
     match /support_tickets/{ticketId} {
       allow read: if isSuperAdmin()
         || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
-      allow create: if isAuthenticated() && writesOwnDoctorId();
+      allow create: if isAuthenticated()
+        && writesOwnDoctorId()
+        && request.resource.data.status == 'open'
+        && request.resource.data.get('approval', 'pending') == 'pending'
+        && request.resource.data.get('isArchived', false) == false
+        && request.resource.data.get('messages', []).size() == 0
+        && !request.resource.data.keys().hasAny([
+          'approvalNote', 'approvedAt', 'approvedBy',
+          'resolution', 'resolvedAt', 'resolvedBy',
+          'assignedTo', 'assignedToName', 'internalNotes'
+        ]);
       allow update: if isSuperAdmin()
         || (isAuthenticated()
           && resource.data.doctorId == request.auth.uid
-          && writesOwnDoctorId());
+          && writesOwnDoctorId()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'messages', 'updatedAt', 'lastMessageAt',
+            'adminUnread', 'doctorUnread', 'status'
+          ])
+          && doctorTicketStatusOk()
+          && doctorAddsOwnMessage());
       allow delete: if isSuperAdmin();
+
+      // A doctor may withdraw (close) their ticket, or reopen a resolved one.
+      function doctorTicketStatusOk() {
+        let before = resource.data.status;
+        let after = request.resource.data.status;
+        return after == before
+          || after == 'closed'
+          || (before == 'resolved' && after == 'open');
+      }
+
+      // Messages only grow, by one, written by the doctor themselves.
+      function doctorAddsOwnMessage() {
+        let before = resource.data.get('messages', []);
+        let after = request.resource.data.get('messages', []);
+        return after == before
+          || (after.size() == before.size() + 1
+            && after[0:before.size()] == before
+            && after[before.size()].senderId == request.auth.uid
+            && after[before.size()].senderRole == 'doctor');
+      }
+
+      match /notes/{noteId} {
+        allow read, write: if isSuperAdmin();
+      }
     }
 
     // ============================================================

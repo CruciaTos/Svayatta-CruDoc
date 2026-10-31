@@ -73,6 +73,15 @@ const voiceSpots = <VoiceSpot>[
   VoiceSpot('settings.radiology', DesktopTab.settings, 'Radiology settings', [
     'radiology settings',
   ]),
+  VoiceSpot('settings.support', DesktopTab.settings, 'Help & feedback', [
+    'help and feedback',
+    'contact support',
+    'contact crudoc',
+    'request a feature',
+    'feature request',
+    'report a problem',
+    'report a bug',
+  ]),
   VoiceSpot('settings.about', DesktopTab.settings, 'About CruDoc', [
     'about crudoc',
     'about the app',

@@ -46,6 +46,7 @@ import 'package:doctor_management_app/features/tutorial/presentation/tutorial_co
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/features/settings/presentation/documents/documents_settings_section.dart';
+import 'package:doctor_management_app/features/support/presentation/support_section.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The Settings sections, in sidebar order. Every entry does something
@@ -82,6 +83,9 @@ enum SettingsSection {
 
   /// Oral & Maxillofacial Radiologists only.
   radiology('Radiology', RadIcons.xray),
+
+  /// Everyone: report a problem, request a feature, share feedback.
+  support('Help & feedback', CruIcons.whatsapp),
   about('About CruDoc', CruIcons.help);
 
   const SettingsSection(this.label, this.icon);
@@ -160,6 +164,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.reminders => const _RemindersSection(),
       SettingsSection.dental => const _DentalSection(),
       SettingsSection.radiology => const RadSettingsSection(),
+      SettingsSection.support => const SupportSection(),
       SettingsSection.about => const _AboutSection(),
     };
     if (cruIsPhone(context)) {

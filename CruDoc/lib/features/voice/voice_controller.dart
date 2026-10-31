@@ -2324,6 +2324,8 @@ class VoiceController {
         section(SettingsSection.dental);
       case 'settings.radiology':
         section(SettingsSection.radiology);
+      case 'settings.support':
+        section(SettingsSection.support);
       case 'settings.about':
         section(SettingsSection.about);
       case 'theme.evening':

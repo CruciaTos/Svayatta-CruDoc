@@ -39,6 +39,16 @@ class LocalDatabaseService extends ChangeNotifier {
   sqflite_common.Database? _database;
   String? _databaseDoctorId;
 
+  /// The open in progress, so callers arriving together share it. Without
+  /// this, startup's parallel callers each opened (and on a bad file,
+  /// deleted and reopened) the file under one another: "database_closed".
+  Future<sqflite_common.Database>? _opening;
+  String? _openingDoctorId;
+
+  /// The passphrase read or created once per process, so parallel first
+  /// opens can't each create (and save) a different one.
+  static Future<String>? _passphrase;
+
   /// Set once, the first time a Windows database is opened in this process.
   /// `sqfliteFfiInit()` just points `sqflite_common_ffi` at its `sqlite3`
   /// loader — safe to call more than once, but there's no reason to redo it
@@ -64,23 +74,49 @@ class LocalDatabaseService extends ChangeNotifier {
     } catch (_) {
       requestedDoctorId = 'signed_out';
     }
-    final existing = _database;
-    if (existing != null && _databaseDoctorId == requestedDoctorId) {
-      return existing;
-    }
-    if (existing != null) {
-      await existing.close();
-      _database = null;
-      _databaseDoctorId = null;
+    while (true) {
+      final existing = _database;
+      if (existing != null && _databaseDoctorId == requestedDoctorId) {
+        return existing;
+      }
+      final pending = _opening;
+      if (pending == null) break;
+      if (_openingDoctorId == requestedDoctorId) return pending;
+      // Another person's file is opening: let it finish, then switch.
+      try {
+        await pending;
+      } catch (_) {}
     }
 
-    final fileName = _databaseFileNameForDoctor(requestedDoctorId);
+    final opening = _switchTo(requestedDoctorId);
+    _opening = opening;
+    _openingDoctorId = requestedDoctorId;
+    try {
+      return await opening;
+    } finally {
+      if (identical(_opening, opening)) {
+        _opening = null;
+        _openingDoctorId = null;
+      }
+    }
+  }
+
+  /// Closes the open file (if it is someone else's) and opens [doctorId]'s.
+  Future<sqflite_common.Database> _switchTo(String doctorId) async {
+    final existing = _database;
+    if (existing != null) {
+      _database = null;
+      _databaseDoctorId = null;
+      await existing.close();
+    }
+
+    final fileName = _databaseFileNameForDoctor(doctorId);
     final db = Platform.isWindows
         ? await _openWindowsDatabaseWithRecovery(fileName)
         : await _openSqlCipherDatabaseWithRecovery(fileName);
 
     _database = db;
-    _databaseDoctorId = requestedDoctorId;
+    _databaseDoctorId = doctorId;
     return db;
   }
 
@@ -259,7 +295,17 @@ class LocalDatabaseService extends ChangeNotifier {
   /// OS-backed secure storage (Android Keystore / iOS Keychain) — it never
   /// needs to sync between devices, since the local database is just a
   /// disposable cache of Firestore data, re-downloadable from scratch.
-  Future<String> _getOrCreatePassphrase() async {
+  Future<String> _getOrCreatePassphrase() {
+    final passphrase = _passphrase ??= _readOrCreatePassphrase();
+    // A failed read is retried next time rather than remembered.
+    passphrase.catchError((Object _) {
+      if (identical(_passphrase, passphrase)) _passphrase = null;
+      return '';
+    });
+    return passphrase;
+  }
+
+  Future<String> _readOrCreatePassphrase() async {
     final existing = await _secureStorage.read(key: _dbPassphraseKey);
     if (existing != null && existing.isNotEmpty) return existing;
 

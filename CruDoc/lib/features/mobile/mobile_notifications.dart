@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
+import 'package:doctor_management_app/features/support/data/resolved_tickets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// A bell, for Notifications. CruIcons has none yet; same stroke style
@@ -75,6 +76,7 @@ class _MobileNotificationsScreenState
     final feed = ref.watch(activityFeedProvider);
     final now = ref.watch(dashboardNowProvider);
     final storage = ref.watch(storageNearlyFullProvider).value;
+    final tickets = ref.watch(resolvedTicketsProvider).value ?? const [];
     final last = feed.lastPatient;
     final groups = activityGroups(feed.items, now);
     final empty =
@@ -82,6 +84,7 @@ class _MobileNotificationsScreenState
         feed.attention.isEmpty &&
         feed.birthdays.isEmpty &&
         storage == null &&
+        tickets.isEmpty &&
         last == null;
 
     return ListView(
@@ -111,6 +114,28 @@ class _MobileNotificationsScreenState
                 chevron: true,
                 onTap: () => openMobilePatient(context, last),
               ),
+            ],
+          ),
+        if (tickets.isNotEmpty)
+          MobileRowGroup(
+            title: 'Your reports',
+            children: [
+              for (final t in tickets)
+                MobileRow(
+                  leading: const MobileIconTile(
+                    icon: CruIcons.check,
+                    tone: MobileTone.green,
+                  ),
+                  title: t.title,
+                  subtitle: t.detail.isEmpty ? null : t.detail,
+                  trailing: _when(
+                    t.resolvedAt,
+                    now,
+                    unread:
+                        _seenBefore != null &&
+                        t.resolvedAt.isAfter(_seenBefore!),
+                  ),
+                ),
             ],
           ),
         if (feed.attention.isNotEmpty || storage != null)
@@ -177,6 +202,28 @@ class _MobileNotificationsScreenState
     );
   }
 
+  /// The dot (when new) and how long ago, in fixed-width columns so every
+  /// row lines up.
+  Widget _when(DateTime at, DateTime now, {required bool unread}) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      SizedBox(
+        width: 10,
+        child: unread ? const Center(child: MobileUnreadDot()) : null,
+      ),
+      const SizedBox(width: CruSpace.s8),
+      SizedBox(
+        width: 64,
+        child: Text(
+          activityAgo(at, now),
+          textAlign: TextAlign.right,
+          maxLines: 1,
+          style: MobileType.caption.tabular.tint(context.cru.label3),
+        ),
+      ),
+    ],
+  );
+
   Widget _row(ActivityFeed feed, ActivityItem i, DateTime now) {
     final (icon, tone) = _look(i.kind);
     final actor = feed.actorName(i);
@@ -199,26 +246,7 @@ class _MobileNotificationsScreenState
       subtitle: [?i.detail, ?actor].isEmpty
           ? null
           : [?i.detail, ?actor].join(' · '),
-      // Fixed-width dot and time columns so every row lines up.
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 10,
-            child: unread ? const Center(child: MobileUnreadDot()) : null,
-          ),
-          const SizedBox(width: CruSpace.s8),
-          SizedBox(
-            width: 64,
-            child: Text(
-              activityAgo(i.at, now),
-              textAlign: TextAlign.right,
-              maxLines: 1,
-              style: MobileType.caption.tabular.tint(context.cru.label3),
-            ),
-          ),
-        ],
-      ),
+      trailing: _when(i.at, now, unread: unread),
       onTap: i.visit != null && p != null
           ? () => showSessionDetailsSheet(
               context,

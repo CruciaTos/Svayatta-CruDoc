@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/mobile/mobile_notifications.dart'
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
+import 'package:doctor_management_app/features/support/data/resolved_tickets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The dashboard's bell: opens Notifications, with a dot when someone
@@ -122,6 +123,7 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
     final now = ref.watch(dashboardNowProvider);
     final storage = ref.watch(storageNearlyFullProvider).value;
     final requests = ref.watch(incomingReferrerRequestsProvider);
+    final tickets = ref.watch(resolvedTicketsProvider).value ?? const [];
     final last = feed.lastPatient;
     final groups = activityGroups(feed.items, now);
     final empty =
@@ -130,6 +132,7 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
         feed.birthdays.isEmpty &&
         storage == null &&
         requests.isEmpty &&
+        tickets.isEmpty &&
         last == null;
 
     final sections = <Widget>[
@@ -179,6 +182,24 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
                   ],
                 ),
                 onTap: () => _go(DesktopTab.referrers),
+              ),
+          ],
+        ),
+      if (tickets.isNotEmpty)
+        _Section(
+          title: 'Your reports',
+          rows: [
+            for (final t in tickets)
+              _Row(
+                leading: const CruIconTile(
+                  icon: CruIcons.check,
+                  tone: CruTileTone.green,
+                ),
+                title: t.title,
+                subtitle: t.detail.isEmpty ? null : t.detail,
+                meta: activityAgo(t.resolvedAt, now),
+                unread:
+                    _seenBefore != null && t.resolvedAt.isAfter(_seenBefore!),
               ),
           ],
         ),

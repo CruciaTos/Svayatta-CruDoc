@@ -29,6 +29,7 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_providers.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_view_providers.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
+import 'package:doctor_management_app/features/support/data/resolved_tickets.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 
 /// How far back the feed goes, and how many rows it keeps.
@@ -602,11 +603,14 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
   );
 });
 
-/// True when someone else (a team member or a patient) did something since
-/// Notifications was opened.
+/// True when someone else (a team member or a patient) did something, or
+/// one of this doctor's bug reports was resolved, since Notifications was
+/// opened.
 final activityUnreadProvider = Provider<bool>((ref) {
   final seen = ref.watch(activitySeenProvider);
   if (seen == null) return false;
+  final tickets = ref.watch(resolvedTicketsProvider).value ?? const [];
+  if (tickets.any((t) => t.resolvedAt.isAfter(seen))) return true;
   final feed = ref.watch(activityFeedProvider);
   return feed.items.any(
     (i) => i.at.isAfter(seen) && i.actorUid.isNotEmpty && i.actorUid != feed.me,

@@ -44,6 +44,15 @@ class PushNotifications {
     importance: Importance.high,
   );
 
+  /// Android channel for answers to bug reports and feedback (pushes of
+  /// type 'support_ticket'; functions/src/support_tickets.ts sends them).
+  static const supportChannel = AndroidNotificationChannel(
+    'support',
+    'Support',
+    description: 'When an issue you reported is resolved',
+    importance: Importance.high,
+  );
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   Future<bool>? _ready;
@@ -124,6 +133,7 @@ class PushNotifications {
           >();
       await android?.createNotificationChannel(referralChannel);
       await android?.createNotificationChannel(filesChannel);
+      await android?.createNotificationChannel(supportChannel);
       await android?.requestNotificationsPermission();
       return true;
     } catch (e) {
@@ -142,9 +152,11 @@ class PushNotifications {
     Map<String, String> data = const {},
   }) async {
     if (!await _init()) return;
-    final channel = data['type'] == 'file_offer'
-        ? filesChannel
-        : referralChannel;
+    final channel = switch (data['type']) {
+      'file_offer' => filesChannel,
+      'support_ticket' => supportChannel,
+      _ => referralChannel,
+    };
     try {
       await _plugin.show(
         id: id,

@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/mobile/mobile_shell.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell.dart';
+import 'package:doctor_management_app/features/support/presentation/support_ticket_watcher.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invite_watcher.dart';
 import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_gate.dart';
@@ -22,8 +23,9 @@ const double kDesktopBreakpoint = 900;
 /// Picks between the phone [MobileShell] and [DesktopShell] based on the
 /// available width. A new doctor (no specialty, never onboarded) sees
 /// [OnboardingFlow] first. Clinic invites pop up over all of it
-/// ([ClinicInviteWatcher]), and referrals from other doctors are announced
-/// ([ReferralNetworkWatcher]).
+/// ([ClinicInviteWatcher]), referrals from other doctors are announced
+/// ([ReferralNetworkWatcher]), and so is a resolved bug report or feedback
+/// ([SupportTicketWatcher]).
 class ResponsiveShell extends ConsumerStatefulWidget {
   const ResponsiveShell({super.key});
 
@@ -62,7 +64,10 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       _stampChecked = true;
     }),
     // Referrals other doctors send arrive (and are announced) anywhere.
-    child: ReferralNetworkWatcher(child: _content(context)),
+    child: ReferralNetworkWatcher(
+      // A resolved bug report or feedback is announced anywhere too.
+      child: SupportTicketWatcher(child: _content(context)),
+    ),
   );
 
   Widget _content(BuildContext context) {

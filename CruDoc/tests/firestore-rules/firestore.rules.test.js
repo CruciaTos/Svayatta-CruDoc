@@ -1,5 +1,6 @@
 // Run with the Firestore emulator up, from CruDoc/:
 //   firebase emulators:exec --project demo-crudoc --only firestore "npm test --prefix tests/firestore-rules"
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -441,10 +442,68 @@ describe('notifications and support tickets', () => {
     await assertFails(setDoc(doc(doctor(A), 'notifications/n2'), { doctorId: A }));
   });
 
+  // What SupportTicketService writes for a bug report or feedback.
+  const ticket = (uid, extra = {}) => ({
+    doctorId: uid,
+    doctorName: 'Dr A',
+    doctorEmail: `${uid}@clinic.test`,
+    category: 'bug',
+    subject: 'Swiping a patient row changes the tab.',
+    description: 'Swiping a patient row changes the tab.',
+    priority: 'medium',
+    status: 'open',
+    isArchived: false,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    platform: 'android',
+    device: 'Android Mobile / Tablet',
+    appVersion: '1.0.0+1',
+    ...extra,
+  });
+
   it('a doctor opens tickets in their own name only', async () => {
-    await assertSucceeds(setDoc(doc(doctor(A), 'support_tickets/t1'), { doctorId: A }));
-    await assertFails(setDoc(doc(doctor(B), 'support_tickets/t2'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(doctor(A), 'support_tickets/t1'), ticket(A)));
+    await assertSucceeds(getDoc(doc(doctor(A), 'support_tickets/t1')));
+    await assertFails(setDoc(doc(doctor(B), 'support_tickets/t2'), ticket(A)));
     await assertFails(getDoc(doc(doctor(B), 'support_tickets/t1')));
+    await assertFails(setDoc(doc(anonymous(), 'support_tickets/t3'), ticket(A)));
+  });
+
+  it('a new ticket is an open bug or feedback with a short message', async () => {
+    const ref = (id) => doc(doctor(A), `support_tickets/${id}`);
+    await assertSucceeds(setDoc(ref('f1'), ticket(A, { category: 'feedback' })));
+    await assertFails(setDoc(ref('k1'), ticket(A, { category: 'other' })));
+    await assertFails(setDoc(ref('s1'), ticket(A, { status: 'resolved' })));
+    await assertFails(setDoc(ref('a1'), ticket(A, { isArchived: true })));
+    await assertFails(setDoc(ref('m1'), ticket(A, { description: '' })));
+    await assertFails(setDoc(ref('m2'), ticket(A, { description: 'x'.repeat(4001) })));
+    await assertFails(setDoc(ref('m4'), ticket(A, { subject: 'x'.repeat(201) })));
+    await assertFails(setDoc(ref('m3'), { doctorId: A }));
+  });
+
+  it('the Super Admin sees every bug report and feedback', async () => {
+    await assertSucceeds(setDoc(doc(doctor(A), 'support_tickets/a1'), ticket(A)));
+    await assertSucceeds(
+      setDoc(doc(doctor(B), 'support_tickets/b1'), ticket(B, { category: 'feedback' })),
+    );
+    const all = await assertSucceeds(getDocs(collection(admin(), 'support_tickets')));
+    assert.deepEqual(all.docs.map((d) => d.id).sort(), ['a1', 'b1']);
+    const bugs = await assertSucceeds(
+      getDocs(query(collection(admin(), 'support_tickets'), where('category', '==', 'bug'))),
+    );
+    assert.deepEqual(bugs.docs.map((d) => d.data().doctorId), [A]);
+    // And works it as the Support screen does.
+    await assertSucceeds(
+      updateDoc(doc(admin(), 'support_tickets/a1'), {
+        status: 'resolved', updatedAt: serverTimestamp(),
+        resolvedAt: serverTimestamp(), resolvedBy: 'admin@crudoc.test',
+      }),
+    );
+    // Nobody else lists them all, and 2FA is required for the Super Admin.
+    await assertFails(getDocs(collection(doctor(A), 'support_tickets')));
+    await assertFails(
+      getDocs(collection(as(ADMIN, { role: 'superAdmin' }), 'support_tickets')),
+    );
   });
 });
 

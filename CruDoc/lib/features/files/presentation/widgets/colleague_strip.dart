@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
@@ -137,11 +138,11 @@ ClinicMember? colleagueAt(Offset globalPosition) {
 /// An Explorer drag moved to [globalPosition]: holding it on More opens the
 /// rest of the colleagues, and leaving More and its list closes them.
 void colleagueDragMoved(Offset globalPosition) {
-  _MoreChipState._live?._explorerAt(globalPosition);
+  _ColleagueDropMenuState._live?._explorerAt(globalPosition);
 }
 
 /// An Explorer drag left the window or was dropped.
-void colleagueDragEnded() => _MoreChipState._live?._closeSoon();
+void colleagueDragEnded() => _ColleagueDropMenuState._live?._closeSoon();
 
 bool _contains(BuildContext context, Offset globalPosition) {
   final box = context.findRenderObject();
@@ -432,6 +433,7 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
     }
     _composeOpened = false;
     _lastX = d.offset.dx;
+    HapticFeedback.selectionClick();
     setState(() => _hovering = true);
     _holdTimer?.cancel();
     _holdTimer = Timer(_holdToLift, () {
@@ -629,7 +631,7 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
                           ),
                         ),
                       )
-                    : _WaitingBadge(
+                    : WaitingBadge(
                         count: waiting.length,
                         child: GestureDetector(
                           onTap: waiting.isEmpty
@@ -733,21 +735,79 @@ class _ColleaguePill extends StatelessWidget {
 /// The colleagues past the first three. Holding a dragged file on it for a
 /// second (or clicking it) opens them in a list below, each a drop target;
 /// the list closes once the drag leaves both.
-class _MoreChip extends StatefulWidget {
+class _MoreChip extends StatelessWidget {
   const _MoreChip({required this.rest});
 
   final List<ClinicMember> rest;
 
   @override
-  State<_MoreChip> createState() => _MoreChipState();
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return ColleagueDropMenu(
+      members: rest,
+      tooltip: '${rest.length} more: hold a file here for a second',
+      builder: (context, hovering) => _ColleaguePill(
+        hovering: hovering,
+        leading: Container(
+          width: _ColleaguePill.avatar,
+          height: _ColleaguePill.avatar,
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            color: c.surface,
+            shape: CircleBorder(side: BorderSide(color: c.hairline)),
+          ),
+          child: Text(
+            '+${rest.length}',
+            style: CruType.caption.w600.tabular.tint(c.label2),
+          ),
+        ),
+        label: 'More',
+        trailing: CruIcon(
+          CruIcons.chevronDown,
+          size: 16,
+          color: hovering ? c.accentText : c.label3,
+        ),
+      ),
+    );
+  }
 }
 
-class _MoreChipState extends State<_MoreChip> {
-  static const _holdToOpen = Duration(seconds: 1);
+/// [members] as a list of colleague drop targets that drops down under
+/// [builder]'s anchor: holding a dragged file on the anchor for
+/// [holdToOpen] (or tapping it) opens the list, and it closes once the drag
+/// leaves both. A drop on the anchor itself sends nothing. The desktop's
+/// More chip and the phone's clinic logo.
+class ColleagueDropMenu extends StatefulWidget {
+  const ColleagueDropMenu({
+    super.key,
+    required this.members,
+    required this.builder,
+    this.tooltip,
+    this.holdToOpen = const Duration(seconds: 1),
+  });
+
+  final List<ClinicMember> members;
+
+  /// The anchor; `hovering` is true while a file is over it or the list is
+  /// open.
+  final Widget Function(BuildContext context, bool hovering) builder;
+
+  final String? tooltip;
+  final Duration holdToOpen;
+
+  @override
+  State<ColleagueDropMenu> createState() => _ColleagueDropMenuState();
+}
+
+class _ColleagueDropMenuState extends State<ColleagueDropMenu> {
   static const _graceToClose = Duration(milliseconds: 400);
 
-  /// The More chip on screen, for Explorer drags.
-  static _MoreChipState? _live;
+  /// A longer list scrolls (a drag can't scroll it, which is why the
+  /// colleagues sent to most recently come first).
+  static const _maxListHeight = 360.0;
+
+  /// The menu on screen, for Explorer drags.
+  static _ColleagueDropMenuState? _live;
 
   final _link = LayerLink();
   final _menuKey = GlobalKey();
@@ -765,7 +825,7 @@ class _MoreChipState extends State<_MoreChip> {
   }
 
   @override
-  void didUpdateWidget(_MoreChip old) {
+  void didUpdateWidget(ColleagueDropMenu old) {
     super.didUpdateWidget(old);
     _menu?.markNeedsBuild();
   }
@@ -783,7 +843,7 @@ class _MoreChipState extends State<_MoreChip> {
   void _show() {
     _openTimer?.cancel();
     _closeTimer?.cancel();
-    if (_open || !mounted) return;
+    if (_open || !mounted || widget.members.isEmpty) return;
     _menu = OverlayEntry(builder: _buildMenu);
     Overlay.of(context).insert(_menu!);
     setState(() {});
@@ -809,9 +869,13 @@ class _MoreChipState extends State<_MoreChip> {
 
   void _holdStarted() {
     _closeTimer?.cancel();
-    if (!_hovering) setState(() => _hovering = true);
+    if (!_hovering) {
+      HapticFeedback.selectionClick();
+      setState(() => _hovering = true);
+    }
     if (_open || (_openTimer?.isActive ?? false)) return;
-    _openTimer = Timer(_holdToOpen, _show);
+    if (widget.holdToOpen == Duration.zero) return _show();
+    _openTimer = Timer(widget.holdToOpen, _show);
   }
 
   /// An Explorer drag (it sends no Flutter drag events) is at [p].
@@ -828,6 +892,7 @@ class _MoreChipState extends State<_MoreChip> {
 
   Widget _buildMenu(BuildContext overlayContext) {
     final c = context.cru;
+    final members = widget.members;
     return Positioned(
       width: 240,
       child: CompositedTransformFollower(
@@ -850,6 +915,7 @@ class _MoreChipState extends State<_MoreChip> {
               key: _menuKey,
               type: MaterialType.transparency,
               child: Container(
+                constraints: const BoxConstraints(maxHeight: _maxListHeight),
                 padding: const EdgeInsets.all(CruSpace.s8),
                 decoration: ShapeDecoration(
                   color: c.surface,
@@ -861,16 +927,20 @@ class _MoreChipState extends State<_MoreChip> {
                     side: BorderSide(color: c.cardBorder),
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final m in widget.rest) ...[
-                      if (m != widget.rest.first)
-                        const SizedBox(height: CruSpace.s4),
-                      ColleagueDropChip(member: m),
+                child: SingleChildScrollView(
+                  // A lifted avatar grows past the list; don't cut it off.
+                  clipBehavior: Clip.none,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final m in members) ...[
+                        if (m != members.first)
+                          const SizedBox(height: CruSpace.s4),
+                        ColleagueDropChip(member: m),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -882,51 +952,28 @@ class _MoreChipState extends State<_MoreChip> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final hovering = _hovering || _open;
+    final anchor = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _open ? _hide() : _show(),
+        child: widget.builder(context, hovering),
+      ),
+    );
     return CompositedTransformTarget(
       link: _link,
       child: TapRegion(
         groupId: _link,
         child: DragTarget<FileEntry>(
-          // Opens the list; a drop on More itself does nothing.
+          // Opens the list; a drop on the anchor itself does nothing.
           onWillAcceptWithDetails: (_) {
             _holdStarted();
             return false;
           },
           onLeave: (_) => _closeSoon(),
-          builder: (_, _, _) => Tooltip(
-            message:
-                '${widget.rest.length} more: hold a file here for a second',
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () => _open ? _hide() : _show(),
-                child: _ColleaguePill(
-                  hovering: hovering,
-                  leading: Container(
-                    width: _ColleaguePill.avatar,
-                    height: _ColleaguePill.avatar,
-                    alignment: Alignment.center,
-                    decoration: ShapeDecoration(
-                      color: c.surface,
-                      shape: CircleBorder(side: BorderSide(color: c.hairline)),
-                    ),
-                    child: Text(
-                      '+${widget.rest.length}',
-                      style: CruType.caption.w600.tabular.tint(c.label2),
-                    ),
-                  ),
-                  label: 'More',
-                  trailing: CruIcon(
-                    CruIcons.chevronDown,
-                    size: 16,
-                    color: hovering ? c.accentText : c.label3,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          builder: (_, _, _) => widget.tooltip == null
+              ? anchor
+              : Tooltip(message: widget.tooltip, child: anchor),
         ),
       ),
     );
@@ -1083,17 +1130,23 @@ class _RingPainter extends CustomPainter {
       old.fraction != fraction;
 }
 
-/// A small amber count on the avatar's corner when more than one file
-/// waits for that colleague.
-class _WaitingBadge extends StatelessWidget {
-  const _WaitingBadge({required this.count, required this.child});
+/// A small amber count on [child]'s corner once [count] files wait: from
+/// two on an avatar (its ring shows one), from one on the phone's logo.
+class WaitingBadge extends StatelessWidget {
+  const WaitingBadge({
+    super.key,
+    required this.count,
+    required this.child,
+    this.from = 2,
+  });
 
   final int count;
   final Widget child;
+  final int from;
 
   @override
   Widget build(BuildContext context) {
-    if (count < 2) return child;
+    if (count < from) return child;
     final c = context.cru;
     return Stack(
       clipBehavior: Clip.none,

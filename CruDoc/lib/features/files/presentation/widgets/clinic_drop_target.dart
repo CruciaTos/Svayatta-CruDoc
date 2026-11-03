@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/pdf/data/branding_image_store.dart';
 import 'package:doctor_management_app/core/pdf/data/doc_repository.dart';
-import 'package:doctor_management_app/features/files/domain/files_models.dart';
-import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/colleague_strip.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The clinic logo from Settings → Documents → Clinic details, or null when
@@ -23,92 +22,76 @@ final clinicLogoBytesProvider = FutureProvider.autoDispose<Uint8List?>((
   return res.bytes;
 });
 
-/// The phone's colleague drop target: long-press a file and drop it here
-/// to pick a colleague to send it to. Shows the clinic logo, or the CruDoc
-/// mark when the clinic has none.
-class ClinicDropTarget extends ConsumerStatefulWidget {
+/// The phone's colleague strip: the clinic logo (or the CruDoc mark when the
+/// clinic has none). Dragging a file onto it drops down the colleagues, the
+/// same avatars as the desktop strip: drop on one to send it over clinic
+/// Wi-Fi, waiting for them when they aren't on it, with Undo. Tapping it
+/// shows the same list with each colleague's delivery ring.
+class ClinicDropTarget extends ConsumerWidget {
   const ClinicDropTarget({super.key});
 
   @override
-  ConsumerState<ClinicDropTarget> createState() => _ClinicDropTargetState();
-}
-
-class _ClinicDropTargetState extends ConsumerState<ClinicDropTarget> {
-  static const _hint = 'Long-press a file and drop it here to send it';
-
-  void _onTap() {
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(
-        content: Text('$_hint to a colleague.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final motion = CruMotion.of(context, CruMotion.fast);
     final logo = ref.watch(clinicLogoBytesProvider).value;
+    final colleagues = ref.watch(stripColleaguesProvider);
+    // Keeps the Wi-Fi check running while Files is open, as the desktop
+    // strip does, so the list opens already knowing who is here.
+    ref.watch(colleaguesOnWifiProvider);
+    final waiting = ref.watch(
+      colleagueDeliveryProvider.select(
+        (d) => d.values.fold<int>(0, (n, x) => n + x.waiting.length),
+      ),
+    );
 
-    return DragTarget<FileEntry>(
-      onWillAcceptWithDetails: (_) {
-        HapticFeedback.selectionClick();
-        return true;
-      },
-      onAcceptWithDetails: (d) {
-        // Next frame: the drag is still finishing while the sheet opens.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          FilesActions.sendToColleague(context, ref, [d.data.file]);
-        });
-      },
-      builder: (context, candidates, _) {
-        final over = candidates.isNotEmpty;
-        return Semantics(
-          button: true,
-          label: 'Send to a colleague. $_hint.',
-          excludeSemantics: true,
-          child: Tooltip(
-            message: 'Drop a file here to send it to a colleague',
-            child: GestureDetector(
-              onTap: _onTap,
-              child: AnimatedScale(
-                scale: over ? 1.08 : 1,
+    return Semantics(
+      button: true,
+      label:
+          'Send to a colleague on clinic Wi-Fi. Drag a file here, then '
+          'onto a colleague.',
+      child: ColleagueDropMenu(
+        members: colleagues,
+        holdToOpen: Duration.zero,
+        builder: (context, hovering) {
+          return WaitingBadge(
+            count: waiting,
+            from: 1,
+            child: AnimatedScale(
+              scale: hovering ? 1.08 : 1,
+              duration: motion,
+              curve: CruMotion.curve,
+              child: AnimatedContainer(
                 duration: motion,
                 curve: CruMotion.curve,
-                child: AnimatedContainer(
-                  duration: motion,
-                  curve: CruMotion.curve,
-                  width: CruSize.searchBar,
-                  height: CruSize.searchBar,
-                  padding: const EdgeInsets.all(CruSpace.s6),
-                  decoration: ShapeDecoration(
-                    color: over ? c.accentTint : c.surface,
-                    shape: cruShape(
-                      CruRadius.control,
-                      side: BorderSide(color: over ? c.accent : c.hairline),
-                    ),
-                    shadows: const [],
+                width: CruSize.searchBar,
+                height: CruSize.searchBar,
+                padding: const EdgeInsets.all(CruSpace.s6),
+                decoration: ShapeDecoration(
+                  color: hovering ? c.accentTint : c.surface,
+                  shape: cruShape(
+                    CruRadius.control,
+                    side: BorderSide(color: hovering ? c.accent : c.hairline),
                   ),
-                  child: logo != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(
-                            CruRadius.iconTile - CruSpace.s4,
-                          ),
-                          child: Image.memory(
-                            logo,
-                            fit: BoxFit.contain,
-                            gaplessPlayback: true,
-                          ),
-                        )
-                      : const _CruDocMark(),
+                  shadows: const [],
                 ),
+                child: logo != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          CruRadius.iconTile - CruSpace.s4,
+                        ),
+                        child: Image.memory(
+                          logo,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                        ),
+                      )
+                    : const _CruDocMark(),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

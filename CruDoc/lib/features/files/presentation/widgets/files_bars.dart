@@ -9,6 +9,8 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
+import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/clinic_drop_target.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -184,7 +186,8 @@ class FilesHeader extends StatelessWidget {
   }
 }
 
-/// Search, patient, list/grid and sort.
+/// Search (with list/grid and sort inside it) and patient. On phones the
+/// colleague drop target sits on the patient row.
 class FilesToolbar extends ConsumerWidget {
   const FilesToolbar({
     super.key,
@@ -201,6 +204,11 @@ class FilesToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final search = _FilesSearchField(
+      focusNode: searchFocus,
+      sort: sort,
+      mode: state.viewMode,
+    );
     if (cruIsPhone(context)) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -209,23 +217,19 @@ class FilesToolbar extends ConsumerWidget {
             children: [
               _PatientButton(patientId: state.patientId),
               const Spacer(),
-              _FilesViewToggle(mode: state.viewMode),
+              if (ref.watch(hasColleaguesProvider)) const ClinicDropTarget(),
             ],
           ),
           const SizedBox(height: CruSpace.s10),
-          _FilesSearchField(focusNode: searchFocus, sort: sort),
+          search,
         ],
       );
     }
     return Row(
       children: [
-        Expanded(
-          child: _FilesSearchField(focusNode: searchFocus, sort: sort),
-        ),
+        Expanded(child: search),
         const SizedBox(width: CruSpace.s12),
         _PatientButton(patientId: state.patientId),
-        const SizedBox(width: CruSpace.s12),
-        _FilesViewToggle(mode: state.viewMode),
       ],
     );
   }
@@ -237,12 +241,18 @@ const Duration _debounce = Duration(milliseconds: 150);
 String _shortcut() =>
     defaultTargetPlatform == TargetPlatform.macOS ? '⌘F' : 'Ctrl F';
 
-/// "Search files or patients", 44 px, with Ctrl F keycap and sort icon.
+/// "Search files or patients", 44 px, with Ctrl F keycap, list/grid and
+/// sort icons.
 class _FilesSearchField extends ConsumerStatefulWidget {
-  const _FilesSearchField({required this.focusNode, required this.sort});
+  const _FilesSearchField({
+    required this.focusNode,
+    required this.sort,
+    required this.mode,
+  });
 
   final FocusNode focusNode;
   final FilesSort sort;
+  final FilesViewMode mode;
 
   @override
   ConsumerState<_FilesSearchField> createState() => _FilesSearchFieldState();
@@ -350,6 +360,8 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
             CruKeycap(_shortcut()),
             const SizedBox(width: CruSpace.s6),
           ],
+          _FilesViewModeIcon(mode: widget.mode),
+          const SizedBox(width: CruSpace.s2),
           _FilesSortIcon(sort: widget.sort),
         ],
       ),
@@ -420,94 +432,26 @@ class _PatientButton extends ConsumerWidget {
   }
 }
 
-/// List / grid, remembered per device.
-class _FilesViewToggle extends ConsumerWidget {
-  const _FilesViewToggle({required this.mode});
+/// List / grid icon inside the search field, remembered per device. It
+/// shows the view a tap switches to.
+class _FilesViewModeIcon extends ConsumerWidget {
+  const _FilesViewModeIcon({required this.mode});
 
   final FilesViewMode mode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    void pick(FilesViewMode m) =>
-        ref.read(filesControllerProvider.notifier).setViewMode(m);
-    return Semantics(
-      container: true,
-      label: 'View',
-      child: Container(
-        height: CruSize.searchBar,
-        padding: const EdgeInsets.all(CruSpace.s2 + 1),
-        decoration: ShapeDecoration(
-          color: c.inset,
-          shape: cruShape(CruRadius.segmentOuter),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _ToggleButton(
-              icon: InventoryIcons.list,
-              label: 'List view',
-              selected: mode == FilesViewMode.list,
-              onTap: () => pick(FilesViewMode.list),
-            ),
-            const SizedBox(width: CruSpace.s2),
-            _ToggleButton(
-              icon: InventoryIcons.grid,
-              label: 'Grid view',
-              selected: mode == FilesViewMode.grid,
-              onTap: () => pick(FilesViewMode.grid),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ToggleButton extends StatelessWidget {
-  const _ToggleButton({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final CruIconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return Semantics(
-      button: true,
-      toggled: selected,
-      label: label,
-      excludeSemantics: true,
-      child: CruPressable(
-        onTap: onTap,
-        tooltip: label,
-        builder: (context, hovered) => AnimatedContainer(
-          duration: CruMotion.of(context, CruMotion.fast),
-          curve: CruMotion.curve,
-          width: CruSize.control,
-          alignment: Alignment.center,
-          decoration: ShapeDecoration(
-            color: selected
-                ? c.segmentSelected
-                : (hovered ? c.hoverFill : c.inset.withValues(alpha: 0)),
-            shape: cruShape(CruRadius.segmentInner),
-            shadows: const [],
-          ),
-          child: CruIcon(
-            icon,
-            size: 18,
-            strokeWidth: 1.9,
-            color: selected ? c.label : c.label2,
-          ),
-        ),
-      ),
+    final toGrid = mode == FilesViewMode.list;
+    final label = toGrid ? 'Grid view' : 'List view';
+    return CruIconButton(
+      icon: toGrid ? InventoryIcons.grid : InventoryIcons.list,
+      size: CruSize.capsule,
+      iconSize: 16,
+      semanticLabel: label,
+      tooltip: label,
+      onPressed: () => ref
+          .read(filesControllerProvider.notifier)
+          .setViewMode(toGrid ? FilesViewMode.grid : FilesViewMode.list),
     );
   }
 }

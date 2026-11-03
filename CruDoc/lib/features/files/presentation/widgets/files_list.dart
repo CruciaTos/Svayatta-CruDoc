@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/files/data/files_repository.dart'
 import 'package:doctor_management_app/features/files/domain/files_builder.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
+import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/file_thumb.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
@@ -147,14 +148,14 @@ class _RowMenuState extends State<_RowMenu> {
 }
 
 /// Lets a file row be dragged onto a folder (long-press on touch screens).
-class _DraggableFile extends StatelessWidget {
+class _DraggableFile extends ConsumerWidget {
   const _DraggableFile({required this.entry, required this.child});
 
   final FileEntry entry;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final feedback = Material(
       color: c.surface.withValues(alpha: 0),
@@ -203,9 +204,11 @@ class _DraggableFile extends StatelessWidget {
     final touch =
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
-    // Phones don't have the colleague row: there, only files you may move
-    // into folders are draggable, as before.
-    if (touch && !entry.canManage) return child;
+    // On touch, a file you may not move into folders is still draggable when
+    // there is a colleague to drop it on (the phone's clinic tile).
+    if (touch && !entry.canManage && !ref.watch(hasColleaguesProvider)) {
+      return child;
+    }
     final faded = Opacity(opacity: 0.4, child: child);
     return touch
         ? LongPressDraggable<FileEntry>(

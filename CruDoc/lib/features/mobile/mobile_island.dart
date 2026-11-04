@@ -110,9 +110,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
   void _holdStart() {
     MobileHaptics.commit();
     if (!widget.voice.available) {
-      _say(
-        widget.voice.error ?? "Voice isn't available on this device",
-      );
+      _say(widget.voice.error ?? "Voice isn't available on this device");
       return;
     }
     setState(() => _expanded = false);
@@ -170,69 +168,79 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
       onVerticalDragEnd: (d) {
         if ((d.primaryVelocity ?? 0) < -200) setState(() => _expanded = false);
       },
-      child: AnimatedContainer(
+      // Always a finite width range, so it can animate: at rest up to the
+      // screen's width (it fits its contents), otherwise exactly [width].
+      // The spring overshoots, so mid-flight min can pass max; normalize()
+      // keeps those frames valid instead of throwing.
+      child: TweenAnimationBuilder<BoxConstraints>(
+        tween: BoxConstraintsTween(
+          end: BoxConstraints(
+            minWidth: width ?? 0,
+            maxWidth: width ?? screen.width,
+            minHeight: compactH,
+          ),
+        ),
         duration: _morph,
         curve: _spring,
-        // Always a finite width range, so it can animate: at rest up to the
-        // screen's width (it fits its contents), otherwise exactly [width].
-        constraints: BoxConstraints(
-          minWidth: width ?? 0,
-          maxWidth: width ?? screen.width,
-          minHeight: compactH,
-        ),
-        clipBehavior: Clip.antiAlias,
-        decoration: ShapeDecoration(
-          color: _black,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(radius),
-          ),
-          shadows: mode == _Mode.compact
-              ? const []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.16),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-        ),
-        child: AnimatedSize(
+        builder: (context, box, child) =>
+            ConstrainedBox(constraints: box.normalize(), child: child),
+        child: AnimatedContainer(
           duration: _morph,
           curve: _spring,
-          alignment: Alignment.topCenter,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 240),
-            reverseDuration: const Duration(milliseconds: 90),
-            switchInCurve: const Interval(0.3, 1, curve: Curves.easeOut),
-            layoutBuilder: (current, previous) => Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                for (final p in previous)
-                  Positioned.fill(
-                    child: OverflowBox(
-                      alignment: Alignment.topCenter,
-                      maxHeight: double.infinity,
-                      child: p,
-                    ),
-                  ),
-                ?current,
-              ],
+          clipBehavior: Clip.antiAlias,
+          decoration: ShapeDecoration(
+            color: _black,
+            shape: RoundedSuperellipseBorder(
+              borderRadius: BorderRadius.circular(radius),
             ),
-            child: KeyedSubtree(
-              key: ValueKey(mode),
-              child: switch (mode) {
-                _Mode.compact => _compact(data, compactH),
-                _Mode.expanded => _card(data),
-                _Mode.listening => _listening(),
-                _Mode.result => _line(
-                  widget.voice.understood!,
-                  hint: widget.voice.ready
-                      ? 'Say "confirm"'
-                      : widget.voice.need,
-                ),
-                _Mode.notice => _line(_notice!),
-                _Mode.question => _question(),
-              },
+            shadows: mode == _Mode.compact
+                ? const []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.16),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+          ),
+          child: AnimatedSize(
+            duration: _morph,
+            curve: _spring,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 240),
+              reverseDuration: const Duration(milliseconds: 90),
+              switchInCurve: const Interval(0.3, 1, curve: Curves.easeOut),
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  for (final p in previous)
+                    Positioned.fill(
+                      child: OverflowBox(
+                        alignment: Alignment.topCenter,
+                        maxHeight: double.infinity,
+                        child: p,
+                      ),
+                    ),
+                  ?current,
+                ],
+              ),
+              child: KeyedSubtree(
+                key: ValueKey(mode),
+                child: switch (mode) {
+                  _Mode.compact => _compact(data, compactH),
+                  _Mode.expanded => _card(data),
+                  _Mode.listening => _listening(),
+                  _Mode.result => _line(
+                    widget.voice.understood!,
+                    hint: widget.voice.ready
+                        ? 'Say "confirm"'
+                        : widget.voice.need,
+                  ),
+                  _Mode.notice => _line(_notice!),
+                  _Mode.question => _question(),
+                },
+              ),
             ),
           ),
         ),
@@ -490,24 +498,38 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
           const SizedBox(height: 14),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(height: 12),
-          Row(
+          // Stats left, voice hint right; the hint drops to its own line
+          // when large system text leaves no room for both.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 8,
             children: [
-              if (g != null) ...[
-                _stat('${g.seen}/${g.total}', 'seen'),
-                const SizedBox(width: 18),
-                _stat('${g.waiting}', 'waiting'),
-              ],
-              const Spacer(),
-              CruIcon(
-                CruIcons.mic,
-                size: 15,
-                strokeWidth: 2,
-                color: widget.voice.available ? CruBrand.ink300 : _white60,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (g != null) ...[
+                    _stat('${g.seen}/${g.total}', 'seen'),
+                    const SizedBox(width: 18),
+                    _stat('${g.waiting}', 'waiting'),
+                  ],
+                ],
               ),
-              const SizedBox(width: 6),
-              Text(
-                widget.voice.available ? 'Hold to talk' : 'Voice off',
-                style: MobileType.caption.tint(_white60),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CruIcon(
+                    CruIcons.mic,
+                    size: 15,
+                    strokeWidth: 2,
+                    color: widget.voice.available ? CruBrand.ink300 : _white60,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.voice.available ? 'Hold to talk' : 'Voice off',
+                    style: MobileType.caption.tint(_white60),
+                  ),
+                ],
               ),
             ],
           ),

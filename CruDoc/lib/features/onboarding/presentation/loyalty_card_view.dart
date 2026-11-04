@@ -225,27 +225,38 @@ class _TrainerCard extends StatelessWidget {
                       CruSpace.s8,
                       CruSpace.s12,
                     ),
-                    child: Row(
+                    // Title left, ID right; the ID drops to its own line
+                    // when large system text leaves no room for both.
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: CruSpace.s4,
                       children: [
-                        Text(
-                          'LOYALTY CARD',
-                          style: CruType.headline.w700
-                              .copyWith(letterSpacing: 1.6)
-                              .tint(onFrame),
-                        ),
-                        for (
-                          var i = 0;
-                          i < math.min(card.freeMonthsClaimed, 5);
-                          i++
-                        )
-                          Padding(
-                            padding: const EdgeInsets.only(left: CruSpace.s4),
-                            child: CustomPaint(
-                              size: const Size.square(14),
-                              painter: _StarPainter(),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'LOYALTY CARD',
+                              style: CruType.headline.w700
+                                  .copyWith(letterSpacing: 1.6)
+                                  .tint(onFrame),
                             ),
-                          ),
-                        const Spacer(),
+                            for (
+                              var i = 0;
+                              i < math.min(card.freeMonthsClaimed, 5);
+                              i++
+                            )
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  left: CruSpace.s4,
+                                ),
+                                child: CustomPaint(
+                                  size: const Size.square(14),
+                                  painter: _StarPainter(),
+                                ),
+                              ),
+                          ],
+                        ),
                         if (holderId != null && holderId!.isNotEmpty)
                           Text(
                             'ID No. ${_idNo(holderId!)}',

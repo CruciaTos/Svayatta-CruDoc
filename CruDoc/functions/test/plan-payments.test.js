@@ -269,6 +269,45 @@ test('a verified, confirmed payment unlocks the plan and writes the receipt', as
   assert.strictEqual(receipt.doctorName, 'Dr Pay');
 });
 
+test('the receipt says which features are new and which were renewed', async () => {
+  const {Timestamp} = require('firebase-admin/firestore');
+  const inDays = (d) => Timestamp.fromMillis(Date.now() + d * 86400000);
+
+  // Coming off a trial: everything paid for is new, even modules tried free.
+  let r = await startedWithPayment();
+  db.seed(`users/${DR}`, {name: 'Dr Pay', status: 'trial', expiresDate: inDays(5),
+    enabledModules: ['dashboard', 'revenue', 'ai_assistant']});
+  paid(r);
+  await deliver(success(r));
+  let receipt = db.peek(`payment_transactions/${order(r.orderId).transactionId}`);
+  assert.deepStrictEqual(receipt.addedModules.sort(), ['ai_assistant', 'revenue']);
+  assert.deepStrictEqual(receipt.renewedModules, []);
+  assert.strictEqual(receipt.previousStatus, 'trial');
+
+  // On a running paid plan with revenue: revenue is renewed, the scribe is new.
+  db.store.clear();
+  r = await startedWithPayment();
+  db.seed(`users/${DR}`, {name: 'Dr Pay', status: 'active', expiresDate: inDays(3),
+    enabledModules: ['dashboard', 'revenue']});
+  paid(r);
+  await deliver(success(r));
+  receipt = db.peek(`payment_transactions/${order(r.orderId).transactionId}`);
+  assert.deepStrictEqual(receipt.addedModules, ['ai_assistant']);
+  assert.deepStrictEqual(receipt.renewedModules, ['revenue']);
+  assert.strictEqual(receipt.previousStatus, 'active');
+
+  // A paid plan that has run out owns nothing any more.
+  db.store.clear();
+  r = await startedWithPayment();
+  db.seed(`users/${DR}`, {name: 'Dr Pay', status: 'active', expiresDate: inDays(-1),
+    enabledModules: ['dashboard', 'revenue', 'ai_assistant']});
+  paid(r);
+  await deliver(success(r));
+  receipt = db.peek(`payment_transactions/${order(r.orderId).transactionId}`);
+  assert.deepStrictEqual(receipt.addedModules.sort(), ['ai_assistant', 'revenue']);
+  assert.deepStrictEqual(receipt.renewedModules, []);
+});
+
 test('a replayed SUCCESS changes nothing', async () => {
   const r = await startedWithPayment();
   paid(r);

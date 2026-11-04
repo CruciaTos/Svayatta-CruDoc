@@ -1042,6 +1042,25 @@ class _AttachTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          style: CruType.subhead.w500.tint(c.label),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: CruSpace.s2),
+        Text(
+          subtitle,
+          style: CruType.caption.tint(c.label3),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
     Widget tile(bool hovered) => Container(
       constraints: const BoxConstraints(minHeight: CruSize.actionTile),
       padding: const EdgeInsets.symmetric(
@@ -1052,33 +1071,55 @@ class _AttachTile extends StatelessWidget {
         color: hovered ? cruHoverShade(c.inset, c) : c.inset,
         shape: cruShape(CruRadius.control),
       ),
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: CruSpace.s12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Large system text on a phone leaves no room for the title beside
+          // the capsules, so the actions drop under the text instead.
+          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          final stacked = box.maxWidth < 300 * scale;
+          if (!stacked) {
+            return Row(
               children: [
-                Text(
-                  title,
-                  style: CruType.subhead.w500.tint(c.label),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: CruSpace.s2),
-                Text(
-                  subtitle,
-                  style: CruType.caption.tint(c.label3),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                leading,
+                const SizedBox(width: CruSpace.s12),
+                Expanded(child: text),
+                for (final a in actions) ...[
+                  const SizedBox(width: CruSpace.s8),
+                  a,
+                ],
               ],
-            ),
-          ),
-          for (final a in actions) ...[const SizedBox(width: CruSpace.s8), a],
-        ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leading,
+              const SizedBox(width: CruSpace.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    text,
+                    const SizedBox(height: CruSpace.s8),
+                    Wrap(
+                      spacing: CruSpace.s8,
+                      runSpacing: CruSpace.s8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        // Empty spacer boxes are dropped; Wrap spaces them.
+                        // IntrinsicWidth keeps capsules at their own width.
+                        for (final a in actions)
+                          if (a is! SizedBox || a.child != null)
+                            IntrinsicWidth(child: a),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
     if (onTap == null) return tile(false);

@@ -80,6 +80,22 @@ export function writePaidPlan(
     `TXN_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   const allowMultiDevice = modules.includes("multi_device_access");
 
+  // What this payment changed, for the Super Admin's Upgrades page. Only a
+  // paid plan that is still running counts as already owned: trial modules
+  // were free, and an expired plan has lost them.
+  const previousStatus = String(user.status ?? "").toLowerCase();
+  const previousExpires =
+    user.expiresDate instanceof Timestamp ? user.expiresDate.toMillis() : 0;
+  const owned = new Set<string>(
+    previousStatus === "active" && previousExpires > Date.now() &&
+      Array.isArray(user.enabledModules) ?
+      user.enabledModules.map((m: unknown) => String(m).toLowerCase()) :
+      [],
+  );
+  const paidModules = modules.filter((m) => !BASE_MODULES.includes(m));
+  const addedModules = paidModules.filter((m) => !owned.has(m));
+  const renewedModules = paidModules.filter((m) => owned.has(m));
+
   tx.set(
     db.collection("users").doc(uid),
     {
@@ -115,6 +131,9 @@ export function writePaidPlan(
     paymentMethod: plan.paymentMethod,
     transactionReference: plan.transactionReference,
     activatedModules: modules,
+    addedModules,
+    renewedModules,
+    previousStatus,
     validUntil,
     status: "success",
     timestamp: now,

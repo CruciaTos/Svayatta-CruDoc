@@ -200,7 +200,16 @@ class CruCapsuleButton extends StatelessWidget {
               CruIcon(icon!, size: 15, strokeWidth: 2, color: c.accentText),
               const SizedBox(width: CruSpace.s6),
             ],
-            Text(label, style: style, maxLines: 1),
+            // Loose flex: natural width when there's room, ellipsis when
+            // the capsule is squeezed (narrow columns, large system text).
+            Flexible(
+              child: Text(
+                label,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),

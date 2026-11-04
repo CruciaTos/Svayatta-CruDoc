@@ -39,18 +39,24 @@ class CruSegmentedControl<T> extends StatelessWidget {
           color: c.inset,
           shape: cruShape(CruRadius.segmentOuter),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < segments.length; i++) ...[
-              if (i > 0) const SizedBox(width: CruSpace.s2),
-              _Segment(
-                label: segments[i].label,
-                selected: segments[i].value == selected,
-                onTap: () => onChanged(segments[i].value),
-              ),
+        // Scales down only when the labels can't fit (large system text on
+        // a phone); otherwise it lays out exactly as a plain Row.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < segments.length; i++) ...[
+                if (i > 0) const SizedBox(width: CruSpace.s2),
+                _Segment(
+                  label: segments[i].label,
+                  selected: segments[i].value == selected,
+                  onTap: () => onChanged(segments[i].value),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -94,10 +100,8 @@ class _Segment extends StatelessWidget {
             duration: CruMotion.of(context, CruMotion.fast),
             switchInCurve: CruMotion.curve,
             switchOutCurve: CruMotion.curve,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
             child: Text(
               label,
               key: ValueKey<String>(label),

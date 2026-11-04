@@ -1,6 +1,7 @@
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_overlay.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/services/access_audit_service.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
@@ -17,6 +18,7 @@ import 'package:doctor_management_app/features/files/presentation/patient_files_
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/session_history_card.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_icons.dart';
 
 /// Widest the page grows on desktop; it reads as a column, not a sheet.
 const double _maxWidth = 760;
@@ -185,7 +187,10 @@ class _HomeopathyPatientDetailsScreenState
     final sessions =
         ref.watch(sessionHistoryProvider(patient.id)).value ?? const [];
 
+    // heightFactor 1: a plain Center fills the height it is given, which
+    // stretched the bottom bar over the whole page on desktop.
     Widget centred(Widget child) => Center(
+      heightFactor: 1,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _maxWidth),
         child: child,
@@ -210,7 +215,7 @@ class _HomeopathyPatientDetailsScreenState
                   CruSpace.s20,
                   CruSpace.s8,
                   CruSpace.s20,
-                  108,
+                  CruSpace.s32,
                 ),
                 physics: const ClampingScrollPhysics(),
                 children: [
@@ -344,39 +349,43 @@ class _HomeopathyPatientDetailsScreenState
           ],
         ),
       ),
-      bottomSheet: Container(
-        padding: const EdgeInsets.fromLTRB(
-          CruSpace.s16,
-          CruSpace.s12,
-          CruSpace.s16,
-          CruSpace.s16,
-        ),
-        decoration: BoxDecoration(
-          color: c.surface,
-          border: Border(top: BorderSide(color: c.hairline)),
-        ),
-        child: SafeArea(
-          child: centred(
-            Row(
-              children: [
-                Expanded(
-                  child: CruButton(
-                    label: 'Add note',
-                    kind: CruButtonKind.secondary,
-                    expand: true,
-                    onPressed: _openNoteEditor,
+      // Full-width bar under the page (a bottomSheet is capped at 640 px
+      // and floats over the content).
+      bottomNavigationBar: VoicePillAvoid(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(
+            CruSpace.s16,
+            CruSpace.s12,
+            CruSpace.s16,
+            CruSpace.s16,
+          ),
+          decoration: BoxDecoration(
+            color: c.surface,
+            border: Border(top: BorderSide(color: c.hairline)),
+          ),
+          child: SafeArea(
+            child: centred(
+              Row(
+                children: [
+                  Expanded(
+                    child: CruButton(
+                      label: 'Add note',
+                      kind: CruButtonKind.inset,
+                      expand: true,
+                      onPressed: _openNoteEditor,
+                    ),
                   ),
-                ),
-                const SizedBox(width: CruSpace.s10),
-                Expanded(
-                  child: CruButton(
-                    label: 'Book consultation',
-                    icon: CruIcons.calendar,
-                    expand: true,
-                    onPressed: _scheduleSession,
+                  const SizedBox(width: CruSpace.s10),
+                  Expanded(
+                    child: CruButton(
+                      label: 'Book consultation',
+                      icon: CruIcons.calendar,
+                      expand: true,
+                      onPressed: _scheduleSession,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -602,7 +611,7 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    "DOCTOR'S NOTE",
+                    "Doctor's note",
                     style: CruType.groupLabel.tint(c.label3),
                   ),
                 ),
@@ -652,7 +661,11 @@ class _ContactCard extends StatelessWidget {
             Divider(height: CruSpace.s20, color: c.separator),
             Row(
               children: [
-                Icon(Icons.email_outlined, size: CruSpace.s18, color: c.label3),
+                CruIcon(
+                  HomeopathyIcons.mail,
+                  size: CruSpace.s18,
+                  color: c.label3,
+                ),
                 const SizedBox(width: CruSpace.s10),
                 Text(email, style: CruType.text.tint(c.label)),
               ],
@@ -722,9 +735,6 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title.toUpperCase(),
-      style: CruType.groupLabel.tint(context.cru.label3),
-    );
+    return Text(title, style: CruType.groupLabel.tint(context.cru.label3));
   }
 }

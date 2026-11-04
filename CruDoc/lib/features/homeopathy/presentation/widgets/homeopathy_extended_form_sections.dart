@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_icons.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Form section for Childhood History (General Case Sheet Q25).
 class ChildhoodHistoryCard extends StatelessWidget {
@@ -26,10 +28,10 @@ class ChildhoodHistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
-      title: 'Childhood History (Q25)',
+      title: 'Childhood history (Q25)',
       subtitle: 'Nature, habits, fears, dreams & relationships in childhood',
       isComplete: isComplete,
-      icon: Icons.history_edu_rounded,
+      icon: HomeopathyIcons.child,
       children: [
         HomeopathyFormField(
           controller: natureCtrl,
@@ -38,38 +40,38 @@ class ChildhoodHistoryCard extends StatelessWidget {
               'e.g. Shy, bold, stubborn, quiet, obedient, playful, rebellious',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: habitsCtrl,
-          label: '2. Childhood Habits & Peculiarities',
+          label: '2. Childhood habits & peculiarities',
           hint: 'e.g. Thumb-sucking, nail-biting, bedwetting, head banging',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: fearsCtrl,
-          label: '3. Childhood Fears & Phobias',
+          label: '3. Childhood fears & phobias',
           hint: 'e.g. Dark, animals, ghosts, being alone, school, strangers',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: dreamsCtrl,
-          label: '4. Childhood Dreams (Recurring or Frightening)',
+          label: '4. Childhood dreams (recurring or frightening)',
           hint: 'e.g. Falling, monsters, losing parents, flying, exams',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: relationshipsCtrl,
-          label: '5. Relationship with Parents & Siblings',
+          label: '5. Relationship with parents & siblings',
           hint: 'e.g. Pampered, neglected, strict discipline, sibling rivalry',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: sensitivitiesCtrl,
-          label: '6. Childhood Sensitivities & Vulnerabilities',
+          label: '6. Childhood sensitivities & vulnerabilities',
           hint:
               'e.g. Cried easily if scolded, sensitive to punishment, teasing',
           maxLines: 2,
@@ -121,10 +123,10 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
-      title: 'Detailed Personality & Mental State (Q1–Q18)',
+      title: 'Detailed personality & mental state (Q1–Q18)',
       subtitle: 'Triggers, fears, coping, anger, joys & griefs',
       isComplete: isComplete,
-      icon: Icons.psychology_rounded,
+      icon: HomeopathyIcons.person,
       children: [
         HomeopathyFormField(
           controller: upsetWorryCtrl,
@@ -132,29 +134,29 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
           hint: 'e.g. Injustice, failure, illness, family conflict, finance',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: fearDetailsCtrl,
-          label: 'Q3. Details of Fears & Phobias',
+          label: 'Q3. Details of fears & phobias',
           hint:
               'Describe when fear started, what happens physically, what you do',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: introvertExtrovertCtrl,
-          label: 'Q4. Introvert or Extrovert Nature',
+          label: 'Q4. Introvert or extrovert nature',
           hint: 'Reserved vs outgoing, sharing feelings vs keeping within',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: stressHistoryCtrl,
-          label: 'Q5. Major Life Stresses & Chronology',
+          label: 'Q5. Major life stresses & chronology',
           hint:
               'Bereavement, financial loss, divorce, job loss, emotional shock',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: stressCopingCtrl,
           label: 'Q7. How do you cope when stressed or angry?',
@@ -162,7 +164,7 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
               'Silence, weeping, shouting, isolating, walking, working, smoking',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: sensitivityDetailsCtrl,
           label: 'Q8. Sensitivities to surroundings & people',
@@ -170,15 +172,15 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
               'Noise, bright light, odors, rude behavior, criticism, sympathy',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: fixedHabitsCtrl,
-          label: 'Q9. Fixed Habits, Routines or Fastidiousness',
+          label: 'Q9. Fixed habits, routines or fastidiousness',
           hint:
               'Need everything in order, checking locks repeatedly, cleanliness',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: angerBodyCtrl,
           label: 'Q10. Physical symptoms when angry',
@@ -186,51 +188,51 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
               'Trembling, headache, palpitations, loss of speech, indigestion',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: disorderSensitivityCtrl,
-          label: 'Q12. Reaction to Disorder & Untidiness',
+          label: 'Q12. Reaction to disorder & untidiness',
           hint: 'Cannot tolerate mess vs messy/unconcerned',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: greatestGriefCtrl,
-          label: 'Q13. Greatest Grief or Sad Event in Life',
+          label: 'Q13. Greatest grief or sad event in life',
           hint: 'Event and how it changed your health or outlook',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: greatestJoysCtrl,
-          label: 'Q14. Greatest Joys or Happy Experiences',
+          label: 'Q14. Greatest joys or happy experiences',
           hint: 'What brings you genuine contentment and fulfillment',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: deeplyLikedCtrl,
-          label: 'Q15. Matters or Activities Deeply Liked',
+          label: 'Q15. Matters or activities deeply liked',
           hint: 'Music, nature, solitude, travel, books, helping others',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: deeplyDislikedCtrl,
-          label: 'Q16. Matters or Actions Deeply Disliked',
+          label: 'Q16. Matters or actions deeply disliked',
           hint: 'Hypocrisy, hurry, domination, dishonesty, crowds',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: disagreeableMindCtrl,
-          label: 'Q17. Most Disagreeable Aspect of Your Own Mind',
+          label: 'Q17. Most disagreeable aspect of your own mind',
           hint: 'Overthinking, jealousy, anger, suspiciousness, impatience',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: lifeSituationCtrl,
-          label: 'Q18. Overall Picture of Current Life Situation',
+          label: 'Q18. Overall picture of current life situation',
           hint:
               'How you perceive your life right now (content, trapped, struggling, peaceful)',
           maxLines: 2,
@@ -314,29 +316,22 @@ class ChildrenPediatricFormCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
-      title: 'Pediatric Case Sheet (Questions 1–27)',
+      title: 'Pediatric case sheet (questions 1–27)',
       subtitle:
           'Temperament, school, milestones, birth & developmental history',
       isComplete: isComplete,
-      icon: Icons.child_care_rounded,
+      icon: HomeopathyIcons.child,
       initiallyExpanded: true,
       children: [
-        const Text(
-          'Part 1: Temperament & Mental State',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: Color(0xFF0284C7),
-          ),
-        ),
-        const SizedBox(height: 8),
+        const HomeopathyGroupLabel('Part 1: Temperament & mental state'),
+        const SizedBox(height: CruSpace.s8),
         HomeopathyFormField(
           controller: coldHeatCtrl,
-          label: 'Q3. Child Sensitive to Cold or Heat?',
+          label: 'Q3. Child sensitive to cold or heat?',
           hint:
               'Prefers warm clothing, throws off blankets, seeks AC/fan, catches cold easily',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: behaviorWhenUpsetCtrl,
           label: 'Q4. Behavior when upset, scolded or crying',
@@ -344,27 +339,27 @@ class ChildrenPediatricFormCard extends StatelessWidget {
               'Tantrums, throwing things, sulking in corner, wants to be carried/rocked',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: whatMakesHappyCtrl,
           label: 'Q5. What makes the child happy & calm?',
           hint: 'Music, play, affection, outdoors, storytelling, sweets',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: schoolBehaviorCtrl,
-          label: 'Q6. School Behavior, Studies & Friends',
+          label: 'Q6. School behavior, studies & friends',
           hint:
               'Attentive, restless, fights with peers, fear of teachers, exam anxiety',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         Row(
           children: [
             Expanded(
               child: HomeopathyFormField(
                 controller: graspingScoreCtrl,
-                label: 'Q7. Grasping Score (1-10)',
+                label: 'Q7. Grasping score (1-10)',
                 hint: '1 to 10',
               ),
             ),
@@ -372,33 +367,33 @@ class ChildrenPediatricFormCard extends StatelessWidget {
             Expanded(
               child: HomeopathyFormField(
                 controller: childTypeCtrl,
-                label: 'Q8. Child Type / Build',
+                label: 'Q8. Child type / build',
                 hint: 'Chubby, lean, tall, delicate, flabby',
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: attitudeParentsCtrl,
           label: 'Q11. Attitude towards parents & siblings',
           hint:
               'Obedient, stubborn, jealous of younger sibling, clinging to mother',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: familyProblemsCtrl,
           label: 'Q14. Reaction to family arguments or tension',
           hint:
               'Frightened, cries, becomes aggressive, physical complaints follow',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         Row(
           children: [
             Expanded(
               child: HomeopathyFormField(
                 controller: introvertExtrovertCtrl,
-                label: 'Q15. Introvert / Extrovert',
+                label: 'Q15. Introvert / extrovert',
                 hint: 'Shy with strangers vs friendly',
               ),
             ),
@@ -406,152 +401,142 @@ class ChildrenPediatricFormCard extends StatelessWidget {
             Expanded(
               child: HomeopathyFormField(
                 controller: independenceCtrl,
-                label: 'Q16. Independence Level',
+                label: 'Q16. Independence level',
                 hint: 'Self-reliant vs dependent',
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: CruSpace.s16),
         const Divider(),
-        const SizedBox(height: 8),
-        const Text(
-          'Part 2: Birth, Pregnancy & Developmental Milestones',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: Color(0xFF0284C7),
-          ),
+        const SizedBox(height: CruSpace.s8),
+        const HomeopathyGroupLabel(
+          'Part 2: Birth, pregnancy & developmental milestones',
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: CruSpace.s8),
         HomeopathyFormField(
           controller: birthComplicationsCtrl,
           label:
-              'Q18. Birth Complications (Forceps, Caesarean, Jaundice, Delayed Cry)',
+              'Q18. Birth complications (forceps, caesarean, jaundice, delayed cry)',
           hint: 'Full term / premature, birth weight, ICU stay',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: motherPregnancyCtrl,
-          label: 'Q19. Mother\'s Emotional State & Health during Pregnancy',
+          label: 'Q19. Mother\'s emotional state & health during pregnancy',
           hint:
               'Grief, shock, nausea, high BP, thyroid, family stress during pregnancy',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: motherMedicalCtrl,
-          label: 'Q20. Mother\'s Medical History & Medications',
+          label: 'Q20. Mother\'s medical history & medications',
           hint: 'Hormones, antibiotics taken, prior miscarriages',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: familyHereditaryCtrl,
-          label: 'Q21. Family Hereditary Tendencies',
+          label: 'Q21. Family hereditary tendencies',
           hint: 'Asthma, allergies, eczema, diabetes, cancer, TB in bloodline',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: walkingTeethingCtrl,
-          label: 'Q22. Milestone Ages (Walking, Talking, Teething)',
+          label: 'Q22. Milestone ages (walking, talking, teething)',
           hint:
               'Teething troubles (fever/diarrhea), delayed speech, delayed walking',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: vaccinationCtrl,
-          label: 'Q9. Vaccination History & Adverse Reactions',
+          label: 'Q9. Vaccination history & adverse reactions',
           hint:
               'High fever, convulsions, skin eruption, regressions after vaccine',
           maxLines: 2,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: CruSpace.s16),
         const Divider(),
-        const SizedBox(height: 8),
-        const Text(
-          'Part 3: Habits, Fears, Cravings & Organ Checks',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-            color: Color(0xFF0284C7),
-          ),
+        const SizedBox(height: CruSpace.s8),
+        const HomeopathyGroupLabel(
+          'Part 3: Habits, fears, cravings & organ checks',
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: CruSpace.s8),
         HomeopathyFormField(
           controller: abnormalBehaviorsCtrl,
           label:
-              'Q23. Abnormal Behaviors (Head banging, biting, picking nose/lips)',
+              'Q23. Abnormal behaviors (head banging, biting, picking nose/lips)',
           hint: 'Tics, restlessness, bedwetting, stammering',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: childFearsCtrl,
           label:
-              'Q24. Child Fears (Dogs, dark, thunder, strangers, being alone)',
+              'Q24. Child fears (dogs, dark, thunder, strangers, being alone)',
           hint: 'Describe specific fears and child\'s reaction',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: sleepingHabitsCtrl,
           label:
-              'Q25. Sleeping Habits (Posture, snoring, teeth grinding, sweat)',
+              'Q25. Sleeping habits (posture, snoring, teeth grinding, sweat)',
           hint: 'Sleeps on tummy, head sweats during sleep, night terrors',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: abnormalCravingsCtrl,
-          label: 'Q26. Abnormal Cravings (Mud, chalk, ice, pencil, salt, coal)',
+          label: 'Q26. Abnormal cravings (mud, chalk, ice, pencil, salt, coal)',
           hint: 'Pica tendencies or unusual food desires',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: wormsCtrl,
-          label: 'Q27. Worms History & Symptoms',
+          label: 'Q27. Worms history & symptoms',
           hint:
               'Anal itching, nose rubbing, grinds teeth at night, variable appetite',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: headCtrl,
-          label: 'Head, Eyes, Nose & Throat Symptoms',
+          label: 'Head, eyes, nose & throat symptoms',
           hint: 'Frequent cold, tonsils, adenoids, ear infections',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: coughCtrl,
-          label: 'Cough, Asthma & Chest Respiration',
+          label: 'Cough, asthma & chest respiration',
           hint: 'Wheezing, night cough, recurrent bronchitis',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: stomachCtrl,
-          label: 'Stomach, Appetite & Digestion',
+          label: 'Stomach, appetite & digestion',
           hint: 'Vomiting milk, colic, poor appetite vs ravenous hunger',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: stoolCtrl,
-          label: 'Stool & Urinary Symptoms',
+          label: 'Stool & urinary symptoms',
           hint:
               'Constipation, hard large stool, involuntary urination, enuresis',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: sexualAwarenessCtrl,
-          label: 'Age-Appropriate Sexual Awareness / Habits',
+          label: 'Age-appropriate sexual awareness / habits',
           hint: 'Genital touching, masturbation tendencies in toddler/child',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: additionalInfoCtrl,
-          label: 'Additional Information from Parents / Caregivers',
+          label: 'Additional information from parents / caregivers',
           hint: 'Any other unique observation about the child',
           maxLines: 2,
         ),
@@ -600,106 +585,106 @@ class FemaleEndocrineFormCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
-      title: 'Female & Endocrine Questionnaire',
+      title: 'Female & endocrine questionnaire',
       subtitle:
           'Thyroid, hormonal etiology, lifecycle stages & systemic symptoms',
       isComplete: isComplete,
-      icon: Icons.female_rounded,
+      icon: HomeopathyIcons.female,
       initiallyExpanded: true,
       children: [
         HomeopathyFormField(
           controller: diagnosisCtrl,
-          label: 'Medical Diagnosis & Thyroid Profile',
+          label: 'Medical diagnosis & thyroid profile',
           hint:
               'e.g. Hypothyroidism, Hashimoto\'s, Graves\', PCOD, Goitre, TSH/T3/T4 values',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: howStartedCtrl,
-          label: 'How & When Did the Problem Start?',
+          label: 'How & when did the problem start?',
           hint:
               'Initial symptoms noticed, timeline, precipitating circumstances',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: physioTriggerCtrl,
           label:
-              'Physiological Triggers (Menarche, Pregnancy, OC Pills, Hysterectomy)',
+              'Physiological triggers (menarche, pregnancy, OC pills, hysterectomy)',
           hint:
               'Did complaint trigger after puberty, miscarriage, childbirth, birth control pills?',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: emotionalTriggerCtrl,
-          label: 'Emotional Triggers (Grief, Humiliation, Suppressed Anger)',
+          label: 'Emotional triggers (grief, humiliation, suppressed anger)',
           hint: 'Endocrine onset linked to grief, marital stress, suppression',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: manifestationLocCtrl,
-          label: 'Disease Manifestation & Physical Location',
+          label: 'Disease manifestation & physical location',
           hint:
               'General myxoedema, localized swelling, exophthalmos, puffiness around eyes',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: goitreCtrl,
-          label: 'Goitre / Thyroid Gland Details',
+          label: 'Goitre / thyroid gland details',
           hint:
               'Size, texture (soft/hard/nodular), constriction feeling, choking sensation with collar',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: glandsCtrl,
-          label: 'Glandular Problems (Lymph, Salivary, Mammary)',
+          label: 'Glandular problems (lymph, salivary, mammary)',
           hint: 'Breast tenderness, swollen lymph nodes, parotid enlargement',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: skinCtrl,
-          label: 'Skin & Hair Symptoms (Dryness, Hair Loss, Pigmentation)',
+          label: 'Skin & hair symptoms (dryness, hair loss, pigmentation)',
           hint:
               'Loss of outer eyebrow hair, coarse skin, brittle nails, melasma',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: cardiacCtrl,
-          label: 'Cardiac & Circulatory Symptoms (Palpitations, BP, Flushes)',
+          label: 'Cardiac & circulatory symptoms (palpitations, BP, flushes)',
           hint: 'Hot flashes, racing pulse, postural dizziness, swollen ankles',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: weaknessCtrl,
-          label: 'Physical & Mental Weakness / Lethargy',
+          label: 'Physical & mental weakness / lethargy',
           hint: 'Fatigue on waking, brain fog, apathy, sluggishness',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: stagesOfLifeCtrl,
-          label: 'Stages of Life Impact (Puberty / Motherhood / Menopause)',
+          label: 'Stages of life impact (puberty / motherhood / menopause)',
           hint:
               'How health fluctuated during childhood, puberty, post-pregnancy, and perimenopause',
           maxLines: 3,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: menstrualCtrl,
-          label: 'Menstrual & Hormonal Cycle Details',
+          label: 'Menstrual & hormonal cycle details',
           hint: 'Cycle length, flow amount, clots, PMS mood swings, spotting',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: relationshipsCtrl,
-          label: 'Relationships & Domestic Dynamics (Family / In-Laws / Work)',
+          label: 'Relationships & domestic dynamics (family / in-laws / work)',
           hint:
               'Interpersonal tensions, feelings of being unappreciated or suppressed',
           maxLines: 2,
@@ -751,35 +736,35 @@ class AcuteCaseSheetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
-      title: 'Acute Presentation Questionnaire',
+      title: 'Acute presentation questionnaire',
       subtitle:
           'Onset, modalities, fever stages, thirst, posture & acute totality',
       isComplete: isComplete,
-      icon: Icons.flash_on_rounded,
+      icon: HomeopathyIcons.bolt,
       initiallyExpanded: true,
       children: [
         HomeopathyFormField(
           controller: complaintCtrl,
-          label: 'Q3. Detailed Acute Complaint (What exactly is happening?)',
+          label: 'Q3. Detailed acute complaint (what exactly is happening?)',
           hint:
               'e.g. Sudden high fever with bodyache, barking cough, acute diarrhea',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: causeCtrl,
-          label: 'Q4. Cause of Present Complaint (Trigger)',
+          label: 'Q4. Cause of present complaint (trigger)',
           hint:
               'e.g. Cold dry wind, getting wet in rain, ice cream, mental shock, anger, overexertion',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         Row(
           children: [
             Expanded(
               child: HomeopathyFormField(
                 controller: worseCtrl,
-                label: 'Q6. What Makes It Worse? (<)',
+                label: 'Q6. What makes it worse? (<)',
                 hint: 'Cold air, motion, light, night, touch',
                 maxLines: 2,
               ),
@@ -788,28 +773,28 @@ class AcuteCaseSheetCard extends StatelessWidget {
             Expanded(
               child: HomeopathyFormField(
                 controller: betterCtrl,
-                label: 'Q7. What Makes It Better? (>)',
+                label: 'Q7. What makes it better? (>)',
                 hint: 'Warmth, rest, pressure, hot drink',
                 maxLines: 2,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: mentalConditionCtrl,
-          label: 'Q8. Mental Condition During This Suffering',
+          label: 'Q8. Mental condition during this suffering',
           hint:
               'Restless & anxious (Acon/Ars), irritable & wants silence (Bry/Cham), weeping & clingy (Puls)',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         Row(
           children: [
             Expanded(
               child: HomeopathyFormField(
                 controller: waterReqCtrl,
-                label: 'Q10. Water Requirement (Thirst)',
+                label: 'Q10. Water requirement (thirst)',
                 hint: 'Thirstless / Large quantities / Sips often',
               ),
             ),
@@ -817,34 +802,34 @@ class AcuteCaseSheetCard extends StatelessWidget {
             Expanded(
               child: HomeopathyFormField(
                 controller: sweatCtrl,
-                label: 'Q11. Sweat Details (Stages, odour)',
+                label: 'Q11. Sweat details (stages, odour)',
                 hint: 'Profuse, offensive, stains yellow, on head only',
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: postureCtrl,
-          label: 'Q12. Posture Modalities (How patient lies/sits)',
+          label: 'Q12. Posture modalities (how patient lies/sits)',
           hint:
               'Must sit up to breathe, lies on painful side, double up with hands on abdomen',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: feverCtrl,
-          label: 'Q15. Fever Details (Chill, Heat, Sweat Sequence)',
+          label: 'Q15. Fever details (chill, heat, sweat sequence)',
           hint:
               'Time of chill (e.g. 10 AM), thirst during chill or heat, shivering with goosebumps',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         Row(
           children: [
             Expanded(
               child: HomeopathyFormField(
                 controller: coughCtrl,
-                label: 'Q17. Cough & Chest Details',
+                label: 'Q17. Cough & chest details',
                 hint: 'Dry racking vs loose rattling',
               ),
             ),
@@ -852,39 +837,39 @@ class AcuteCaseSheetCard extends StatelessWidget {
             Expanded(
               child: HomeopathyFormField(
                 controller: looseDryCoughCtrl,
-                label: 'Q19. Taste / Sputum Character',
+                label: 'Q19. Taste / sputum character',
                 hint: 'Salty, bitter, sweet, yellow, green',
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: diarrheaCtrl,
-          label: 'Q20. Stool / Diarrhea / Dysentery Character',
+          label: 'Q20. Stool / diarrhea / dysentery character',
           hint:
               'Watery, offensive, bloody, painless, burning, urgency on waking',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: painCtrl,
-          label: 'Q21. Body Pain Character & Location',
+          label: 'Q21. Body pain character & location',
           hint:
               'Aching all over bones (Eup-per), sharp stitching (Bry), burning (Ars)',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: uncommonSymptomsCtrl,
-          label: 'Q16. Peculiar or Uncommon Symptoms Noticed',
+          label: 'Q16. Peculiar or uncommon symptoms noticed',
           hint: 'e.g. Red face during chill, appetite ravenous during fever',
           maxLines: 2,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
         HomeopathyFormField(
           controller: additionalInfoCtrl,
-          label: 'Q22. Any Additional Information for Remedy Selection',
+          label: 'Q22. Any additional information for remedy selection',
           hint: 'Any other sudden changes in sleep, mood, or urination',
           maxLines: 2,
         ),

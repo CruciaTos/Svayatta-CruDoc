@@ -24,11 +24,11 @@ enum HomeopathyThermalState {
   String get label {
     switch (this) {
       case HomeopathyThermalState.chilly:
-        return 'Chilly (Cannot tolerate cold)';
+        return 'Chilly (cannot tolerate cold)';
       case HomeopathyThermalState.hot:
-        return 'Hot (Cannot tolerate warmth)';
+        return 'Hot (cannot tolerate warmth)';
       case HomeopathyThermalState.ambithermal:
-        return 'Ambithermal (Sensitive to both)';
+        return 'Ambithermal (sensitive to both)';
       case HomeopathyThermalState.unspecified:
         return 'Unspecified';
     }
@@ -46,7 +46,7 @@ enum HomeopathyCaseType {
   }
 
   String get label =>
-      this == HomeopathyCaseType.acute ? 'Acute Case' : 'Chronic Case';
+      this == HomeopathyCaseType.acute ? 'Acute case' : 'Chronic case';
 }
 
 /// A. Case Overview & Onboarding
@@ -1393,7 +1393,8 @@ class HomeopathyCaseSheet {
         femaleEndocrine.isCompleted) {
       count++;
     }
-    if (category == HomeopathyCaseSheetCategory.acute && acuteSheet.isCompleted) {
+    if (category == HomeopathyCaseSheetCategory.acute &&
+        acuteSheet.isCompleted) {
       count++;
     }
     return count;

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/doctor_encryption_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
@@ -35,6 +36,9 @@ final authSpecialtyProvider =
 /// Streams the logged-in doctor's specialty from Firestore, resolved via
 /// [DoctorSpecialty.fromString] for full metadata access.
 final activeDoctorSpecialtyProvider = StreamProvider<DoctorSpecialty>((ref) {
+  // Rebuild on sign-in/out: otherwise the next account kept the previous
+  // one's specialty (a homeopath saw no Clinical tab) until a restart.
+  ref.watch(authStateProvider);
   final user = FirebaseAuth.instance.currentUser;
   if (user == null && !DemoSessionService.isDemoMode) {
     return Stream.value(DoctorSpecialty.defaultSpecialty);

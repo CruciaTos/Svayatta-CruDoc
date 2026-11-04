@@ -338,6 +338,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
       _voice.ready,
       _voice.hint,
       _voice.asking,
+      VoicePillAvoid._clearances,
     ]);
     return Stack(
       children: [
@@ -357,7 +358,8 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
               left: CruSpace.s16,
               right: CruSpace.s16,
               top: resting ? null : CruSpace.s12,
-              bottom: resting ? CruSpace.s16 : null,
+              // Above any bottom bar on screen (VoicePillAvoid).
+              bottom: resting ? CruSpace.s16 + VoicePillAvoid.clearance : null,
               child: Center(
                 child: Material(
                   type: MaterialType.transparency,
@@ -963,5 +965,59 @@ class _OffReasonState extends State<_OffReason> {
         ),
       ),
     );
+  }
+}
+
+/// Wrap a bar fixed to the bottom of a page (Save / Book buttons): while it
+/// is on screen, the resting voice pill sits just above it instead of on
+/// top of its buttons.
+class VoicePillAvoid extends StatefulWidget {
+  const VoicePillAvoid({super.key, required this.child});
+
+  final Widget child;
+
+  /// Height of each mounted bar, by its state.
+  static final ValueNotifier<Map<Object, double>> _clearances = ValueNotifier(
+    const {},
+  );
+
+  /// How far the resting pill must rise: the tallest bar on screen.
+  static double get clearance =>
+      _clearances.value.values.fold(0.0, (a, b) => a > b ? a : b);
+
+  @override
+  State<VoicePillAvoid> createState() => _VoicePillAvoidState();
+}
+
+class _VoicePillAvoidState extends State<VoicePillAvoid> {
+  final _key = GlobalKey();
+
+  void _measure(Duration _) {
+    if (!mounted) return;
+    final box = _key.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final height = box.size.height;
+    final current = VoicePillAvoid._clearances.value;
+    if (current[this] == height) return;
+    VoicePillAvoid._clearances.value = {...current, this: height};
+  }
+
+  @override
+  void dispose() {
+    final self = this;
+    // Not during the frame that tears this page down; drop only this bar,
+    // so a bar measured in the meantime is kept.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final current = VoicePillAvoid._clearances.value;
+      if (!current.containsKey(self)) return;
+      VoicePillAvoid._clearances.value = Map.of(current)..remove(self);
+    });
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback(_measure);
+    return KeyedSubtree(key: _key, child: widget.child);
   }
 }

@@ -73,7 +73,7 @@ class HomeopathyLocalService {
     final rows = await db.query(
       'homeopathy_case_sheets',
       where:
-          'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
+          "patientId = ? AND (doctorId = ? OR doctorId = '') AND pendingDelete = 0",
       whereArgs: [patientId, doctorId],
       orderBy: 'updatedAt DESC',
       limit: 1,
@@ -92,7 +92,7 @@ class HomeopathyLocalService {
     final rows = await db.query(
       'homeopathy_case_sheets',
       where:
-          'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
+          "patientId = ? AND (doctorId = ? OR doctorId = '') AND pendingDelete = 0",
       whereArgs: [patientId, doctorId],
       orderBy: 'caseDate DESC, updatedAt DESC',
     );

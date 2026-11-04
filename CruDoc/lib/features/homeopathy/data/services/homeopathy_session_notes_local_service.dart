@@ -80,7 +80,7 @@ class HomeopathySessionNotesLocalService {
     final rows = await db.query(
       'homeopathy_session_notes',
       where:
-          'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
+          "patientId = ? AND (doctorId = ? OR doctorId = '') AND pendingDelete = 0",
       whereArgs: [patientId, doctorId],
       orderBy: 'sessionDate DESC, createdAt DESC',
     );

@@ -3,14 +3,13 @@ import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_dictation_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-const Color _accentEmerald = Color(0xFF059669);
-
-/// Reusable accordion card for homeopathic case taking sections.
+/// One collapsible section of the case sheet, on the standard card.
+/// Green only marks a section as done; nothing else on it is coloured.
 class HomeopathyAccordionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool isComplete;
-  final IconData icon;
+  final CruIconData icon;
   final List<Widget> children;
   final bool initiallyExpanded;
 
@@ -27,89 +26,79 @@ class HomeopathyAccordionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      margin: const EdgeInsets.only(bottom: CruSpace.s12),
-      decoration: BoxDecoration(
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(CruRadius.card),
+      side: BorderSide(color: c.cardBorder),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s12),
+      child: Material(
         color: c.surface,
-        borderRadius: BorderRadius.circular(CruRadius.card),
-        border: Border.all(
-          color: isComplete
-              ? c.green.withValues(alpha: 0.35)
-              : c.separator,
-          width: isComplete ? 1.5 : 1,
-        ),
-        boxShadow: const [],
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: initiallyExpanded,
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: CruSpace.s16,
-            vertical: CruSpace.s4,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            dividerColor: c.surface.withValues(alpha: 0),
+            splashFactory: NoSplash.splashFactory,
+            hoverColor: c.hoverFill,
           ),
-          leading: Container(
-            width: CruSize.iconTile,
-            height: CruSize.iconTile,
-            decoration: BoxDecoration(
-              color: isComplete ? c.greenTint : c.inset,
-              borderRadius: BorderRadius.circular(CruRadius.iconTile),
+          child: ExpansionTile(
+            initiallyExpanded: initiallyExpanded,
+            shape: shape,
+            collapsedShape: shape,
+            backgroundColor: c.surface,
+            collapsedBackgroundColor: c.surface,
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s20,
+              vertical: CruSpace.s8,
             ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: isComplete ? c.greenText : c.label3,
-            ),
-          ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(title, style: CruType.callout.w700.tint(c.label)),
-              ),
-              if (isComplete)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s8,
-                    vertical: CruSpace.s2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.greenTint,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                  ),
-                  child: Text(
-                    'Filled',
-                    style: CruType.dateMonth.w700.tint(c.greenText),
-                  ),
+            leading: Container(
+              width: CruSize.iconTile,
+              height: CruSize.iconTile,
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                color: c.inset,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
                 ),
-            ],
-          ),
-          subtitle: Text(
-            subtitle,
-            style: CruType.micro.tint(c.label2),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                CruSpace.s16,
-                0,
-                CruSpace.s16,
-                CruSpace.s16,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: children,
-              ),
+              child: CruIcon(icon, size: 18, color: c.label2),
             ),
-          ],
+            title: Text(title, style: CruType.headline.tint(c.label)),
+            subtitle: Text(
+              subtitle,
+              style: CruType.caption.tint(c.label2),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isComplete) ...[
+                  const CruDoneBadge(size: 18),
+                  const SizedBox(width: CruSpace.s8),
+                ],
+                CruIcon(CruIcons.chevronDown, size: 16, color: c.label2),
+              ],
+            ),
+            // ExpansionTile centres its children by default.
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            expandedAlignment: Alignment.centerLeft,
+            childrenPadding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              0,
+              CruSpace.s20,
+              CruSpace.s20,
+            ),
+            children: children,
+          ),
         ),
       ),
     );
   }
 }
 
-/// Reusable text field with optional voice-to-text dictation.
+/// A labelled case-sheet text field with one neutral dictation mic.
 class HomeopathyFormField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -126,110 +115,60 @@ class HomeopathyFormField extends StatelessWidget {
     this.enableVoice = true,
   });
 
+  Future<void> _dictate(BuildContext context) async {
+    final text = await HomeopathyVoiceDictationSheet.show(
+      context,
+      fieldName: label,
+      initialText: controller.text,
+    );
+    if (text != null && text.trim().isNotEmpty) {
+      controller.text = controller.text.trim().isEmpty
+          ? text.trim()
+          : '${controller.text.trim()}\n${text.trim()}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    OutlineInputBorder ring(Color color) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(CruRadius.control),
+      borderSide: BorderSide(color: color, width: 1.5),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(label, style: CruType.caption.w600.tint(c.label)),
-            ),
-            if (enableVoice)
-              InkWell(
-                borderRadius: BorderRadius.circular(CruSpace.s8),
-                onTap: () async {
-                  final text = await HomeopathyVoiceDictationSheet.show(
-                    context,
-                    fieldName: label,
-                    initialText: controller.text,
-                  );
-                  if (text != null && text.trim().isNotEmpty) {
-                    if (controller.text.trim().isEmpty) {
-                      controller.text = text.trim();
-                    } else {
-                      controller.text =
-                          '${controller.text.trim()}\n${text.trim()}';
-                    }
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s6,
-                    vertical: CruSpace.s2,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.mic_rounded,
-                        size: 14,
-                        color: _accentEmerald,
-                      ),
-                      const SizedBox(width: CruSpace.s4),
-                      Text(
-                        'Speak',
-                        style: CruType.micro.w700.tint(_accentEmerald),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+        Text(label, style: CruType.subhead.w500.tint(c.label2)),
         const SizedBox(height: CruSpace.s6),
         TextField(
           controller: controller,
           maxLines: maxLines,
-          style: CruType.subhead.tint(c.label),
+          minLines: 1,
+          style: CruType.input.tint(c.label),
+          cursorColor: c.accent,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: CruType.caption.tint(c.label3),
+            hintStyle: CruType.input.tint(c.label3),
+            // Dictation is recording, not AI, so the mic stays neutral.
             suffixIcon: enableVoice
-                ? IconButton(
-                    icon: const Icon(Icons.mic_none_rounded, size: 18),
-                    color: _accentEmerald.withValues(alpha: 0.8),
-                    tooltip: 'Speak to fill $label',
-                    onPressed: () async {
-                      final text = await HomeopathyVoiceDictationSheet.show(
-                        context,
-                        fieldName: label,
-                        initialText: controller.text,
-                      );
-                      if (text != null && text.trim().isNotEmpty) {
-                        if (controller.text.trim().isEmpty) {
-                          controller.text = text.trim();
-                        } else {
-                          controller.text =
-                              '${controller.text.trim()}\n${text.trim()}';
-                        }
-                      }
-                    },
+                ? CruIconButton(
+                    icon: CruIcons.mic,
+                    iconSize: 16,
+                    onPressed: () => _dictate(context),
+                    semanticLabel: 'Dictate $label',
+                    tooltip: 'Dictate',
                   )
                 : null,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: CruSpace.s12,
-              vertical: CruSpace.s10,
+              vertical: CruSpace.s12,
             ),
             filled: true,
             fillColor: c.inset,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              borderSide: const BorderSide(
-                color: _accentEmerald,
-                width: 1.5,
-              ),
-            ),
+            border: ring(c.inset.withValues(alpha: 0)),
+            enabledBorder: ring(c.inset.withValues(alpha: 0)),
+            focusedBorder: ring(c.accent),
           ),
         ),
       ],
@@ -237,7 +176,78 @@ class HomeopathyFormField extends StatelessWidget {
   }
 }
 
-/// Category Selector Header for the 4 Homeopathy Questionnaires.
+/// A heading above a group of chips inside a section ("Thirst pattern").
+class HomeopathyGroupLabel extends StatelessWidget {
+  const HomeopathyGroupLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(text, style: CruType.subhead.w600.tint(context.cru.label));
+}
+
+/// Selectable option chip. It sits inside a card, so it uses the inset fill
+/// (as anything inset in a card does); accent tint and a tick when picked.
+class HomeopathyChoiceChip extends StatelessWidget {
+  const HomeopathyChoiceChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Semantics(
+      selected: selected,
+      child: CruPressable(
+        onTap: () => onSelected(!selected),
+        semanticLabel: label,
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          height: CruSize.filterChip,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+          decoration: ShapeDecoration(
+            color: selected
+                ? c.accentTint
+                : (hovered ? cruHoverShade(c.inset, c) : c.inset),
+            shape: const StadiumBorder(),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                CruIcon(
+                  CruIcons.check,
+                  size: 14,
+                  strokeWidth: 2.2,
+                  color: c.accentText,
+                ),
+                const SizedBox(width: CruSpace.s6),
+              ],
+              Text(
+                label,
+                style: selected
+                    ? CruType.chip.w600.tint(c.accentText)
+                    : CruType.chip.tint(c.label),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Picks which questionnaire the sheet shows: General, Children, Female &
+/// endocrine or Acute. Suggests one from the patient's age and sex.
 class HomeopathyCategorySelector extends StatelessWidget {
   final HomeopathyCaseSheetCategory selectedCategory;
   final ValueChanged<HomeopathyCaseSheetCategory> onCategoryChanged;
@@ -252,155 +262,67 @@ class HomeopathyCategorySelector extends StatelessWidget {
     required this.isFemale,
   });
 
+  static const _labels = {
+    HomeopathyCaseSheetCategory.general: 'General',
+    HomeopathyCaseSheetCategory.children: 'Children',
+    HomeopathyCaseSheetCategory.femaleEndocrine: 'Female & endocrine',
+    HomeopathyCaseSheetCategory.acute: 'Acute',
+  };
+
+  /// A questionnaire worth suggesting for this patient, if it isn't the
+  /// one already picked.
+  HomeopathyCaseSheetCategory? get _suggestion {
+    if (patientAge > 0 &&
+        patientAge <= 16 &&
+        selectedCategory != HomeopathyCaseSheetCategory.children) {
+      return HomeopathyCaseSheetCategory.children;
+    }
+    if (isFemale &&
+        patientAge > 16 &&
+        selectedCategory != HomeopathyCaseSheetCategory.femaleEndocrine) {
+      return HomeopathyCaseSheetCategory.femaleEndocrine;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      margin: const EdgeInsets.only(bottom: CruSpace.s16),
-      padding: const EdgeInsets.all(CruSpace.s12),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(CruRadius.card),
-        border: Border.all(color: c.separator),
-        boxShadow: const [],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.style_outlined,
-                size: 16,
-                color: _accentEmerald,
-              ),
-              const SizedBox(width: CruSpace.s6),
-              Text(
-                'Case Sheet Questionnaire Type',
-                style: CruType.caption.w700.tint(c.label),
-              ),
-              const Spacer(),
-              if (patientAge <= 16 &&
-                  selectedCategory != HomeopathyCaseSheetCategory.children)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s6,
-                    vertical: CruSpace.s2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.tealTint,
-                    borderRadius: BorderRadius.circular(CruRadius.bar),
-                  ),
-                  child: Text(
-                    'Pediatric Age',
-                    style: CruType.dateMonth.w700.tint(c.tealText),
-                  ),
-                )
-              else if (isFemale &&
-                  selectedCategory !=
-                      HomeopathyCaseSheetCategory.femaleEndocrine)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s6,
-                    vertical: CruSpace.s2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFDF2F8),
-                    borderRadius: BorderRadius.circular(CruRadius.bar),
-                  ),
-                  child: const Text(
-                    'Female / Thyroid',
-                    style: TextStyle(
-                      fontFamily: CruType.family,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFDB2777),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
+    final suggestion = _suggestion;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s16),
+      child: CruCard(
+        padding: const EdgeInsets.all(CruSpace.s20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                _buildOption(
-                  context,
-                  category: HomeopathyCaseSheetCategory.general,
-                  label: 'General Case',
-                  icon: Icons.assignment_outlined,
-                  activeColor: _accentEmerald,
+                Expanded(
+                  child: Text(
+                    'Questionnaire',
+                    style: CruType.headline.tint(c.label),
+                  ),
                 ),
-                const SizedBox(width: CruSpace.s8),
-                _buildOption(
-                  context,
-                  category: HomeopathyCaseSheetCategory.children,
-                  label: 'Children Case',
-                  icon: Icons.child_care_rounded,
-                  activeColor: const Color(0xFF0284C7),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                _buildOption(
-                  context,
-                  category: HomeopathyCaseSheetCategory.femaleEndocrine,
-                  label: 'Female & Endocrine',
-                  icon: Icons.female_rounded,
-                  activeColor: const Color(0xFFDB2777),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                _buildOption(
-                  context,
-                  category: HomeopathyCaseSheetCategory.acute,
-                  label: 'Acute Short-Form',
-                  icon: Icons.flash_on_rounded,
-                  activeColor: const Color(0xFFD97706),
-                ),
+                if (suggestion != null)
+                  CruLink(
+                    label: 'Suggested: ${_labels[suggestion]}',
+                    onPressed: () => onCategoryChanged(suggestion),
+                  ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOption(
-    BuildContext context, {
-    required HomeopathyCaseSheetCategory category,
-    required String label,
-    required IconData icon,
-    required Color activeColor,
-  }) {
-    final c = context.cru;
-    final isSelected = selectedCategory == category;
-    return InkWell(
-      borderRadius: BorderRadius.circular(CruRadius.control),
-      onTap: () => onCategoryChanged(category),
-      child: AnimatedContainer(
-        duration: CruMotion.fast,
-        curve: CruMotion.curve,
-        padding: const EdgeInsets.symmetric(
-          horizontal: CruSpace.s12,
-          vertical: CruSpace.s8,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected ? activeColor.withValues(alpha: 0.12) : c.inset,
-          borderRadius: BorderRadius.circular(CruRadius.control),
-          border: Border.all(
-            color: isSelected ? activeColor : c.separator,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: isSelected ? activeColor : c.label3),
-            const SizedBox(width: CruSpace.s6),
-            Text(
-              label,
-              style: isSelected
-                  ? CruType.caption.w700.tint(activeColor)
-                  : CruType.caption.w500.tint(c.label2),
+            const SizedBox(height: CruSpace.s12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: CruSegmentedControl<HomeopathyCaseSheetCategory>(
+                semanticLabel: 'Questionnaire',
+                segments: [
+                  for (final entry in _labels.entries)
+                    CruSegment(entry.key, entry.value),
+                ],
+                selected: selectedCategory,
+                onChanged: onCategoryChanged,
+              ),
             ),
           ],
         ),

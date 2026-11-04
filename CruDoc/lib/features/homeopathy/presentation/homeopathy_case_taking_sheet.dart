@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_overlay.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_icons.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_extended_form_sections.dart';
-import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_dictation_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_scribe_modal.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
-const Color _accentEmerald = Color(0xFF059669);
+/// Same column width as the case sheet page this opens from.
+const double _maxWidth = 760;
+const double _headerHeight = 104;
 
 /// Interactive mobile-first Homeopathy Case Taking Sheet.
 class HomeopathyCaseTakingSheet extends ConsumerStatefulWidget {
@@ -981,95 +984,90 @@ class _HomeopathyCaseTakingSheetState
     );
     final totalCount = _sheet.totalSectionsCount(isFemale: _isPatientFemale);
 
+    final patient = widget.patient;
+    final patientLine = [
+      patient.fullName,
+      if (patient.age > 0) '${patient.age} y',
+      if (patient.gender.trim().isNotEmpty) patient.gender,
+    ].join(' · ');
+
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: c.surface,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_rounded, color: c.label),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Homeopathic Case Taking',
-              style: CruType.callout.w700.tint(c.label),
-            ),
-            Text(
-              '${widget.patient.fullName} • ${widget.patient.age}y / ${widget.patient.gender}',
-              style: CruType.caption.tint(c.label2),
-            ),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: CruSpace.s8),
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                backgroundColor: _accentEmerald.withValues(alpha: 0.12),
-                foregroundColor: _accentEmerald,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CruSpace.s10,
-                  vertical: CruSpace.s6,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
-                  side: BorderSide(
-                    color: _accentEmerald.withValues(alpha: 0.3),
-                    width: 0.8,
+      // Same header as the case sheet page this opens from.
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(_headerHeight),
+        child: SafeArea(
+          bottom: false,
+          child: _centred(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s12,
+                CruSpace.s8,
+                CruSpace.s12,
+                0,
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      CruIconButton(
+                        icon: CruIcons.chevronLeft,
+                        onPressed: () => Navigator.pop(context),
+                        semanticLabel: 'Back',
+                      ),
+                      const SizedBox(width: CruSpace.s4),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Case taking',
+                              style: CruType.title2.tint(c.label),
+                            ),
+                            Text(
+                              patientLine,
+                              style: CruType.subhead.tint(c.label2).tabular,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      _VoiceScribeButton(onPressed: _launchVoiceScribe),
+                    ],
                   ),
-                ),
-              ),
-              icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-              label: Text(
-                'Voice Scribe',
-                style: CruType.caption.w700,
-              ),
-              onPressed: _launchVoiceScribe,
-            ),
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(28),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              CruSpace.s16,
-              0,
-              CruSpace.s16,
-              CruSpace.s8,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(CruRadius.thinBar),
-                    child: LinearProgressIndicator(
-                      value: totalCount > 0 ? completedCount / totalCount : 0.0,
-                      backgroundColor: c.separator,
-                      valueColor: AlwaysStoppedAnimation<Color>(c.green),
-                      minHeight: CruSize.progressBar,
+                  const SizedBox(height: CruSpace.s12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CruProgressBar(
+                            value: totalCount > 0
+                                ? completedCount / totalCount
+                                : 0.0,
+                            semanticLabel: 'Sections complete',
+                          ),
+                        ),
+                        const SizedBox(width: CruSpace.s12),
+                        Text(
+                          '$completedCount of $totalCount sections',
+                          style: CruType.caption.w600.tint(c.label2).tabular,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(width: CruSpace.s12),
-                Text(
-                  '$completedCount of $totalCount sections',
-                  style: CruType.micro.w600.tint(c.label2).tabular,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          CruSpace.s16,
-          CruSpace.s12,
-          CruSpace.s16,
-          100,
-        ),
+        padding: _bodyPadding(context),
         children: [
           // Category Selector: General, Children, Female & Endocrine, Acute
           HomeopathyCategorySelector(
@@ -1093,65 +1091,38 @@ class _HomeopathyCaseTakingSheetState
 
           // Section A: Case Overview
           _buildAccordionCard(
-            title: 'A. Case Overview',
+            title: 'A. Case overview',
             subtitle: _sheet.overview.caseType.label,
             isComplete: _sheet.overview.isCompleted,
-            icon: Icons.assignment_outlined,
+            icon: HomeopathyIcons.clipboard,
             children: [
               // Acute vs Chronic toggle
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Center(child: Text('Chronic Case')),
-                      selected:
-                          _sheet.overview.caseType ==
-                          HomeopathyCaseType.chronic,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() {
-                            _sheet = _sheet.copyWith(
-                              overview: _sheet.overview.copyWith(
-                                caseType: HomeopathyCaseType.chronic,
-                              ),
-                            );
-                          });
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: CruSpace.s8),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Center(child: Text('Acute Case')),
-                      selected:
-                          _sheet.overview.caseType == HomeopathyCaseType.acute,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() {
-                            _sheet = _sheet.copyWith(
-                              overview: _sheet.overview.copyWith(
-                                caseType: HomeopathyCaseType.acute,
-                              ),
-                            );
-                          });
-                        }
-                      },
-                    ),
-                  ),
+              CruSegmentedControl<HomeopathyCaseType>(
+                semanticLabel: 'Case type',
+                segments: const [
+                  CruSegment(HomeopathyCaseType.chronic, 'Chronic case'),
+                  CruSegment(HomeopathyCaseType.acute, 'Acute case'),
                 ],
+                selected: _sheet.overview.caseType == HomeopathyCaseType.acute
+                    ? HomeopathyCaseType.acute
+                    : HomeopathyCaseType.chronic,
+                onChanged: (type) => setState(() {
+                  _sheet = _sheet.copyWith(
+                    overview: _sheet.overview.copyWith(caseType: type),
+                  );
+                }),
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _chiefProblemCtrl,
-                label: 'Chief Problem / Presenting Issue *',
+                label: 'Chief problem / presenting issue *',
                 hint: 'e.g. Recurrent migraine headaches, skin eczema',
                 maxLines: 2,
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _consultationReasonCtrl,
-                label: 'Reason for Consultation / Expectations',
+                label: 'Reason for consultation / expectations',
                 hint:
                     'Why patient is seeking homeopathic constitutional treatment',
                 maxLines: 2,
@@ -1159,7 +1130,7 @@ class _HomeopathyCaseTakingSheetState
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _perceivedCauseCtrl,
-                label: 'Patient\'s Perceived Cause (Physical or Emotional)',
+                label: 'Patient\'s perceived cause (physical or emotional)',
                 hint:
                     'What caused the complaint according to the patient? (e.g. Grief, cold wind, injury, work stress)',
                 maxLines: 2,
@@ -1170,7 +1141,7 @@ class _HomeopathyCaseTakingSheetState
                   Expanded(
                     child: _buildTextField(
                       controller: _priorHomeoExpCtrl,
-                      label: 'Prior Homeopathy Use',
+                      label: 'Prior homeopathy use',
                       hint: 'Past remedies / reactions / suppressions',
                     ),
                   ),
@@ -1178,7 +1149,7 @@ class _HomeopathyCaseTakingSheetState
                   Expanded(
                     child: _buildTextField(
                       controller: _referralSourceCtrl,
-                      label: 'How Known About Us',
+                      label: 'How known about us',
                       hint: 'Referral, Google, Family, Social',
                     ),
                   ),
@@ -1201,14 +1172,14 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general ||
               _category == HomeopathyCaseSheetCategory.femaleEndocrine)
             _buildAccordionCard(
-              title: 'B. Chief Complaint & Description',
-              subtitle: 'Location, Sensation, Onset, Progression',
+              title: 'B. Chief complaint & description',
+              subtitle: 'Location, sensation, onset, progression',
               isComplete: _sheet.chiefComplaint.isCompleted,
-              icon: Icons.healing_outlined,
+              icon: HomeopathyIcons.target,
               children: [
                 _buildTextField(
                   controller: _complaintCtrl,
-                  label: 'Detailed Complaint',
+                  label: 'Detailed complaint',
                   hint:
                       'Describe patient\'s chief complaint in their own words',
                   maxLines: 3,
@@ -1219,7 +1190,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _locationCtrl,
-                        label: 'Location / Side',
+                        label: 'Location / side',
                         hint: 'e.g. Right hypochondrium, forehead',
                       ),
                     ),
@@ -1276,14 +1247,14 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _triggeringCausesCtrl,
-                  label: 'Triggering Causes / Aetiology',
+                  label: 'Triggering causes / aetiology',
                   hint:
                       'After grief, exposure to cold wind, wet weather, anger, bad food',
                 ),
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _associatedSymptomsCtrl,
-                  label: 'Associated Symptoms',
+                  label: 'Associated symptoms',
                   hint: 'Accompanying complaints occurring with main problem',
                 ),
               ],
@@ -1292,14 +1263,14 @@ class _HomeopathyCaseTakingSheetState
           // Section C: Modalities (< Aggravations & > Ameliorations)
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'C. Modalities (< Aggravations & > Ameliorations)',
-              subtitle: 'Time, Position, Weather, Temperature, Motion',
+              title: 'C. Modalities (< aggravations & > ameliorations)',
+              subtitle: 'Time, position, weather, temperature, motion',
               isComplete: _sheet.modalities.isCompleted,
-              icon: Icons.tune_rounded,
+              icon: HomeopathyIcons.sliders,
               children: [
                 _buildTextField(
                   controller: _aggravatingCtrl,
-                  label: '< Aggravating Factors (Worse from)',
+                  label: '< aggravating factors (worse from)',
                   hint:
                       'e.g. Cold air, motion, night (3 AM), fatty foods, dampness',
                   maxLines: 2,
@@ -1307,7 +1278,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _amelioratingCtrl,
-                  label: '> Ameliorating Factors (Better from)',
+                  label: '> ameliorating factors (better from)',
                   hint:
                       'e.g. Warm applications, resting, open air, hard pressure, eating',
                   maxLines: 2,
@@ -1318,7 +1289,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _timePatternsCtrl,
-                        label: 'Time Modality',
+                        label: 'Time modality',
                         hint: 'Morning, evening, midnight, periodically',
                       ),
                     ),
@@ -1326,7 +1297,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _positionCtrl,
-                        label: 'Position Modality',
+                        label: 'Position modality',
                         hint: 'Lying, sitting, bending double',
                       ),
                     ),
@@ -1338,7 +1309,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _motionCtrl,
-                        label: 'Motion / Rest',
+                        label: 'Motion / rest',
                         hint: 'Continued motion, initial motion, rest',
                       ),
                     ),
@@ -1346,7 +1317,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _temperatureWeatherCtrl,
-                        label: 'Weather & Temperature',
+                        label: 'Weather & temperature',
                         hint: 'Rainy, stormy, heat of sun, draft of air',
                       ),
                     ),
@@ -1355,7 +1326,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _foodDrinkModalitiesCtrl,
-                  label: 'Food & Drink Modalities',
+                  label: 'Food & drink modalities',
                   hint:
                       'Aggravation from milk, tea, coffee, sweets, spicy food',
                 ),
@@ -1365,21 +1336,21 @@ class _HomeopathyCaseTakingSheetState
           // Section D: General Symptoms & Thermal State
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'D. General Symptoms & Thermal State',
-              subtitle: 'Thermal reaction, Cravings, Aversions, Thirst, Sleep',
+              title: 'D. General symptoms & thermal state',
+              subtitle: 'Thermal reaction, cravings, aversions, thirst, sleep',
               isComplete: _sheet.generalSymptoms.isCompleted,
-              icon: Icons.thermostat_rounded,
+              icon: HomeopathyIcons.thermometer,
               children: [
                 Text(
-                  'Thermal State (Crucial Keynote) *',
+                  'Thermal state (crucial keynote) *',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
                 Wrap(
                   spacing: CruSpace.s8,
                   children: [
-                    ChoiceChip(
-                      label: const Text('❄️ Chilly'),
+                    HomeopathyChoiceChip(
+                      label: 'Chilly',
                       selected:
                           _sheet.generalSymptoms.thermalState ==
                           HomeopathyThermalState.chilly,
@@ -1395,8 +1366,8 @@ class _HomeopathyCaseTakingSheetState
                         });
                       },
                     ),
-                    ChoiceChip(
-                      label: const Text('🔥 Hot'),
+                    HomeopathyChoiceChip(
+                      label: 'Hot',
                       selected:
                           _sheet.generalSymptoms.thermalState ==
                           HomeopathyThermalState.hot,
@@ -1412,8 +1383,8 @@ class _HomeopathyCaseTakingSheetState
                         });
                       },
                     ),
-                    ChoiceChip(
-                      label: const Text('⚖️ Ambithermal'),
+                    HomeopathyChoiceChip(
+                      label: 'Ambithermal',
                       selected:
                           _sheet.generalSymptoms.thermalState ==
                           HomeopathyThermalState.ambithermal,
@@ -1434,7 +1405,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s16),
                 // Thirst Quick-chips
                 Text(
-                  'Thirst Pattern',
+                  'Thirst pattern',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -1450,11 +1421,8 @@ class _HomeopathyCaseTakingSheetState
                         'Craves warm drinks',
                       ].map((thirstPreset) {
                         final isSelected = _thirstCtrl.text == thirstPreset;
-                        return FilterChip(
-                          label: Text(
-                            thirstPreset,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: thirstPreset,
                           selected: isSelected,
                           onSelected: (sel) {
                             setState(() {
@@ -1467,13 +1435,13 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _thirstCtrl,
-                  label: 'Thirst Details',
+                  label: 'Thirst details',
                   hint: 'Quantity, frequency, temperature preference',
                 ),
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _thirstStyleCtrl,
-                  label: 'Manner of Drinking Water',
+                  label: 'Manner of drinking water',
                   hint:
                       'e.g. Sips frequently (Ars), large gulps at long intervals (Bry), gulps rapidly',
                 ),
@@ -1483,7 +1451,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _extCtrl.thirstTimeCtrl,
-                        label: 'Thirst Time / Modal Hour',
+                        label: 'Thirst time / modal hour',
                         hint: 'Night, morning, during chill/heat',
                       ),
                     ),
@@ -1491,7 +1459,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _extCtrl.tasteChangesCtrl,
-                        label: 'Taste in Mouth / Changes',
+                        label: 'Taste in mouth / changes',
                         hint: 'Bitter, metallic, salty, sour, sweet, lost',
                       ),
                     ),
@@ -1500,7 +1468,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s14),
                 // Food Cravings & Aversions
                 Text(
-                  'Common Food Desires / Cravings',
+                  'Common food desires / cravings',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -1520,11 +1488,8 @@ class _HomeopathyCaseTakingSheetState
                       ].map((item) {
                         final list = _sheet.generalSymptoms.cravingsDesires;
                         final isPresent = list.contains(item);
-                        return FilterChip(
-                          label: Text(
-                            item,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: item,
                           selected: isPresent,
                           onSelected: (sel) {
                             final updated = List<String>.from(list);
@@ -1557,7 +1522,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _perspirationCtrl,
-                        label: 'Perspiration / Sweat',
+                        label: 'Perspiration / sweat',
                         hint: 'Profuse, offensive, stains yellow, head only',
                       ),
                     ),
@@ -1569,7 +1534,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _extCtrl.hungerTimeCtrl,
-                        label: 'Hunger Time & Fasting Effect',
+                        label: 'Hunger time & fasting effect',
                         hint: 'Aggravation from fasting, 11 AM hunger (Sulph)',
                       ),
                     ),
@@ -1577,7 +1542,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _extCtrl.eatingSpeedCtrl,
-                        label: 'Eating Speed',
+                        label: 'Eating speed',
                         hint: 'Eats hastily/in hurry, slow eater',
                       ),
                     ),
@@ -1586,7 +1551,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _extCtrl.hungerReactionCtrl,
-                  label: 'Reaction if Meal Delayed',
+                  label: 'Reaction if meal delayed',
                   hint:
                       'Headache, trembling, irritability, faintness (Lyc, Sulph)',
                 ),
@@ -1596,7 +1561,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _perspLocationCtrl,
-                        label: 'Perspiration Location',
+                        label: 'Perspiration location',
                         hint: 'Head/occiput, palms, soles, chest, axillae',
                       ),
                     ),
@@ -1604,7 +1569,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _perspOdourCtrl,
-                        label: 'Perspiration Odour / Staining',
+                        label: 'Perspiration odour / staining',
                         hint: 'Sour, offensive, sweet, stains yellow, oily',
                       ),
                     ),
@@ -1616,7 +1581,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _stoolsCtrl,
-                        label: 'Stool & Bowels',
+                        label: 'Stool & bowels',
                         hint: 'Constipation, ineffectual urging, diarrhea',
                       ),
                     ),
@@ -1636,7 +1601,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _skinCtrl,
-                        label: 'Skin Conditions',
+                        label: 'Skin conditions',
                         hint: 'Dry, unhealthy, eruptions, itching',
                       ),
                     ),
@@ -1644,7 +1609,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _energyCtrl,
-                        label: 'Energy & Weakness',
+                        label: 'Energy & weakness',
                         hint: 'Fatigue time, prostration',
                       ),
                     ),
@@ -1656,14 +1621,14 @@ class _HomeopathyCaseTakingSheetState
           // Section E: Physical Symptoms
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'E. Physical Symptoms by Systems',
-              subtitle: 'Joints, Respiratory, ENT, Headaches, Fever, Pain',
+              title: 'E. Physical symptoms by systems',
+              subtitle: 'Joints, respiratory, ENT, headaches, fever, pain',
               isComplete: _sheet.physicalSymptoms.isCompleted,
-              icon: Icons.accessibility_new_rounded,
+              icon: HomeopathyIcons.pulse,
               children: [
                 _buildTextField(
                   controller: _rheumatologyCtrl,
-                  label: 'Musculoskeletal & Joints',
+                  label: 'Musculoskeletal & joints',
                   hint: 'Stiffness on waking, gouty swellings, cracking joints',
                 ),
                 const SizedBox(height: CruSpace.s12),
@@ -1680,7 +1645,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _headVertigoCtrl,
-                        label: 'Head & Vertigo Symptoms',
+                        label: 'Head & vertigo symptoms',
                         hint: 'Headache location, sidedness, dizziness',
                       ),
                     ),
@@ -1689,7 +1654,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _respiratoryCtrl,
-                  label: 'Respiratory (Chest, Dyspnea, Asthma)',
+                  label: 'Respiratory (chest, dyspnea, asthma)',
                   hint:
                       'Breathing difficulty, chest oppression, asthmatic wheeze',
                 ),
@@ -1699,7 +1664,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _coughTypeCtrl,
-                        label: 'Cough Type',
+                        label: 'Cough type',
                         hint: 'Dry, loose, paroxysmal, barking, rattling',
                       ),
                     ),
@@ -1707,7 +1672,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _sputumDetailsCtrl,
-                        label: 'Sputum / Expectoration',
+                        label: 'Sputum / expectoration',
                         hint:
                             'Yellow/green/rusty, thick, frothy, blood-streaked',
                       ),
@@ -1717,12 +1682,12 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _coughTasteCtrl,
-                  label: 'Taste in Mouth during Cough / Illness',
+                  label: 'Taste in mouth during cough / illness',
                   hint: 'Metallic, bitter, salty, sour, sweet, putrid',
                 ),
                 const SizedBox(height: CruSpace.s14),
                 Text(
-                  'Acute Fever Stages',
+                  'Acute fever stages',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -1731,7 +1696,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _feverChillCtrl,
-                        label: 'Chill Stage',
+                        label: 'Chill stage',
                         hint: 'Onset direction, shivering, thirst',
                       ),
                     ),
@@ -1739,7 +1704,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _feverHeatCtrl,
-                        label: 'Heat / Flush Stage',
+                        label: 'Heat / flush stage',
                         hint: 'Burning dry heat, thirst during heat',
                       ),
                     ),
@@ -1751,7 +1716,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _feverSweatCtrl,
-                        label: 'Sweat Stage',
+                        label: 'Sweat stage',
                         hint: 'Profuse/scanty, relief after sweat',
                       ),
                     ),
@@ -1759,7 +1724,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _feverPeriodicityCtrl,
-                        label: 'Fever Periodicity / Spike Time',
+                        label: 'Fever periodicity / spike time',
                         hint: 'Alternate days, 3 PM-8 PM, night rise',
                       ),
                     ),
@@ -1769,7 +1734,7 @@ class _HomeopathyCaseTakingSheetState
                 _buildTextField(
                   controller: _digestiveStoolCtrl,
                   label:
-                      'Gastrointestinal & Bowels (Diarrhea / Dysentery / Tenesmus)',
+                      'Gastrointestinal & bowels (diarrhea / dysentery / tenesmus)',
                   hint:
                       'Stool consistency, color, ineffectual urging, relief or aggravation after stool',
                   maxLines: 2,
@@ -1777,7 +1742,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _cnsCtrl,
-                  label: 'Central Nervous System',
+                  label: 'Central nervous system',
                   hint: 'Trembling, numbness, twitching, sensory changes',
                 ),
                 const SizedBox(height: CruSpace.s12),
@@ -1786,7 +1751,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _painCharCtrl,
-                        label: 'Pain Characteristics',
+                        label: 'Pain characteristics',
                         hint: 'Stitching, burning, throbbing, shooting',
                       ),
                     ),
@@ -1794,7 +1759,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _painLocCtrl,
-                        label: 'Pain Location',
+                        label: 'Pain location',
                         hint: 'Exact site & radiation',
                       ),
                     ),
@@ -1808,17 +1773,17 @@ class _HomeopathyCaseTakingSheetState
               (_category == HomeopathyCaseSheetCategory.general ||
                   _category == HomeopathyCaseSheetCategory.femaleEndocrine))
             _buildAccordionCard(
-              title: 'F. Female / Reproductive History',
-              subtitle: 'Menstrual cycle, Menopause, Leucorrhoea',
+              title: 'F. Female / reproductive history',
+              subtitle: 'Menstrual cycle, menopause, leucorrhoea',
               isComplete: _sheet.femaleReproductive.isCompleted,
-              icon: Icons.pregnant_woman_rounded,
+              icon: HomeopathyIcons.female,
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: _buildTextField(
                         controller: _mensesCycleCtrl,
-                        label: 'Menstrual Cycle',
+                        label: 'Menstrual cycle',
                         hint: 'Regular, early, delayed (e.g. 28 days)',
                       ),
                     ),
@@ -1838,7 +1803,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _flowCharCtrl,
-                        label: 'Flow Character',
+                        label: 'Flow character',
                         hint: 'Profuse, scanty, dark, clotted, acrid',
                       ),
                     ),
@@ -1855,7 +1820,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _suppressionCtrl,
-                  label: 'Menstrual Suppression & Consequences',
+                  label: 'Menstrual suppression & consequences',
                   hint:
                       'Suppression from getting feet wet, grief, anger; resulting ailments',
                 ),
@@ -1865,7 +1830,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _menopauseCtrl,
-                        label: 'Menopause Details',
+                        label: 'Menopause details',
                         hint: 'Hot flushes, palpitations',
                       ),
                     ),
@@ -1873,7 +1838,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _obstetricCtrl,
-                        label: 'Obstetric History',
+                        label: 'Obstetric history',
                         hint: 'Gravida, Para, abortions',
                       ),
                     ),
@@ -1885,21 +1850,21 @@ class _HomeopathyCaseTakingSheetState
           // Section G: Mental & Emotional State
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'G. Mental & Emotional State',
-              subtitle: 'Disposition, Fears, Anxiety, Consolation, Aetiology',
+              title: 'G. Mental & emotional state',
+              subtitle: 'Disposition, fears, anxiety, consolation, aetiology',
               isComplete: _sheet.mentalEmotional.isCompleted,
-              icon: Icons.psychology_rounded,
+              icon: HomeopathyIcons.heart,
               children: [
                 _buildTextField(
                   controller: _dispositionCtrl,
-                  label: 'General Disposition',
+                  label: 'General disposition',
                   hint:
                       'Mild, irritable, hurried, weeping, fastidious, reserved, stubborn',
                 ),
                 const SizedBox(height: CruSpace.s14),
                 // Common Fears Quick-chips
                 Text(
-                  'Fears & Phobias',
+                  'Fears & phobias',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -1921,11 +1886,8 @@ class _HomeopathyCaseTakingSheetState
                       ].map((fear) {
                         final list = _sheet.mentalEmotional.fears;
                         final isPresent = list.contains(fear);
-                        return FilterChip(
-                          label: Text(
-                            fear,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: fear,
                           selected: isPresent,
                           onSelected: (sel) {
                             final updated = List<String>.from(list);
@@ -1946,7 +1908,7 @@ class _HomeopathyCaseTakingSheetState
                 ),
                 const SizedBox(height: CruSpace.s14),
                 Text(
-                  'Reaction to Disease & Illness',
+                  'Reaction to disease & illness',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -1963,11 +1925,8 @@ class _HomeopathyCaseTakingSheetState
                         'Calm & resigned',
                       ].map((item) {
                         final isSelected = _reactionToDiseaseCtrl.text == item;
-                        return FilterChip(
-                          label: Text(
-                            item,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: item,
                           selected: isSelected,
                           onSelected: (sel) {
                             setState(() {
@@ -1980,12 +1939,12 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s8),
                 _buildTextField(
                   controller: _reactionToDiseaseCtrl,
-                  label: 'Reaction to Disease Details',
+                  label: 'Reaction to disease details',
                   hint: 'Patient\'s attitude towards illness and suffering',
                 ),
                 const SizedBox(height: CruSpace.s14),
                 Text(
-                  'Demeanor / Sensorium during Illness',
+                  'Demeanor / sensorium during illness',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -2000,11 +1959,8 @@ class _HomeopathyCaseTakingSheetState
                         'Hurried, agitated & impatient',
                       ].map((item) {
                         final isSelected = _dullnessRestlessCtrl.text == item;
-                        return FilterChip(
-                          label: Text(
-                            item,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: item,
                           selected: isSelected,
                           onSelected: (sel) {
                             setState(() {
@@ -2017,7 +1973,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s8),
                 _buildTextField(
                   controller: _dullnessRestlessCtrl,
-                  label: 'Demeanor Details',
+                  label: 'Demeanor details',
                   hint: 'Restlessness vs dullness behavior in illness',
                 ),
                 const SizedBox(height: CruSpace.s12),
@@ -2026,7 +1982,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _facialExpressionCtrl,
-                        label: 'Facial Expression & Demeanor',
+                        label: 'Facial expression & demeanor',
                         hint: 'Anxious, pale, flushed, sunken, glassy',
                       ),
                     ),
@@ -2034,7 +1990,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _mentalShiftCtrl,
-                        label: 'Mental Shift Since Illness',
+                        label: 'Mental shift since illness',
                         hint: 'How mood changed since disease began',
                       ),
                     ),
@@ -2043,7 +1999,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s14),
                 // Consolation Reaction Quick-chips
                 Text(
-                  'Reaction to Consolation',
+                  'Reaction to consolation',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -2057,11 +2013,8 @@ class _HomeopathyCaseTakingSheetState
                         'Indifferent to consolation',
                       ].map((cons) {
                         final isSelected = _consolationCtrl.text == cons;
-                        return FilterChip(
-                          label: Text(
-                            cons,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: cons,
                           selected: isSelected,
                           onSelected: (sel) {
                             setState(() {
@@ -2077,7 +2030,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _anxietyCtrl,
-                        label: 'Anxiety & Worries',
+                        label: 'Anxiety & worries',
                         hint: 'Health, family, financial',
                       ),
                     ),
@@ -2085,7 +2038,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _companySolitudeCtrl,
-                        label: 'Company vs Alone',
+                        label: 'Company vs alone',
                         hint: 'Craves company or desires solitude',
                       ),
                     ),
@@ -2094,7 +2047,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _emotionalTriggersCtrl,
-                  label: 'Emotional Aetiology (Causes)',
+                  label: 'Emotional aetiology (causes)',
                   hint:
                       'Ailments from grief, mortification, suppressed anger, fright, shock',
                 ),
@@ -2109,7 +2062,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _familyDynamicsCtrl,
-                        label: 'Family Atmosphere',
+                        label: 'Family atmosphere',
                         hint: 'Domestic environment, harmony',
                       ),
                     ),
@@ -2117,7 +2070,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _spouseRelCtrl,
-                        label: 'Spouse / Marriage',
+                        label: 'Spouse / marriage',
                         hint: 'Relationship with spouse, conflicts',
                       ),
                     ),
@@ -2137,7 +2090,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _inlawsRelCtrl,
-                        label: 'In-Laws',
+                        label: 'In-laws',
                         hint: 'Domestic friction with in-laws',
                       ),
                     ),
@@ -2149,7 +2102,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _colleaguesCtrl,
-                        label: 'Colleagues & Workplace',
+                        label: 'Colleagues & workplace',
                         hint: 'Job stress, interpersonal frictions',
                       ),
                     ),
@@ -2157,7 +2110,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _majorTensionsCtrl,
-                        label: 'Major Life Tensions',
+                        label: 'Major life tensions',
                         hint: 'Financial strain, legal, chronic tensions',
                       ),
                     ),
@@ -2173,17 +2126,17 @@ class _HomeopathyCaseTakingSheetState
           // Section H: Dreams & Sleep
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'H. Dreams & Sleep Profile',
+              title: 'H. Dreams & sleep profile',
               subtitle: 'Sleep quality, disturbances, recurring dreams',
               isComplete: _sheet.dreamsSleep.isCompleted,
-              icon: Icons.bedtime_outlined,
+              icon: HomeopathyIcons.moon,
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: _buildTextField(
                         controller: _sleepQualityCtrl,
-                        label: 'Sleep Quality',
+                        label: 'Sleep quality',
                         hint: 'Refreshing, unrefreshing, restless',
                       ),
                     ),
@@ -2191,7 +2144,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _sleepDisturbancesCtrl,
-                        label: 'Sleep Disturbances',
+                        label: 'Sleep disturbances',
                         hint: 'Waking at 3 AM, insomnia, night terrors',
                       ),
                     ),
@@ -2199,7 +2152,7 @@ class _HomeopathyCaseTakingSheetState
                 ),
                 const SizedBox(height: CruSpace.s14),
                 Text(
-                  'Common / Recurring Dreams',
+                  'Common / recurring dreams',
                   style: CruType.subhead.w600.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s8),
@@ -2220,11 +2173,8 @@ class _HomeopathyCaseTakingSheetState
                       ].map((dream) {
                         final list = _sheet.dreamsSleep.recurringDreams;
                         final isPresent = list.contains(dream);
-                        return FilterChip(
-                          label: Text(
-                            dream,
-                            style: CruType.caption,
-                          ),
+                        return HomeopathyChoiceChip(
+                          label: dream,
                           selected: isPresent,
                           onSelected: (sel) {
                             final updated = List<String>.from(list);
@@ -2247,7 +2197,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _dreamCharCtrl,
-                  label: 'Dream Characteristics & Feelings upon waking',
+                  label: 'Dream characteristics & feelings upon waking',
                   hint: 'Anxious, vivid, frightful, pleasant',
                 ),
                 const SizedBox(height: CruSpace.s12),
@@ -2256,7 +2206,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _extCtrl.sleepPostureCtrl,
-                        label: 'Sleep Posture',
+                        label: 'Sleep posture',
                         hint: 'On back, abdomen, right side, left side',
                       ),
                     ),
@@ -2264,7 +2214,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _extCtrl.sleepRestrictionsCtrl,
-                        label: 'Position Restrictions',
+                        label: 'Position restrictions',
                         hint: 'Cannot lie on left side (heart), flat',
                       ),
                     ),
@@ -2273,14 +2223,14 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _extCtrl.sleepBehaviorsCtrl,
-                  label: 'Sleep Behaviors',
+                  label: 'Sleep behaviors',
                   hint:
                       'Grinding teeth, talking, laughing, snoring, twitching, starts in sleep',
                 ),
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _extCtrl.childhoodDreamsCtrl,
-                  label: 'Childhood Dreams (if recurring)',
+                  label: 'Childhood dreams (if recurring)',
                   hint: 'Monsters, falling, ghosts, animals, exams',
                 ),
               ],
@@ -2293,25 +2243,21 @@ class _HomeopathyCaseTakingSheetState
           // Section I: Sexual History (Discreet & Collapsible with privacy lock)
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'I. Sexual History (Privacy Protected)',
+              title: 'I. Sexual history (privacy protected)',
               subtitle: 'Desire level, complaints, sensitive concerns',
               isComplete: _sheet.sexualHistory.isCompleted,
-              icon: Icons.lock_outline_rounded,
+              icon: HomeopathyIcons.lock,
               children: [
                 if (!_sexualHistoryUnlocked)
                   Center(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: c.label,
-                          side: BorderSide(color: c.separator),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(CruRadius.control),
-                          ),
-                        ),
-                        icon: const Icon(Icons.visibility_outlined, size: 18),
-                        label: const Text('Unlock & View Sensitive Section'),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CruSpace.s8,
+                      ),
+                      child: CruButton(
+                        label: 'Show this section',
+                        kind: CruButtonKind.inset,
+                        icon: HomeopathyIcons.eye,
                         onPressed: () {
                           setState(() => _sexualHistoryUnlocked = true);
                         },
@@ -2321,19 +2267,19 @@ class _HomeopathyCaseTakingSheetState
                 else ...[
                   _buildTextField(
                     controller: _desireLevelCtrl,
-                    label: 'Sexual Desires',
+                    label: 'Sexual desires',
                     hint: 'Normal, increased, diminished, absent, aversions',
                   ),
                   const SizedBox(height: CruSpace.s12),
                   _buildTextField(
                     controller: _sexualConcernsCtrl,
-                    label: 'Complaints / Physical Concerns',
+                    label: 'Complaints / physical concerns',
                     hint: 'Specific clinical symptoms or dysfunction',
                   ),
                   const SizedBox(height: CruSpace.s12),
                   _buildTextField(
                     controller: _sexualNotesCtrl,
-                    label: 'Confidential Clinical Notes',
+                    label: 'Confidential clinical notes',
                     hint: 'Additional notes for practitioner reference',
                     maxLines: 2,
                   ),
@@ -2344,14 +2290,14 @@ class _HomeopathyCaseTakingSheetState
           // Section J: Medical / Health History
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'J. Past Medical & Family History',
-              subtitle: 'Illnesses, Surgeries, Medications, Allergies, Family',
+              title: 'J. Past medical & family history',
+              subtitle: 'Illnesses, surgeries, medications, allergies, family',
               isComplete: _sheet.medicalHistory.isCompleted,
-              icon: Icons.history_edu_rounded,
+              icon: HomeopathyIcons.history,
               children: [
                 _buildTextField(
                   controller: _pastIllnessesCtrl,
-                  label: 'Past Illnesses',
+                  label: 'Past illnesses',
                   hint:
                       'Typhoid, jaundice, recurrent pneumonia, measles, malaria',
                 ),
@@ -2361,7 +2307,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _surgeriesCtrl,
-                        label: 'Surgical & Injury History',
+                        label: 'Surgical & injury history',
                         hint: 'Appendectomy, fractures, head injury',
                       ),
                     ),
@@ -2369,7 +2315,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _medicationsCtrl,
-                        label: 'Past / Current Allopathic Meds',
+                        label: 'Past / current allopathic meds',
                         hint: 'Steroids, antibiotics, painkillers',
                       ),
                     ),
@@ -2381,7 +2327,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _allergiesCtrl,
-                        label: 'Allergies & Sensitivities',
+                        label: 'Allergies & sensitivities',
                         hint: 'Dust, pollen, penicillin, sulfur',
                       ),
                     ),
@@ -2389,7 +2335,7 @@ class _HomeopathyCaseTakingSheetState
                     Expanded(
                       child: _buildTextField(
                         controller: _familyHistoryCtrl,
-                        label: 'Family Medical History',
+                        label: 'Family medical history',
                         hint: 'T.B., Cancer, Diabetes, Asthma, Autoimmune',
                       ),
                     ),
@@ -2400,20 +2346,20 @@ class _HomeopathyCaseTakingSheetState
 
           // Section K: Physical Examination
           _buildAccordionCard(
-            title: 'K. Physical Examination',
-            subtitle: 'Tongue, Constitution, Pulse, BP, Tender spots',
+            title: 'K. Physical examination',
+            subtitle: 'Tongue, constitution, pulse, BP, tender spots',
             isComplete: _sheet.physicalExamination.isCompleted,
-            icon: Icons.medical_services_outlined,
+            icon: HomeopathyIcons.stethoscope,
             children: [
               _buildTextField(
                 controller: _constitutionCtrl,
-                label: 'Physical Constitution & Build',
+                label: 'Physical constitution & build',
                 hint: 'Lean, obese, plethoric, pale, flushed, posture',
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _tongueExamCtrl,
-                label: 'Tongue Examination (Homeopathic Keynote)',
+                label: 'Tongue examination (homeopathic keynote)',
                 hint:
                     'White coated, yellow at base, mapped, red edges, teeth indentations',
               ),
@@ -2431,7 +2377,7 @@ class _HomeopathyCaseTakingSheetState
                   Expanded(
                     child: _buildTextField(
                       controller: _sensitiveAreasCtrl,
-                      label: 'Tender / Sensitive Areas',
+                      label: 'Tender / sensitive areas',
                       hint: 'Epigastric tenderness, spinal spots',
                     ),
                   ),
@@ -2443,21 +2389,21 @@ class _HomeopathyCaseTakingSheetState
           // Section L: Investigations & Diagnostics
           if (_category != HomeopathyCaseSheetCategory.acute)
             _buildAccordionCard(
-              title: 'L. Investigations & Lab Reports',
+              title: 'L. Investigations & lab reports',
               subtitle: 'Blood tests, imaging, scan findings',
               isComplete: _sheet.investigations.isCompleted,
-              icon: Icons.science_outlined,
+              icon: HomeopathyIcons.flask,
               children: [
                 _buildTextField(
                   controller: _labReportsCtrl,
-                  label: 'Laboratory Test Results',
+                  label: 'Laboratory test results',
                   hint: 'CBC, ESR, Blood Sugar, Thyroid panel, Urine R/M',
                   maxLines: 2,
                 ),
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _imagingNotesCtrl,
-                  label: 'Imaging & Diagnostics',
+                  label: 'Imaging & diagnostics',
                   hint: 'X-Ray, Ultrasound, MRI reports summary',
                   maxLines: 2,
                 ),
@@ -2467,14 +2413,14 @@ class _HomeopathyCaseTakingSheetState
           // Section M: Peculiar Symptoms (SRP Keynotes)
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
-              title: 'M. Strange, Rare & Peculiar (SRP) Symptoms',
-              subtitle: 'Unusual symptom patterns, Keynotes, Idiosyncrasies',
+              title: 'M. Strange, rare & peculiar (SRP) symptoms',
+              subtitle: 'Unusual symptom patterns, keynotes, idiosyncrasies',
               isComplete: _sheet.peculiarSymptoms.isCompleted,
-              icon: Icons.star_border_rounded,
+              icon: HomeopathyIcons.star,
               children: [
                 _buildTextField(
                   controller: _peculiarSrpCtrl,
-                  label: 'SRP Symptoms ("As if..." sensations & keynotes)',
+                  label: 'SRP symptoms ("as if..." sensations & keynotes)',
                   hint:
                       'e.g. Sensation of a lump of ice in stomach, sleeps with head low',
                   maxLines: 3,
@@ -2482,7 +2428,7 @@ class _HomeopathyCaseTakingSheetState
                 const SizedBox(height: CruSpace.s12),
                 _buildTextField(
                   controller: _keynoteObsCtrl,
-                  label: 'Keynote Clinical Observations',
+                  label: 'Keynote clinical observations',
                   hint:
                       'Distinctive characteristic indications pointing to specific remedy',
                   maxLines: 2,
@@ -2492,20 +2438,16 @@ class _HomeopathyCaseTakingSheetState
 
           // Section N: Prescription, Repertorization & Advice
           _buildAccordionCard(
-            title: 'N. Repertorization & Prescribed Remedy',
-            subtitle: 'Miasm, Simillimum remedy, Potency, Regimen',
+            title: 'N. Repertorization & prescribed remedy',
+            subtitle: 'Miasm, Simillimum remedy, potency, regimen',
             isComplete: _sheet.prescriptionNotes.isCompleted,
-            icon: Icons.medication_outlined,
+            icon: HomeopathyIcons.pill,
             initiallyExpanded: true,
             children: [
               // Miasmatic Tendency Chips
               Text(
-                'Miasmatic Predominance',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: c.label,
-                ),
+                'Miasmatic predominance',
+                style: CruType.subhead.w600.tint(c.label),
               ),
               const SizedBox(height: CruSpace.s8),
               Wrap(
@@ -2520,11 +2462,8 @@ class _HomeopathyCaseTakingSheetState
                       'Mixed Miasm',
                     ].map((miasm) {
                       final isSelected = _miasmCtrl.text == miasm;
-                      return FilterChip(
-                        label: Text(
-                          miasm,
-                          style: CruType.caption,
-                        ),
+                      return HomeopathyChoiceChip(
+                        label: miasm,
                         selected: isSelected,
                         onSelected: (sel) {
                           setState(() {
@@ -2541,7 +2480,7 @@ class _HomeopathyCaseTakingSheetState
                     flex: 2,
                     child: _buildTextField(
                       controller: _remedyCtrl,
-                      label: 'Prescribed Remedy (Simillimum) *',
+                      label: 'Prescribed remedy (Simillimum) *',
                       hint: 'e.g. Lycopodium, Natrum Mur, Pulsatilla',
                     ),
                   ),
@@ -2559,7 +2498,7 @@ class _HomeopathyCaseTakingSheetState
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _totalityRubricsCtrl,
-                label: 'Totality of Symptoms (Core Synthesis)',
+                label: 'Totality of symptoms (core synthesis)',
                 hint:
                     'Synthesis of key mental, general, and peculiar SRP symptoms',
                 maxLines: 2,
@@ -2567,7 +2506,7 @@ class _HomeopathyCaseTakingSheetState
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _differentialRemediesCtrl,
-                label: 'Differential Remedies Considered',
+                label: 'Differential remedies considered',
                 hint:
                     'Close running remedies and reasons for choosing simillimum',
                 maxLines: 2,
@@ -2575,26 +2514,26 @@ class _HomeopathyCaseTakingSheetState
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _repetitionCtrl,
-                label: 'Dosage & Repetition Scale',
+                label: 'Dosage & repetition scale',
                 hint: 'e.g. 4 pills once daily at night, or single dose weekly',
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _repertoryNotesCtrl,
-                label: 'Repertorization Rubrics & Synthesis',
+                label: 'Repertorization rubrics & synthesis',
                 hint: 'Key rubrics used in repertorization chart',
                 maxLines: 2,
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _adviceDietCtrl,
-                label: 'Dietary & Lifestyle Advice',
+                label: 'Dietary & lifestyle advice',
                 hint: 'Avoid raw onions, strong coffee, camphor ointments',
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _additionalNotesCtrl,
-                label: 'General Clinical Notes',
+                label: 'General clinical notes',
                 hint: 'Follow-up timeline and observation targets',
                 maxLines: 2,
               ),
@@ -2603,19 +2542,15 @@ class _HomeopathyCaseTakingSheetState
 
           // Section O: Follow-Up & Second Prescription
           _buildAccordionCard(
-            title: 'O. Follow-Up & Second Prescription',
+            title: 'O. Follow-up & second prescription',
             subtitle:
-                'Clinical response, Direction of cure, Next prescription plan',
+                'Clinical response, direction of cure, next prescription plan',
             isComplete: _sheet.followUp.isCompleted,
-            icon: Icons.update_rounded,
+            icon: HomeopathyIcons.refresh,
             children: [
               Text(
-                'Clinical Response Rating',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: c.label,
-                ),
+                'Clinical response rating',
+                style: CruType.subhead.w600.tint(c.label),
               ),
               const SizedBox(height: CruSpace.s8),
               Wrap(
@@ -2631,8 +2566,8 @@ class _HomeopathyCaseTakingSheetState
                       'New Symptoms Appeared',
                     ].map((resp) {
                       final isSelected = _followUpResponseCtrl.text == resp;
-                      return FilterChip(
-                        label: Text(resp, style: CruType.caption),
+                      return HomeopathyChoiceChip(
+                        label: resp,
                         selected: isSelected,
                         onSelected: (sel) {
                           setState(() {
@@ -2644,12 +2579,8 @@ class _HomeopathyCaseTakingSheetState
               ),
               const SizedBox(height: CruSpace.s14),
               Text(
-                'Direction of Cure (Hering\'s Law)',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: c.label,
-                ),
+                'Direction of cure (Hering\'s law)',
+                style: CruType.subhead.w600.tint(c.label),
               ),
               const SizedBox(height: CruSpace.s8),
               Wrap(
@@ -2663,11 +2594,8 @@ class _HomeopathyCaseTakingSheetState
                       'Disorderly / Outward to inward (Suppression warning)',
                     ].map((hering) {
                       final isSelected = _heringsLawCtrl.text == hering;
-                      return FilterChip(
-                        label: Text(
-                          hering,
-                          style: CruType.caption,
-                        ),
+                      return HomeopathyChoiceChip(
+                        label: hering,
                         selected: isSelected,
                         onSelected: (sel) {
                           setState(() {
@@ -2679,12 +2607,8 @@ class _HomeopathyCaseTakingSheetState
               ),
               const SizedBox(height: CruSpace.s14),
               Text(
-                'Next Prescription Action Plan',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: c.label,
-                ),
+                'Next prescription action plan',
+                style: CruType.subhead.w600.tint(c.label),
               ),
               const SizedBox(height: CruSpace.s8),
               Wrap(
@@ -2700,11 +2624,8 @@ class _HomeopathyCaseTakingSheetState
                     ].map((action) {
                       final isSelected =
                           _nextPrescriptionPlanCtrl.text == action;
-                      return FilterChip(
-                        label: Text(
-                          action,
-                          style: CruType.caption,
-                        ),
+                      return HomeopathyChoiceChip(
+                        label: action,
                         selected: isSelected,
                         onSelected: (sel) {
                           setState(() {
@@ -2717,14 +2638,14 @@ class _HomeopathyCaseTakingSheetState
               const SizedBox(height: CruSpace.s14),
               _buildTextField(
                 controller: _clinicalChangesCtrl,
-                label: 'Clinical Changes Observed',
+                label: 'Clinical changes observed',
                 hint: 'Changes in chief complaint, energy, well-being, mood',
                 maxLines: 2,
               ),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _followUpNotesCtrl,
-                label: 'Follow-Up Notes & Instructions',
+                label: 'Follow-up notes & instructions',
                 hint:
                     'Specific observation goals, date to review, SOS instructions',
                 maxLines: 2,
@@ -2733,149 +2654,86 @@ class _HomeopathyCaseTakingSheetState
           ),
         ],
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: CruSpace.s16,
-          vertical: CruSpace.s12,
-        ),
-        decoration: BoxDecoration(color: c.surface, boxShadow: const []),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: CruSpace.s14),
-                    side: BorderSide(color: c.separator),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
+      // One filled action (Save & complete); Save draft is secondary.
+      bottomNavigationBar: VoicePillAvoid(
+        child: Container(
+          decoration: BoxDecoration(
+            color: c.surface,
+            border: Border(top: BorderSide(color: c.hairline)),
+          ),
+          child: SafeArea(
+            child: _centred(
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CruSpace.s20,
+                  vertical: CruSpace.s12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: CruButton(
+                        label: 'Save draft',
+                        kind: CruButtonKind.inset,
+                        expand: true,
+                        onPressed: _isSaving
+                            ? null
+                            : () => _saveCase(markComplete: false),
+                      ),
                     ),
-                  ),
-                  onPressed: _isSaving
-                      ? null
-                      : () => _saveCase(markComplete: false),
-                  child: Text(
-                    'Save Draft',
-                    style: CruType.callout.tint(c.label),
-                  ),
+                    const SizedBox(width: CruSpace.s12),
+                    Expanded(
+                      child: CruButton(
+                        label: _isSaving ? 'Saving…' : 'Save & complete',
+                        icon: _isSaving ? null : CruIcons.check,
+                        expand: true,
+                        onPressed: _isSaving
+                            ? null
+                            : () => _saveCase(markComplete: true),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: CruSpace.s12),
-              Expanded(
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _accentEmerald,
-                    padding: const EdgeInsets.symmetric(vertical: CruSpace.s14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
-                    ),
-                  ),
-                  onPressed: _isSaving
-                      ? null
-                      : () => _saveCase(markComplete: true),
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          'Save & Complete',
-                          style: CruType.callout.w700.tint(Colors.white),
-                        ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  /// The page column: as wide as the case sheet page it opens from.
+  Widget _centred(Widget child) => Center(
+    heightFactor: 1,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _maxWidth),
+      child: child,
+    ),
+  );
+
+  /// Keeps the form in the same centred column as the header and save bar.
+  EdgeInsets _bodyPadding(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final side = width > _maxWidth
+        ? (width - _maxWidth) / 2 + CruSpace.s20
+        : CruSpace.s16;
+    return EdgeInsets.fromLTRB(side, CruSpace.s16, side, CruSpace.s32);
+  }
+
   Widget _buildAccordionCard({
     required String title,
     required String subtitle,
     required bool isComplete,
-    required IconData icon,
+    required CruIconData icon,
     required List<Widget> children,
     bool initiallyExpanded = false,
   }) {
-    final c = context.cru;
-    return Container(
-      margin: const EdgeInsets.only(bottom: CruSpace.s12),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(CruRadius.card),
-        border: Border.all(
-          color: isComplete
-              ? c.green.withValues(alpha: 0.35)
-              : c.separator,
-        ),
-        boxShadow: const [],
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: initiallyExpanded,
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: CruSpace.s16,
-            vertical: CruSpace.s4,
-          ),
-          leading: Container(
-            width: CruSize.iconTile,
-            height: CruSize.iconTile,
-            decoration: BoxDecoration(
-              color: isComplete
-                  ? c.greenTint
-                  : c.inset,
-              borderRadius: BorderRadius.circular(CruRadius.iconTile),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: isComplete ? c.greenText : c.label3,
-            ),
-          ),
-          title: Text(title, style: CruType.callout.w700.tint(c.label)),
-          subtitle: Text(
-            subtitle,
-            style: CruType.micro.tint(c.label2),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isComplete)
-                Padding(
-                  padding: const EdgeInsets.only(right: CruSpace.s6),
-                  child: Icon(
-                    Icons.check_circle_rounded,
-                    color: c.greenText,
-                    size: 18,
-                  ),
-                ),
-              Icon(
-                Icons.expand_more_rounded,
-                color: c.label2,
-                size: 20,
-              ),
-            ],
-          ),
-          childrenPadding: const EdgeInsets.fromLTRB(
-            CruSpace.s16,
-            0,
-            CruSpace.s16,
-            CruSpace.s16,
-          ),
-          children: children,
-        ),
-      ),
+    return HomeopathyAccordionCard(
+      title: title,
+      subtitle: subtitle,
+      isComplete: isComplete,
+      icon: icon,
+      initiallyExpanded: initiallyExpanded,
+      children: children,
     );
   }
 
@@ -2886,115 +2744,12 @@ class _HomeopathyCaseTakingSheetState
     int maxLines = 1,
     bool enableVoice = true,
   }) {
-    final c = context.cru;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(label, style: CruType.caption.w600.tint(c.label)),
-            ),
-            if (enableVoice)
-              InkWell(
-                borderRadius: BorderRadius.circular(CruSpace.s8),
-                onTap: () async {
-                  final text = await HomeopathyVoiceDictationSheet.show(
-                    context,
-                    fieldName: label,
-                    initialText: controller.text,
-                  );
-                  if (text != null && text.trim().isNotEmpty) {
-                    setState(() {
-                      if (controller.text.trim().isEmpty) {
-                        controller.text = text.trim();
-                      } else {
-                        controller.text =
-                            '${controller.text.trim()}\n${text.trim()}';
-                      }
-                    });
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s6,
-                    vertical: CruSpace.s2,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.mic_rounded,
-                        size: 14,
-                        color: _accentEmerald,
-                      ),
-                      const SizedBox(width: CruSpace.s4),
-                      Text(
-                        'Speak',
-                        style: CruType.micro.w700.tint(_accentEmerald),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: CruSpace.s6),
-        TextField(
-          controller: controller,
-          maxLines: maxLines,
-          style: CruType.subhead.tint(c.label),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: CruType.caption.tint(c.label3),
-            suffixIcon: enableVoice
-                ? IconButton(
-                    icon: const Icon(Icons.mic_none_rounded, size: 18),
-                    color: _accentEmerald.withValues(alpha: 0.8),
-                    tooltip: 'Speak to fill $label',
-                    onPressed: () async {
-                      final text = await HomeopathyVoiceDictationSheet.show(
-                        context,
-                        fieldName: label,
-                        initialText: controller.text,
-                      );
-                      if (text != null && text.trim().isNotEmpty) {
-                        setState(() {
-                          if (controller.text.trim().isEmpty) {
-                            controller.text = text.trim();
-                          } else {
-                            controller.text =
-                                '${controller.text.trim()}\n${text.trim()}';
-                          }
-                        });
-                      }
-                    },
-                  )
-                : null,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: CruSpace.s12,
-              vertical: CruSpace.s10,
-            ),
-            filled: true,
-            fillColor: c.inset,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              borderSide: const BorderSide(
-                color: _accentEmerald,
-                width: 1.5,
-              ),
-            ),
-          ),
-        ),
-      ],
+    return HomeopathyFormField(
+      controller: controller,
+      label: label,
+      hint: hint,
+      maxLines: maxLines,
+      enableVoice: enableVoice,
     );
   }
 
@@ -3109,6 +2864,42 @@ class _HomeopathyCaseTakingSheetState
       relationshipsCtrl: _extCtrl.childhoodRelationshipsCtrl,
       sensitivitiesCtrl: _extCtrl.childhoodSensitivitiesCtrl,
       isComplete: _sheet.childhoodHistory.isCompleted,
+    );
+  }
+}
+
+/// "Voice scribe": fills the sheet from a recorded consultation, so it
+/// wears the AI colour (violet), like Scribe's Transcribe button.
+class _VoiceScribeButton extends StatelessWidget {
+  const _VoiceScribeButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruPressable(
+      onTap: onPressed,
+      semanticLabel: 'Fill the case sheet from a consultation recording',
+      tooltip: 'Record the consultation; Scribe fills the sheet',
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        height: CruSize.filterChip,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+        decoration: ShapeDecoration(
+          color: hovered ? c.aiTint : c.surface,
+          shape: StadiumBorder(side: BorderSide(color: c.hairline)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CruIcon(CruIcons.sparkle, size: 14, strokeWidth: 2, color: c.ai),
+            const SizedBox(width: CruSpace.s6),
+            Text('Voice scribe', style: CruType.subhead.w500.tint(c.ai)),
+          ],
+        ),
+      ),
     );
   }
 }

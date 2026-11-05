@@ -54,6 +54,8 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
   bool _opening = false;
   bool _cancelling = false;
+  bool _mockPaying = false;
+  String? _error;
   PlanCheckout? _checkout;
   PlanPayment? _payment;
   StreamSubscription<PlanPayment>? _watch;
@@ -78,7 +80,10 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   }
 
   Future<void> _startCheckout() async {
-    setState(() => _opening = true);
+    setState(() {
+      _opening = true;
+      _error = null;
+    });
     try {
       final checkout = await _subscriptionService.startPlanCheckout(
         widget.selectedModules,
@@ -93,7 +98,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
         _payment = null;
         _opening = false;
       });
-      await _openPaymentPage();
+      if (!checkout.mock) await _openPaymentPage();
     } catch (e) {
       if (!mounted) return;
       setState(() => _opening = false);
@@ -119,6 +124,24 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     }
   }
 
+  /// Test mode only: the server unlocks the plan and the watch shows the
+  /// receipt, the same as a real payment.
+  Future<void> _completeMockPayment() async {
+    final orderId = _checkout?.orderId;
+    if (orderId == null) return;
+    setState(() {
+      _mockPaying = true;
+      _error = null;
+    });
+    try {
+      await _subscriptionService.completeMockPayment(orderId);
+    } catch (e) {
+      if (mounted) _showError(e is StateError ? e.message : '$e');
+    } finally {
+      if (mounted) setState(() => _mockPaying = false);
+    }
+  }
+
   Future<void> _cancel() async {
     final orderId = _checkout?.orderId;
     if (orderId == null) return;
@@ -137,12 +160,32 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     setState(() {
       _checkout = null;
       _payment = null;
+      _error = null;
     });
   }
 
+  /// Shown inside the sheet: a snackbar would sit behind it, unseen.
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    setState(() => _error = message);
+  }
+
+  Widget _errorPanel(CruColors c, String message) {
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s14),
+      decoration: BoxDecoration(
+        color: c.redTint,
+        borderRadius: BorderRadius.circular(CruRadius.control),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CruIcon(CruIcons.warning, color: c.redText),
+          const SizedBox(width: CruSpace.s10),
+          Expanded(
+            child: Text(message, style: CruType.caption.tint(c.redText)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -195,6 +238,10 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                       _orderSummary(c),
                       const SizedBox(height: CruSpace.s16),
                       _statusPanel(c, status),
+                      if (_error case final error?) ...[
+                        const SizedBox(height: CruSpace.s12),
+                        _errorPanel(c, error),
+                      ],
                     ],
                   ),
                 ),
@@ -320,6 +367,15 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                 'themselves as soon as your bank confirms, usually within a '
                 'minute.',
           ),
+          PlanPaymentStatus.starting ||
+          PlanPaymentStatus.pending when _checkout?.mock == true => (
+            CruIcons.wallet,
+            true,
+            'Test payment',
+            'Test mode: no money moves. Tap "Complete test payment" to act '
+                'as if your bank confirmed it. Your features switch on right '
+                'after.',
+          ),
           PlanPaymentStatus.starting || PlanPaymentStatus.pending => (
             CruIcons.clock,
             true,
@@ -408,6 +464,22 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           onPressed: _opening ? null : _startCheckout,
         ),
       ],
+      PlanPaymentStatus.starting ||
+      PlanPaymentStatus.pending when _checkout?.mock == true => [
+        CruButton(
+          label: _mockPaying
+              ? 'Completing…'
+              : 'Complete test payment of ${_currency.format(_amountInr)}',
+          expand: true,
+          large: true,
+          onPressed: _mockPaying || _cancelling ? null : _completeMockPayment,
+        ),
+        const SizedBox(height: CruSpace.s8),
+        CruLink(
+          label: _cancelling ? 'Cancelling…' : 'Cancel payment',
+          onPressed: _cancelling || _mockPaying ? null : _cancel,
+        ),
+      ],
       PlanPaymentStatus.starting || PlanPaymentStatus.pending => [
         CruButton(
           label: 'Open the payment page again',
@@ -486,7 +558,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           Text('Payment received', style: CruType.title2.tint(c.label)),
           const SizedBox(height: CruSpace.s6),
           Text(
-            'Your bank confirmed the payment. Your modules are on now.',
+            _checkout?.mock == true
+                ? 'Test payment complete. Your modules are on now.'
+                : 'Your bank confirmed the payment. Your modules are on now.',
             textAlign: TextAlign.center,
             style: CruType.text.tint(c.label2),
           ),

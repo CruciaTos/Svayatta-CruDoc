@@ -29,12 +29,18 @@ enum PlanPaymentStatus {
 /// A checkout the `planPayments` function just opened.
 class PlanCheckout {
   final String orderId;
-  final Uri checkoutUrl;
+
+  /// The gateway's payment page. Null for a test payment.
+  final Uri? checkoutUrl;
   final int amountPaise;
   final List<String> modules;
 
   /// How many people are paying ahead on the gateway (it takes one at a time).
   final int? queuePosition;
+
+  /// A test payment (dev project only): no money moves, and the app
+  /// completes it with `planPayments{mockPay}` instead of a payment page.
+  final bool mock;
 
   const PlanCheckout({
     required this.orderId,
@@ -42,15 +48,20 @@ class PlanCheckout {
     required this.amountPaise,
     required this.modules,
     this.queuePosition,
+    this.mock = false,
   });
 
-  factory PlanCheckout.fromMap(Map<String, dynamic> data) => PlanCheckout(
-    orderId: data['orderId'] as String,
-    checkoutUrl: Uri.parse(data['checkoutUrl'] as String),
-    amountPaise: (data['amountPaise'] as num).toInt(),
-    modules: List<String>.from(data['modules'] as List? ?? const []),
-    queuePosition: (data['queuePosition'] as num?)?.toInt(),
-  );
+  factory PlanCheckout.fromMap(Map<String, dynamic> data) {
+    final url = data['checkoutUrl'];
+    return PlanCheckout(
+      orderId: data['orderId'] as String,
+      checkoutUrl: url is String && url.isNotEmpty ? Uri.parse(url) : null,
+      amountPaise: (data['amountPaise'] as num).toInt(),
+      modules: List<String>.from(data['modules'] as List? ?? const []),
+      queuePosition: (data['queuePosition'] as num?)?.toInt(),
+      mock: data['mock'] == true,
+    );
+  }
 }
 
 /// `plan_payments/{orderId}` as the app reads it.

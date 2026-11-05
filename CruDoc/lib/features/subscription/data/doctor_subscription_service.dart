@@ -81,8 +81,14 @@ class DoctorSubscriptionService {
       }
 
       final data = doc.data()!;
-      final planName = (data['subscriptionPlan'] as String?) ?? 'Starter';
+      var planName = (data['subscriptionPlan'] as String?) ?? 'Starter';
       final status = (data['status'] as String?) ?? 'active';
+      // Paying for a trial leaves subscriptionPlan as "Trial" (the Super
+      // Admin owns that field); status "active" says it is paid now.
+      if (status.toLowerCase() == 'active' &&
+          planName.toLowerCase() == 'trial') {
+        planName = 'Paid';
+      }
       final isCancelled = (data['subscriptionCancelled'] as bool?) ?? false;
       final modulesRaw =
           (data['enabledModules'] as List<dynamic>?)
@@ -157,6 +163,21 @@ class DoctorSubscriptionService {
     } on CallableException catch (e) {
       throw StateError(
         e.message.isNotEmpty ? e.message : 'Could not cancel the payment.',
+      );
+    }
+  }
+
+  /// Completes a test checkout (one started with `mock: true`) as if the
+  /// bank had confirmed it. The server refuses this outside the dev project.
+  Future<void> completeMockPayment(String orderId) async {
+    try {
+      await _functions.call('planPayments', {
+        'action': 'mockPay',
+        'orderId': orderId,
+      });
+    } on CallableException catch (e) {
+      throw StateError(
+        e.message.isNotEmpty ? e.message : 'Could not complete the payment.',
       );
     }
   }

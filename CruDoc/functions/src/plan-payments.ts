@@ -93,6 +93,34 @@ export function gatewayConfig(): GatewayConfig {
   return {baseUrl, merchantId: env("YOUPI_MERCHANT_ID")};
 }
 
+/**
+ * Projects where test payments may be switched on. Never the live project:
+ * a test payment unlocks a plan with no money moving.
+ */
+const MOCK_PAYMENT_PROJECTS = new Set(["svayatta-crudoc-dev"]);
+
+function projectId(): string {
+  const direct = env("GCLOUD_PROJECT") || env("GCP_PROJECT");
+  if (direct) return direct;
+  try {
+    return String(JSON.parse(env("FIREBASE_CONFIG") || "{}").projectId ?? "");
+  } catch (_) {
+    return "";
+  }
+}
+
+/**
+ * Whether checkout runs as a test payment instead of going to YouPI. Needs
+ * both PLAN_PAYMENTS_MOCK=true (functions/.env.svayatta-crudoc-dev) and a
+ * project on the list above (or a local `demo-` emulator project), so a
+ * copied env file can't turn it on in production.
+ */
+export function mockPaymentsEnabled(): boolean {
+  if (env("PLAN_PAYMENTS_MOCK").toLowerCase() !== "true") return false;
+  const project = projectId();
+  return MOCK_PAYMENT_PROJECTS.has(project) || project.startsWith("demo-");
+}
+
 function webhookSecret(): string {
   try {
     const v = youpiWebhookSecret.value();
@@ -191,6 +219,7 @@ async function start(request: CallableRequest) {
   if (!modules.length) {
     throw new HttpsError("invalid-argument", "Choose at least one paid feature.");
   }
+  if (mockPaymentsEnabled()) return startMock(uid, modules, amountPaise);
   const cfg = gatewayConfig();
   await spend(uid, "planPaymentStarts", 1, STARTS_PER_HOUR, 3600_000,
     "That's a lot of payment attempts. Try again in an hour, or contact CruDoc support.");
@@ -274,6 +303,80 @@ async function start(request: CallableRequest) {
   return {orderId, checkoutUrl, amountPaise, modules, queuePosition};
 }
 
+// ---------------------------------------------------------------------------
+// Test payments (dev project only, see mockPaymentsEnabled)
+// ---------------------------------------------------------------------------
+
+/** A test order: no gateway, no payment page; the app shows a "pay" button. */
+async function startMock(uid: string, modules: string[], amountPaise: number) {
+  await spend(uid, "planPaymentStarts", 1, STARTS_PER_HOUR, 3600_000,
+    "That's a lot of payment attempts. Try again in an hour, or contact CruDoc support.");
+  const ref = admin.firestore().collection(PLAN_PAYMENTS).doc();
+  await ref.set({
+    doctorId: uid,
+    modules,
+    amountPaise,
+    currency: "INR",
+    gateway: "mock",
+    status: "pending" as PlanPaymentStatus,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return {orderId: ref.id, checkoutUrl: null, amountPaise, modules, queuePosition: null, mock: true};
+}
+
+/**
+ * Pays a test order as if the bank had confirmed it: the same writePaidPlan
+ * as a real payment, so the plan unlocks and the Super Admin sees the
+ * receipt (marked gateway "mock").
+ */
+async function mockPay(request: CallableRequest) {
+  const uid = requireUid(request);
+  if (!mockPaymentsEnabled()) {
+    throw new HttpsError("failed-precondition", "Test payments are off.");
+  }
+  const orderId = String(request.data?.orderId ?? "").trim();
+  if (!/^[A-Za-z0-9]{1,64}$/.test(orderId)) {
+    throw new HttpsError("invalid-argument", "orderId is required.");
+  }
+
+  const db = admin.firestore();
+  const ref = db.collection(PLAN_PAYMENTS).doc(orderId);
+  return db.runTransaction(async (tx) => {
+    const [orderSnap, userSnap] = await Promise.all([
+      tx.get(ref), tx.get(db.collection("users").doc(uid)),
+    ]);
+    const order = orderSnap.data();
+    if (!order || order.doctorId !== uid || order.gateway !== "mock") {
+      throw new HttpsError("not-found", "Payment not found.");
+    }
+    if (order.status === "paid") {
+      return {orderId, status: "paid", transactionId: order.transactionId};
+    }
+    if (order.status !== "pending") {
+      throw new HttpsError("failed-precondition", `This payment is ${order.status}.`);
+    }
+
+    const utr = `MOCK${Date.now()}`;
+    const {transactionId, validUntil} = writePaidPlan(tx, uid, userSnap.data() || {}, {
+      modules: order.modules,
+      amountInr: order.amountPaise / 100,
+      paymentMethod: "UPI",
+      transactionReference: utr,
+      receipt: {gateway: "mock", orderId, utr, mock: true},
+    });
+    tx.update(ref, {
+      status: "paid",
+      utr,
+      transactionId,
+      validUntil,
+      paidAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return {orderId, status: "paid", transactionId};
+  });
+}
+
 async function cancel(request: CallableRequest) {
   const uid = requireUid(request);
   const orderId = String(request.data?.orderId ?? "").trim();
@@ -316,12 +419,15 @@ async function cancel(request: CallableRequest) {
  * `planPayments({action, ...})`:
  *   start   {modules}   -> {orderId, checkoutUrl, amountPaise, modules, queuePosition}
  *   cancel  {orderId}   -> {orderId, status}
+ *   mockPay {orderId}   -> {orderId, status, transactionId}   (test payments only)
  * The outcome arrives on plan_payments/{orderId}, which the app watches.
+ * With test payments on, start returns `mock: true` and no checkoutUrl.
  */
 export const planPayments = onCall({region: REGION, maxInstances: 10}, async (request) => {
   switch (String(request.data?.action ?? "")) {
   case "start": return start(request);
   case "cancel": return cancel(request);
+  case "mockPay": return mockPay(request);
   default: throw new HttpsError("invalid-argument", "Unknown action.");
   }
 });

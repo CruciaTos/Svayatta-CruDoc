@@ -58,7 +58,7 @@ global.fetch = async (url, init = {}) => {
 
 const {
   planPayments, youpiWebhook, priceModules, rupees, normaliseUtr, checkoutUrlFrom,
-  verifyGatewaySignature, PLAN_PAYMENTS, STARTS_PER_HOUR,
+  verifyGatewaySignature, PLAN_PAYMENTS, STARTS_PER_HOUR, mockPaymentsEnabled,
 } = require('../lib/plan-payments');
 const subscription = require('../lib/subscription');
 
@@ -409,6 +409,83 @@ test('signature check: no secret configured means refuse, not accept', () => {
   const raw = Buffer.from('{}');
   const sig = `sha256=${crypto.createHmac('sha256', '').update(raw).digest('hex')}`;
   assert.deepStrictEqual(verifyGatewaySignature(raw, sig, ''), {ok: false, reason: 'secret_unset'});
+});
+
+section('test payments');
+
+/** Runs [fn] with test payments switched on for [project]. */
+async function withMock(fn, project = 'svayatta-crudoc-dev') {
+  const saved = {mock: process.env.PLAN_PAYMENTS_MOCK, project: process.env.GCLOUD_PROJECT};
+  process.env.PLAN_PAYMENTS_MOCK = 'true';
+  process.env.GCLOUD_PROJECT = project;
+  try {
+    await fn();
+  } finally {
+    if (saved.mock === undefined) delete process.env.PLAN_PAYMENTS_MOCK;
+    else process.env.PLAN_PAYMENTS_MOCK = saved.mock;
+    if (saved.project === undefined) delete process.env.GCLOUD_PROJECT;
+    else process.env.GCLOUD_PROJECT = saved.project;
+  }
+}
+
+test('off by default, and off on any project not on the list', async () => {
+  assert.strictEqual(mockPaymentsEnabled(), false);
+  await withMock(async () => {
+    assert.strictEqual(mockPaymentsEnabled(), false);
+    const r = await started();
+    assert.ok(r.checkoutUrl, 'went to the real gateway');
+    await rejects('failed-precondition', call({action: 'mockPay', orderId: r.orderId}));
+    assert.strictEqual(user().status, 'expired');
+  }, 'svayatta-crudoc-prod');
+});
+
+test('a test checkout skips the gateway, then mockPay unlocks the plan with a marked receipt', async () => {
+  const {Timestamp} = require('firebase-admin/firestore');
+  await withMock(async () => {
+    db.seed(`users/${DR}`, {
+      name: 'Dr Pay', email: 'pay@clinic.test', status: 'active',
+      expiresDate: Timestamp.fromMillis(Date.now() + 10 * 86400000),
+      enabledModules: ['dashboard', 'revenue'],
+    });
+    const r = await call({action: 'start', modules: ['revenue', 'home_visits']});
+    assert.strictEqual(r.mock, true);
+    assert.strictEqual(r.checkoutUrl, null);
+    assert.strictEqual(r.amountPaise, (999 + 1499) * 100);
+    assert.strictEqual(gateway.calls.length, 0);
+    assert.strictEqual(order(r.orderId).status, 'pending');
+
+    await rejects('not-found', call({action: 'mockPay', orderId: r.orderId}, 'someone-else'));
+    const out = await call({action: 'mockPay', orderId: r.orderId});
+    assert.strictEqual(out.status, 'paid');
+
+    const o = order(r.orderId);
+    assert.strictEqual(o.status, 'paid');
+    assert.ok(user().enabledModules.includes('home_visits'));
+    assert.strictEqual(user().status, 'active');
+    const receipt = db.peek(`payment_transactions/${o.transactionId}`);
+    assert.strictEqual(receipt.status, 'success');
+    assert.strictEqual(receipt.gateway, 'mock');
+    assert.strictEqual(receipt.mock, true);
+    assert.strictEqual(receipt.amount, 2498);
+    assert.deepStrictEqual(receipt.addedModules, ['home_visits']);
+    assert.deepStrictEqual(receipt.renewedModules, ['revenue']);
+
+    // Paying again changes nothing.
+    const again = await call({action: 'mockPay', orderId: r.orderId});
+    assert.strictEqual(again.transactionId, o.transactionId);
+    assert.strictEqual(db.all('payment_transactions').length, 1);
+  });
+});
+
+test('mockPay never pays a real gateway order or a cancelled one', async () => {
+  const real = await started();
+  await withMock(async () => {
+    await rejects('not-found', call({action: 'mockPay', orderId: real.orderId}));
+    const r = await call({action: 'start', modules: ['revenue']});
+    await call({action: 'cancel', orderId: r.orderId});
+    await rejects('failed-precondition', call({action: 'mockPay', orderId: r.orderId}));
+    assert.strictEqual(user().status, 'expired');
+  });
 });
 
 (async () => {

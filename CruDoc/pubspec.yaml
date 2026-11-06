@@ -97,6 +97,7 @@ dependencies:
   cunning_document_scanner: 3.0.3
   basic_utils: ^5.7.0
   bonsoir: ^7.1.5
+  camera: ^0.12.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

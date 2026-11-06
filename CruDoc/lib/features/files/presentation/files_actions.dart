@@ -21,6 +21,8 @@ import 'package:doctor_management_app/features/appointments/presentation/patient
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_dicom_file.dart';
+import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
+import 'package:doctor_management_app/features/scan/presentation/scan_flow.dart';
 import 'package:doctor_management_app/features/files/presentation/send_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -175,15 +177,21 @@ abstract final class FilesActions {
   }) async {
     // On a phone the doctor often photographs a paper report there and then.
     if (_onPhone) {
-      final camera = await _askTakePhoto(context);
-      if (camera == null || !context.mounted) return;
-      if (camera) {
-        await _takePhotoAndAdd(
-          context,
-          patientId: patientId,
-          folderId: folderId,
-        );
-        return;
+      final source = await _askSource(context);
+      if (source == null || !context.mounted) return;
+      switch (source) {
+        case _AddSource.scan:
+          await _scanAndAdd(context, patientId: patientId, folderId: folderId);
+          return;
+        case _AddSource.photo:
+          await _takePhotoAndAdd(
+            context,
+            patientId: patientId,
+            folderId: folderId,
+          );
+          return;
+        case _AddSource.files:
+          break;
       }
     }
     final result = await FilePicker.pickFiles(
@@ -210,9 +218,9 @@ abstract final class FilesActions {
 
   static bool get _onPhone => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
-  /// True for the camera, false for files, null when dismissed.
-  static Future<bool?> _askTakePhoto(BuildContext context) =>
-      showModalBottomSheet<bool>(
+  /// Scan, photo or files; null when dismissed.
+  static Future<_AddSource?> _askSource(BuildContext context) =>
+      showModalBottomSheet<_AddSource>(
         context: context,
         useRootNavigator: true,
         showDragHandle: true,
@@ -228,20 +236,57 @@ abstract final class FilesActions {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
+                  leading: const Icon(Icons.document_scanner_outlined),
+                  title: const Text('Scan a document'),
+                  subtitle: const Text(
+                    'Reports and letters: found, cropped and straightened',
+                  ),
+                  onTap: () => Navigator.pop(sheet, _AddSource.scan),
+                ),
+                ListTile(
                   leading: const Icon(Icons.photo_camera_outlined),
                   title: const Text('Take a photo'),
-                  onTap: () => Navigator.pop(sheet, true),
+                  subtitle: const Text('Anything else, kept as it is'),
+                  onTap: () => Navigator.pop(sheet, _AddSource.photo),
                 ),
                 ListTile(
                   leading: const Icon(Icons.folder_open_outlined),
                   title: const Text('Choose files'),
-                  onTap: () => Navigator.pop(sheet, false),
+                  onTap: () => Navigator.pop(sheet, _AddSource.files),
                 ),
               ],
             ),
           ),
         ),
       );
+
+  /// Pages from the document camera, filed as "Scan 30 Oct 2026 19.30.jpg"
+  /// (or "(1 of 3)" for several pages).
+  static Future<void> _scanAndAdd(
+    BuildContext context, {
+    String? patientId,
+    String folderId = '',
+  }) async {
+    final List<ScannedPage> pages;
+    try {
+      pages = await ScanCapture.capture(context);
+    } on ScanCaptureException catch (e) {
+      if (context.mounted) say(context, e.message);
+      return;
+    }
+    if (pages.isEmpty || !context.mounted) return;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final base =
+        'Scan ${now.year}-${two(now.month)}-${two(now.day)} '
+        '${two(now.hour)}.${two(now.minute)}.${two(now.second)}';
+    await addSources(
+      context,
+      scanFileSources(pages, base),
+      patientId: patientId,
+      folderId: folderId,
+    );
+  }
 
   static Future<void> _takePhotoAndAdd(
     BuildContext context, {
@@ -495,3 +540,5 @@ abstract final class FilesActions {
     await showSendToColleagueSheet(context, ref, files);
   }
 }
+
+enum _AddSource { scan, photo, files }

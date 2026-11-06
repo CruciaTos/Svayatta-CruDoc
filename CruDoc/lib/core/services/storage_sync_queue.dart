@@ -132,6 +132,10 @@ typedef UploadLinkHandler = Future<void> Function(UploadLinkContext context);
 typedef UploadExecutor =
     Future<StoredFile> Function(PendingUpload item, Uint8List bytes);
 
+/// Uploads one item straight from its staged file, without loading it.
+typedef FileUploadExecutor =
+    Future<StoredFile> Function(PendingUpload item, File file);
+
 /// Sets [field] on a Firestore document; fails until the document exists.
 typedef FirestoreFieldPatch =
     Future<void> Function(
@@ -155,6 +159,7 @@ class StorageSyncQueue {
   StorageSyncQueue._({
     UploadStore? store,
     UploadExecutor? upload,
+    FileUploadExecutor? uploadFile,
     Future<void> Function(String path)? deleteObject,
     FirestoreFieldPatch? patchFirestore,
     String? Function()? currentDoctorId,
@@ -162,6 +167,7 @@ class StorageSyncQueue {
     DateTime Function()? now,
   }) : _store = store ?? (kIsWeb ? MemoryUploadStore() : SqliteUploadStore()),
        _upload = upload ?? _uploadWithService,
+       _uploadFile = uploadFile ?? _uploadFileWithService,
        _deleteObject = deleteObject ?? _deleteWithService,
        _patchFirestore = patchFirestore ?? _patchFirestoreField,
        _currentDoctorId = currentDoctorId ?? _signedInDoctorId,
@@ -175,6 +181,7 @@ class StorageSyncQueue {
   factory StorageSyncQueue.forTesting({
     required UploadStore store,
     required UploadExecutor upload,
+    FileUploadExecutor? uploadFile,
     required Future<void> Function(String path) deleteObject,
     required String? Function() currentDoctorId,
     FirestoreFieldPatch? patchFirestore,
@@ -183,6 +190,9 @@ class StorageSyncQueue {
   }) => StorageSyncQueue._(
     store: store,
     upload: upload,
+    uploadFile:
+        uploadFile ??
+        (item, file) async => upload(item, await file.readAsBytes()),
     deleteObject: deleteObject,
     patchFirestore: patchFirestore ?? (collection, doc, field, value) async {},
     currentDoctorId: currentDoctorId,
@@ -192,6 +202,7 @@ class StorageSyncQueue {
 
   final UploadStore _store;
   final UploadExecutor _upload;
+  final FileUploadExecutor _uploadFile;
   final Future<void> Function(String path) _deleteObject;
   final FirestoreFieldPatch _patchFirestore;
   final String? Function() _currentDoctorId;
@@ -288,6 +299,52 @@ class StorageSyncQueue {
     String? replacePath,
     bool compress = false,
     bool deleteLocalAfter = false,
+  }) => _enqueue(
+    kind: kind,
+    sizeBytes: () async => bytes.lengthInBytes,
+    stage: (upload) => _store.stage(upload, bytes),
+    contentType: contentType,
+    patientId: patientId,
+    link: link,
+    replacePath: replacePath,
+    compress: compress,
+    deleteLocalAfter: deleteLocalAfter,
+  );
+
+  /// Like [enqueue], for a file on disk. The file is copied into staging
+  /// and, for imaging originals, uploaded straight from that copy, so a
+  /// 250 MB DICOM file is never held in memory. Not available on web.
+  Future<String?> enqueueFile({
+    required UploadKind kind,
+    required String sourcePath,
+    required String contentType,
+    String? patientId,
+    UploadLink? link,
+    String? replacePath,
+    bool compress = false,
+    bool deleteLocalAfter = false,
+  }) => _enqueue(
+    kind: kind,
+    sizeBytes: () => File(sourcePath).length(),
+    stage: (upload) => _store.stageFile(upload, sourcePath),
+    contentType: contentType,
+    patientId: patientId,
+    link: link,
+    replacePath: replacePath,
+    compress: compress,
+    deleteLocalAfter: deleteLocalAfter,
+  );
+
+  Future<String?> _enqueue({
+    required UploadKind kind,
+    required Future<int> Function() sizeBytes,
+    required Future<PendingUpload> Function(PendingUpload upload) stage,
+    required String contentType,
+    String? patientId,
+    UploadLink? link,
+    String? replacePath,
+    bool compress = false,
+    bool deleteLocalAfter = false,
   }) async {
     try {
       final doctorId = _currentDoctorId();
@@ -306,22 +363,19 @@ class StorageSyncQueue {
       final willCompress =
           _images.contains(contentType) &&
           (compress || _alwaysCompressed.contains(kind));
+      final size = await sizeBytes();
       if (!willCompress &&
-          exceedsUploadLimit(
-            bytes.lengthInBytes,
-            contentType: contentType,
-            kind: kind,
-          )) {
+          exceedsUploadLimit(size, contentType: contentType, kind: kind)) {
         _log(
-          'not enqueuing ${kind.name}: ${bytes.lengthInBytes} bytes is over '
-          'the limit for $contentType',
+          'not enqueuing ${kind.name}: $size bytes is over the limit for '
+          '$contentType',
         );
         return null;
       }
 
       final now = _now();
       final id = _uuid.v4();
-      await _store.stage(
+      await stage(
         PendingUpload(
           id: id,
           doctorId: doctorId,
@@ -337,7 +391,6 @@ class StorageSyncQueue {
           createdAt: now,
           updatedAt: now,
         ),
-        bytes,
       );
       _changes.add(null);
       unawaited(processPending(ignoreBackoff: true));
@@ -561,13 +614,21 @@ class StorageSyncQueue {
     try {
       var path = current.resultPath;
       if (path == null || path.isEmpty) {
-        final bytes = await _store.readBytes(current);
-        if (bytes == null) {
-          throw const _PermanentFailure(
-            'The saved copy of this file is missing.',
-          );
+        final StoredFile stored;
+        final staged = _streamsFromDisk(current.kind)
+            ? await _store.stagedFile(current)
+            : null;
+        if (staged != null) {
+          stored = await _uploadFile(current, staged);
+        } else {
+          final bytes = await _store.readBytes(current);
+          if (bytes == null) {
+            throw const _PermanentFailure(
+              'The saved copy of this file is missing.',
+            );
+          }
+          stored = await _upload(current, bytes);
         }
-        final stored = await _upload(current, bytes);
         path = stored.path;
         // Remember it before anything else can fail, so a retry finishes
         // linking rather than uploading a second copy. Start from the stored
@@ -780,6 +841,26 @@ class StorageSyncQueue {
   ) => FirebaseFirestore.instance.collection(collectionPath).doc(docId).update({
     field: value,
   });
+
+  /// Kinds uploaded straight from the staged file rather than from bytes
+  /// in memory: large, and never compressed.
+  static bool _streamsFromDisk(UploadKind kind) =>
+      kind == UploadKind.imagingOriginal;
+
+  static Future<StoredFile> _uploadFileWithService(
+    PendingUpload item,
+    File file,
+  ) async {
+    if (item.kind == UploadKind.imagingOriginal) {
+      return MedicalStorageService.instance.uploadImagingOriginalFile(
+        doctorId: item.doctorId,
+        patientId: item.patientId ?? '',
+        file: file,
+        contentType: item.contentType,
+      );
+    }
+    return _uploadWithService(item, await file.readAsBytes());
+  }
 
   static Future<StoredFile> _uploadWithService(
     PendingUpload item,

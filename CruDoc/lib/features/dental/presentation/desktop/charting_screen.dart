@@ -507,11 +507,13 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
           t,
     ];
 
-    // The same switch as every other screen's sub-screens. It scrolls
-    // sideways when the window is too narrow for every tab.
+    // The same switch as every other screen's sub-screens. It shrinks to
+    // fit when the window is too narrow for every tab (phones), so no tab
+    // is cut off, as on Patient details.
     final shownTab = tabs.contains(_tab) ? _tab : ChartingTab.teeth;
-    final switcher = SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    final switcher = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
       child: CruSegmentedControl<ChartingTab>(
         semanticLabel: 'Charting',
         segments: [for (final t in tabs) CruSegment(t, t.label)],

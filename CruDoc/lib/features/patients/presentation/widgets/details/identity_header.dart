@@ -21,7 +21,7 @@ class PatientDetailsHeader extends StatelessWidget {
     required this.onNewVisit,
     this.backLabel,
     this.tabs,
-    this.actions = const [],
+    this.actions,
   });
 
   final PatientSummary summary;
@@ -45,8 +45,12 @@ class PatientDetailsHeader extends StatelessWidget {
   /// Overview.
   final Widget? tabs;
 
-  /// Buttons before the ••• menu (Recall for dentists).
-  final List<Widget> actions;
+  /// Buttons before the ••• menu (Charting and Recall for dentists).
+  /// [compact] is true when the line is short of room: icon buttons then.
+  final List<Widget> Function(bool compact)? actions;
+
+  /// Below this width the first line's buttons are icon buttons.
+  static const double compactBelow = 720;
 
   /// Below this width the header is the phone one.
   static const double phoneBelow = 600;
@@ -81,11 +85,25 @@ class PatientDetailsHeader extends StatelessWidget {
           if (!phone) 'Patient since ${PatientFormat.longDate(p.createdAt)}',
         ].join(' · ');
 
+        final compact = box.maxWidth < compactBelow;
         final topLine = Row(
           children: [
-            DetailsBackLink(onBack: onBack, label: backLabel),
-            const Spacer(),
-            for (final a in actions) ...[a, const SizedBox(width: CruSpace.s10)],
+            // Shrinks rather than overflow when a long back label meets
+            // the buttons on a narrow phone.
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: DetailsBackLink(onBack: onBack, label: backLabel),
+                ),
+              ),
+            ),
+            for (final a in actions?.call(compact) ?? const <Widget>[]) ...[
+              a,
+              const SizedBox(width: CruSpace.s10),
+            ],
             menu,
             if (onNewVisit != null) ...[
               const SizedBox(width: CruSpace.s10),

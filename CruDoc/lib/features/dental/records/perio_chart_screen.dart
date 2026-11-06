@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -214,6 +215,9 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
   _ChartMode _mode = _ChartMode.pockets;
   final _notes = TextEditingController();
   _Cursor? _cursor;
+
+  /// On the selected site's cell, to keep it in view.
+  final _cursorKey = GlobalKey();
   Timer? _debounce;
   bool _saved = true;
   final _focus = FocusNode();
@@ -414,52 +418,134 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     _schedule();
   }
 
+  // Shared by the keyboard and the on-screen pad.
+
+  void _typeDigit(int digit) {
+    if (_cursor == null) return;
+    _set(digit);
+    _move(1);
+    _revealCursor();
+  }
+
+  /// Gingival margin above the CEJ: recession turns negative.
+  void _negate() {
+    final c = _cursor;
+    if (c == null || c.field != _Field.rec) return;
+    final t = _teeth[c.tooth]!;
+    final s = _site(c.tooth, c.lingual, c.pos);
+    final v = t.rec[s] ?? 0;
+    setState(() => t.rec[s] = -v.abs());
+    _schedule();
+  }
+
+  void _erase({required bool back}) {
+    if (_cursor == null) return;
+    _set(null);
+    if (back) _move(-1);
+    _revealCursor();
+  }
+
+  void _toggleAtCursor({required bool bleeding}) {
+    final c = _cursor;
+    if (c == null) return;
+    _toggle(c.tooth, c.lingual, c.pos, bleeding: bleeding);
+  }
+
+  void _step(int delta) {
+    _move(delta);
+    _revealCursor();
+  }
+
+  /// Scrolls the chart (sideways and down) only as far as needed to keep
+  /// the selected site in view as it moves.
+  void _revealCursor() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _cursorKey.currentContext;
+      if (ctx == null || !ctx.mounted) return;
+      ctx.findRenderObject()?.showOnScreen(
+        duration: CruMotion.of(ctx, CruMotion.fast),
+        curve: CruMotion.curve,
+      );
+    });
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    final c = _cursor;
-    if (c == null) return KeyEventResult.ignored;
+    if (_cursor == null) return KeyEventResult.ignored;
     final k = e.logicalKey;
     final digit = e.character != null ? int.tryParse(e.character!) : null;
     if (digit != null) {
-      _set(digit);
-      _move(1);
+      _typeDigit(digit);
       return KeyEventResult.handled;
     }
     if (e.character == '-') {
-      // Gingival margin above the CEJ.
-      if (c.field == _Field.rec) {
-        final t = _teeth[c.tooth]!;
-        final s = _site(c.tooth, c.lingual, c.pos);
-        final v = t.rec[s] ?? 0;
-        setState(() => t.rec[s] = -v.abs());
-        _schedule();
-      }
+      _negate();
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.backspace || k == LogicalKeyboardKey.delete) {
-      _set(null);
-      if (k == LogicalKeyboardKey.backspace) _move(-1);
+      _erase(back: k == LogicalKeyboardKey.backspace);
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.keyB) {
-      _toggle(c.tooth, c.lingual, c.pos, bleeding: true);
+      _toggleAtCursor(bleeding: true);
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.keyS) {
-      _toggle(c.tooth, c.lingual, c.pos, bleeding: false);
+      _toggleAtCursor(bleeding: false);
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.arrowRight || k == LogicalKeyboardKey.tab) {
-      _move(1);
+      _step(1);
       return KeyEventResult.handled;
     }
     if (k == LogicalKeyboardKey.arrowLeft) {
-      _move(-1);
+      _step(-1);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  /// [chart] with the pad (if any) under it.
+  static Widget _withPad(Widget chart, Widget? pad) => pad == null
+      ? chart
+      : Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [Expanded(child: chart), pad],
+        );
+
+  /// Phones and tablets have no keyboard for the chart: they get the pad.
+  bool get _touch =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// The number pad while a site is selected on a touch device; null
+  /// otherwise.
+  Widget? _pad() {
+    final c = _cursor;
+    if (!_touch || c == null || _record == null) return null;
+    if (_mode != _ChartMode.pockets) return null;
+    final upper = DentalChart.adultUpper.contains(c.tooth);
+    final side = !c.lingual
+        ? 'Buccal'
+        : upper
+        ? 'Palatal'
+        : 'Lingual';
+    return _PerioPad(
+      site:
+          '${c.tooth} · $side · '
+          '${c.field == _Field.pd ? 'Pocket depth' : 'Recession'}',
+      recession: c.field == _Field.rec,
+      onDigit: _typeDigit,
+      onNegate: _negate,
+      onErase: () => _erase(back: true),
+      onBleeding: () => _toggleAtCursor(bleeding: true),
+      onSuppuration: () => _toggleAtCursor(bleeding: false),
+      onPrevious: () => _step(-1),
+      onNext: () => _step(1),
+      onDone: () => setState(() => _cursor = null),
+    );
   }
 
   // ---------------------------------------------------------------- print
@@ -743,7 +829,11 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                     ),
                     const SizedBox(height: CruSpace.s16),
                     Text(
-                      _mode == _ChartMode.pockets
+                      _mode == _ChartMode.pockets && _touch
+                          ? 'Tap a site, then use the pad: a number fills it and moves '
+                                'on · B bleeding · S suppuration · − recession above '
+                                'the CEJ · tap a tooth number to mark it missing'
+                          : _mode == _ChartMode.pockets
                           ? 'Type a number to fill the site and move on · B bleeding · '
                                 'S suppuration · − recession above the CEJ · ⌫ clear · '
                                 'tap a tooth number to mark it missing'
@@ -805,8 +895,9 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
           builder: (context, box) {
             final wide = box.maxWidth >= CruBreakpoint.detailsTwoColumn;
             final toolbar = DentalTabToolbar(status: status, actions: actions);
+            final pad = _pad();
             if (!wide) {
-              return SingleChildScrollView(
+              final page = SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -820,6 +911,12 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                   ],
                 ),
               );
+              // The pad stays put under the page, like a keyboard.
+              if (pad == null) return page;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [Expanded(child: page), pad],
+              );
             }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -830,7 +927,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(child: chart(fill: true)),
+                      Expanded(child: _withPad(chart(fill: true), pad)),
                       const SizedBox(width: CruSpace.cardGap),
                       SizedBox(
                         width: CruSize.rightColumn,
@@ -888,7 +985,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(child: chart(fill: true)),
+                      Expanded(child: _withPad(chart(fill: true), _pad())),
                       const SizedBox(width: CruSpace.cardGap),
                       SizedBox(width: 300, child: history(fill: true)),
                     ],
@@ -1065,6 +1162,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
               _focus.requestFocus();
             },
       child: Container(
+        key: selected ? _cursorKey : null,
         width: _cellW - 2,
         height: 24,
         margin: const EdgeInsets.all(1),
@@ -1511,4 +1609,105 @@ class _TrendPainter extends CustomPainter {
   @override
   bool shouldRepaint(_TrendPainter old) =>
       old.sums != sums || old.plaqueSums != plaqueSums;
+}
+
+/// The perio chart's number pad for touch devices, in place of the
+/// keyboard: a digit fills the selected site and moves on; B and S mark
+/// bleeding and suppuration; minus makes recession negative.
+class _PerioPad extends StatelessWidget {
+  const _PerioPad({
+    required this.site,
+    required this.recession,
+    required this.onDigit,
+    required this.onNegate,
+    required this.onErase,
+    required this.onBleeding,
+    required this.onSuppuration,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onDone,
+  });
+
+  /// The selected site: "16 · Buccal · Pocket depth".
+  final String site;
+
+  /// Whether the site is a recession one (minus works there).
+  final bool recession;
+  final ValueChanged<int> onDigit;
+  final VoidCallback onNegate;
+  final VoidCallback onErase;
+  final VoidCallback onBleeding;
+  final VoidCallback onSuppuration;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    Widget key(String label, VoidCallback? onTap, {String? semantic}) =>
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(CruSpace.s4 / 2),
+            child: CruButton(
+              label: label,
+              kind: CruButtonKind.inset,
+              expand: true,
+              semanticLabel: semantic,
+              onPressed: onTap,
+            ),
+          ),
+        );
+    Widget digit(int d) => key('$d', () => onDigit(d));
+
+    return Padding(
+      padding: const EdgeInsets.only(top: CruSpace.s8),
+      child: CruCard(
+        semanticLabel: 'Number pad',
+        padding: const EdgeInsets.all(CruSpace.s8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s8,
+                    ),
+                    child: Text(
+                      site,
+                      style: CruType.caption.w600.tint(c.label2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                CruLink(label: 'Done', onPressed: onDone),
+                const SizedBox(width: CruSpace.s8),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s4),
+            Row(children: [for (final d in [1, 2, 3, 4, 5]) digit(d)]),
+            Row(children: [for (final d in [6, 7, 8, 9, 0]) digit(d)]),
+            Row(
+              children: [
+                key('‹', onPrevious, semantic: 'Previous site'),
+                key('B', onBleeding, semantic: 'Bleeding'),
+                key('S', onSuppuration, semantic: 'Suppuration'),
+                key(
+                  '−',
+                  recession ? onNegate : null,
+                  semantic: 'Recession above the CEJ',
+                ),
+                key('⌫', onErase, semantic: 'Clear and go back'),
+                key('›', onNext, semantic: 'Next site'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

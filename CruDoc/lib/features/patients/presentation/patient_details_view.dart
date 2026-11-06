@@ -571,10 +571,10 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                   onWhatsApp: () => PatientActions.whatsApp(context, p),
                   menu: menu,
                   onNewVisit: canBook ? newVisit : null,
-                  actions: [
+                  actions: (compact) => [
                     if (isDentist) ...[
-                      _ChartingButton(patient: p),
-                      _RecallButton(patient: p),
+                      _ChartingButton(patient: p, compact: compact),
+                      _RecallButton(patient: p, compact: compact),
                     ],
                   ],
                   tabs: tabs.length < 2
@@ -697,11 +697,13 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
 
 /// Dentists: the patient's next recall, set or changed from the header.
 /// Opens the patient's Charting: in the shell (the sidebar stays) on
-/// desktop, as its own screen where there is no shell.
+/// desktop, as its own screen where there is no shell. An icon button
+/// when the header is short of room.
 class _ChartingButton extends ConsumerWidget {
-  const _ChartingButton({required this.patient});
+  const _ChartingButton({required this.patient, required this.compact});
 
   final Patient patient;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -715,32 +717,33 @@ class _ChartingButton extends ConsumerWidget {
       goToTab(DesktopTab.charting);
     }
 
-    if (MediaQuery.sizeOf(context).width < PatientDetailsHeader.phoneBelow) {
+    final semantic = 'Open charting for ${patient.fullName}';
+    if (compact) {
       return CruSquareButton(
         icon: DentalIcons.tooth,
         secondary: true,
-        semanticLabel: 'Open charting for ${patient.fullName}',
+        semanticLabel: semantic,
         tooltip: 'Charting',
         onPressed: open,
       );
     }
-
     return CruButton(
       label: 'Charting',
       kind: CruButtonKind.secondary,
       icon: DentalIcons.tooth,
-      semanticLabel: 'Open charting for ${patient.fullName}',
+      semanticLabel: semantic,
       onPressed: open,
     );
   }
 }
 
 /// "Recall · 12 Apr" ("Recall overdue · 12 Apr" once past); an icon
-/// button on phones.
+/// button when the header is short of room.
 class _RecallButton extends ConsumerWidget {
-  const _RecallButton({required this.patient});
+  const _RecallButton({required this.patient, required this.compact});
 
   final Patient patient;
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -766,7 +769,7 @@ class _RecallButton extends ConsumerWidget {
               '${DentalFormat.shortDate(due)}';
     void edit() =>
         showSetRecallDialog(context, patient: patient, existing: next);
-    if (MediaQuery.sizeOf(context).width < PatientDetailsHeader.phoneBelow) {
+    if (compact) {
       return CruSquareButton(
         icon: RecIcons.recall,
         secondary: true,

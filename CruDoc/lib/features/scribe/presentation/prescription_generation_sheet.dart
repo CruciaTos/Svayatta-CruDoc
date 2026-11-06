@@ -63,22 +63,34 @@ class _PrescriptionGenerationSheetState
   late DateTime _rxDate;
   late String _rxNumber;
 
-  final List<PrescriptionDrugRow> _drugs = [
-    PrescriptionDrugRow(
-      drugName: 'Tab. Paracetamol',
-      dosage: '650 mg',
-      frequency: '1 - 0 - 1 (Twice daily)',
-      duration: '5 Days',
-      instructions: 'After Food',
-    ),
-    PrescriptionDrugRow(
-      drugName: 'Cap. Amoxicillin',
-      dosage: '500 mg',
-      frequency: '1 - 1 - 1 (Thrice daily)',
-      duration: '5 Days',
-      instructions: 'After Food',
-    ),
+  // Starts with one blank row: nothing is prescribed until the doctor
+  // writes it.
+  final List<PrescriptionDrugRow> _drugs = [_blankDrug()];
+
+  static PrescriptionDrugRow _blankDrug() => PrescriptionDrugRow(
+    drugName: '',
+    dosage: '',
+    frequency: '',
+    duration: '',
+    instructions: '',
+  );
+
+  /// The rows with a drug written in; blank rows are left off the Rx.
+  List<PrescriptionDrugRow> get _writtenDrugs => [
+    for (final d in _drugs)
+      if (d.drugName.trim().isNotEmpty) d,
   ];
+
+  /// "34 Y / M" from the patient; empty when unknown.
+  static String _ageGender(Patient? p) {
+    if (p == null) return '';
+    final g = p.gender.trim();
+    final sex = g.isEmpty ? '' : g[0].toUpperCase();
+    return [
+      '${p.age} Y',
+      if (sex.isNotEmpty) sex,
+    ].join(' / ');
+  }
 
   @override
   void initState() {
@@ -91,48 +103,36 @@ class _PrescriptionGenerationSheetState
       text: widget.initialPatient?.fullName ?? '',
     );
     _patientAgeGenderCtrl = TextEditingController(
-      text: widget.initialPatient?.gender != null
-          ? '${widget.initialPatient?.gender}'
-          : '35 Y / M',
+      text: _ageGender(widget.initialPatient),
     );
     _patientPhoneCtrl = TextEditingController(
       text: widget.initialPatient?.phone ?? '',
     );
-    _vitalsCtrl = TextEditingController(
-      text: 'BP: 120/80 mmHg | Pulse: 76 bpm | SpO2: 98% | Wt: 68 kg',
-    );
+    // Only what is known about this patient and visit; the rest starts
+    // empty (sample text here would print on a real prescription).
+    _vitalsCtrl = TextEditingController();
     _complaintsCtrl = TextEditingController(
-      text:
-          widget.initialVisit?.treatmentType ??
-          'Fever with body ache for 3 days',
+      text: widget.initialVisit?.treatmentType ?? '',
     );
     _diagnosisCtrl = TextEditingController(
-      text: widget.initialPatient?.diagnosis.isNotEmpty == true
-          ? widget.initialPatient!.diagnosis.join(', ')
-          : 'Acute Upper Respiratory Tract Infection (URTI)',
+      text: widget.initialPatient?.diagnosis.join(', ') ?? '',
     );
-    _labTestsCtrl = TextEditingController(
-      text: 'Complete Blood Count (CBC), CRP',
-    );
-    _adviceCtrl = TextEditingController(
-      text: 'Adequate hydration, warm saline gargles, light warm diet.',
-    );
-    _followUpCtrl = TextEditingController(
-      text: 'Follow up after 5 days if fever persists.',
-    );
+    _labTestsCtrl = TextEditingController();
+    _adviceCtrl = TextEditingController();
+    _followUpCtrl = TextEditingController();
   }
 
   @override
   void dispose() {
-    _patientNameCtrl.dispose;
-    _patientAgeGenderCtrl.dispose;
-    _patientPhoneCtrl.dispose;
-    _vitalsCtrl.dispose;
-    _complaintsCtrl.dispose;
-    _diagnosisCtrl.dispose;
-    _labTestsCtrl.dispose;
-    _adviceCtrl.dispose;
-    _followUpCtrl.dispose;
+    _patientNameCtrl.dispose();
+    _patientAgeGenderCtrl.dispose();
+    _patientPhoneCtrl.dispose();
+    _vitalsCtrl.dispose();
+    _complaintsCtrl.dispose();
+    _diagnosisCtrl.dispose();
+    _labTestsCtrl.dispose();
+    _adviceCtrl.dispose();
+    _followUpCtrl.dispose();
     super.dispose();
   }
 
@@ -468,15 +468,7 @@ class _PrescriptionGenerationSheetState
 
   void _addNewDrug() {
     setState(() {
-      _drugs.add(
-        PrescriptionDrugRow(
-          drugName: 'Tab. Multivitamin',
-          dosage: '1 Tab',
-          frequency: '0 - 1 - 0',
-          duration: '15 Days',
-          instructions: 'After Food',
-        ),
-      );
+      _drugs.add(_blankDrug());
     });
   }
 
@@ -650,7 +642,7 @@ class _PrescriptionGenerationSheetState
       complaints: _complaintsCtrl.text.trim(),
       diagnosis: _diagnosisCtrl.text.trim(),
       medications: [
-        for (final d in _drugs)
+        for (final d in _writtenDrugs)
           PdfPrescriptionMedication(
             drugName: d.drugName,
             dosage: d.dosage,
@@ -678,7 +670,7 @@ class _PrescriptionGenerationSheetState
         ? _patientNameCtrl.text
         : 'Patient';
 
-    final drugListText = _drugs
+    final drugListText = _writtenDrugs
         .map(
           (d) =>
               '• *${d.drugName}* (${d.dosage}) — ${d.frequency} x ${d.duration} (${d.instructions})',

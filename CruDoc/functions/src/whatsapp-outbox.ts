@@ -34,6 +34,7 @@ import {
   markReauthRequired,
 } from "./whatsapp/tenants";
 import {recordApiUsage} from "./api-usage";
+import {requirePlanModule} from "./clinic-app-guard";
 
 /**
  * The per-clinic WhatsApp campaign path: a callable the app invokes to queue a
@@ -100,6 +101,8 @@ export const enqueueCampaign = onCall({region: REGION}, async (request) => {
   if (!doctorId) {
     throw new HttpsError("unauthenticated", "Sign in to send a campaign.");
   }
+  // Campaigns come with the WhatsApp, SMS & Email module.
+  await requirePlanModule(doctorId, "omnichannel_messaging", "Campaigns");
 
   const data = (request.data || {}) as EnqueueCampaignData;
   const campaignId = asString(data.campaignId).trim();

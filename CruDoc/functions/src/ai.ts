@@ -1,5 +1,6 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {defineSecret} from "firebase-functions/params";
+import {requirePlanModule} from "./clinic-app-guard";
 
 export const geminiApiKeySecret = defineSecret("GEMINI_API_KEY");
 
@@ -36,6 +37,8 @@ export const transcribeVoiceAudio = onCall(
         "Authentication required to transcribe audio."
       );
     }
+    // Paid AI: only for plans with the AI Scribe module.
+    await requirePlanModule(request.auth.uid, "ai_assistant", "AI Scribe");
 
     const {audioBase64, mimeType = "audio/mp4"} = request.data || {};
     if (!audioBase64 || typeof audioBase64 !== "string") {
@@ -115,6 +118,7 @@ export const extractHomeopathyCaseSheet = onCall(
         "Authentication required to extract homeopathy case sheet."
       );
     }
+    await requirePlanModule(request.auth.uid, "ai_assistant", "AI Scribe");
 
     const {transcript} = request.data || {};
     if (!transcript || typeof transcript !== "string" || transcript.trim().length === 0) {

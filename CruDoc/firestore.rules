@@ -315,6 +315,44 @@ service cloud.firestore {
       }[collection];
     }
 
+    // ------------------------------------------------------------
+    // PLAN MODULES
+    // ------------------------------------------------------------
+    // A new record of a feature the clinic's plan doesn't include is
+    // refused, so a locked feature stays locked even for a modified app.
+    // The plan is users/{clinicId}.enabledModules (set by Super Admin and
+    // the payment/trial functions; doctors can't edit it). No list means the
+    // app's defaults: allowed. An expired plan keeps the base modules only.
+    // Only creates are checked: records made before a feature was switched
+    // off can still be updated, completed and deleted.
+    function planModuleFor(collection) {
+      return {
+        'appointments': 'appointments',
+        'visitations': 'home_visits',
+        'walk_in_queue': 'queue',
+        'invoices': 'revenue',
+        'revenue_entries': 'revenue',
+        'pending_payments': 'revenue',
+        'medicines': 'inventory',
+        'stock_transactions': 'inventory'
+      }.get(collection, '');
+    }
+
+    function planDataAllows(plan, module) {
+      let mods = plan.get('enabledModules', null);
+      let exp = plan.get('expiresDate', null);
+      let expired = string(plan.get('status', '')).lower() == 'expired'
+        || (exp is timestamp && exp < request.time);
+      return (mods == null || module in mods)
+        && (!expired || module in ['dashboard', 'patients', 'appointments', 'inventory']);
+    }
+
+    function planAllowsCreate(collection, clinicId) {
+      let module = planModuleFor(collection);
+      let path = /databases/$(database)/documents/users/$(clinicId);
+      return module == '' || !exists(path) || planDataAllows(get(path).data, module);
+    }
+
     // The stored document belongs to the caller (or doesn't exist yet, so a
     // get or delete reveals nothing).
     function ownsExisting() {
@@ -367,6 +405,7 @@ service cloud.firestore {
         && scopeAllowsList(collection, resource.data);
       allow create: if isDoctorOwnedCollection(collection)
         && clinicAllows(request.resource.data.doctorId, writePerm(collection))
+        && planAllowsCreate(collection, request.resource.data.doctorId)
         && createSetsOnlySelfAssignment(collection, request.resource.data)
         && scopeAllowsCreate(collection, request.resource.data);
       // doctorId can't be changed, so a record can't move between clinics.

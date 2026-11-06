@@ -298,6 +298,29 @@ describe('users', () => {
     await assertFails(updateDoc(doc(doctor(B), `users/${B}`), { role: 'superAdmin' }));
   });
 
+  it("refuses new records of a feature the plan doesn't include", async () => {
+    await seed(`users/${A}`, { role: 'doctor', enabledModules: ['dashboard', 'patients', 'queue'] });
+    await assertFails(setDoc(doc(doctor(A), 'appointments/ap1'), { doctorId: A }));
+    await assertFails(setDoc(doc(doctor(A), 'invoices/in1'), { doctorId: A }));
+    await assertFails(setDoc(doc(doctor(A), 'medicines/m1'), { doctorId: A }));
+    await assertFails(setDoc(doc(doctor(A), 'visitations/v1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(doctor(A), 'walk_in_queue/q1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(doctor(A), 'patients/p1'), { doctorId: A }));
+    // Made before the feature was switched off: still editable.
+    await seed('appointments/old', { doctorId: A, status: 'booked' });
+    await assertSucceeds(updateDoc(doc(doctor(A), 'appointments/old'), { status: 'done' }));
+  });
+
+  it('keeps only the base modules once a plan has expired', async () => {
+    await seed(`users/${A}`, {
+      role: 'doctor', status: 'expired',
+      enabledModules: ['dashboard', 'patients', 'appointments', 'revenue', 'queue'],
+    });
+    await assertSucceeds(setDoc(doc(doctor(A), 'appointments/ap2'), { doctorId: A }));
+    await assertFails(setDoc(doc(doctor(A), 'invoices/in2'), { doctorId: A }));
+    await assertFails(setDoc(doc(doctor(A), 'walk_in_queue/q2'), { doctorId: A }));
+  });
+
   it("gives a Super Admin login no clinic of its own", async () => {
     const adminAsOwner = env.authenticatedContext(ADMIN, ADMIN_CLAIMS).firestore();
     await seed(`patients/p-admin`, { doctorId: ADMIN, name: 'x' });

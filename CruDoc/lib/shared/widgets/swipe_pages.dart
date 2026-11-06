@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -428,14 +429,24 @@ class SwipePinned extends StatelessWidget {
             ? (1 - 2 * t).clamp(0.0, 1.0)
             : (2 * t - 1).clamp(0.0, 1.0);
         final back = -slot.shift * slot.width;
+        // Fading parts also blur as they go (and sharpen as they arrive).
+        final blur = fade ? (1 - opacity) * 8 : 0.0;
+        Widget shownChild = Opacity(opacity: opacity, child: child);
+        if (blur > 0.1) {
+          shownChild = ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(
+              sigmaX: blur,
+              sigmaY: blur,
+              tileMode: TileMode.decal,
+            ),
+            child: shownChild,
+          );
+        }
         return Transform.translate(
           offset: slot.axis == Axis.vertical
               ? Offset(0, back)
               : Offset(back, 0),
-          child: IgnorePointer(
-            ignoring: !shown,
-            child: Opacity(opacity: opacity, child: child),
-          ),
+          child: IgnorePointer(ignoring: !shown, child: shownChild),
         );
       },
     );

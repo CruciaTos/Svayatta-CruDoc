@@ -35,6 +35,16 @@ abstract final class CruType {
     fontFeatures: tabular,
   );
 
+  /// The one big number on a hero glance card. Always tabular.
+  static const TextStyle hero = TextStyle(
+    fontFamily: family,
+    fontSize: 52,
+    height: 1.0,
+    fontWeight: FontWeight.w500,
+    letterSpacing: -2.2,
+    fontFeatures: tabular,
+  );
+
   /// The quieter "of 13" beside a metric.
   static const TextStyle metricSuffix = TextStyle(
     fontFamily: family,

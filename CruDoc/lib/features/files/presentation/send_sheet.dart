@@ -10,7 +10,8 @@ import 'package:doctor_management_app/features/files/data/files_repository.dart'
 import 'package:doctor_management_app/features/files/lan/device_registry_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
-import 'package:doctor_management_app/features/team/data/team_providers.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/colleague_monogram.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/colleague_strip.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Shows the "Send to colleague" sheet.
@@ -25,8 +26,7 @@ Future<void> showSendToColleagueSheet(
   final myUid = FilesRepository.instance.uid;
   if (clinicId.isEmpty || myUid.isEmpty) return;
 
-  final members = ref.read(clinicMembersProvider).value ?? const [];
-  final colleagues = members.where((m) => m.uid != myUid && m.active).toList();
+  final colleagues = ref.read(stripColleaguesProvider);
 
   if (colleagues.isEmpty) {
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -85,6 +85,37 @@ class _SendSheetState extends State<_SendSheet> {
 
   String? _ineligibleReason(ClinicMember m) {
     return colleagueBlockReason(m, patient: widget.patient);
+  }
+
+  Widget _recentAvatar(ClinicMember m, CruColors c) {
+    final eligible = _ineligibleReason(m) == null;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: eligible ? () => _sendTo(m) : null,
+      child: Opacity(
+        opacity: eligible ? 1.0 : 0.4,
+        child: SizedBox(
+          width: 64,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ColleagueMonogram(
+                name: m.name,
+                size: CruSize.searchBar,
+              ),
+              const SizedBox(height: CruSpace.s4),
+              Text(
+                colleagueShortName(m.name),
+                style: CruType.caption.tint(c.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _sendTo(ClinicMember colleague) async {
@@ -198,6 +229,23 @@ class _SendSheetState extends State<_SendSheet> {
               ),
             ),
           ] else ...[
+            if (widget.colleagues.length > 4) ...[
+              Text(
+                'Recent',
+                style: CruType.caption.tint(c.label2),
+              ),
+              const SizedBox(height: CruSpace.s8),
+              Row(
+                children: [
+                  for (var i = 0; i < widget.colleagues.take(4).length; i++) ...[
+                    if (i > 0) const SizedBox(width: CruSpace.s12),
+                    _recentAvatar(widget.colleagues[i], c),
+                  ],
+                ],
+              ),
+              const SizedBox(height: CruSpace.s16),
+              const CruSeparator(),
+            ],
             Flexible(
               child: ListView.separated(
                 shrinkWrap: true,

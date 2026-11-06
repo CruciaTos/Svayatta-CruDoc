@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
 import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/clinic_drop_target.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/files_patient.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -123,28 +124,12 @@ class FilesHeader extends StatelessWidget {
           sub,
           if (onAddFiles != null) ...[
             const SizedBox(height: CruSpace.s14),
-            // Thumb-sized: both share the width.
-            Row(
-              children: [
-                Expanded(
-                  child: CruButton(
-                    label: 'New folder',
-                    kind: CruButtonKind.secondary,
-                    icon: FileIcons.folderPlus,
-                    expand: true,
-                    onPressed: onNewFolder,
-                  ),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                Expanded(
-                  child: CruButton(
-                    label: 'Add files',
-                    icon: CruIcons.plus,
-                    expand: true,
-                    onPressed: onAddFiles,
-                  ),
-                ),
-              ],
+            // Thumb-sized. New folder lives beside the folder path below.
+            CruButton(
+              label: 'Add files',
+              icon: CruIcons.plus,
+              expand: true,
+              onPressed: onAddFiles,
             ),
           ],
         ],
@@ -213,15 +198,18 @@ class FilesToolbar extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              _PatientButton(patientId: state.patientId),
-              const Spacer(),
-              if (ref.watch(hasColleaguesProvider)) const ClinicDropTarget(),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s10),
+          if (ref.watch(hasColleaguesProvider)) ...[
+            const Align(
+              alignment: Alignment.centerRight,
+              child: ClinicDropTarget(),
+            ),
+            const SizedBox(height: CruSpace.s10),
+          ],
           search,
+          // Typing a patient's name offers them here; picking one limits
+          // the list to them and slides their name in from the top.
+          if (state.patientId == null)
+            FilesPatientSuggestions(query: state.query),
         ],
       );
     }
@@ -308,9 +296,13 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
       }
     });
 
+    final phone = cruIsPhone(context);
+    final text = phone ? CruType.body : CruType.input;
     return Container(
-      height: CruSize.searchBar,
-      padding: const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s6, 0),
+      height: phone ? CruSize.searchBarPhone : CruSize.searchBar,
+      padding: phone
+          ? const EdgeInsets.fromLTRB(CruSpace.s16, 0, CruSpace.s4, 0)
+          : const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s6, 0),
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
@@ -318,14 +310,19 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
       ),
       child: Row(
         children: [
-          CruIcon(CruIcons.search, size: 18, strokeWidth: 2, color: c.label3),
-          const SizedBox(width: CruSpace.s10),
+          CruIcon(
+            CruIcons.search,
+            size: phone ? CruSize.searchIconPhone : 18,
+            strokeWidth: 2,
+            color: c.label3,
+          ),
+          SizedBox(width: phone ? CruSpace.s12 : CruSpace.s10),
           Expanded(
             child: TextField(
               controller: _text,
               focusNode: widget.focusNode,
               onChanged: _onChanged,
-              style: CruType.input.tint(c.label),
+              style: text.tint(c.label),
               cursorColor: c.accent,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
@@ -334,29 +331,28 @@ class _FilesSearchFieldState extends ConsumerState<_FilesSearchField> {
                 contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hint: Text(
-                  cruIsPhone(context)
-                      ? 'Search files'
-                      : 'Search files, patients or folders',
-                  style: CruType.input.tint(c.label3),
+                  // The phone's two tools leave room for little more.
+                  phone ? 'Search files' : 'Search files, patients or folders',
+                  style: text.tint(c.label3),
                   maxLines: 1,
                   softWrap: false,
-                  overflow: TextOverflow.clip,
+                  overflow: phone ? TextOverflow.ellipsis : TextOverflow.clip,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: CruSpace.s8),
+          if (!phone) const SizedBox(width: CruSpace.s8),
           if (_text.text.isNotEmpty) ...[
             CruIconButton(
               icon: CruIcons.close,
-              size: CruSize.capsule,
-              iconSize: 16,
+              size: phone ? CruSize.searchToolPhone : CruSize.capsule,
+              iconSize: phone ? CruSize.searchClearIconPhone : 16,
               semanticLabel: 'Clear search',
               tooltip: 'Clear search',
               onPressed: _clear,
             ),
-            const SizedBox(width: CruSpace.s4),
-          ] else if (!cruIsPhone(context)) ...[
+            if (!phone) const SizedBox(width: CruSpace.s4),
+          ] else if (!phone) ...[
             CruKeycap(_shortcut()),
             const SizedBox(width: CruSpace.s6),
           ],
@@ -443,10 +439,11 @@ class _FilesViewModeIcon extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final toGrid = mode == FilesViewMode.list;
     final label = toGrid ? 'Grid view' : 'List view';
+    final phone = cruIsPhone(context);
     return CruIconButton(
       icon: toGrid ? InventoryIcons.grid : InventoryIcons.list,
-      size: CruSize.capsule,
-      iconSize: 16,
+      size: phone ? CruSize.searchToolPhone : CruSize.capsule,
+      iconSize: phone ? CruSize.searchToolIconPhone : 16,
       semanticLabel: label,
       tooltip: label,
       onPressed: () => ref
@@ -476,8 +473,8 @@ class _FilesSortIcon extends ConsumerWidget {
       ],
       builder: (context, open) => CruIconButton(
         icon: FileIcons.sort,
-        size: CruSize.capsule,
-        iconSize: 16,
+        size: cruIsPhone(context) ? CruSize.searchToolPhone : CruSize.capsule,
+        iconSize: cruIsPhone(context) ? CruSize.searchToolIconPhone : 16,
         semanticLabel: 'Sort: ${sort.label}',
         tooltip: 'Sort: ${sort.label}',
         onPressed: open,
@@ -596,9 +593,12 @@ class FilesMenu extends StatelessWidget {
 /// All, then one chip per kind of file, each with its count; and the
 /// patient the list is limited to, with ×.
 class FilesChips extends ConsumerWidget {
-  const FilesChips({super.key, required this.view});
+  const FilesChips({super.key, required this.view, this.showPatient = true});
 
   final FilesView view;
+
+  /// False on phones, where the patient shows in the top banner instead.
+  final bool showPatient;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -610,7 +610,7 @@ class FilesChips extends ConsumerWidget {
         spacing: CruSpace.s8,
         runSpacing: CruSpace.s8,
         children: [
-          if (view.patientFilterName != null)
+          if (showPatient && view.patientFilterName != null)
             _Chip(
               label: view.patientFilterName!,
               selected: true,

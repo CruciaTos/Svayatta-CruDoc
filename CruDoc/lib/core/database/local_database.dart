@@ -109,4 +109,7 @@ abstract class LocalDatabase implements LocalDatabaseExecutor {
   /// `sqflite_sqlcipher` `Database.close()` call already used by
   /// `LocalDatabaseService`.
   Future<void> close();
+
+  /// Whether the database connection is currently open.
+  bool get isOpen;
 }

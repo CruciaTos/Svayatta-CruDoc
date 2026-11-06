@@ -284,32 +284,40 @@ class InventoryLocalService {
 
   Future<void> _emitMedicines() async {
     if (_medicinesController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'medicines',
-      where: 'isActive = 1 AND doctorId = ?',
-      whereArgs: [_currentDoctorId()],
-      orderBy: 'name ASC',
-    );
-    if (!_medicinesController.isClosed) {
-      _medicinesController.add(rows.map(_medicineFromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'medicines',
+        where: 'isActive = 1 AND doctorId = ?',
+        whereArgs: [_currentDoctorId()],
+        orderBy: 'name ASC',
+      );
+      if (!_medicinesController.isClosed) {
+        _medicinesController.add(rows.map(_medicineFromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
   Future<void> _emitRecentTransactions() async {
     if (_recentTransactionsController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'stock_transactions',
-      where: 'isActive = 1 AND doctorId = ?',
-      whereArgs: [_currentDoctorId()],
-      orderBy: 'createdAt DESC',
-      limit: kRecentTransactionsLimit,
-    );
-    if (!_recentTransactionsController.isClosed) {
-      _recentTransactionsController.add(rows.map(_transactionFromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'stock_transactions',
+        where: 'isActive = 1 AND doctorId = ?',
+        whereArgs: [_currentDoctorId()],
+        orderBy: 'createdAt DESC',
+        limit: kRecentTransactionsLimit,
+      );
+      if (!_recentTransactionsController.isClosed) {
+        _recentTransactionsController.add(rows.map(_transactionFromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 

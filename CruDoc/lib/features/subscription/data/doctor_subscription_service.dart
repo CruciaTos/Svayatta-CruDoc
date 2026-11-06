@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:crudoc_shared/subscription/feature_catalog.dart';
 import 'package:crudoc_shared/subscription/upgrade_request_model.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
@@ -34,6 +35,35 @@ class DoctorSubscriptionInfo {
     if (DoctorFeatureGuard.isBaseModule(moduleKey)) return true;
     if (isExpired) return false;
     return enabledModules.contains(moduleKey.toLowerCase());
+  }
+
+  /// The paid modules this doctor can still buy: not a base module and not
+  /// switched on right now. Once the plan has expired nothing paid is on, so
+  /// every paid module is offered again. The More plan card and the billing
+  /// screen both read this, so they can never disagree.
+  List<FeaturePricingItem> get purchasableModules => [
+    for (final item in featureCatalog)
+      if (!item.isBaseModule && !isModuleUnlocked(item.moduleKey)) item,
+  ];
+
+  /// The paid modules that are switched on right now. Every payment rewrites
+  /// the doctor's whole module list on the server (`writePaidPlan` sets
+  /// `enabledModules` to the base modules plus what was paid for), so these
+  /// must go into each checkout or they would switch off.
+  List<FeaturePricingItem> get ownedPaidModules => [
+    for (final item in featureCatalog)
+      if (!item.isBaseModule && isModuleUnlocked(item.moduleKey)) item,
+  ];
+
+  /// When the plan runs out, in a line: "Valid until 12 Nov 2026 · 30 days
+  /// left", or "Expired on 12 Oct 2026".
+  String get validityLine {
+    final date = expiresDate;
+    if (date == null) return 'Standard account configuration';
+    final day = DateFormat('dd MMM yyyy').format(date);
+    return isExpired
+        ? 'Expired on $day'
+        : 'Valid until $day · ${daysRemaining ?? 0} days left';
   }
 }
 

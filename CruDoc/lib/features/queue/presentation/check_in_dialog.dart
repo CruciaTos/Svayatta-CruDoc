@@ -332,11 +332,15 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                               return AnimatedContainer(
                                 duration: CruMotion.of(context, CruMotion.fast),
                                 curve: CruMotion.curve,
-                                constraints: const BoxConstraints(
-                                  minHeight: CruSize.actionButton,
+                                constraints: BoxConstraints(
+                                  minHeight: cruIsPhone(context)
+                                      ? CruSize.searchBarPhone
+                                      : CruSize.actionButton,
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: CruSpace.s14,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: cruIsPhone(context)
+                                      ? CruSpace.s16
+                                      : CruSpace.s14,
                                 ),
                                 decoration: ShapeDecoration(
                                   color: focusNode.hasFocus
@@ -356,22 +360,35 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                                   children: [
                                     CruIcon(
                                       CruIcons.search,
-                                      size: 18,
+                                      size: cruIsPhone(context)
+                                          ? CruSize.searchIconPhone
+                                          : 18,
                                       color: c.label3,
                                     ),
-                                    const SizedBox(width: CruSpace.s10),
+                                    SizedBox(
+                                      width: cruIsPhone(context)
+                                          ? CruSpace.s12
+                                          : CruSpace.s10,
+                                    ),
                                     Expanded(
                                       child: TextField(
                                         controller: controller,
                                         focusNode: focusNode,
-                                        style: CruType.input.tint(c.label),
+                                        style:
+                                            (cruIsPhone(context)
+                                                    ? CruType.body
+                                                    : CruType.input)
+                                                .tint(c.label),
                                         cursorColor: c.accent,
                                         decoration: InputDecoration.collapsed(
-                                          hintText:
-                                              'Search by name or phone...',
-                                          hintStyle: CruType.input.tint(
-                                            c.label3,
-                                          ),
+                                          hintText: cruIsPhone(context)
+                                              ? 'Name or phone number'
+                                              : 'Search by name or phone...',
+                                          hintStyle:
+                                              (cruIsPhone(context)
+                                                      ? CruType.body
+                                                      : CruType.input)
+                                                  .tint(c.label3),
                                         ),
                                         onSubmitted: (_) => onFieldSubmitted(),
                                       ),

@@ -34,8 +34,11 @@ class InventoryToolbar extends ConsumerWidget {
     final items = tab == InventoryTab.items;
     // Pinned while the sections slide, so every section's copy shows the
     // selected one.
+    final phone = cruIsPhone(context);
     final sections = CruSegmentedControl<InventoryTab>(
       semanticLabel: 'Inventory sections',
+      // On a phone the four sections share the full width equally.
+      expand: phone,
       segments: [for (final t in InventoryTab.values) CruSegment(t, t.label)],
       selected: ref.watch(inventoryControllerProvider).tab,
       onChanged: ref.read(inventoryControllerProvider.notifier).setTab,
@@ -45,20 +48,14 @@ class InventoryToolbar extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SwipePinned(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: sections,
-            ),
-          ),
+          SwipePinned(child: sections),
           if (items) ...[
             const SizedBox(height: CruSpace.s10),
-            Row(
-              children: [
-                Expanded(child: InventorySearchField(focusNode: searchFocus)),
-                const SizedBox(width: CruSpace.s8),
-                InventorySortButton(sort: sort, hasUsage: hasUsage),
-              ],
+            InventorySearchField(
+              focusNode: searchFocus,
+              // Short, so the longest sort name still fits beside the tool.
+              hint: 'Search · ${sort.label}',
+              trailing: InventorySortCycle(sort: sort, hasUsage: hasUsage),
             ),
           ],
         ],

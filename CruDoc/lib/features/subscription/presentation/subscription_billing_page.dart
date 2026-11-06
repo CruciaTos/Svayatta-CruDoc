@@ -28,7 +28,6 @@ class SubscriptionBillingPage extends StatefulWidget {
 class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
   final DoctorSubscriptionService _service = DoctorSubscriptionService();
   final Set<String> _selected = {};
-  bool _primed = false;
 
   final NumberFormat _inr = NumberFormat.currency(
     locale: 'en_IN',
@@ -36,30 +35,33 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     decimalDigits: 0,
   );
 
-  /// Pre-selects the modules already enabled the first time the plan loads.
-  void _primeSelection(DoctorSubscriptionInfo info) {
-    if (_primed) return;
-    _primed = true;
-    for (final item in DoctorSubscriptionService.availableFeatures) {
-      if (item.isBaseModule || info.enabledModules.contains(item.moduleKey)) {
-        _selected.add(item.moduleKey);
-      }
-    }
-  }
+  /// The modules on offer that are ticked. Going through the plan's own list
+  /// of what can still be bought means a module that has just switched on
+  /// (its payment landed) is never counted or charged a second time.
+  List<FeaturePricingItem> _picked(DoctorSubscriptionInfo info) => [
+    for (final item in info.purchasableModules)
+      if (_selected.contains(item.moduleKey)) item,
+  ];
 
-  double get _total {
-    double total = 0;
-    for (final item in DoctorSubscriptionService.availableFeatures) {
-      if (_selected.contains(item.moduleKey)) {
-        total += item.monthlyPriceInr;
-      }
-    }
-    return total;
-  }
+  /// What a payment buys: the ticked modules plus the paid modules already
+  /// on. Every payment rewrites the doctor's whole module list on the
+  /// server (see [DoctorSubscriptionInfo.ownedPaidModules]), so leaving the
+  /// owned ones out would switch them off. They are charged and renewed
+  /// with it, so [_total] counts them too and the pay bar says so.
+  List<FeaturePricingItem> _order(DoctorSubscriptionInfo info) => [
+    ...info.ownedPaidModules,
+    ..._picked(info),
+  ];
+
+  double _sum(Iterable<FeaturePricingItem> items) =>
+      items.fold(0.0, (total, item) => total + item.monthlyPriceInr);
+
+  /// What the server will charge: nothing until a new module is ticked.
+  double _total(DoctorSubscriptionInfo info) =>
+      _picked(info).isEmpty ? 0 : _sum(_order(info));
 
   /// Icon and quiet tint for each module. AI modules take violet, the one
-  /// colour the rules reserve for AI; base modules stay slate so they read
-  /// as plumbing, not something to buy.
+  /// colour the rules reserve for AI.
   (CruIconData, MobileTone) _glyph(String iconName) {
     switch (iconName) {
       case 'dashboard':
@@ -87,14 +89,16 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     }
   }
 
-  Future<void> _checkout() async {
-    if (_selected.isEmpty) return;
+  Future<void> _checkout(DoctorSubscriptionInfo info) async {
+    if (_picked(info).isEmpty) return;
+    final order = _order(info);
     final ok = await PaymentCheckoutSheet.show(
       context,
-      selectedModules: _selected.toList(),
-      totalAmount: _total,
+      selectedModules: [for (final item in order) item.moduleKey],
+      totalAmount: _sum(order),
     );
     if (ok == true && mounted) {
+      setState(_selected.clear);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Features unlocked and active for 30 days.'),
@@ -159,7 +163,9 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
   }
 
   Widget _content(DoctorSubscriptionInfo info) {
-    _primeSelection(info);
+    // Only what the doctor doesn't have: owned and base modules aren't
+    // for sale.
+    final offers = info.purchasableModules;
     return Column(
       children: [
         Expanded(
@@ -174,19 +180,23 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
               const SizedBox(height: CruSpace.s16),
               _planCard(info),
               const SizedBox(height: CruSpace.s20),
-              MobileRowGroup(
-                title: 'Modules',
-                children: [
-                  for (final item in DoctorSubscriptionService.availableFeatures)
-                    _moduleRow(item),
-                ],
-              ),
+              if (offers.isEmpty)
+                const MobileEmpty(
+                  icon: CruIcons.check,
+                  title: 'You have every module',
+                  body: 'Everything CruDoc offers is switched on for your clinic.',
+                )
+              else
+                MobileRowGroup(
+                  title: 'Modules',
+                  children: [for (final item in offers) _moduleRow(item)],
+                ),
               const SizedBox(height: CruSpace.s20),
               _billingHistory(),
             ],
           ),
         ),
-        _payBar(),
+        if (offers.isNotEmpty) _payBar(info),
       ],
     );
   }
@@ -195,11 +205,7 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     final c = context.cru;
     final expired = info.isExpired;
     final tone = expired ? MobileTone.amber : MobileTone.green;
-    final when = info.expiresDate != null
-        ? (expired
-              ? 'Expired on ${DateFormat('dd MMM yyyy').format(info.expiresDate!)}'
-              : 'Valid until ${DateFormat('dd MMM yyyy').format(info.expiresDate!)} · ${info.daysRemaining ?? 0} days left')
-        : 'Standard account configuration';
+    final when = info.validityLine;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
@@ -249,39 +255,32 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
   Widget _moduleRow(FeaturePricingItem item) {
     final c = context.cru;
     final selected = _selected.contains(item.moduleKey);
-    final base = item.isBaseModule;
     final (icon, tone) = _glyph(item.iconName);
-
-    final Widget trailing = base
-        ? MobilePill('Included', tone: MobileTone.green)
-        : Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${_inr.format(item.monthlyPriceInr)}/mo',
-                style: MobileType.callout.tabular.tint(
-                  selected ? c.accent : c.label,
-                ),
-              ),
-              const SizedBox(width: CruSpace.s10),
-              _selectDot(selected),
-            ],
-          );
 
     return MobileRow(
       leading: MobileIconTile(icon: icon, tone: tone),
       title: item.title,
       subtitle: item.description,
-      trailing: trailing,
-      onTap: base
-          ? null
-          : () => setState(() {
-              if (selected) {
-                _selected.remove(item.moduleKey);
-              } else {
-                _selected.add(item.moduleKey);
-              }
-            }),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${_inr.format(item.monthlyPriceInr)}/mo',
+            style: MobileType.callout.tabular.tint(
+              selected ? c.accent : c.label,
+            ),
+          ),
+          const SizedBox(width: CruSpace.s10),
+          _selectDot(selected),
+        ],
+      ),
+      onTap: () => setState(() {
+        if (selected) {
+          _selected.remove(item.moduleKey);
+        } else {
+          _selected.add(item.moduleKey);
+        }
+      }),
     );
   }
 
@@ -367,9 +366,13 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     );
   }
 
-  Widget _payBar() {
+  Widget _payBar(DoctorSubscriptionInfo info) {
     final c = context.cru;
-    final empty = _selected.isEmpty;
+    final empty = _picked(info).isEmpty;
+    final total = _total(info);
+    // The owned modules ride along in every payment (see [_order]); say so
+    // rather than let the total look bigger than what was ticked.
+    final kept = _sum(info.ownedPaidModules);
     return Container(
       decoration: BoxDecoration(
         color: c.surface,
@@ -384,29 +387,43 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
             MobileMetrics.gutter,
             CruSpace.s12,
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              if (!empty && kept > 0) ...[
+                Text(
+                  'Includes ${_inr.format(kept)} to keep the modules you '
+                  'already have on.',
+                  style: MobileType.caption.tint(c.label2),
+                ),
+                const SizedBox(height: CruSpace.s10),
+              ],
+              Row(
                 children: [
-                  Text('TOTAL', style: MobileType.micro.tint(c.label2)),
-                  const SizedBox(height: CruSpace.s2),
-                  Text(
-                    '${_inr.format(_total)}/mo',
-                    style: MobileType.metric.tint(c.label),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('TOTAL', style: MobileType.micro.tint(c.label2)),
+                      const SizedBox(height: CruSpace.s2),
+                      Text(
+                        '${_inr.format(total)}/mo',
+                        style: MobileType.metric.tint(c.label),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: CruSpace.s16),
+                  Expanded(
+                    child: MobilePrimaryButton(
+                      label: empty
+                          ? 'Select a module'
+                          : 'Pay ${_inr.format(total)}',
+                      icon: CruIcons.wallet,
+                      onPressed: empty ? null : () => _checkout(info),
+                    ),
                   ),
                 ],
-              ),
-              const SizedBox(width: CruSpace.s16),
-              Expanded(
-                child: MobilePrimaryButton(
-                  label: empty
-                      ? 'Select a module'
-                      : 'Pay ${_inr.format(_total)}',
-                  icon: CruIcons.wallet,
-                  onPressed: empty ? null : _checkout,
-                ),
               ),
             ],
           ),

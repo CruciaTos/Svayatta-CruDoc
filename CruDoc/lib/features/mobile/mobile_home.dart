@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/hero_stat_card.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
@@ -55,9 +56,9 @@ class MobileHomeScreen extends ConsumerWidget {
           clinic: identity.clinicName,
         ),
         const SizedBox(height: CruSpace.s20),
-        _QuickActions(modules: enabledModules),
-        const SizedBox(height: CruSpace.s16),
         _GlanceRow(data: data),
+        // The Quick actions heading brings its own 14 px above it.
+        _QuickActions(modules: enabledModules),
         const SizedBox(height: CruSpace.s16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
@@ -454,7 +455,8 @@ class _BookedCard extends ConsumerWidget {
         Uri.parse(url),
         mode: LaunchMode.externalApplication,
       );
-      if (!opened && context.mounted) mobileSay(context, 'Could not open maps.');
+      if (!opened && context.mounted)
+        mobileSay(context, 'Could not open maps.');
     }
     if (context.mounted) await _checkIn(context, ref);
   }
@@ -552,8 +554,9 @@ class _BookedCard extends ConsumerWidget {
                   _InkButton(
                     label: home ? 'Start visit' : 'Check in ${item.firstName}',
                     icon: home ? CruIcons.play : CruIcons.userCheck,
-                    onPressed: () =>
-                        home ? _startVisit(context, ref) : _checkIn(context, ref),
+                    onPressed: () => home
+                        ? _startVisit(context, ref)
+                        : _checkIn(context, ref),
                   ),
                 ],
               ),
@@ -788,7 +791,8 @@ class _CardLabel extends StatelessWidget {
       Text(text, style: MobileType.subhead.tint(context.cru.label2));
 }
 
-/// Three numbers for the day; each opens the tab behind it.
+/// The day at a glance: seen big, waiting and collected beside it. Each
+/// number opens the tab behind it.
 class _GlanceRow extends ConsumerWidget {
   const _GlanceRow({required this.data});
 
@@ -799,131 +803,56 @@ class _GlanceRow extends ConsumerWidget {
     final c = context.cru;
     final g = data.glance;
     final collected = data.collected;
+    final waiting = g?.waiting ?? 0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-      child: Row(
-        children: [
-          Expanded(
-            child: _Glance(
-              label: 'Seen',
-              value: g == null ? '–' : '${g.seen}',
-              suffix: g == null ? null : '/${g.total}',
-              trailing: g == null
-                  ? null
-                  : CruProgressRing(
-                      value: g.progress,
-                      size: 22,
-                      strokeWidth: 3.5,
-                    ),
-              onTap: () => _toTab(ref, MobileTab.schedule),
-            ),
-          ),
-          const SizedBox(width: CruSpace.s10),
-          Expanded(
-            child: _Glance(
-              label: 'Waiting',
-              value: g == null ? '–' : '${g.waiting}',
-              valueColor: (g?.waiting ?? 0) > 0
-                  ? mobileTone(c, MobileTone.amber).$2
-                  : null,
-              caption: g?.averageWaitMinutes == null || g!.waiting == 0
-                  ? null
-                  : '~${DashFormat.minutes(g.averageWaitMinutes!)}',
-              onTap: () => _toTab(ref, MobileTab.schedule),
-            ),
-          ),
-          if (ref.watch(clinicCanProvider(ClinicPermission.revenue))) ...[
-            const SizedBox(width: CruSpace.s10),
-            Expanded(
-              child: _Glance(
-                label: 'Collected',
-                value: collected == null
-                    ? '–'
-                    : DashFormat.rupeesCompact(collected.today),
-                valueColor: (collected?.today ?? 0) > 0
-                    ? mobileTone(c, MobileTone.green).$2
-                    : null,
-                onTap: () => openMobileRevenue(ref),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Glance extends StatelessWidget {
-  const _Glance({
-    required this.label,
-    required this.value,
-    required this.onTap,
-    this.suffix,
-    this.caption,
-    this.trailing,
-    this.valueColor,
-  });
-
-  final String label;
-  final String value;
-  final String? suffix;
-  final String? caption;
-  final Widget? trailing;
-  final Color? valueColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return MobileCard(
-      onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: MobileType.caption.w500.tint(c.label2),
-                ),
-              ),
-              ?trailing,
-            ],
-          ),
-          const SizedBox(height: CruSpace.s6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: value,
-                    style: MobileType.metric.copyWith(
-                      color: valueColor ?? c.label,
-                    ),
-                  ),
-                  if (suffix != null)
-                    TextSpan(
-                      text: suffix,
-                      style: MobileType.metricSuffix.copyWith(color: c.label3),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(
-            height: 16,
-            child: caption == null
+      child: HeroStatCard(
+        semanticLabel: 'Today at a glance',
+        // Taller than Consults' card, same type sizes.
+        minHeight: 126,
+        label: 'Seen today',
+        value: g == null ? '–' : '${g.seen}',
+        suffix: g == null ? null : ' /${g.total}',
+        caption: g == null
+            ? null
+            : g.total == 0
+            ? 'No appointments yet'
+            : g.stillToSee == 0
+            ? 'Everyone seen'
+            : '${g.stillToSee} still to see',
+        onTap: () => _toTab(ref, MobileTab.schedule),
+        stats: [
+          HeroStat(
+            'Waiting',
+            g == null ? '–' : '$waiting',
+            color: waiting > 0 ? mobileTone(c, MobileTone.amber).$2 : null,
+            detail: g?.averageWaitMinutes == null || waiting == 0
                 ? null
-                : Text(
-                    caption!,
-                    style: MobileType.caption.tabular.tint(c.label3),
-                  ),
+                : '~${DashFormat.minutes(g!.averageWaitMinutes!)}',
+            onTap: () => _toTab(ref, MobileTab.schedule),
           ),
+          // Booked, not here yet: the rest of "still to see".
+          HeroStat(
+            'Booked',
+            data.schedule == null
+                ? '–'
+                : '${data.schedule!.where((s) => s.status == ScheduleStatus.booked).length}',
+            onTap: () => _toTab(ref, MobileTab.schedule),
+          ),
+          if (ref.watch(clinicCanProvider(ClinicPermission.revenue)))
+            HeroStat(
+              'Collected',
+              collected == null
+                  ? '–'
+                  : DashFormat.rupeesCompact(collected.today),
+              color: (collected?.today ?? 0) > 0
+                  ? mobileTone(c, MobileTone.green).$2
+                  : null,
+              onTap: () => openMobileRevenue(ref),
+            ),
         ],
+        bar: g == null || g.total == 0 ? null : [HeroBarPart(g.seen, c.accent)],
+        barTotal: g?.total,
       ),
     );
   }
@@ -1127,7 +1056,9 @@ class _ActionTile extends ConsumerWidget {
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: MobileType.subhead.tint(mobileInk(context)),
+                style: MobileType.subhead
+                    .copyWith(fontSize: 15)
+                    .tint(mobileInk(context)),
               ),
             ],
           );

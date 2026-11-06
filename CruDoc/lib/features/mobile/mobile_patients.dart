@@ -530,12 +530,13 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                       onChanged: (q) => ref
                           .read(patientsListControllerProvider.notifier)
                           .setQuery(q),
+                      trailing: MobileSearchTool(
+                        icon: CruIcons.settings,
+                        semanticLabel: 'Filter patients',
+                        active: state.filter != PatientFilter.all,
+                        onTap: () => _openFilterSheet(state, view),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: CruSpace.s10),
-                  _MobileFilterButton(
-                    selectedFilter: state.filter,
-                    onTap: () => _openFilterSheet(state, view),
                   ),
                 ],
               ),
@@ -731,77 +732,6 @@ class _PatientRow extends StatelessWidget {
       trailing: trailing,
       onTap: onTap,
       onLongPress: onLongPress,
-    );
-  }
-}
-
-class _MobileFilterButton extends StatelessWidget {
-  const _MobileFilterButton({
-    required this.selectedFilter,
-    required this.onTap,
-  });
-
-  final PatientFilter selectedFilter;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    final isActive = selectedFilter != PatientFilter.all;
-
-    return CruPressable(
-      onTap: onTap,
-      semanticLabel: 'Filter patients',
-      builder: (context, hovered) => AnimatedContainer(
-        duration: CruMotion.of(context, CruMotion.fast),
-        curve: CruMotion.curve,
-        height: 48,
-        width: 48,
-        decoration: ShapeDecoration(
-          color: isActive
-              ? c.accentTint
-              : (hovered ? c.hoverFill : c.surface),
-          shape: cruShape(
-            CruRadius.control + 2,
-            side: BorderSide(
-              color: isActive
-                  ? c.accent.withValues(alpha: 0.35)
-                  : c.hairline,
-            ),
-          ),
-          shadows: [
-            BoxShadow(
-              color: const Color(0xFF0B1B4D).withValues(alpha: 0.10),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CruIcon(
-              CruIcons.settings,
-              size: 20,
-              strokeWidth: 2,
-              color: isActive ? c.accentText : c.label2,
-            ),
-            if (isActive)
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: c.accent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

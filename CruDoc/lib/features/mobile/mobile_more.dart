@@ -25,7 +25,11 @@ import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_revenue.dart';
 import 'package:doctor_management_app/features/mobile/mobile_wave.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/subscription/presentation/plan_upgrade_card.dart';
 import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
+import 'package:doctor_management_app/shared/widgets/page_tabs_scope.dart';
+import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
@@ -191,20 +195,12 @@ class MobileMoreScreen extends ConsumerWidget {
         if (!_onTabs.contains(t.tab) && !_elsewhere.contains(t.tab)) t,
     ];
 
-    Widget row(
+    Widget tile(
       String label,
       CruIconData icon,
       MobileTone tone,
-      VoidCallback onTap, {
-      String? detail,
-    }) => MobileRow(
-      leading: MobileIconTile(icon: icon, tone: tone),
-      title: label,
-      subtitle: detail,
-      titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
-      chevron: true,
-      onTap: onTap,
-    );
+      VoidCallback onTap,
+    ) => _MoreTile(label: label, icon: icon, tone: tone, onTap: onTap);
 
     // Consults always opens Referrals and Referrers together.
     final bothReferrals = specialty.any(
@@ -212,6 +208,11 @@ class MobileMoreScreen extends ConsumerWidget {
     );
     final revenueCard =
         on('revenue') && ref.watch(clinicCanProvider(ClinicPermission.revenue));
+    // The plan is the clinic owner's; the team doesn't see or upgrade it.
+    final clinicAccess = ref.watch(clinicAccessProvider).value;
+    final planInfo = clinicAccess == null || clinicAccess.isOwner
+        ? ref.watch(subscriptionInfoProvider).value
+        : null;
 
     // Revenue opens in place of More's list (Back returns).
     return _RevenueInPlace(
@@ -249,25 +250,19 @@ class MobileMoreScreen extends ConsumerWidget {
           ),
           const SizedBox(height: CruSpace.s16),
         ],
-        MobileRowGroup(
-          title: 'Plan',
-
-          children: [
-            row(
-              'Subscription & Billing',
-              CruIcons.wallet,
-              MobileTone.green,
-              () => pushMobile(context, const SubscriptionBillingPage()),
-              detail: 'Unlock features, manage your plan & payments',
-            ),
-          ],
-        ),
-        const SizedBox(height: CruSpace.s16),
-        MobileRowGroup(
-          title: 'Clinic',
-
-          children: [
-            row(
+        // Nothing until the plan has loaded, so no wrong text flashes.
+        if (planInfo != null) ...[
+          PlanUpgradeCard(
+            info: planInfo,
+            onOpen: () => pushMobile(context, const SubscriptionBillingPage()),
+          ),
+          const SizedBox(height: CruSpace.s16),
+        ],
+        // One section for every place: the clinic's own and the specialty's.
+        _MoreGrid(
+          title: 'Clinical',
+          tiles: [
+            tile(
               'Inventory',
               CruIcons.box,
               MobileTone.teal,
@@ -275,7 +270,7 @@ class MobileMoreScreen extends ConsumerWidget {
                   ? _open(context, DesktopTab.inventory)
                   : _locked(context, 'Inventory'),
             ),
-            row(
+            tile(
               'Invoices',
               CruIcons.fileText,
               MobileTone.indigo,
@@ -283,50 +278,150 @@ class MobileMoreScreen extends ConsumerWidget {
                   ? openMobileInvoices(context, backLabel: 'More')
                   : _locked(context, 'Invoices'),
             ),
-            row(
+            tile(
               'Campaigns',
               CruIcons.megaphone,
               MobileTone.amber,
               () => _open(context, DesktopTab.campaigns),
             ),
+            for (final t in specialty)
+              // Referrals (sent) and referrers (who send) are one page.
+              if (!(t.tab == DesktopTab.referrers && bothReferrals))
+                tile(
+                  bothReferrals && t.tab == DesktopTab.dentalReferrals
+                      ? 'Consults'
+                      : t.label,
+                  _iconFor(t.tab),
+                  MobileTone.blue,
+                  () => bothReferrals && t.tab == DesktopTab.dentalReferrals
+                      ? pushMobile(
+                          context,
+                          const MobileHostPage(
+                            backLabel: 'More',
+                            child: _PageHub(
+                              title: 'Consults',
+                              pages: [
+                                ('Referrals', ReferralsScreen()),
+                                ('Referrers', ReferrersScreen()),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _open(context, t.tab),
+                ),
           ],
         ),
-        if (specialty.isNotEmpty) ...[
-          const SizedBox(height: CruSpace.s16),
-          MobileRowGroup(
-            title: ref.watch(dentalFeaturesProvider).isEmpty
-                ? 'Clinical'
-                : 'Dental',
-
-            children: [
-              for (final t in specialty)
-                // Referrals (sent) and referrers (who send) are one page.
-                if (!(t.tab == DesktopTab.referrers && bothReferrals))
-                  row(
-                    bothReferrals && t.tab == DesktopTab.dentalReferrals
-                        ? 'Referrals'
-                        : t.label,
-                    _iconFor(t.tab),
-                    MobileTone.blue,
-                    () => bothReferrals && t.tab == DesktopTab.dentalReferrals
-                        ? pushMobile(
-                            context,
-                            const MobileHostPage(
-                              backLabel: 'More',
-                              child: _PageHub(
-                                pages: [
-                                  ('Referrals', ReferralsScreen()),
-                                  ('Referrers', ReferrersScreen()),
-                                ],
-                              ),
-                            ),
-                          )
-                        : _open(context, t.tab),
-                  ),
-            ],
-          ),
-        ],
       ],
+    );
+  }
+}
+
+/// A heading on the page with its places laid out two to a row, like
+/// Explore in YouTube Music.
+class _MoreGrid extends StatelessWidget {
+  const _MoreGrid({required this.title, required this.tiles});
+
+  final String title;
+  final List<Widget> tiles;
+
+  /// Section titles, a touch larger than a card heading.
+  static final _titleStyle = MobileType.groupLabel.copyWith(
+    fontSize: 16,
+    height: 22 / 16,
+    fontWeight: FontWeight.w600,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: CruSpace.s12),
+            child: Text(title, style: _titleStyle.tint(mobileInk(context))),
+          ),
+          for (var i = 0; i < tiles.length; i += 2) ...[
+            if (i > 0) const SizedBox(height: CruSpace.s12),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: tiles[i]),
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(
+                    child: i + 1 < tiles.length
+                        ? tiles[i + 1]
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One place in More: its icon over its name, in a card.
+class _MoreTile extends StatelessWidget {
+  const _MoreTile({
+    required this.label,
+    required this.icon,
+    required this.tone,
+    required this.onTap,
+  });
+
+  final String label;
+  final CruIconData icon;
+  final MobileTone tone;
+  final VoidCallback onTap;
+
+  /// A modest icon tile with a light glyph: the label is what you read.
+  static const double _iconTile = 40;
+  static const double _glyph = 21;
+
+  /// Content height of a one-line tile, so the box keeps its size.
+  static const double _minContent = 72;
+
+  static final _labelStyle = MobileType.row.copyWith(
+    fontSize: 16,
+    height: 21 / 16,
+    fontWeight: FontWeight.w500,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return MobileCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(CruSpace.s16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _minContent),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            MobileIconTile(
+              icon: icon,
+              tone: tone,
+              size: _iconTile,
+              iconSize: _glyph,
+            ),
+            const SizedBox(height: CruSpace.s8),
+            // Two lines at most; the box (and its row-mate) grows with
+            // larger system text instead of clipping.
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: _labelStyle.tint(c.label),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -664,7 +759,10 @@ class _RevenueSlot extends StatelessWidget {
 /// Several pages on one, with a segmented control on top: referrals
 /// sent out and the people who refer patients in.
 class _PageHub extends StatefulWidget {
-  const _PageHub({required this.pages});
+  const _PageHub({required this.title, required this.pages});
+
+  /// The one heading over every page.
+  final String title;
 
   /// (label, page), in order.
   final List<(String, Widget)> pages;
@@ -675,51 +773,30 @@ class _PageHub extends StatefulWidget {
 
 class _PageHubState extends State<_PageHub> {
   int _tab = 0;
-  final _pages = PageController();
-
-  @override
-  void dispose() {
-    _pages.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            MobileMetrics.gutter,
-            CruSpace.s8,
-            MobileMetrics.gutter,
-            0,
-          ),
-          child: MobileSegmented<int>(
-            values: [for (var i = 0; i < widget.pages.length; i++) i],
-            label: (i) => widget.pages[i].$1,
-            selected: _tab,
-            onChanged: (i) {
-              setState(() => _tab = i);
-              final d = CruMotion.of(context, CruMotion.standard);
-              if (d == Duration.zero) {
-                _pages.jumpToPage(i);
-              } else {
-                _pages.animateToPage(i, duration: d, curve: CruMotion.curve);
-              }
-            },
-          ),
-        ),
-        Expanded(
-          child: PageView(
-            controller: _pages,
-            onPageChanged: (i) => setState(() => _tab = i),
-            children: [
-              for (final p in widget.pages) MobileKeepAlive(child: p.$2),
-            ],
-          ),
-        ),
-      ],
+    // One pinned title and switch; each page's own screen header shows only
+    // its subtitle (faded in place) and buttons while the pages slide.
+    final switcher = Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s4),
+      child: MobileSegmented<int>(
+        values: [for (var i = 0; i < widget.pages.length; i++) i],
+        label: (i) => widget.pages[i].$1,
+        selected: _tab,
+        onChanged: (i) => setState(() => _tab = i),
+      ),
+    );
+    return SwipePages<int>(
+      values: [for (var i = 0; i < widget.pages.length; i++) i],
+      value: _tab,
+      keepAlive: true,
+      onChanged: (i) => setState(() => _tab = i),
+      builder: (context, i) => PageTabsScope(
+        title: widget.title,
+        tabs: switcher,
+        child: widget.pages[i].$2,
+      ),
     );
   }
 }

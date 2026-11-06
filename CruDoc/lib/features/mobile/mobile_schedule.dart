@@ -353,26 +353,20 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
         ...switch (items) {
           AsyncData(:final value) when value.isEmpty && walkIns.isEmpty => [
             SliverToBoxAdapter(
-              child: MobileRowGroup(
-                header: _dayHeader(c, day, now, isToday, value, walkIns),
+              child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Nothing booked. Book a visit or check in a walk-in.',
-                          textAlign: TextAlign.center,
-                          style: MobileType.subhead.tint(c.label2),
-                        ),
-                        const SizedBox(height: CruSpace.s16),
-                        MobilePrimaryButton(
-                          label: 'Book a visit',
-                          icon: CruIcons.plus,
-                          onPressed: () => _book(day),
-                        ),
-                      ],
-                    ),
+                  // The day and its way back to today stay in their own card.
+                  MobileRowGroup(
+                    header: _dayHeader(c, day, now, isToday, value, walkIns),
+                    children: const [],
+                  ),
+                  const SizedBox(height: CruSpace.s12),
+                  MobileEmpty(
+                    icon: CruIcons.calendar,
+                    title: 'Nothing booked',
+                    body: 'Book a visit or check in a walk-in.',
+                    action: 'Book a visit',
+                    onAction: () => _book(day),
                   ),
                 ],
               ),

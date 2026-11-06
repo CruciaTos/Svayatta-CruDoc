@@ -928,16 +928,17 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
                   Expanded(
                     child: MobileSearchField(
                       controller: _search,
-                      hint: 'Search patient, scan, procedure or referrer',
+                      hint: 'Search tasks',
                       onChanged: (q) => setState(() => _query = q),
+                      trailing: MobileSearchTool(
+                        icon: CruIcons.settings,
+                        semanticLabel: 'Filter tasks',
+                        active:
+                            _statusFilter != TaskStatusFilter.any ||
+                            _timeFilter != TaskTimeFilter.any,
+                        onTap: () => _openFilterModal(context, effectiveSource),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: CruSpace.s10),
-                  _FilterIconButton(
-                    hasActiveFilter:
-                        _statusFilter != TaskStatusFilter.any ||
-                        _timeFilter != TaskTimeFilter.any,
-                    onTap: () => _openFilterModal(context, effectiveSource),
                   ),
                 ],
               ),
@@ -981,33 +982,18 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
               body: 'Nothing is waiting on you right now.',
             )
           else if (filtered.isEmpty)
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const MobileEmpty(
-                  icon: CruIcons.search,
-                  title: 'No matches',
-                  body: 'Try another filter or search.',
-                ),
-                const SizedBox(height: CruSpace.s8),
-                CruPressable(
-                  onTap: () {
-                    MobileHaptics.tap();
-                    setState(() {
-                      _statusFilter = TaskStatusFilter.any;
-                      _timeFilter = TaskTimeFilter.any;
-                      _search.clear();
-                      _query = '';
-                    });
-                  },
-                  semanticLabel: 'Clear filters',
-                  builder: (context, _) => Text(
-                    'Clear filters',
-                    style: MobileType.subhead.w600.tint(context.cru.accentText),
-                  ),
-                ),
-                const SizedBox(height: CruSpace.s16),
-              ],
+            MobileEmpty(
+              icon: CruIcons.search,
+              title: 'No matches',
+              body: 'Try another filter or search.',
+              action: 'Clear filters',
+              actionIcon: null,
+              onAction: () => setState(() {
+                _statusFilter = TaskStatusFilter.any;
+                _timeFilter = TaskTimeFilter.any;
+                _search.clear();
+                _query = '';
+              }),
             )
           else
             MobileRowGroup(
@@ -1128,7 +1114,8 @@ class _RecentActivityStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
+    // Nothing recent: the page's own empty state below says so.
+    if (items.isEmpty) return const SizedBox.shrink();
 
     // Fewer weights when there are only one or two tasks, so a lone card
     // isn't left half-width next to empty space.
@@ -1155,70 +1142,45 @@ class _RecentActivityStrip extends StatelessWidget {
             style: MobileType.groupLabel.tint(mobileInk(context)),
           ),
         ),
-        if (items.isEmpty)
-          Padding(
+        SizedBox(
+          height: _height,
+          child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: MobileMetrics.gutter,
+              horizontal: MobileMetrics.gutter - _gap,
             ),
-            child: MobileCard(
-              padding: const EdgeInsets.all(CruSpace.s12),
-              child: Row(
-                children: [
-                  const MobileIconTile(
-                    icon: CruIcons.check,
-                    tone: MobileTone.green,
+            child: LayoutBuilder(
+              builder: (context, box) {
+                // Width of the largest card: the size content is laid
+                // out at, whatever width the card has at the moment.
+                final fullWidth =
+                    box.maxWidth * weights.first / totalWeight - _gap * 2;
+                return CarouselView.weighted(
+                  flexWeights: weights,
+                  itemSnapping: true,
+                  enableSplash: false,
+                  padding: const EdgeInsets.symmetric(horizontal: _gap),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  itemClipBehavior: Clip.antiAlias,
+                  shape: RoundedSuperellipseBorder(
+                    borderRadius: BorderRadius.circular(26),
                   ),
-                  const SizedBox(width: CruSpace.s12),
-                  Expanded(
-                    child: Text(
-                      'New and updated tasks will show up here.',
-                      style: MobileType.subhead.tint(c.label2),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: _height,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: MobileMetrics.gutter - _gap,
-              ),
-              child: LayoutBuilder(
-                builder: (context, box) {
-                  // Width of the largest card: the size content is laid
-                  // out at, whatever width the card has at the moment.
-                  final fullWidth =
-                      box.maxWidth * weights.first / totalWeight - _gap * 2;
-                  return CarouselView.weighted(
-                    flexWeights: weights,
-                    itemSnapping: true,
-                    enableSplash: false,
-                    padding: const EdgeInsets.symmetric(horizontal: _gap),
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    itemClipBehavior: Clip.antiAlias,
-                    shape: RoundedSuperellipseBorder(
-                      borderRadius: BorderRadius.circular(26),
-                    ),
-                    children: [
-                      for (final t in items)
-                        _RecentActivityCard(
-                          task: t,
-                          now: now,
-                          thumbs: thumbs,
-                          fullWidth: fullWidth,
-                          onTap: () => onTap(t),
-                          onLongPress: () => onLongPress(t),
-                        ),
-                    ],
-                  );
-                },
-              ),
+                  children: [
+                    for (final t in items)
+                      _RecentActivityCard(
+                        task: t,
+                        now: now,
+                        thumbs: thumbs,
+                        fullWidth: fullWidth,
+                        onTap: () => onTap(t),
+                        onLongPress: () => onLongPress(t),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
+        ),
       ],
     );
   }
@@ -1481,73 +1443,6 @@ class _RecentActivityCard extends StatelessWidget {
       ],
     ),
   );
-}
-
-class _FilterIconButton extends StatelessWidget {
-  const _FilterIconButton({required this.hasActiveFilter, required this.onTap});
-
-  final bool hasActiveFilter;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-
-    return CruPressable(
-      onTap: onTap,
-      semanticLabel: 'Filter tasks',
-      builder: (context, hovered) => AnimatedContainer(
-        duration: CruMotion.of(context, CruMotion.fast),
-        curve: CruMotion.curve,
-        height: 48,
-        width: 48,
-        decoration: ShapeDecoration(
-          color: hasActiveFilter
-              ? c.accentTint
-              : (hovered ? c.hoverFill : c.surface),
-          shape: cruShape(
-            CruRadius.control + 2,
-            side: BorderSide(
-              color: hasActiveFilter
-                  ? c.accent.withValues(alpha: 0.35)
-                  : c.hairline,
-            ),
-          ),
-          shadows: [
-            BoxShadow(
-              color: const Color(0xFF0B1B4D).withValues(alpha: 0.10),
-              blurRadius: 18,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CruIcon(
-              CruIcons.settings,
-              size: 20,
-              strokeWidth: 2,
-              color: hasActiveFilter ? c.accentText : c.label2,
-            ),
-            if (hasActiveFilter)
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: c.accent,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _RemovableFilterChip extends StatelessWidget {

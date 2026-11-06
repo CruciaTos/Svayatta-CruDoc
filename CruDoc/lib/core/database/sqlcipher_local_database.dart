@@ -19,6 +19,9 @@ class SqlCipherDatabase extends _SqlCipherExecutor implements LocalDatabase {
   final sqlcipher.Database _db;
 
   @override
+  bool get isOpen => _db.isOpen;
+
+  @override
   Future<T> transaction<T>(
     Future<T> Function(LocalDatabaseTransaction txn) action,
   ) {

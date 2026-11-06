@@ -722,11 +722,16 @@ class _MobilePostCampaignSheetState
       children: [
         TextField(
           onChanged: (v) => setState(() => _patientPickerQuery = v),
-          style: CruType.text.tint(c.label),
+          style: CruType.body.tint(c.label),
           decoration: InputDecoration(
-            hintText: 'Search patients by name, email or phone',
-            hintStyle: CruType.text.tint(c.label2),
-            prefixIcon: Icon(Icons.search_rounded, size: 18, color: c.label2),
+            hintText: 'Search patients',
+            hintStyle: CruType.body.tint(c.label2),
+            prefixIcon: CruIcon(
+              CruIcons.search,
+              size: CruSize.searchIconPhone,
+              strokeWidth: 2,
+              color: c.label2,
+            ),
             filled: true,
             fillColor: c.inset,
             border: OutlineInputBorder(
@@ -737,9 +742,10 @@ class _MobilePostCampaignSheetState
               borderRadius: BorderRadius.circular(CruRadius.control),
               borderSide: BorderSide(color: c.accent, width: 1.5),
             ),
+            // 16 + 24 (the body line) + 16 = the phone search bar's 56.
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
+              horizontal: 16,
+              vertical: 16,
             ),
           ),
         ),

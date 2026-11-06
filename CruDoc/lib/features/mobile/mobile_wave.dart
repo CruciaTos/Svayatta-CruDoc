@@ -40,6 +40,19 @@ List<Widget> mobileWaveChildren(List<Widget> children, {required int origin}) =>
         _WaveItem(distance: i - origin, child: children[i]),
     ];
 
+/// Content that hangs below the card inside the same page child (Revenue's
+/// dues and transactions sit in one list child with the card), so it can't
+/// be a wave item of its own: it plays the step of the item just below the
+/// card instead of staying put while the page changes.
+class MobileWaveBelow extends StatelessWidget {
+  const MobileWaveBelow({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => _WaveItem(distance: 1, child: child);
+}
+
 /// How far an item drifts as it comes and goes.
 const double _kDrift = 18;
 

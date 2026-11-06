@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -38,6 +39,11 @@ class LocalDatabaseService extends ChangeNotifier {
 
   sqflite_common.Database? _database;
   String? _databaseDoctorId;
+  Future<sqflite_common.Database>? _openFuture;
+  String? _openingDoctorId;
+
+  /// Whether the database connection is currently open.
+  bool get isOpen => _database != null && _database!.isOpen;
 
   /// Set once, the first time a Windows database is opened in this process.
   /// `sqfliteFfiInit()` just points `sqflite_common_ffi` at its `sqlite3`
@@ -64,24 +70,49 @@ class LocalDatabaseService extends ChangeNotifier {
     } catch (_) {
       requestedDoctorId = 'signed_out';
     }
+
     final existing = _database;
-    if (existing != null && _databaseDoctorId == requestedDoctorId) {
+    if (existing != null && existing.isOpen && _databaseDoctorId == requestedDoctorId) {
       return existing;
     }
-    if (existing != null) {
-      await existing.close();
-      _database = null;
-      _databaseDoctorId = null;
+
+    if (_openFuture != null && _openingDoctorId == requestedDoctorId) {
+      return _openFuture!;
     }
 
-    final fileName = _databaseFileNameForDoctor(requestedDoctorId);
-    final db = Platform.isWindows
-        ? await _openWindowsDatabaseWithRecovery(fileName)
-        : await _openSqlCipherDatabaseWithRecovery(fileName);
+    final completer = Completer<sqflite_common.Database>();
+    _openingDoctorId = requestedDoctorId;
+    _openFuture = completer.future;
 
-    _database = db;
-    _databaseDoctorId = requestedDoctorId;
-    return db;
+    try {
+      final oldDb = _database;
+      _database = null;
+      _databaseDoctorId = null;
+
+      if (oldDb != null && oldDb.isOpen) {
+        try {
+          await oldDb.close();
+        } catch (_) {}
+      }
+
+      final fileName = _databaseFileNameForDoctor(requestedDoctorId);
+      final db = Platform.isWindows
+          ? await _openWindowsDatabaseWithRecovery(fileName)
+          : await _openSqlCipherDatabaseWithRecovery(fileName);
+
+      _database = db;
+      _databaseDoctorId = requestedDoctorId;
+      completer.complete(db);
+      return db;
+    } catch (e, st) {
+      completer.completeError(e, st);
+      rethrow;
+    } finally {
+      if (_openingDoctorId == requestedDoctorId) {
+        _openFuture = null;
+        _openingDoctorId = null;
+      }
+    }
   }
 
   /// [LocalDatabase]-typed access to the same underlying connection as
@@ -272,11 +303,17 @@ class LocalDatabaseService extends ChangeNotifier {
 
   Future<void> close() async {
     final db = _database;
-    if (db == null) return;
-
-    await db.close();
     _database = null;
     _databaseDoctorId = null;
+    _openFuture = null;
+    _openingDoctorId = null;
+
+    if (db == null) return;
+    if (db.isOpen) {
+      try {
+        await db.close();
+      } catch (_) {}
+    }
   }
 
   Future<void> _createSchema(LocalDatabase db) async {

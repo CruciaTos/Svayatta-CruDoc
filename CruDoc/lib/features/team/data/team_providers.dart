@@ -47,9 +47,11 @@ final clinicRolesProvider = StreamProvider<List<ClinicRole>>((ref) {
 
 /// Invites still waiting to be accepted (needs the `team` permission).
 final clinicInvitesProvider = StreamProvider<List<ClinicInvite>>((ref) {
-  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
-  if (clinicId == null) return Stream.value(const []);
-  return _clinic(clinicId)
+  final access = ref.watch(clinicAccessProvider).value;
+  if (access == null || !access.can(ClinicPermission.team)) {
+    return Stream.value(const []);
+  }
+  return _clinic(access.clinicId)
       .collection('invites')
       .where('status', isEqualTo: 'pending')
       .snapshots()
@@ -69,9 +71,11 @@ final clinicInvitesProvider = StreamProvider<List<ClinicInvite>>((ref) {
 final clinicDeclinedInvitesProvider = StreamProvider<List<ClinicInvite>>((
   ref,
 ) {
-  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
-  if (clinicId == null) return Stream.value(const []);
-  return _clinic(clinicId)
+  final access = ref.watch(clinicAccessProvider).value;
+  if (access == null || !access.can(ClinicPermission.team)) {
+    return Stream.value(const []);
+  }
+  return _clinic(access.clinicId)
       .collection('invites')
       .where('status', isEqualTo: 'declined')
       .snapshots()

@@ -112,6 +112,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   /// data the first time so every screen has something to show.
   static const _demoEmailDomain = '@crudoc.com';
 
+  /// Whether Super Admin deleted or suspended this profile. Firebase Auth
+  /// already refuses such a sign-in; this only picks the message.
+  static bool _isTurnedOff(Map<String, dynamic> profile) =>
+      profile['isDeleted'] == true ||
+      const {'suspended', 'Disabled', 'Inactive'}.contains(profile['status']);
+
   Future<void> _enterDemo(String email) async {
     // The address picks the demo (dental@crudoc.com opens the dental one);
     // any other address on the domain keeps the last specialty used.
@@ -125,20 +131,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     User? user;
     try {
       await FirestoreAccountReset.done;
-      try {
-        user = (await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: spec.demoEmail,
-          password: spec.demoPassword,
-        )).user;
-      } on FirebaseAuthException catch (e) {
-        if (e.code != 'user-not-found' && e.code != 'invalid-credential') {
-          rethrow;
-        }
-        user = (await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: spec.demoEmail,
-          password: spec.demoPassword,
-        )).user;
-      }
+      // Sign in only. Demo accounts are made on the server, never by the
+      // app: one that was deleted in Super Admin must stay gone.
+      user = (await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: spec.demoEmail,
+        password: spec.demoPassword,
+      )).user;
     } catch (e) {
       // Every screen reads the signed-in account, so without one the app
       // would only show loading states. Say why instead of entering.
@@ -147,9 +145,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         setState(() => _isLoading = false);
         _showUserDoesNotExistDialog(
           title: 'Demo Unavailable',
-          message: e is FirebaseAuthException && e.message != null
-              ? e.message!
-              : 'Could not reach the demo account. Check the connection and try again.',
+          message: switch (e) {
+            FirebaseAuthException(code: 'user-disabled') =>
+              'This demo account has been turned off by Super Admin.',
+            FirebaseAuthException(
+              code: 'user-not-found' || 'invalid-credential',
+            ) =>
+              "This demo account doesn't exist. Ask Super Admin to set it up.",
+            FirebaseAuthException(:final message?) => message,
+            _ =>
+              'Could not reach the demo account. Check the connection and try again.',
+          },
         );
       }
       return;
@@ -236,9 +242,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         if (data['role'] != 'doctor' && !isStaff) {
           updates['role'] = 'doctor';
         }
-        if (data['isDeleted'] != false) {
-          updates['isDeleted'] = false;
-        }
+        // isDeleted is never touched here: only the Super Admin functions
+        // set it, and signing in must not undo a delete.
         final existingName = (data['displayName'] as String?)?.trim();
         if (existingName == null || existingName.isEmpty) {
           updates['displayName'] = derivedName;
@@ -373,10 +378,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
           if (uidDoc.exists && uidDoc.data() != null) {
             existsInDatabase = true;
-            final data = uidDoc.data()!;
-            if (data['status'] == 'Disabled' || data['status'] == 'Inactive') {
-              isDisabled = true;
-            }
+            isDisabled = _isTurnedOff(uidDoc.data()!);
           } else {
             // 2. Email fallback query in 'users' database collection
             if (user.email != null && user.email!.isNotEmpty) {
@@ -387,11 +389,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
               if (querySnap.docs.isNotEmpty) {
                 existsInDatabase = true;
-                final data = querySnap.docs.first.data();
-                if (data['status'] == 'Disabled' ||
-                    data['status'] == 'Inactive') {
-                  isDisabled = true;
-                }
+                isDisabled = _isTurnedOff(querySnap.docs.first.data());
               }
             }
           }

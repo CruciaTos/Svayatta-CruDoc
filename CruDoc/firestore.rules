@@ -916,15 +916,22 @@ service cloud.firestore {
       // Keep in sync with functions/src/subscription.ts.
       // A signed-in user may create their own profile, but never as an admin
       // and never with its own entitlements.
+      // Delete/suspend markers are written only by the deleteDoctor /
+      // toggleDoctorStatus functions, so a deleted or suspended doctor
+      // can't switch their own account back on.
       allow create: if isSuperAdmin()
         || (isSelf(userId)
           && (!('role' in request.resource.data)
             || request.resource.data.role == 'doctor')
+          && (!('isDeleted' in request.resource.data)
+            || request.resource.data.isDeleted == false)
           && !request.resource.data.keys().hasAny([
             'clinicId', 'memberKind',
             'enabledModules', 'expiresDate', 'status', 'subscriptionPlan',
             'allowMultiDevice', 'lastPaymentDate', 'lastTransactionId',
-            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt', 'crudocId']));
+            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt', 'crudocId',
+            'deletedAt', 'deletedBy', 'suspendedAt', 'suspendedBy',
+            'suspensionReason']));
       allow update: if isSuperAdmin()
         || (isSelf(userId)
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
@@ -933,7 +940,9 @@ service cloud.firestore {
             'clinicId', 'memberKind',
             'enabledModules', 'expiresDate', 'status', 'subscriptionPlan',
             'allowMultiDevice', 'lastPaymentDate', 'lastTransactionId',
-            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt', 'crudocId']));
+            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt', 'crudocId',
+            'isDeleted', 'deletedAt', 'deletedBy', 'suspendedAt', 'suspendedBy',
+            'suspensionReason']));
       allow delete: if isSuperAdmin();
 
       // Everything a doctor keeps under their own profile: device sessions,

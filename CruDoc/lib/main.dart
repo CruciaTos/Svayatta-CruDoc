@@ -19,6 +19,7 @@ import 'core/models/doctor_specialty.dart';
 import 'core/providers/specialty_provider.dart';
 import 'features/dental/dental_features.dart';
 import 'core/router/app_router.dart';
+import 'core/services/account_server_check.dart';
 import 'core/services/encryption_key_manager.dart';
 import 'core/services/device_session_service.dart';
 import 'core/services/firestore_account_reset.dart';
@@ -112,6 +113,7 @@ Future<void> main() async {
     _wireDoctorScopedStartup();
   }
   MapsKey.loadOnSignIn();
+  AccountServerCheck.start(onSignedOut: _showForcedLogoutSnackBar);
   // Each feature that keeps a cloud path on its own record says how, before
   // the queue can finish an upload it left waiting.
   RadiologyCloudSync.register();
@@ -364,6 +366,11 @@ void _followClinic({
       // person's cache is gone.
       await FirestoreAccountReset.done;
       signedInUid = user.uid;
+
+      // A sign-in saved on this device is confirmed with the server, so a
+      // deleted or suspended account doesn't keep working until its token
+      // expires.
+      unawaited(AccountServerCheck.check(onSignedOut: _showForcedLogoutSnackBar));
 
       DeviceSessionService.instance.startSessionMonitoring(
         user.uid,

@@ -298,6 +298,22 @@ describe('users', () => {
     await assertFails(updateDoc(doc(doctor(B), `users/${B}`), { role: 'superAdmin' }));
   });
 
+  it("never lets a deleted or suspended doctor switch their account back on", async () => {
+    await seed(`users/${A}`, { role: 'doctor', isDeleted: true, status: 'expired' });
+    await assertFails(updateDoc(doc(doctor(A), `users/${A}`), { isDeleted: false }));
+    await assertFails(updateDoc(doc(doctor(A), `users/${A}`), { deletedAt: null }));
+    await seed(`users/${B}`, { role: 'doctor', status: 'suspended', suspensionReason: 'x' });
+    await assertFails(updateDoc(doc(doctor(B), `users/${B}`), { suspensionReason: null }));
+    // Other profile fields still save.
+    await assertSucceeds(updateDoc(doc(doctor(B), `users/${B}`), { clinicName: 'X' }));
+  });
+
+  it('lets a new profile start not-deleted, never pre-marked', async () => {
+    await assertSucceeds(setDoc(doc(doctor(A), `users/${A}`), { role: 'doctor', isDeleted: false }));
+    await assertFails(setDoc(doc(doctor(B), `users/${B}`), { role: 'doctor', isDeleted: true }));
+    await assertFails(setDoc(doc(doctor(B), `users/${B}`), { role: 'doctor', suspendedBy: 'me' }));
+  });
+
   it("lets a doctor use their own subcollections but not another's", async () => {
     await assertSucceeds(
       setDoc(doc(doctor(A), `users/${A}/active_sessions/s1`), { status: 'active' }),

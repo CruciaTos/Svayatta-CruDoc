@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions/v1";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 
@@ -223,46 +224,7 @@ function encryptDoctorValue(value: string, doctorId: string): string {
   return `enc:v1:${iv.toString("base64")}.${Buffer.concat([encrypted, tag]).toString("base64")}`;
 }
 
-// ============================================================
-// 3. DELETE DOCTOR (SOFT DELETE WITH CASCADE)
-// ============================================================
-
-export const deleteDoctor = functions.region("asia-south1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
-  if (!context.auth || context.auth.token.role !== "superAdmin") {
-    throw new functions.https.HttpsError("permission-denied", "Unauthorized");
-  }
-
-  const {doctorId} = data;
-  if (!doctorId) {
-    throw new functions.https.HttpsError("invalid-argument", "Doctor ID required");
-  }
-
-  try {
-    const batch = db.batch();
-    const now = admin.firestore.Timestamp.now();
-
-    // Soft delete user document
-    batch.update(db.collection("users").doc(doctorId), {
-      isDeleted: true,
-      status: "expired",
-      deletedAt: now,
-      deletedBy: context.auth.token.email,
-    });
-
-    // Disable Firebase Auth user
-    await auth.updateUser(doctorId, {disabled: true});
-
-    await batch.commit();
-
-    // Log audit
-    await logAudit(context, "deletedDoctor", doctorId);
-
-    return {success: true, message: "Doctor account deleted"};
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    throw new functions.https.HttpsError("internal", errorMessage);
-  }
-});
+// 3. Delete doctor: see manageDoctorAccount (section 8).
 
 // ============================================================
 // 4. CHANGE DOCTOR SUBSCRIPTION PLAN
@@ -523,59 +485,119 @@ export const sendAnnouncement = functions.region("asia-south1").https.onCall(asy
 });
 
 // ============================================================
-// 8. SUSPEND/ACTIVATE DOCTOR
+// 8. DELETE / SUSPEND / ACTIVATE DOCTOR
 // ============================================================
 
-export const toggleDoctorStatus = functions.region("asia-south1").https.onCall(
-  async (data: any, context: functions.https.CallableContext) => {
-    if (!context.auth || context.auth.token.role !== "superAdmin") {
-      throw new functions.https.HttpsError("permission-denied", "Unauthorized");
+/**
+ * Super Admin's delete, suspend and activate. The login itself is turned off
+ * (or back on) in Firebase Auth, so the server decides who can sign in: the
+ * app's own checks only explain why.
+ *
+ * 2nd gen, unlike the rest of this file: the organisation policy blocks
+ * public invokers on 1st gen functions, so the old deleteDoctor /
+ * toggleDoctorStatus could never be called. After the first deploy run
+ * `gcloud run services update managedoctoraccount --region asia-south1
+ * --no-invoker-iam-check` once (as for planPayments).
+ */
+export const manageDoctorAccount = onCall(
+  {region: "asia-south1", maxInstances: 5},
+  async (request) => {
+    const caller = request.auth;
+    if (!caller || caller.token.role !== "superAdmin") {
+      throw new HttpsError("permission-denied", "Unauthorized");
     }
 
-    const {doctorId, action, reason} = data;
-    const isSuspend = action === "suspend";
+    const {doctorId, action, reason} = (request.data ?? {}) as {
+      doctorId?: unknown; action?: unknown; reason?: unknown;
+    };
+    if (typeof doctorId !== "string" || !doctorId ||
+        (action !== "delete" && action !== "suspend" && action !== "activate")) {
+      throw new HttpsError(
+        "invalid-argument", "doctorId and action (delete, suspend or activate) required");
+    }
+    const reasonText = typeof reason === "string" ? reason : null;
 
     try {
-      const updates: Record<string, unknown> = {};
+      await assertNotSuperAdmin(doctorId);
+      const profileRef = db.collection("users").doc(doctorId);
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      let updates: Record<string, unknown>;
+      let auditAction: string;
 
-      if (isSuspend) {
-        updates.status = "suspended";
-        updates.suspendedAt = admin.firestore.FieldValue.serverTimestamp();
-        updates.suspendedBy = context.auth.token.email;
-        updates.suspensionReason = reason || null;
+      if (action === "activate") {
+        // A deleted account stays off: activating would quietly undo it.
+        if ((await profileRef.get()).data()?.isDeleted === true) {
+          throw new HttpsError(
+            "failed-precondition", "This account was deleted and can't be activated.");
+        }
+        await blockSignIn(doctorId, false);
+        updates = {status: "active", activatedAt: now,
+          activatedBy: caller.token.email ?? null, suspensionReason: null};
+        auditAction = "activatedAccount";
       } else {
-        updates.status = "active";
-        updates.activatedAt = admin.firestore.FieldValue.serverTimestamp();
-        updates.activatedBy = context.auth.token.email;
-        updates.suspensionReason = null;
+        // The login goes off before the profile is marked.
+        await blockSignIn(doctorId, true);
+        updates = action === "delete" ?
+          {isDeleted: true, status: "expired", deletedAt: now,
+            deletedBy: caller.token.email ?? null} :
+          {status: "suspended", suspendedAt: now,
+            suspendedBy: caller.token.email ?? null, suspensionReason: reasonText};
+        auditAction = action === "delete" ? "deletedDoctor" : "suspendedAccount";
       }
 
-      await db.collection("users").doc(doctorId).update(updates);
-      await auth.updateUser(doctorId, {disabled: isSuspend});
-
-      // Log audit
-      await logAudit(
-        context,
-        isSuspend ? "suspendedAccount" : "activatedAccount",
-        doctorId,
-        undefined,
-        undefined,
-        {reason}
-      );
-
+      await profileRef.set(updates, {merge: true});
+      await logAudit(request, auditAction, doctorId, undefined, undefined,
+        reasonText ? {reason: reasonText} : undefined);
       return {success: true};
     } catch (error) {
+      if (error instanceof HttpsError) throw error;
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      throw new functions.https.HttpsError("internal", errorMessage);
+      throw new HttpsError("internal", errorMessage);
     }
   });
+
+// ============================================================
+// HELPERS: Turn a login on or off
+// ============================================================
+
+/** Delete and suspend are for clinic accounts, never a Super Admin. */
+async function assertNotSuperAdmin(uid: string): Promise<void> {
+  const user = await auth.getUser(uid).catch(() => null);
+  if (user?.customClaims?.role === "superAdmin") {
+    throw new HttpsError(
+      "permission-denied", "Super Admin accounts can't be changed here.");
+  }
+}
+
+/**
+ * Turns sign-in off (or back on) in Firebase Auth. Turning it off also
+ * revokes the refresh tokens, so devices already signed in lose access when
+ * their current token expires (at most an hour) or sooner when the app
+ * checks with the server on start or resume. A missing login is fine:
+ * there is nothing left to turn off.
+ */
+async function blockSignIn(uid: string, blocked: boolean): Promise<void> {
+  try {
+    await auth.updateUser(uid, {disabled: blocked});
+    if (blocked) await auth.revokeRefreshTokens(uid);
+  } catch (error) {
+    const code = (error as {code?: string}).code;
+    if (code !== "auth/user-not-found") throw error;
+  }
+}
 
 // ============================================================
 // HELPER: Log audit entry
 // ============================================================
 
+/** A 1st or 2nd gen callable's caller, as the audit log needs it. */
+type AuditCaller = {
+  auth?: {token: {email?: string; name?: string}};
+  rawRequest?: unknown;
+};
+
 async function logAudit(
-  context: functions.https.CallableContext,
+  context: AuditCaller,
   actionType: string,
   targetDoctorId?: string,
   targetDoctorName?: string,

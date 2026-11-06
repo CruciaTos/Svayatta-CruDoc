@@ -5,6 +5,7 @@ import * as crypto from "crypto";
 import {FieldValue} from "firebase-admin/firestore";
 import {spend} from "./referrals";
 import {writePaidPlan} from "./subscription";
+import {rejectSuperAdmin} from "./clinic-app-guard";
 
 /**
  * Paying for a CruDoc plan by UPI, through CruDoc's own YouPI PG gateway
@@ -424,6 +425,7 @@ async function cancel(request: CallableRequest) {
  * With test payments on, start returns `mock: true` and no checkoutUrl.
  */
 export const planPayments = onCall({region: REGION, maxInstances: 10}, async (request) => {
+  rejectSuperAdmin(request);
   switch (String(request.data?.action ?? "")) {
   case "start": return start(request);
   case "cancel": return cancel(request);

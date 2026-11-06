@@ -8,6 +8,7 @@ import * as admin from "firebase-admin";
 import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {copyAssignmentsForClinic} from "./clinical-assignment";
 import {CrudocTarget, resolveCrudocId} from "./crudoc-id";
+import {rejectSuperAdmin} from "./clinic-app-guard";
 
 // Keep in sync with lib/core/clinic/clinic_permission.dart and the rules.
 export const PERMS = [
@@ -573,6 +574,7 @@ export const clinicTeam = onCall(
     if (!request.auth || !request.auth.uid) {
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
+    rejectSuperAdmin(request);
     const uid = request.auth.uid;
     const db = admin.firestore();
     const data = request.data || {};

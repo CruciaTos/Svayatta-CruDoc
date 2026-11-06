@@ -192,6 +192,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _enterApp();
   }
 
+  /// Super Admin logins are for the Super Admin panel only. The server
+  /// already refuses them every clinic (rules and functions); this signs
+  /// them out with a clear message instead of an app that can't load.
+  Future<bool> _refusedAsSuperAdmin(User user) async {
+    try {
+      final claims = (await user.getIdTokenResult(true)).claims;
+      if (claims?['role'] != 'superAdmin') return false;
+    } catch (_) {
+      return false;
+    }
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      setState(() => _isLoading = false);
+      _showUserDoesNotExistDialog(
+        title: 'Super Admin account',
+        message:
+            "Super Admin accounts can't be used in the clinic app. "
+            'Sign in with a doctor account, or use doctor@crudoc.com for testing.',
+      );
+    }
+    return true;
+  }
+
   Future<void> _syncUserProfile(User user, {String? name}) async {
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
@@ -437,6 +460,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           await _secureStorage.write(key: 'remember_me', value: 'false');
         }
 
+        if (await _refusedAsSuperAdmin(user)) return;
         await _syncUserProfile(user);
         await DeviceSessionService.instance.registerNewSession(user.uid);
         if (!mounted) return;
@@ -571,6 +595,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       final userCredential = await _authService.signInWithGoogle();
       final user = userCredential.user;
       if (user != null) {
+        if (await _refusedAsSuperAdmin(user)) return;
         await DeviceSessionService.instance.registerNewSession(user.uid);
         await _syncUserProfile(user);
       }
@@ -606,6 +631,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (result != null) {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
+        if (await _refusedAsSuperAdmin(currentUser)) return;
         await DeviceSessionService.instance.registerNewSession(currentUser.uid);
         await _syncUserProfile(currentUser);
       }

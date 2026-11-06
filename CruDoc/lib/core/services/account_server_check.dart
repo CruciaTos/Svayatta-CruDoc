@@ -47,7 +47,17 @@ class AccountServerCheck {
     if (user == null || _running) return;
     _running = true;
     try {
-      await user.getIdToken(true);
+      final token = await user.getIdTokenResult(true);
+      // Super Admin logins are for the Super Admin panel only; the server
+      // gives them no clinic, so a saved sign-in is closed here.
+      if (token.claims?['role'] == 'superAdmin') {
+        DemoSessionService.endDemoSession();
+        await FirebaseAuth.instance.signOut();
+        onSignedOut(
+          "Super Admin accounts can't be used in the clinic app. "
+          'Sign in with a doctor account.',
+        );
+      }
     } on FirebaseAuthException catch (e) {
       if (!_refusedCodes.contains(e.code)) {
         debugPrint('[AccountServerCheck] not checked: ${e.code}');

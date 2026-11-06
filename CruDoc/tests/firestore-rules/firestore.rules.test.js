@@ -298,6 +298,15 @@ describe('users', () => {
     await assertFails(updateDoc(doc(doctor(B), `users/${B}`), { role: 'superAdmin' }));
   });
 
+  it("gives a Super Admin login no clinic of its own", async () => {
+    const adminAsOwner = env.authenticatedContext(ADMIN, ADMIN_CLAIMS).firestore();
+    await seed(`patients/p-admin`, { doctorId: ADMIN, name: 'x' });
+    await assertFails(getDoc(doc(adminAsOwner, 'patients/p-admin')));
+    await assertFails(setDoc(doc(adminAsOwner, 'patients/p-new'), { doctorId: ADMIN }));
+    await seed(`clinics/${ADMIN}`, { name: 'Admin clinic' });
+    await assertFails(updateDoc(doc(adminAsOwner, `clinics/${ADMIN}`), { name: 'y' }));
+  });
+
   it("never lets a deleted or suspended doctor switch their account back on", async () => {
     await seed(`users/${A}`, { role: 'doctor', isDeleted: true, status: 'expired' });
     await assertFails(updateDoc(doc(doctor(A), `users/${A}`), { isDeleted: false }));

@@ -6,6 +6,7 @@ import * as admin from "firebase-admin";
 // (production is unaffected; the classes are the same either way).
 import {Timestamp} from "firebase-admin/firestore";
 import {decryptProfileField} from "./crypto/profileCipher";
+import {rejectSuperAdmin} from "./clinic-app-guard";
 
 // Features a doctor always keeps, even once a plan expires. Mirrors
 // DoctorFeatureGuard.baseModules in the Flutter app.
@@ -166,6 +167,11 @@ export const startDoctorTrial = onCall(
     const userRef = db.collection("users").doc(uid);
     const snap = await userRef.get();
     const existing = snap.data() || {};
+    rejectSuperAdmin(request, existing);
+    // A deleted account never gets a new trial (that would undo the delete).
+    if (existing.isDeleted === true) {
+      throw new HttpsError("permission-denied", "This account has been deleted.");
+    }
 
     // Clinic staff work under the clinic's plan and are not doctors: no
     // doctor role, trial or claims for them. Older apps still ask.

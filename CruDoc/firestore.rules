@@ -103,8 +103,12 @@ service cloud.firestore {
     // (not a real permission, so only the owner and the admin role pass).
     // The owner is decided by ownerAllows alone and never falls through to
     // the member check (no ternary, for the reason given at scopeAllowsGet).
+    // A Super Admin login is never a clinic owner or member: it reaches
+    // clinic data only through its own isSuperAdmin() rules, so signing in
+    // to the clinic app with one opens nothing.
     function clinicAllows(clinicId, perm) {
       return isAuthenticated()
+        && request.auth.token.get('role', '') != 'superAdmin'
         && ((request.auth.uid == clinicId && ownerAllows(perm))
           || (request.auth.uid != clinicId && memberAllows(clinicId, perm)));
     }

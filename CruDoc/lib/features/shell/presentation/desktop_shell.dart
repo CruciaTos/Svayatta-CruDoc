@@ -526,7 +526,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(shown);
         final isTabEnabled =
             shown == 0 ||
-            shown == 5 ||
             shown == DesktopTab.settings ||
             shown == DesktopTab.files ||
             shown == DesktopTab.documents ||

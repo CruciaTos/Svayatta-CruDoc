@@ -987,12 +987,14 @@ class _QuickActions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     bool on(String m) => DoctorFeatureGuard.isEnabled(modules, m);
     final actions = [
-      _Action(
-        'Check in',
-        CruIcons.userCheck,
-        MobileTone.amber,
-        (ctx, _) => DashboardActions.newVisit(ctx),
-      ),
+      // Check-in adds a walk-in to the queue; booking needs Appointments.
+      if (on('queue'))
+        _Action(
+          'Check in',
+          CruIcons.userCheck,
+          MobileTone.amber,
+          (ctx, _) => DashboardActions.newVisit(ctx),
+        ),
       // Paper in: handwritten notes, reports, supplier bills.
       _Action(
         'Scan',
@@ -1009,7 +1011,8 @@ class _QuickActions extends ConsumerWidget {
               r.read(clinicCanProvider(ClinicPermission.revenue)),
         ),
       ),
-      _Action('Book visit', CruIcons.calendar, MobileTone.blue, _bookVisit),
+      if (on('appointments'))
+        _Action('Book visit', CruIcons.calendar, MobileTone.blue, _bookVisit),
       _Action(
         'New patient',
         CruIcons.userPlus,

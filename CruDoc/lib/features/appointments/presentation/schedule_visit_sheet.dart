@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/messaging/data/services/whatsapp_
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/utils/plan_modules.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
 
 /// Opens a bottom sheet (or desktop dialog on desktop viewports) to schedule a visit for [patient].
@@ -23,6 +24,10 @@ Future<bool> showScheduleVisitSheet(
   required Patient patient,
   required VisitRepository visitRepository,
 }) {
+  // Booking is the Appointments module: locked when it's not in the plan.
+  if (!PlanModules.instance.require(context, 'appointments', 'Appointments')) {
+    return Future.value(false);
+  }
   if (MediaQuery.of(context).size.width >= 800) {
     return showDesktopScheduleVisitDialog(
       context,
@@ -320,8 +325,11 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
                   ),
               ],
             ),
-            const SizedBox(height: CruSpace.s16),
-            _buildVisitTypeToggle(c),
+            // Home visits are their own module.
+            if (PlanModules.instance.isOn('home_visits')) ...[
+              const SizedBox(height: CruSpace.s16),
+              _buildVisitTypeToggle(c),
+            ],
             const SizedBox(height: CruSpace.s16),
             CruPickerField(
               label: 'Date',

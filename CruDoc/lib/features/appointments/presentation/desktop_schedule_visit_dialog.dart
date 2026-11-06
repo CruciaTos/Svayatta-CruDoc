@@ -25,6 +25,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/utils/plan_modules.dart';
 
 /// Opens the desktop Schedule visit form.
 ///
@@ -37,6 +38,10 @@ Future<bool> showDesktopScheduleVisitDialog(
   DateTime? initialStart,
   VisitType initialType = VisitType.clinic,
 }) async {
+  // Booking is the Appointments module: locked when it's not in the plan.
+  if (!PlanModules.instance.require(context, 'appointments', 'Appointments')) {
+    return false;
+  }
   final result = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
@@ -132,10 +137,15 @@ class _DesktopScheduleVisitDialogState
   /// The same patient is already booked at an overlapping time.
   String? _timeError;
 
+  /// Physiotherapists with the Home Visits module can book at a home.
+  bool get _homeVisitsOffered =>
+      ref.read(isPhysiotherapyProvider) &&
+      PlanModules.instance.isOn('home_visits');
+
   @override
   void initState() {
     super.initState();
-    if (ref.read(isPhysiotherapyProvider)) _type = widget.initialType;
+    if (_homeVisitsOffered) _type = widget.initialType;
     _date = widget.initialDate ?? DateTime.now().add(const Duration(days: 1));
     final start = widget.initialStart;
     if (start != null) {
@@ -342,7 +352,7 @@ class _DesktopScheduleVisitDialogState
               : b,
         );
       }
-      if (f.homeVisit != null && ref.read(isPhysiotherapyProvider)) {
+      if (f.homeVisit != null && _homeVisitsOffered) {
         _type = f.homeVisit! ? VisitType.home : VisitType.clinic;
       }
 
@@ -677,8 +687,9 @@ class _DesktopScheduleVisitDialogState
             ],
           ),
           // Home visits are a physiotherapy workflow; everyone else books
-          // at the clinic.
-          if (ref.watch(isPhysiotherapyProvider))
+          // at the clinic. They are also their own module.
+          if (ref.watch(isPhysiotherapyProvider) &&
+              PlanModules.instance.isOn('home_visits'))
             CruFormSection(
               title: 'Where',
               description: 'At the clinic or at the patient’s home.',

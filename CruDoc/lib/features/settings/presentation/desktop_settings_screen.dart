@@ -46,6 +46,7 @@ import 'package:doctor_management_app/features/tutorial/presentation/tutorial_ta
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/features/settings/presentation/documents/documents_settings_section.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 
 /// The Settings sections, in sidebar order. Every entry does something
 /// real: nothing here is a placeholder switch.
@@ -106,8 +107,10 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
     SettingsSection.team => access != null && access.can(ClinicPermission.team),
     SettingsSection.myFeatures => !isOwner,
     SettingsSection.storage => !kIsWeb,
+    // Forwards calls to the AI receptionist: the AI Calling module.
     SettingsSection.callForwarding =>
-      access == null || access.can(ClinicPermission.ai),
+      (access == null || access.can(ClinicPermission.ai)) &&
+          ref.watch(isAiCallingFeatureEnabledProvider),
     _ => true,
   };
 }

@@ -521,7 +521,8 @@ class ScheduleViewSwitcher extends ConsumerWidget {
         if (switch (v) {
           ApptsView.live => queueOn,
           ApptsView.day => false,
-          ApptsView.visits => apptsOn && physio,
+          ApptsView.visits =>
+            apptsOn && physio && ref.watch(isHomeVisitsFeatureEnabledProvider),
           _ => apptsOn,
         })
           v,

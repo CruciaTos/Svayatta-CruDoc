@@ -23,6 +23,7 @@ import 'package:doctor_management_app/features/queue/data/model/queue_entry_mode
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/utils/plan_modules.dart';
 
 /// The selected day on the phone's Schedule. Kept for the session.
 final mobileScheduleDayProvider = NotifierProvider<_DayController, DateTime>(
@@ -200,6 +201,9 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
   }
 
   Future<void> _book(DateTime day) async {
+    if (!PlanModules.instance.require(context, 'appointments', 'Appointments')) {
+      return;
+    }
     final root = mobileRoot(context);
     final patient = await showPatientPickerDialog(
       root,
@@ -219,18 +223,21 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
     final day = ref.watch(mobileScheduleDayProvider);
     final now = ref.watch(apptsNowProvider);
     final isToday = ApptsBuilder.sameDay(day, now);
-    final items = ref.watch(apptDayItemsProvider(day));
+    final modules = widget.enabledModules ?? DoctorFeatureGuard.defaultModules;
+    // Schedule opens with either module; each shows only its own part:
+    // booked visits need Appointments, walk-ins need the Queue.
+    final apptsOn = DoctorFeatureGuard.isEnabled(modules, 'appointments');
+    final queueOn = DoctorFeatureGuard.isEnabled(modules, 'queue');
+    final booked = ref.watch(apptDayItemsProvider(day));
+    final items = apptsOn ? booked : booked.whenData((_) => const <ApptItem>[]);
     final scribe =
-        DoctorFeatureGuard.isEnabled(
-          widget.enabledModules ?? DoctorFeatureGuard.defaultModules,
-          'ai_assistant',
-        ) &&
+        DoctorFeatureGuard.isEnabled(modules, 'ai_assistant') &&
         sidebarTabs(
           dental: ref.watch(dentalFeaturesProvider),
           access: ref.watch(clinicAccessProvider).value,
         ).any((t) => t.tab == DesktopTab.scribe);
     // Today's walk-ins: queue tokens with no booked visit behind them.
-    final walkIns = isToday
+    final walkIns = isToday && queueOn
         ? [
             for (final s
                 in ref.watch(dashboardDataProvider).schedule ??
@@ -276,11 +283,12 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
                   ),
                   const SizedBox(width: CruSpace.s8),
                 ],
-                MobileCircleButton(
-                  icon: CruIcons.plus,
-                  semanticLabel: 'Book a visit',
-                  onPressed: () => _book(day),
-                ),
+                if (apptsOn)
+                  MobileCircleButton(
+                    icon: CruIcons.plus,
+                    semanticLabel: 'Book a visit',
+                    onPressed: () => _book(day),
+                  ),
               ],
             ),
           ),
@@ -361,16 +369,20 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
                     child: Column(
                       children: [
                         Text(
-                          'Nothing booked. Book a visit or check in a walk-in.',
+                          apptsOn
+                              ? 'Nothing booked. Book a visit or check in a walk-in.'
+                              : 'No walk-ins yet today.',
                           textAlign: TextAlign.center,
                           style: MobileType.subhead.tint(c.label2),
                         ),
-                        const SizedBox(height: CruSpace.s16),
-                        MobilePrimaryButton(
-                          label: 'Book a visit',
-                          icon: CruIcons.plus,
-                          onPressed: () => _book(day),
-                        ),
+                        if (apptsOn) ...[
+                          const SizedBox(height: CruSpace.s16),
+                          MobilePrimaryButton(
+                            label: 'Book a visit',
+                            icon: CruIcons.plus,
+                            onPressed: () => _book(day),
+                          ),
+                        ],
                       ],
                     ),
                   ),

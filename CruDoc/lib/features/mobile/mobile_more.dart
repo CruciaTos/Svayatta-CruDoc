@@ -287,7 +287,9 @@ class MobileMoreScreen extends ConsumerWidget {
               'Campaigns',
               CruIcons.megaphone,
               MobileTone.amber,
-              () => _open(context, DesktopTab.campaigns),
+              () => on('campaigns')
+                  ? _open(context, DesktopTab.campaigns)
+                  : _locked(context, 'Campaigns'),
             ),
           ],
         ),

@@ -44,6 +44,22 @@ final isAppointmentsFeatureEnabledProvider = Provider<bool>((ref) {
   return DoctorFeatureGuard.isEnabled(modules, 'appointments');
 });
 
+/// Whether the Home Visits module is in the plan (the Schedule's Visits
+/// view and booking at a patient's home).
+final isHomeVisitsFeatureEnabledProvider = Provider<bool>((ref) {
+  final modules =
+      ref.watch(doctorEnabledModulesStreamProvider).value ??
+      DoctorFeatureGuard.defaultModules;
+  return DoctorFeatureGuard.isEnabled(modules, 'home_visits');
+});
+
+/// Whether the AI Calling module is in the plan (the AI receptionist that
+/// Call forwarding hands calls to).
+final isAiCallingFeatureEnabledProvider = Provider<bool>((ref) {
+  final modules = ref.watch(doctorEnabledModulesStreamProvider).value ?? const [];
+  return DoctorFeatureGuard.isEnabled(modules, 'ai_agentic_calling');
+});
+
 // =============================================================================
 // FILTER ENUMS & STATE PROVIDERS
 // =============================================================================

@@ -219,6 +219,13 @@ class DoctorFeatureGuard {
   /// Checks if a module is enabled in the active modules list.
   /// Strictly respects what the Super Admin configures in `enabledModules`.
   static bool isEnabled(List<String> enabledModules, String moduleKey) {
-    return enabledModules.contains(moduleKey.toLowerCase());
+    final key = moduleKey.toLowerCase();
+    // Campaigns send WhatsApp, SMS and email, so they come with the
+    // messaging module (Super Admin has no separate switch for them).
+    if (key == 'campaigns') {
+      return enabledModules.contains('campaigns') ||
+          enabledModules.contains('omnichannel_messaging');
+    }
+    return enabledModules.contains(key);
   }
 }

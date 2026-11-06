@@ -41,7 +41,11 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     if (_primed) return;
     _primed = true;
     for (final item in DoctorSubscriptionService.availableFeatures) {
-      if (item.isBaseModule || info.enabledModules.contains(item.moduleKey)) {
+      // Base modules are free and come with every plan, unless Super
+      // Admin switched one off: then it isn't in the order either.
+      final base = item.isBaseModule;
+      if ((base && _baseOn(info, item)) ||
+          (!base && info.enabledModules.contains(item.moduleKey))) {
         _selected.add(item.moduleKey);
       }
     }
@@ -178,7 +182,7 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
                 title: 'Modules',
                 children: [
                   for (final item in DoctorSubscriptionService.availableFeatures)
-                    _moduleRow(item),
+                    _moduleRow(item, info),
                 ],
               ),
               const SizedBox(height: CruSpace.s20),
@@ -246,14 +250,21 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     );
   }
 
-  Widget _moduleRow(FeaturePricingItem item) {
+  /// A base module is included unless Super Admin switched it off.
+  bool _baseOn(DoctorSubscriptionInfo info, FeaturePricingItem item) =>
+      info.enabledModules.isEmpty ||
+      info.enabledModules.contains(item.moduleKey);
+
+  Widget _moduleRow(FeaturePricingItem item, DoctorSubscriptionInfo info) {
     final c = context.cru;
     final selected = _selected.contains(item.moduleKey);
     final base = item.isBaseModule;
     final (icon, tone) = _glyph(item.iconName);
 
     final Widget trailing = base
-        ? MobilePill('Included', tone: MobileTone.green)
+        ? (_baseOn(info, item)
+              ? MobilePill('Included', tone: MobileTone.green)
+              : MobilePill('Turned off', tone: MobileTone.slate))
         : Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -369,7 +380,8 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
 
   Widget _payBar() {
     final c = context.cru;
-    final empty = _selected.isEmpty;
+    // Base modules are free: nothing to pay until a paid one is picked.
+    final empty = _total <= 0;
     return Container(
       decoration: BoxDecoration(
         color: c.surface,

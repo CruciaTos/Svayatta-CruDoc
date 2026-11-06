@@ -283,7 +283,9 @@ final effectiveApptsViewProvider = Provider<ApptsView>((ref) {
   final view = ref.watch(apptsControllerProvider.select((s) => s.view));
   final queueOn = ref.watch(isQueueFeatureEnabledProvider);
   final apptsOn = ref.watch(isAppointmentsFeatureEnabledProvider);
-  if (view == ApptsView.visits && !ref.watch(isPhysiotherapyProvider)) {
+  if (view == ApptsView.visits &&
+      !(ref.watch(isPhysiotherapyProvider) &&
+          ref.watch(isHomeVisitsFeatureEnabledProvider))) {
     return ApptsView.week;
   }
   if (view == ApptsView.live && !queueOn) return ApptsView.week;
@@ -302,7 +304,8 @@ final availableApptsViewsProvider = Provider<List<ApptsView>>((ref) {
     if (apptsOn) ApptsView.week,
     if (apptsOn) ApptsView.month,
     if (apptsOn) ApptsView.agenda,
-    if (apptsOn && physio) ApptsView.visits,
+    if (apptsOn && physio && ref.watch(isHomeVisitsFeatureEnabledProvider))
+      ApptsView.visits,
   ];
 });
 

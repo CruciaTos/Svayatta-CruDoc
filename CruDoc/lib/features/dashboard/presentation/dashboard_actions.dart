@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/queue/data/provider/queue_provide
 import 'package:doctor_management_app/features/queue/presentation/check_in_dialog.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
+import 'package:doctor_management_app/core/utils/plan_modules.dart';
 
 /// Desktop tab indices (see DesktopShell). Kept in one place so the
 /// dashboard can jump to a screen.
@@ -180,8 +181,13 @@ abstract final class DashboardActions {
       showAddPatientSheet(_root(context));
 
   /// Checks a patient or walk-in into today's queue.
-  static Future<void> newVisit(BuildContext context) =>
-      CheckInDialog.show(_root(context));
+  /// Checks a walk-in into the queue: the Walk-in Queue module.
+  static Future<void> newVisit(BuildContext context) async {
+    if (!PlanModules.instance.require(context, 'queue', 'Walk-in Queue')) {
+      return;
+    }
+    await CheckInDialog.show(_root(context));
+  }
 
   /// Patient details. On the desktop they open in the Patients tab with
   /// the sidebar kept (Back returns to the screen they came from); on the

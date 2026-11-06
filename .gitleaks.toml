@@ -11,6 +11,7 @@ paths = [
   '''^test/''',
   '''^CruDoc/test/''',
   '''^CruDoc/functions/test/''',
+  '''^CruDoc/voice-receptionist/tests/''',
   '''\.example$''',
   '''\.sample$''',
   '''README\.md$''',
@@ -24,6 +25,10 @@ regexes = [
 fingerprints = [
   "2f11b704adee700bc90a6f3b355e1db7b5c4387e:CruDoc/lib/core/services/gemini_json_client.dart:google-gemini-api-key:32",
   "2f11b704adee700bc90a6f3b355e1db7b5c4387e:CruDoc/lib/core/services/gemini_json_client.dart:gcp-api-key:32",
+  # A fake "sk_live_..." value in a test that checks secrets are masked.
+  "2729e765fbea9f746650964154bd94396b361d32:CruDoc/voice-receptionist/tests/test_receptionist_lines.py:stripe-access-token:202",
+  # A SharedPreferences key name ('v2d.cursorOffset'), not a credential.
+  "103a04e9e39479666677569fa5546b18145fd01d:CruDoc/lib/features/radiology/viewer/viewer_prefs.dart:generic-api-key:234",
 ]
 
 [[rules]]

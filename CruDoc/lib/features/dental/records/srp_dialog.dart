@@ -237,20 +237,23 @@ class _SrpCourseCardState extends ConsumerState<SrpCourseCard> {
           const SizedBox(height: CruSpace.s14),
           for (var row = 0; row < _grid.length; row++) ...[
             if (row > 0) const SizedBox(height: CruSpace.s10),
-            Row(
-              children: [
-                for (var col = 0; col < _grid[row].length; col++) ...[
-                  if (col > 0) const SizedBox(width: CruSpace.s10),
-                  Expanded(
-                    child: _QuadrantTile(
-                      quadrant: _grid[row][col],
-                      data: _quadrant(course, _grid[row][col]),
-                      numbering: numbering,
-                      onTap: () => _editQuadrant(course, _grid[row][col]),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var col = 0; col < _grid[row].length; col++) ...[
+                    if (col > 0) const SizedBox(width: CruSpace.s10),
+                    Expanded(
+                      child: _QuadrantTile(
+                        quadrant: _grid[row][col],
+                        data: _quadrant(course, _grid[row][col]),
+                        numbering: numbering,
+                        onTap: () => _editQuadrant(course, _grid[row][col]),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ],
           if (complete && due != null) ...[
@@ -333,14 +336,18 @@ class _QuadrantTile extends StatelessWidget {
       builder: (context, hovered) => AnimatedContainer(
         duration: CruMotion.of(context, CruMotion.fast),
         curve: CruMotion.curve,
-        height: 116,
-        padding: const EdgeInsets.all(CruSpace.s14),
+        constraints: const BoxConstraints(minHeight: 124),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s14,
+          vertical: CruSpace.s12,
+        ),
         decoration: ShapeDecoration(
           color: hovered ? cruHoverShade(c.inset, c) : c.inset,
           shape: cruShape(CruRadius.control),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
@@ -355,7 +362,7 @@ class _QuadrantTile extends StatelessWidget {
               'Teeth ${toothLabel(from, numbering)}–${toothLabel(to, numbering)}',
               style: CruType.caption.tabular.tint(c.label3),
             ),
-            const Spacer(),
+            const SizedBox(height: CruSpace.s10),
             Text(
               detail.isEmpty
                   ? (status.isEmpty ? 'Tap to plan' : 'Tap to record it done')

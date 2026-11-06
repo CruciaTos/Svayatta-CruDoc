@@ -704,12 +704,8 @@ class _ChartingButton extends ConsumerWidget {
   final Patient patient;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => CruButton(
-    label: 'Charting',
-    kind: CruButtonKind.secondary,
-    icon: DentalIcons.tooth,
-    semanticLabel: 'Open charting for ${patient.fullName}',
-    onPressed: () {
+  Widget build(BuildContext context, WidgetRef ref) {
+    void open() {
       final goToTab = ref.read(shellNavigatorProvider);
       if (goToTab == null) {
         openCharting(context, patient);
@@ -717,8 +713,26 @@ class _ChartingButton extends ConsumerWidget {
       }
       ref.read(chartingPatientIdProvider.notifier).state = patient.id;
       goToTab(DesktopTab.charting);
-    },
-  );
+    }
+
+    if (MediaQuery.sizeOf(context).width < PatientDetailsHeader.phoneBelow) {
+      return CruSquareButton(
+        icon: DentalIcons.tooth,
+        secondary: true,
+        semanticLabel: 'Open charting for ${patient.fullName}',
+        tooltip: 'Charting',
+        onPressed: open,
+      );
+    }
+
+    return CruButton(
+      label: 'Charting',
+      kind: CruButtonKind.secondary,
+      icon: DentalIcons.tooth,
+      semanticLabel: 'Open charting for ${patient.fullName}',
+      onPressed: open,
+    );
+  }
 }
 
 /// "Recall · 12 Apr" ("Recall overdue · 12 Apr" once past); an icon

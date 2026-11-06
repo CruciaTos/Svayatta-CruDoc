@@ -9,7 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:doctor_management_app/core/people/person_picker.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
-import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/hero_stat_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
@@ -221,8 +221,9 @@ class _ReferrersScreenState extends ConsumerState<ReferrersScreen> {
     super.dispose();
   }
 
-  Future<void> _findById() async {
-    final person = await showDoctorPicker(context);
+  /// Looks the search text up on CruDoc (a CruDoc ID or a doctor's name).
+  Future<void> _findOnCruDoc(String query) async {
+    final person = await showDoctorPicker(context, initialQuery: query.trim());
     if (person == null || !mounted) return;
     await addCruDocReferrer(context, ref, person);
   }
@@ -300,16 +301,6 @@ class _ReferrersScreenState extends ConsumerState<ReferrersScreen> {
     final withFees = scanSenders.isNotEmpty;
     final fees = all.fold<double>(0, (t, e) => t + e.fees(now));
 
-    Widget cell(String label, String value, Widget caption) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GlanceLabel(label),
-        GlanceMetric(value),
-        GlanceCaption(caption),
-      ],
-    );
-
     return Padding(
       padding: cruIsPhone(context)
           ? EdgeInsets.zero
@@ -324,17 +315,10 @@ class _ReferrersScreenState extends ConsumerState<ReferrersScreen> {
             child: DentalPageHeader(
               title: 'Referrers',
               subtitle: all.isEmpty
-                  ? 'Doctors and clinics you refer to or get referrals from'
+                  ? 'CruDocs you refer or get referrals from'
                   : '${DashFormat.plural(all.length, 'referrer')} · '
                         '$onCruDoc on CruDoc',
               actions: [
-                CruButton(
-                  label: 'Find by CruDoc ID',
-                  icon: CruIcons.search,
-                  kind: CruButtonKind.secondary,
-                  onPressed: _findById,
-                ),
-                const SizedBox(width: CruSpace.s8),
                 CruButton(
                   label: 'Add manually',
                   icon: CruIcons.plus,
@@ -369,66 +353,56 @@ class _ReferrersScreenState extends ConsumerState<ReferrersScreen> {
                   const SizedBox(height: CruSpace.s20),
                 ],
                 if (all.isNotEmpty) ...[
-                  GlanceStrip(
+                  HeroStatCard(
                     semanticLabel: 'Referrers at a glance',
-                    cells: [
-                      cell(
-                        'Referrers',
-                        '${all.length}',
-                        Text('$onCruDoc on CruDoc'),
-                      ),
-                      cell(
-                        'This month',
-                        '$month',
-                        Text(DateFormat('MMMM').format(now)),
-                      ),
-                      cell(
+                    label: 'Referrers',
+                    value: '${all.length}',
+                    caption: '$onCruDoc on CruDoc',
+                    stats: [
+                      HeroStat(DateFormat('MMMM').format(now), '$month'),
+                      HeroStat(
                         'Still open',
                         '$waiting',
-                        waiting == 0
-                            ? const Text('None')
-                            : Text(
-                                'Referrals and studies not closed yet',
-                                style: CruType.caption.tint(c.amberText),
-                              ),
+                        color: waiting > 0 ? c.amberText : null,
                       ),
-                      if (withFees)
-                        cell(
-                          'Fees this month',
-                          RadFormat.rupees(fees),
-                          const Text('From referred studies'),
-                        ),
+                      if (withFees) HeroStat('Fees', RadFormat.rupees(fees)),
                     ],
                   ),
                   const SizedBox(height: CruSpace.cardGap),
                 ],
+                // Searching also finds anyone on CruDoc: type a CruDoc ID
+                // or name and press search, or tap the row below.
                 DentalFilterBar(
                   filters: const [],
                   search: DentalSearchField(
-                    hint: 'Search name, clinic, specialty, CruDoc ID…',
+                    hint: 'Search or find by CruDoc ID…',
                     controller: _search,
                     onChanged: (_) => setState(() {}),
+                    onSubmitted: (v) {
+                      if (v.trim().length >= 2) _findOnCruDoc(v);
+                    },
                   ),
                 ),
                 const SizedBox(height: CruSpace.s12),
+                if (q.length >= 2) ...[
+                  CruButton(
+                    label: 'Find “${_search.text.trim()}” on CruDoc',
+                    icon: CruIcons.search,
+                    kind: CruButtonKind.secondary,
+                    onPressed: () => _findOnCruDoc(_search.text),
+                  ),
+                  const SizedBox(height: CruSpace.s12),
+                ],
                 if (shown.isEmpty)
                   DentalEmptyState(
                     icon: RadIcons.referrer,
                     title: q.isEmpty ? 'No referrers yet' : 'No matches',
                     body: q.isEmpty
-                        ? 'Find a doctor by their CruDoc ID, or save any '
+                        ? 'Search a CruDoc ID to find a doctor, or save any '
                               'doctor or clinic by hand for your records. '
                               'Each one shows the referrals that went each '
                               'way.'
                         : 'Try another name, clinic or CruDoc ID.',
-                    actions: [
-                      if (q.isEmpty)
-                        CruButton(
-                          label: 'Find by CruDoc ID',
-                          icon: CruIcons.search,
-                          onPressed: _findById,
-                        ),
-                    ],
                   )
                 else
                   for (final e in shown)

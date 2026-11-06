@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/files/presentation/transfers_shee
 import 'package:doctor_management_app/features/files/presentation/widgets/file_thumb.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/share_drag_stage.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 typedef FileEntryTap = void Function(FileEntry entry);
@@ -210,12 +211,25 @@ class _DraggableFile extends ConsumerWidget {
       return child;
     }
     final faded = Opacity(opacity: 0.4, child: child);
+    // On touch the stage draws the held file above the finger, dims the
+    // screen and lights the clinic logo (Instagram's hold-to-share), so the
+    // drag itself shows nothing and drop targets read the finger's spot.
     return touch
-        ? LongPressDraggable<FileEntry>(
-            data: entry,
-            feedback: feedback,
-            childWhenDragging: faded,
-            child: child,
+        ? Listener(
+            onPointerDown: (e) => ShareDragStage.pressAt(e.position),
+            child: Builder(
+              builder: (rowContext) => LongPressDraggable<FileEntry>(
+                data: entry,
+                feedback: const SizedBox.shrink(),
+                dragAnchorStrategy: pointerDragAnchorStrategy,
+                childWhenDragging: faded,
+                onDragStarted: () => ShareDragStage.start(rowContext, entry),
+                onDragCompleted: () => ShareDragStage.end(accepted: true),
+                onDraggableCanceled: (_, _) =>
+                    ShareDragStage.end(accepted: false),
+                child: child,
+              ),
+            ),
           )
         : Draggable<FileEntry>(
             data: entry,

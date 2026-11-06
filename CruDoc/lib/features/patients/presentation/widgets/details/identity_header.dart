@@ -89,11 +89,18 @@ class PatientDetailsHeader extends StatelessWidget {
             menu,
             if (onNewVisit != null) ...[
               const SizedBox(width: CruSpace.s10),
-              CruButton(
-                label: 'New visit',
-                icon: CruIcons.plus,
-                onPressed: onNewVisit,
-              ),
+              phone
+                  ? CruSquareButton(
+                      icon: CruIcons.plus,
+                      tooltip: 'New visit',
+                      semanticLabel: 'New visit',
+                      onPressed: onNewVisit,
+                    )
+                  : CruButton(
+                      label: 'New visit',
+                      icon: CruIcons.plus,
+                      onPressed: onNewVisit,
+                    ),
             ],
           ],
         );

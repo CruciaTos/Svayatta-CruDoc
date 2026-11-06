@@ -43,6 +43,7 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final patientsAsync = ref.watch(filteredPatientsProvider);
+    final phone = cruIsPhone(context);
 
     return Dialog(
       backgroundColor: c.surface,
@@ -107,37 +108,49 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
                 CruSpace.s10,
               ),
               child: Container(
-                height: CruSize.actionButton,
-                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+                height: phone ? CruSize.searchBarPhone : CruSize.actionButton,
+                padding: phone
+                    ? const EdgeInsets.fromLTRB(CruSpace.s16, 0, CruSpace.s4, 0)
+                    : const EdgeInsets.symmetric(horizontal: CruSpace.s14),
                 decoration: ShapeDecoration(
                   color: c.inset,
                   shape: cruShape(CruRadius.control),
                 ),
                 child: Row(
                   children: [
-                    CruIcon(CruIcons.search, size: 18, color: c.label3),
-                    const SizedBox(width: CruSpace.s10),
+                    CruIcon(
+                      CruIcons.search,
+                      size: phone ? CruSize.searchIconPhone : 18,
+                      color: c.label3,
+                    ),
+                    SizedBox(width: phone ? CruSpace.s12 : CruSpace.s10),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         autofocus: true,
-                        style: CruType.input.tint(c.label),
+                        style: (phone ? CruType.body : CruType.input).tint(
+                          c.label,
+                        ),
                         cursorColor: c.accent,
                         onChanged: (value) {
                           setState(() => _searchQuery = value);
                           ref.read(searchQueryProvider.notifier).state = value;
                         },
                         decoration: InputDecoration.collapsed(
-                          hintText: 'Search by name, phone, or diagnosis…',
-                          hintStyle: CruType.input.tint(c.label3),
+                          // The phone's dialog is too narrow for the long one.
+                          hintText: phone
+                              ? 'Name or phone number'
+                              : 'Search by name, phone, or diagnosis…',
+                          hintStyle: (phone ? CruType.body : CruType.input)
+                              .tint(c.label3),
                         ),
                       ),
                     ),
                     if (_searchQuery.isNotEmpty)
                       CruIconButton(
                         icon: CruIcons.close,
-                        size: 28,
-                        iconSize: 14,
+                        size: phone ? CruSize.searchToolPhone : 28,
+                        iconSize: phone ? CruSize.searchClearIconPhone : 14,
                         semanticLabel: 'Clear search',
                         onPressed: () {
                           _searchController.clear();

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/hero_stat_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
@@ -40,6 +40,7 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
     final sharesError = ref.watch(referralSharesErrorProvider);
     final patients =
         ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+    final c = context.cru;
 
     // Compute glance metrics
     final openSent = referrals
@@ -106,16 +107,6 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
       return true;
     }).toList();
 
-    Widget cell(String label, String value, Widget caption) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GlanceLabel(label),
-        GlanceMetric(value),
-        GlanceCaption(caption),
-      ],
-    );
-
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Padding(
@@ -159,52 +150,94 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                         bottom: desktopPagePadding(context).bottom,
                       ),
                 children: [
-                  // Glance strip
-                  GlanceStrip(
+                  // Glance: open referrals big, the split beside it.
+                  HeroStatCard(
                     semanticLabel: 'Referrals at a glance',
-                    cells: [
-                      cell(
-                        'Open sent',
+                    label: 'Open referrals',
+                    value: '$totalOpen',
+                    caption: urgentOpen > 0
+                        ? '$urgentOpen urgent'
+                        : waitingReply == 0
+                        ? 'Nothing waiting'
+                        : '$waitingReply waiting',
+                    stats: [
+                      HeroStat(
+                        'Sent',
                         '$openSent',
-                        const Text('Active sent referrals'),
+                        onTap: () => setState(() => _tab = _ReferralTab.sent),
                       ),
-                      cell(
-                        'Waiting for reply',
-                        '$waitingReply',
-                        const Text('Sent or acknowledged'),
-                      ),
-                      cell(
-                        'Received to see',
+                      HeroStat(
+                        'To see',
                         '$receivedToSee',
-                        const Text('Incoming referrals'),
+                        color: receivedToSee > 0 ? c.amberText : null,
+                        onTap: () =>
+                            setState(() => _tab = _ReferralTab.received),
                       ),
-                      cell(
-                        'Completed this month',
+                      HeroStat(
+                        'Done this month',
                         '$completedThisMonth',
-                        const Text('This calendar month'),
+                        color: completedThisMonth > 0 ? c.greenText : null,
+                        onTap: () =>
+                            setState(() => _tab = _ReferralTab.completed),
                       ),
                     ],
+                    bar: totalOpen + completedThisMonth == 0
+                        ? null
+                        : [
+                            HeroBarPart(completedThisMonth, c.green),
+                            HeroBarPart(openSent, c.label),
+                            HeroBarPart(receivedToSee, c.amber),
+                          ],
+                    barTotal: totalOpen + completedThisMonth,
                   ),
                   const SizedBox(height: CruSpace.s20),
 
-                  // Controls row: Segments & Search
+                  // Search; its icon steps through Sent, Received and
+                  // Completed (no menu: three choices, one tap each).
                   DentalFilterBar(
-                    filters: [
-                      CruSegmentedControl<_ReferralTab>(
-                        semanticLabel: 'Filter referrals by status',
-                        segments: const [
-                          CruSegment(_ReferralTab.sent, 'Sent'),
-                          CruSegment(_ReferralTab.received, 'Received'),
-                          CruSegment(_ReferralTab.completed, 'Completed'),
-                        ],
-                        selected: _tab,
-                        onChanged: (t) => setState(() => _tab = t),
-                      ),
-                    ],
                     search: DentalSearchField(
-                      hint: 'Search patient, doctor, reason…',
+                      // The phone's tool slot leaves no room for the long hint.
+                      hint: switch (_tab) {
+                        _ReferralTab.sent =>
+                          cruIsPhone(context)
+                              ? 'Search sent'
+                              : 'Search sent referrals…',
+                        _ReferralTab.received =>
+                          cruIsPhone(context)
+                              ? 'Search received'
+                              : 'Search received referrals…',
+                        _ReferralTab.completed =>
+                          cruIsPhone(context)
+                              ? 'Search completed'
+                              : 'Search completed referrals…',
+                      },
                       controller: _search,
                       onChanged: (_) => setState(() {}),
+                      trailing: CruIconButton(
+                        icon: switch (_tab) {
+                          _ReferralTab.sent => CruIcons.arrowUpRight,
+                          _ReferralTab.received => CruIcons.arrowDown,
+                          _ReferralTab.completed => CruIcons.check,
+                        },
+                        size: cruIsPhone(context)
+                            ? CruSize.searchToolPhone
+                            : CruSize.capsule,
+                        iconSize: cruIsPhone(context)
+                            ? CruSize.searchToolIconPhone
+                            : 18,
+                        semanticLabel: switch (_tab) {
+                          _ReferralTab.sent => 'Showing sent. Tap for received',
+                          _ReferralTab.received =>
+                            'Showing received. Tap for completed',
+                          _ReferralTab.completed =>
+                            'Showing completed. Tap for sent',
+                        },
+                        onPressed: () => setState(
+                          () => _tab = _ReferralTab
+                              .values[(_tab.index + 1) %
+                              _ReferralTab.values.length],
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: CruSpace.cardGap),

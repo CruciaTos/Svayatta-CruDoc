@@ -16,7 +16,18 @@ String _shortcut() =>
 
 /// "Search items, batches or suppliers", 44 px, with the Ctrl F keycap.
 class InventorySearchField extends ConsumerStatefulWidget {
-  const InventorySearchField({super.key, required this.focusNode});
+  const InventorySearchField({
+    super.key,
+    required this.focusNode,
+    this.hint,
+    this.trailing,
+  });
+
+  /// Replaces the default hint.
+  final String? hint;
+
+  /// A tool at the end of the box (the phone's sort toggle).
+  final Widget? trailing;
 
   /// Focused by Ctrl/⌘ F.
   final FocusNode focusNode;
@@ -77,9 +88,13 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
       }
     });
 
+    final phone = cruIsPhone(context);
+    final text = phone ? CruType.body : CruType.input;
     return Container(
-      height: CruSize.searchBar,
-      padding: const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s10, 0),
+      height: phone ? CruSize.searchBarPhone : CruSize.searchBar,
+      padding: phone
+          ? const EdgeInsets.fromLTRB(CruSpace.s16, 0, CruSpace.s4, 0)
+          : const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s10, 0),
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
@@ -87,14 +102,19 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
       ),
       child: Row(
         children: [
-          CruIcon(CruIcons.search, size: 18, strokeWidth: 2, color: c.label3),
-          const SizedBox(width: CruSpace.s10),
+          CruIcon(
+            CruIcons.search,
+            size: phone ? CruSize.searchIconPhone : 18,
+            strokeWidth: 2,
+            color: c.label3,
+          ),
+          SizedBox(width: phone ? CruSpace.s12 : CruSpace.s10),
           Expanded(
             child: TextField(
               controller: _text,
               focusNode: widget.focusNode,
               onChanged: _onChanged,
-              style: CruType.input.tint(c.label),
+              style: text.tint(c.label),
               cursorColor: c.accent,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
@@ -103,29 +123,33 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
                 contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hint: Text(
-                  cruIsPhone(context)
-                      ? 'Search items'
-                      : 'Search items, batches or suppliers',
-                  style: CruType.input.tint(c.label3),
+                  widget.hint ??
+                      (phone
+                          ? 'Search items'
+                          : 'Search items, batches or suppliers'),
+                  style: text.tint(c.label3),
                   maxLines: 1,
                   softWrap: false,
-                  overflow: TextOverflow.clip,
+                  overflow: phone ? TextOverflow.ellipsis : TextOverflow.clip,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: CruSpace.s10),
+          if (!phone) const SizedBox(width: CruSpace.s10),
           if (_text.text.isNotEmpty)
             CruIconButton(
               icon: CruIcons.close,
-              size: CruSize.capsule,
-              iconSize: 16,
+              size: phone ? CruSize.searchToolPhone : CruSize.capsule,
+              iconSize: phone ? CruSize.searchClearIconPhone : 16,
               semanticLabel: 'Clear search',
               tooltip: 'Clear search',
               onPressed: _clear,
             )
-          else if (!cruIsPhone(context))
-            CruKeycap(_shortcut()),
+          else if (!phone)
+            CruKeycap(_shortcut())
+          else if (widget.trailing == null)
+            const SizedBox(width: CruSpace.s12),
+          ?widget.trailing,
         ],
       ),
     );

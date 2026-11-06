@@ -368,6 +368,7 @@ class ScanProblem extends StatelessWidget {
       title: "Couldn't read the scan",
       body: message,
       action: 'Try again',
+      actionIcon: null,
       onAction: onRetry,
     );
   }

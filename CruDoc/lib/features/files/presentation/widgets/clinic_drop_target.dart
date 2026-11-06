@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/pdf/data/branding_image_store.dart';
 import 'package:doctor_management_app/core/pdf/data/doc_repository.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/colleague_strip.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/share_drag_stage.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The clinic logo from Settings → Documents → Clinic details, or null when
@@ -23,17 +24,16 @@ final clinicLogoBytesProvider = FutureProvider.autoDispose<Uint8List?>((
 });
 
 /// The phone's colleague strip: the clinic logo (or the CruDoc mark when the
-/// clinic has none). Dragging a file onto it drops down the colleagues, the
-/// same avatars as the desktop strip: drop on one to send it over clinic
-/// Wi-Fi, waiting for them when they aren't on it, with Undo. Tapping it
-/// shows the same list with each colleague's delivery ring.
+/// clinic has none). While a file is held it stays lit above the dimmed
+/// screen; dragging the file onto it pops out a row of colleague avatars
+/// (Instagram's hold-to-share): release on one to send over clinic Wi-Fi,
+/// waiting for them when they aren't on it, with Undo. Tapping it shows the
+/// colleagues as a list with each one's delivery ring.
 class ClinicDropTarget extends ConsumerWidget {
   const ClinicDropTarget({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
-    final motion = CruMotion.of(context, CruMotion.fast);
     final logo = ref.watch(clinicLogoBytesProvider).value;
     final colleagues = ref.watch(stripColleaguesProvider);
     // Keeps the Wi-Fi check running while Files is open, as the desktop
@@ -50,47 +50,74 @@ class ClinicDropTarget extends ConsumerWidget {
       label:
           'Send to a colleague on clinic Wi-Fi. Drag a file here, then '
           'onto a colleague.',
-      child: ColleagueDropMenu(
+      child: ColleagueShareFan(
         members: colleagues,
-        holdToOpen: Duration.zero,
-        builder: (context, hovering) {
-          return WaitingBadge(
-            count: waiting,
-            from: 1,
-            child: AnimatedScale(
-              scale: hovering ? 1.08 : 1,
-              duration: motion,
-              curve: CruMotion.curve,
-              child: AnimatedContainer(
-                duration: motion,
-                curve: CruMotion.curve,
-                width: CruSize.searchBar,
-                height: CruSize.searchBar,
-                padding: const EdgeInsets.all(CruSpace.s6),
-                decoration: ShapeDecoration(
-                  color: hovering ? c.accentTint : c.surface,
-                  shape: cruShape(
-                    CruRadius.control,
-                    side: BorderSide(color: hovering ? c.accent : c.hairline),
-                  ),
-                  shadows: const [],
-                ),
-                child: logo != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          CruRadius.iconTile - CruSpace.s4,
-                        ),
-                        child: Image.memory(
-                          logo,
-                          fit: BoxFit.contain,
-                          gaplessPlayback: true,
-                        ),
-                      )
-                    : const _CruDocMark(),
+        builder: (context, fanOpen) => ValueListenableBuilder<bool>(
+          valueListenable: ShareDragStage.active,
+          builder: (context, dragging, _) => ColleagueDropMenu(
+            members: colleagues,
+            holdToOpen: Duration.zero,
+            opensOnDrag: false,
+            builder: (context, menuOpen) => _tile(
+              context,
+              logo: logo,
+              waiting: waiting,
+              hovering: fanOpen || menuOpen,
+              // A file is held: the logo is where it can go.
+              calling: dragging,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tile(
+    BuildContext context, {
+    required Uint8List? logo,
+    required int waiting,
+    required bool hovering,
+    required bool calling,
+  }) {
+    final c = context.cru;
+    final motion = CruMotion.of(context, CruMotion.fast);
+    return WaitingBadge(
+      count: waiting,
+      from: 1,
+      child: AnimatedScale(
+        scale: hovering ? 1.08 : 1,
+        duration: motion,
+        curve: CruMotion.curve,
+        child: AnimatedContainer(
+          duration: motion,
+          curve: CruMotion.curve,
+          width: CruSize.searchBar,
+          height: CruSize.searchBar,
+          padding: const EdgeInsets.all(CruSpace.s6),
+          decoration: ShapeDecoration(
+            color: hovering ? c.accentTint : c.surface,
+            shape: cruShape(
+              CruRadius.control,
+              side: BorderSide(
+                color: hovering || calling ? c.accent : c.hairline,
+                width: calling && !hovering ? 1.5 : 1,
               ),
             ),
-          );
-        },
+            shadows: const [],
+          ),
+          child: logo != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(
+                    CruRadius.iconTile - CruSpace.s4,
+                  ),
+                  child: Image.memory(
+                    logo,
+                    fit: BoxFit.contain,
+                    gaplessPlayback: true,
+                  ),
+                )
+              : const _CruDocMark(),
+        ),
       ),
     );
   }

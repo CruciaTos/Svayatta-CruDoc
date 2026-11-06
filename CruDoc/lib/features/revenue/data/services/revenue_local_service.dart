@@ -247,29 +247,37 @@ class RevenueLocalService {
 
   Future<void> _emitRevenueEntries() async {
     if (_revenueEntriesController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'revenue_entries',
-      where: 'isActive = 1 AND isDeleted = 0',
-      orderBy: 'date DESC',
-    );
-    if (!_revenueEntriesController.isClosed) {
-      _revenueEntriesController.add(rows.map(_revenueEntryFromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'revenue_entries',
+        where: 'isActive = 1 AND isDeleted = 0',
+        orderBy: 'date DESC',
+      );
+      if (!_revenueEntriesController.isClosed) {
+        _revenueEntriesController.add(rows.map(_revenueEntryFromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
   Future<void> _emitPendingPayments() async {
     if (_pendingPaymentsController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'pending_payments',
-      where: 'isActive = 1 AND isPaid = 0',
-      orderBy: 'date DESC',
-    );
-    if (!_pendingPaymentsController.isClosed) {
-      _pendingPaymentsController.add(rows.map(_pendingPaymentFromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'pending_payments',
+        where: 'isActive = 1 AND isPaid = 0',
+        orderBy: 'date DESC',
+      );
+      if (!_pendingPaymentsController.isClosed) {
+        _pendingPaymentsController.add(rows.map(_pendingPaymentFromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 

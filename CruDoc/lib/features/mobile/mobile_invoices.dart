@@ -102,19 +102,14 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                 child: MobileCard(child: MobileLoading('Loading invoices…')),
               )
             else if (all.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MobileMetrics.gutter,
-                ),
-                child: MobileEmpty(
-                  icon: CruIcons.fileText,
-                  title: 'No invoices yet',
-                  body:
-                      'Raise one after a visit and it waits here until it '
-                      'is paid.',
-                  action: 'New invoice',
-                  onAction: _new,
-                ),
+              MobileEmpty(
+                icon: CruIcons.fileText,
+                title: 'No invoices yet',
+                body:
+                    'Raise one after a visit and it waits here until it '
+                    'is paid.',
+                action: 'New invoice',
+                onAction: _new,
               )
             else ...[
               Padding(
@@ -138,7 +133,7 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                 ),
                 child: MobileSearchField(
                   controller: _search,
-                  hint: 'Search patient, service or no.',
+                  hint: 'Search invoices',
                   onChanged: (_) => setState(() {}),
                 ),
               ),
@@ -162,15 +157,15 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                 builder: (context, filter) {
                   final shown = all.where((i) => _matches(i, filter)).toList();
                   if (shown.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: MobileMetrics.gutter,
-                      ),
-                      child: MobileEmpty(
-                        icon: CruIcons.search,
-                        title: 'No invoices match',
-                        body: 'Try a different filter or search term.',
-                      ),
+                    return MobileEmpty(
+                      icon: CruIcons.search,
+                      title: 'No invoices match',
+                      body: _search.text.trim().isEmpty
+                          ? 'No invoices fit this filter right now.'
+                          : 'Try a different filter or search term.',
+                      action: _search.text.trim().isEmpty ? null : 'Clear search',
+                      actionIcon: null,
+                      onAction: () => setState(_search.clear),
                     );
                   }
                   return Padding(

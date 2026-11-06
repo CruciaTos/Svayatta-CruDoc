@@ -17,9 +17,12 @@ import 'package:doctor_management_app/features/files/presentation/compose_transf
 import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/colleague_monogram.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/share_drag_stage.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/team/data/team_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+part 'colleague_share_fan.dart';
 
 /// Active colleagues: the ones you sent to most recently first, then the
 /// rest by name.
@@ -776,7 +779,8 @@ class _MoreChip extends StatelessWidget {
 /// [builder]'s anchor: holding a dragged file on the anchor for
 /// [holdToOpen] (or tapping it) opens the list, and it closes once the drag
 /// leaves both. A drop on the anchor itself sends nothing. The desktop's
-/// More chip and the phone's clinic logo.
+/// More chip, and the phone's clinic logo when tapped ([opensOnDrag] false:
+/// a drag there opens [ColleagueShareFan] instead).
 class ColleagueDropMenu extends StatefulWidget {
   const ColleagueDropMenu({
     super.key,
@@ -784,6 +788,7 @@ class ColleagueDropMenu extends StatefulWidget {
     required this.builder,
     this.tooltip,
     this.holdToOpen = const Duration(seconds: 1),
+    this.opensOnDrag = true,
   });
 
   final List<ClinicMember> members;
@@ -794,6 +799,7 @@ class ColleagueDropMenu extends StatefulWidget {
 
   final String? tooltip;
   final Duration holdToOpen;
+  final bool opensOnDrag;
 
   @override
   State<ColleagueDropMenu> createState() => _ColleagueDropMenuState();
@@ -960,21 +966,24 @@ class _ColleagueDropMenuState extends State<ColleagueDropMenu> {
         child: widget.builder(context, hovering),
       ),
     );
+    final tipped = widget.tooltip == null
+        ? anchor
+        : Tooltip(message: widget.tooltip, child: anchor);
     return CompositedTransformTarget(
       link: _link,
       child: TapRegion(
         groupId: _link,
-        child: DragTarget<FileEntry>(
-          // Opens the list; a drop on the anchor itself does nothing.
-          onWillAcceptWithDetails: (_) {
-            _holdStarted();
-            return false;
-          },
-          onLeave: (_) => _closeSoon(),
-          builder: (_, _, _) => widget.tooltip == null
-              ? anchor
-              : Tooltip(message: widget.tooltip, child: anchor),
-        ),
+        child: !widget.opensOnDrag
+            ? tipped
+            : DragTarget<FileEntry>(
+                // Opens the list; a drop on the anchor itself does nothing.
+                onWillAcceptWithDetails: (_) {
+                  _holdStarted();
+                  return false;
+                },
+                onLeave: (_) => _closeSoon(),
+                builder: (_, _, _) => tipped,
+              ),
       ),
     );
   }

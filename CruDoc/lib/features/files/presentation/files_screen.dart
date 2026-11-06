@@ -23,7 +23,9 @@ import 'package:doctor_management_app/features/files/presentation/widgets/collea
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_list.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_panel.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/files_patient.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
+import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The Files tab, laid out like Inventory: header, folders, search and
@@ -37,6 +39,8 @@ class FilesScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<FilesScreen> createState() => _FilesScreenState();
 }
+
+String _count(int n, String one) => n == 1 ? '1 $one' : '$n ${one}s';
 
 class _FocusSearchIntent extends Intent {
   const _FocusSearchIntent();
@@ -417,13 +421,14 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       ),
       // Filter chips on the left, colleague drop targets on the right,
       // under the patient filter.
-      if ((view != null && !view.isEmpty) || showStrip) ...[
+      if ((view != null && !view.isEmpty && !cruIsPhone(context)) ||
+          showStrip) ...[
         const SizedBox(height: CruSpace.s16),
         Row(
           children: [
             Expanded(
               child: view != null && !view.isEmpty
-                  ? FilesChips(view: view)
+                  ? FilesChips(view: view, showPatient: !cruIsPhone(context))
                   : const SizedBox.shrink(),
             ),
             if (showStrip) ...[
@@ -433,9 +438,24 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           ],
         ),
       ],
+      if (view != null && cruIsPhone(context) && !view.isEmpty) ...[
+        const SizedBox(height: CruSpace.s16),
+        FilesChips(view: view, showPatient: false),
+      ],
       if (view != null) ...[
         const SizedBox(height: CruSpace.s16),
-        FilesBreadcrumbs(view: view),
+        // On phones New folder is the icon at the end of the folder path
+        // (the empty state puts it beside its Add files button).
+        if (cruIsPhone(context) && canEdit && !view.isEmpty)
+          Row(
+            children: [
+              Expanded(child: FilesBreadcrumbs(view: view)),
+              const SizedBox(width: CruSpace.s8),
+              FilesFolderButton(onPressed: _newFolder),
+            ],
+          )
+        else
+          FilesBreadcrumbs(view: view),
       ],
     ];
 
@@ -501,7 +521,18 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       );
     }
 
-    final layeredBody = Stack(children: [body, const TransferProgressTray()]);
+    final layeredBody = Stack(
+      children: [
+        body,
+        const TransferProgressTray(),
+        if (cruIsPhone(context))
+          PatientTopBanner(
+            name: state.patientId == null ? null : view?.patientFilterName,
+            subtitle: _count(view?.rows.length ?? 0, 'file'),
+            onBack: () => _controller.setPatient(null),
+          ),
+      ],
+    );
 
     return Shortcuts(
       shortcuts: _shortcuts,
@@ -533,6 +564,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         (view?.selectedExplicit ?? false) &&
         selected != null;
     final highlightId = split || sheet ? selected?.id : null;
+    final fillEmpty = !wide && cruIsPhone(context) && (view?.isEmpty ?? false);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -587,6 +619,15 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               ),
             ],
           );
+        } else if (fillEmpty) {
+          // Phone, nothing yet: the empty card fills the rest of the screen.
+          content = SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: padding.bottom),
+              child: left,
+            ),
+          );
         } else {
           content = SliverToBoxAdapter(child: left);
         }
@@ -622,7 +663,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               ),
               sliver: content,
             ),
-            SliverToBoxAdapter(child: SizedBox(height: padding.bottom)),
+            if (!fillEmpty)
+              SliverToBoxAdapter(child: SizedBox(height: padding.bottom)),
           ],
         );
 
@@ -670,7 +712,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       final canEdit = ref.read(
         clinicCanProvider(ClinicPermission.clinicalEdit),
       );
-      return _EmptyFiles(onAdd: canEdit ? _addFiles : null);
+      return _EmptyFiles(
+        onAdd: canEdit ? _addFiles : null,
+        onNewFolder: canEdit && cruIsPhone(context) ? _newFolder : null,
+      );
     }
 
     final empty = _NoMatches(
@@ -678,7 +723,15 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
       inFolder: view.current != null,
       filtered: view.filter != null || view.patientFilterName != null,
       onClear: () => _controller.setQuery(''),
+      onAdd: ref.read(clinicCanProvider(ClinicPermission.clinicalEdit))
+          ? _addFiles
+          : null,
     );
+    // Phone: nothing to list, so the empty card stands alone instead of
+    // sitting under the table's header row.
+    if (cruIsPhone(context) && view.visible.isEmpty && view.folders.isEmpty) {
+      return empty;
+    }
     return state.viewMode == FilesViewMode.grid
         ? FilesGrid(
             view: view,
@@ -804,6 +857,7 @@ class _NoMatches extends StatelessWidget {
     required this.inFolder,
     required this.filtered,
     required this.onClear,
+    this.onAdd,
   });
 
   final String query;
@@ -811,10 +865,42 @@ class _NoMatches extends StatelessWidget {
   final bool filtered;
   final VoidCallback onClear;
 
+  /// Adds files (null for people who may only look). Phones offer it in an
+  /// empty folder.
+  final VoidCallback? onAdd;
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     final q = query.trim();
+    if (cruIsPhone(context)) {
+      final addHere = q.isEmpty && !filtered && inFolder && onAdd != null;
+      return MobileEmpty(
+        gutter: false,
+        icon: q.isNotEmpty || filtered ? CruIcons.search : FileIcons.folder,
+        title: q.isNotEmpty
+            ? 'No matches'
+            : filtered
+            ? 'Nothing here'
+            : inFolder
+            ? 'This folder is empty'
+            : 'No files here yet',
+        body: q.isNotEmpty
+            ? 'No files match “$q”.'
+            : filtered
+            ? 'No files here for this filter.'
+            : inFolder
+            ? 'Add files to put something in it.'
+            : 'Files you add will show up here.',
+        action: q.isNotEmpty
+            ? 'Clear search'
+            : addHere
+            ? 'Add files'
+            : null,
+        actionIcon: addHere ? FileIcons.upload : null,
+        onAction: q.isNotEmpty ? onClear : onAdd,
+      );
+    }
     final text = q.isNotEmpty
         ? 'No files match “$q”.'
         : filtered
@@ -842,32 +928,55 @@ class _NoMatches extends StatelessWidget {
 }
 
 class _EmptyFiles extends StatelessWidget {
-  const _EmptyFiles({required this.onAdd});
+  const _EmptyFiles({required this.onAdd, this.onNewFolder});
 
   /// Null for people who may only look.
   final VoidCallback? onAdd;
 
+  /// New folder under Add files (phones only).
+  final VoidCallback? onNewFolder;
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final text = onAdd == null
+        ? 'X-rays, photos and reports your colleagues share with you '
+              'will show here.'
+        : filesOnDesktop
+        ? 'Drag X-rays, photos and reports here, or use Add files. '
+              'Each file is saved to a patient.'
+        : 'Use Add files for X-rays, photos and reports. Each file '
+              'is saved to a patient.';
+    // Phones: the card takes all the room below the search bar.
+    if (cruIsPhone(context)) {
+      return MobileEmpty(
+        gutter: false,
+        icon: FileIcons.folder,
+        title: 'No files yet',
+        body: text,
+        action: onAdd == null ? null : 'Add files',
+        actionIcon: FileIcons.upload,
+        onAction: onAdd,
+        below: onAdd == null || onNewFolder == null
+            ? null
+            : CruButton(
+                label: 'New folder',
+                kind: CruButtonKind.inset,
+                icon: FileIcons.folderPlus,
+                large: true,
+                onPressed: onNewFolder,
+              ),
+      );
+    }
     return CruCard(
       semanticLabel: 'Files',
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('No files yet', style: CruType.headline.tint(c.label)),
           const SizedBox(height: CruSpace.s4),
-          Text(
-            onAdd == null
-                ? 'X-rays, photos and reports your colleagues share with you '
-                      'will show here.'
-                : filesOnDesktop
-                ? 'Drag X-rays, photos and reports here, or use Add files. '
-                      'Each file is saved to a patient.'
-                : 'Use Add files for X-rays, photos and reports. Each file '
-                      'is saved to a patient.',
-            style: CruType.text.tint(c.label2),
-          ),
+          Text(text, style: CruType.text.tint(c.label2)),
           if (onAdd != null) ...[
             const SizedBox(height: CruSpace.s16),
             CruButton(

@@ -187,17 +187,21 @@ class PatientLocalService {
 
   Future<void> _emitPatients() async {
     if (_patientsController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'patients',
-      where:
-          'isActive = 1 AND isArchived = 0 AND doctorId = ? AND NOT (firstName = \'Patient\' AND (lastName = \'\' OR lastName IS NULL) AND (phone = \'\' OR phone IS NULL) AND (gender = \'\' OR gender IS NULL))',
-      whereArgs: [_currentDoctorId],
-      orderBy: 'createdAt DESC',
-    );
-    if (!_patientsController.isClosed) {
-      _patientsController.add(rows.map(_fromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'patients',
+        where:
+            'isActive = 1 AND isArchived = 0 AND doctorId = ? AND NOT (firstName = \'Patient\' AND (lastName = \'\' OR lastName IS NULL) AND (phone = \'\' OR phone IS NULL) AND (gender = \'\' OR gender IS NULL))',
+        whereArgs: [_currentDoctorId],
+        orderBy: 'createdAt DESC',
+      );
+      if (!_patientsController.isClosed) {
+        _patientsController.add(rows.map(_fromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 

@@ -203,79 +203,86 @@ class _PeriodPage extends ConsumerWidget {
             ),
           ),
         ),
-        if (pending != null && pending.isNotEmpty) ...[
-          const SizedBox(height: CruSpace.s16),
-          MobileRowGroup(
-            title:
-                'To collect · ${DashFormat.rupeesCompact(pending.fold(0.0, (s, g) => s + g.total))}',
-
+        MobileWaveBelow(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final g in pending.take(5))
-                _PendingRow(
-                  group: g,
-                  clinic: ref.watch(doctorIdentityProvider).clinicName,
+              if (pending != null && pending.isNotEmpty) ...[
+                const SizedBox(height: CruSpace.s16),
+                MobileRowGroup(
+                  title:
+                      'To collect · ${DashFormat.rupeesCompact(pending.fold(0.0, (s, g) => s + g.total))}',
+
+                  children: [
+                    for (final g in pending.take(5))
+                      _PendingRow(
+                        group: g,
+                        clinic: ref.watch(doctorIdentityProvider).clinicName,
+                      ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: CruSpace.s16),
+              if (o != null && o.transactions.isEmpty)
+                MobileEmpty(
+                  icon: CruIcons.wallet,
+                  title: 'No transactions',
+                  body: 'Nothing was recorded in this period.',
+                  action: 'Open invoices',
+                  actionIcon: null,
+                  onAction: () => openMobileInvoices(context),
+                )
+              else
+                MobileRowGroup(
+                  title: 'Transactions',
+                  action: 'Invoices',
+                  onAction: () => openMobileInvoices(context),
+                  children: o == null
+                      ? const [MobileLoading('Loading transactions…')]
+                      : [
+                          for (final t in o.transactions.take(40))
+                            MobileRow(
+                              leading: t.moneyOut
+                                  ? Container(
+                                      width: 38,
+                                      height: 38,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: c.redTint,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: CruIcon(
+                                        CruIcons.arrowUp,
+                                        size: 18,
+                                        strokeWidth: 1.8,
+                                        color: c.redText,
+                                      ),
+                                    )
+                                  : const MobileIconTile(
+                                      icon: CruIcons.arrowDown,
+                                      tone: MobileTone.green,
+                                    ),
+                              title: t.title,
+                              subtitle:
+                                  '${t.dayLabel} · ${t.time} ${t.meridiem}'
+                                  '${t.subtitle.isEmpty ? '' : ' · ${t.subtitle}'}',
+                              trailing: Text(
+                                t.amount,
+                                style: MobileType.callout.tabular.tint(
+                                  t.moneyOut
+                                      ? c.redText
+                                      : mobileTone(c, MobileTone.green).$2,
+                                ),
+                              ),
+                              onTap: () => pushMobile(
+                                context,
+                                TransactionDetailsPage(entry: t.entry),
+                              ),
+                            ),
+                        ],
                 ),
             ],
           ),
-        ],
-        const SizedBox(height: CruSpace.s16),
-        MobileRowGroup(
-          title: 'Transactions',
-          action: 'Invoices',
-          onAction: () => openMobileInvoices(context),
-          children: o == null
-              ? const [MobileLoading('Loading transactions…')]
-              : o.transactions.isEmpty
-              ? [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                    child: Text(
-                      'Nothing recorded in this period',
-                      style: MobileType.subhead.tint(c.label2),
-                    ),
-                  ),
-                ]
-              : [
-                  for (final t in o.transactions.take(40))
-                    MobileRow(
-                      leading: t.moneyOut
-                          ? Container(
-                              width: 38,
-                              height: 38,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: c.redTint,
-                                shape: BoxShape.circle,
-                              ),
-                              child: CruIcon(
-                                CruIcons.arrowUp,
-                                size: 18,
-                                strokeWidth: 1.8,
-                                color: c.redText,
-                              ),
-                            )
-                          : const MobileIconTile(
-                              icon: CruIcons.arrowDown,
-                              tone: MobileTone.green,
-                            ),
-                      title: t.title,
-                      subtitle:
-                          '${t.dayLabel} · ${t.time} ${t.meridiem}'
-                          '${t.subtitle.isEmpty ? '' : ' · ${t.subtitle}'}',
-                      trailing: Text(
-                        t.amount,
-                        style: MobileType.callout.tabular.tint(
-                          t.moneyOut
-                              ? c.redText
-                              : mobileTone(c, MobileTone.green).$2,
-                        ),
-                      ),
-                      onTap: () => pushMobile(
-                        context,
-                        TransactionDetailsPage(entry: t.entry),
-                      ),
-                    ),
-                ],
         ),
       ],
     );

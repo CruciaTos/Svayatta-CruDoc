@@ -15,6 +15,9 @@ class WindowsDatabase extends _WindowsExecutor implements LocalDatabase {
   final sqflite_common.Database _db;
 
   @override
+  bool get isOpen => _db.isOpen;
+
+  @override
   Future<T> transaction<T>(
     Future<T> Function(LocalDatabaseTransaction txn) action,
   ) {

@@ -76,19 +76,14 @@ class _MobileCampaignsPageState extends ConsumerState<MobileCampaignsPage> {
                 child: MobileCard(child: MobileLoading('Loading campaigns…')),
               )
             else if (all.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MobileMetrics.gutter,
-                ),
-                child: MobileEmpty(
-                  icon: CruIcons.megaphone,
-                  title: 'No campaigns yet',
-                  body:
-                      'Send a vaccination drive, a camp notice or a '
-                      'seasonal health tip to your patients.',
-                  action: 'Post a campaign',
-                  onAction: _post,
-                ),
+              MobileEmpty(
+                icon: CruIcons.megaphone,
+                title: 'No campaigns yet',
+                body:
+                    'Send a vaccination drive, a camp notice or a '
+                    'seasonal health tip to your patients.',
+                action: 'Post a campaign',
+                onAction: _post,
               )
             else ...[
               Padding(

@@ -1459,11 +1459,15 @@ class MobileSearchField extends StatelessWidget {
     required this.controller,
     required this.hint,
     required this.onChanged,
+    this.trailing,
   });
 
   final TextEditingController controller;
   final String hint;
   final ValueChanged<String> onChanged;
+
+  /// A tool at the end of the box (a filter), see [MobileSearchTool].
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1475,7 +1479,7 @@ class MobileSearchField extends StatelessWidget {
         onChanged('');
       },
       child: Container(
-        height: 48,
+        height: CruSize.searchBarPhone,
         padding: const EdgeInsets.only(left: CruSpace.s16, right: CruSpace.s4),
         decoration: ShapeDecoration(
           color: c.surface,
@@ -1490,33 +1494,43 @@ class MobileSearchField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CruIcon(CruIcons.search, size: 19, strokeWidth: 2, color: c.label3),
-            const SizedBox(width: CruSpace.s10),
+            CruIcon(
+              CruIcons.search,
+              size: CruSize.searchIconPhone,
+              strokeWidth: 2,
+              color: c.label3,
+            ),
+            const SizedBox(width: CruSpace.s12),
             Expanded(
               child: TextField(
                 controller: controller,
                 onChanged: onChanged,
                 textInputAction: TextInputAction.search,
-                style: MobileType.input.tint(c.label),
+                style: CruType.body.tint(c.label),
                 cursorColor: MobileBlue.neon,
                 decoration: InputDecoration(
                   isCollapsed: true,
                   filled: false,
                   contentPadding: EdgeInsets.zero,
                   border: InputBorder.none,
-                  hintText: hint,
-                  hintStyle: MobileType.input.tint(c.label3),
+                  hint: Text(
+                    hint,
+                    style: CruType.body.tint(c.label3),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ),
             ListenableBuilder(
               listenable: controller,
               builder: (context, _) => controller.text.isEmpty
-                  ? const SizedBox(width: CruSpace.s10)
+                  ? SizedBox(width: trailing == null ? CruSpace.s12 : 0)
                   : CruIconButton(
                       icon: CruIcons.close,
-                      size: 40,
-                      iconSize: 16,
+                      size: CruSize.searchToolPhone,
+                      iconSize: CruSize.searchClearIconPhone,
                       semanticLabel: 'Clear search',
                       onPressed: () {
                         controller.clear();
@@ -1524,6 +1538,7 @@ class MobileSearchField extends StatelessWidget {
                       },
                     ),
             ),
+            ?trailing,
           ],
         ),
       ),
@@ -1531,8 +1546,67 @@ class MobileSearchField extends StatelessWidget {
   }
 }
 
-/// Centered message for an empty list, in a white card, with one way
-/// forward.
+/// A tool inside the search box ([MobileSearchField.trailing]): an icon
+/// to tap, with a dot when it is changing what the list shows.
+class MobileSearchTool extends StatelessWidget {
+  const MobileSearchTool({
+    super.key,
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final CruIconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: semanticLabel,
+      builder: (context, _) => SizedBox(
+        width: CruSize.searchToolPhone,
+        height: CruSize.searchToolPhone,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CruIcon(
+              icon,
+              size: CruSize.searchToolIconPhone,
+              strokeWidth: 2,
+              color: active ? c.accentText : c.label2,
+            ),
+            if (active)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: c.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The phone's one empty state, in the Consults look: no card, straight
+/// on the page: a rounded accent tile, a headline, a quieter line on what
+/// to do, and (where there is a sensible way forward) one compact button.
+///
+/// [actionIcon] defaults to a plus (for "add" actions); pass null for none.
+/// [below] is a quieter second option under the button. [gutter] is false
+/// where the page already pads its own sides.
 class MobileEmpty extends StatelessWidget {
   const MobileEmpty({
     super.key,
@@ -1541,6 +1615,9 @@ class MobileEmpty extends StatelessWidget {
     required this.body,
     this.action,
     this.onAction,
+    this.actionIcon = CruIcons.plus,
+    this.below,
+    this.gutter = true,
   });
 
   final CruIconData icon;
@@ -1548,43 +1625,69 @@ class MobileEmpty extends StatelessWidget {
   final String body;
   final String? action;
   final VoidCallback? onAction;
+  final CruIconData? actionIcon;
+  final Widget? below;
+  final bool gutter;
+
+  static const double _tileSize = 56;
+  static const double _tileIconSize = 26;
+  static const double _tileRadius = 18;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final ink = mobileInk(context);
+    final (tileFill, tileGlyph) = mobileTone(c, MobileTone.blue);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
-      child: MobileCard(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+      padding: EdgeInsets.symmetric(
+        horizontal: gutter ? MobileMetrics.gutter + CruSpace.s8 : CruSpace.s8,
+        vertical: CruSpace.s32,
+      ),
+      child: SizedBox(
+        width: double.infinity,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            MobileIconTile(
-              icon: icon,
-              tone: MobileTone.blue,
-              size: 52,
-              iconSize: 24,
-              radius: 16,
+            Container(
+              width: _tileSize,
+              height: _tileSize,
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                color: tileFill,
+                shape: cruShape(_tileRadius),
+              ),
+              child: CruIcon(
+                icon,
+                size: _tileIconSize,
+                strokeWidth: 1.8,
+                color: tileGlyph,
+              ),
             ),
-            const SizedBox(height: CruSpace.s14),
+            const SizedBox(height: CruSpace.s16),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: MobileType.headline.tint(c.label),
+              style: MobileType.title2.tint(ink),
             ),
-            const SizedBox(height: CruSpace.s6),
+            const SizedBox(height: CruSpace.s8),
             Text(
               body,
               textAlign: TextAlign.center,
-              style: MobileType.subhead.tint(c.label2),
+              style: MobileType.text.tint(ink.withValues(alpha: 0.7)),
             ),
             if (action != null) ...[
               const SizedBox(height: CruSpace.s20),
-              MobilePrimaryButton(
+              CruButton(
                 label: action!,
-                icon: CruIcons.plus,
+                icon: actionIcon,
+                kind: CruButtonKind.primary,
                 onPressed: onAction,
               ),
+            ],
+            if (below != null) ...[
+              const SizedBox(height: CruSpace.s12),
+              below!,
             ],
           ],
         ),

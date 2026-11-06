@@ -223,6 +223,12 @@ class VisitLocalService {
   Future<void> notifyVisitsChanged() => _emitAll();
 
   Future<void> _emitAll() async {
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+    } catch (_) {
+      return;
+    }
     await _emitUpcomingVisits();
     await _emitTodaysVisits();
     await _emitLastVisitPerPatient();
@@ -239,96 +245,116 @@ class VisitLocalService {
 
   Future<void> _emitLastVisitPerPatient() async {
     if (_lastVisitPerPatientController.isClosed) return;
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'visits',
+        where: 'isActive = 1 AND isDeleted = 0 AND scheduledStart <= ?',
+        whereArgs: [_dateTimeToMillis(DateTime.now())],
+        orderBy: 'scheduledStart DESC',
+      );
 
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'visits',
-      where: 'isActive = 1 AND isDeleted = 0 AND scheduledStart <= ?',
-      whereArgs: [_dateTimeToMillis(DateTime.now())],
-      orderBy: 'scheduledStart DESC',
-    );
+      final result = <String, Visit>{};
+      for (final row in rows) {
+        final visit = _fromRow(row);
+        // Rows are ordered most-recent-first, so the first time a patientId
+        // is seen here is already their latest past visit.
+        result.putIfAbsent(visit.patientId, () => visit);
+      }
 
-    final result = <String, Visit>{};
-    for (final row in rows) {
-      final visit = _fromRow(row);
-      // Rows are ordered most-recent-first, so the first time a patientId
-      // is seen here is already their latest past visit.
-      result.putIfAbsent(visit.patientId, () => visit);
-    }
-
-    if (!_lastVisitPerPatientController.isClosed) {
-      _lastVisitPerPatientController.add(result);
+      if (!_lastVisitPerPatientController.isClosed) {
+        _lastVisitPerPatientController.add(result);
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
   Future<void> _emitRecentVisits() async {
     if (_recentVisitsController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'visits',
-      where: 'isActive = 1 AND isDeleted = 0',
-      orderBy: 'updatedAt DESC',
-      limit: kRecentVisitsLimit,
-    );
-    if (!_recentVisitsController.isClosed) {
-      _recentVisitsController.add(rows.map(_fromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'visits',
+        where: 'isActive = 1 AND isDeleted = 0',
+        orderBy: 'updatedAt DESC',
+        limit: kRecentVisitsLimit,
+      );
+      if (!_recentVisitsController.isClosed) {
+        _recentVisitsController.add(rows.map(_fromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
   Future<void> _emitAllVisits() async {
     if (_allVisitsController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'visits',
-      where: 'isActive = 1 AND isDeleted = 0',
-      orderBy: 'scheduledStart ASC',
-    );
-    if (!_allVisitsController.isClosed) {
-      _allVisitsController.add(rows.map(_fromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'visits',
+        where: 'isActive = 1 AND isDeleted = 0',
+        orderBy: 'scheduledStart ASC',
+      );
+      if (!_allVisitsController.isClosed) {
+        _allVisitsController.add(rows.map(_fromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
   Future<void> _emitUpcomingVisits({DateTime? from}) async {
     if (_upcomingVisitsController.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final start = from ?? DateTime.now();
-    final rows = await db.query(
-      'visits',
-      where:
-          'isActive = 1 AND isDeleted = 0 AND status = ? AND scheduledStart >= ?',
-      whereArgs: [VisitStatus.scheduled.value, _dateTimeToMillis(start)],
-      orderBy: 'scheduledStart ASC',
-    );
-    if (!_upcomingVisitsController.isClosed) {
-      _upcomingVisitsController.add(rows.map(_fromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final start = from ?? DateTime.now();
+      final rows = await db.query(
+        'visits',
+        where:
+            'isActive = 1 AND isDeleted = 0 AND status = ? AND scheduledStart >= ?',
+        whereArgs: [VisitStatus.scheduled.value, _dateTimeToMillis(start)],
+        orderBy: 'scheduledStart ASC',
+      );
+      if (!_upcomingVisitsController.isClosed) {
+        _upcomingVisitsController.add(rows.map(_fromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
   Future<void> _emitTodaysVisits() async {
     if (_todaysVisitsController.isClosed) return;
+    try {
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final startOfNextDay = startOfDay.add(const Duration(days: 1));
 
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final startOfNextDay = startOfDay.add(const Duration(days: 1));
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'visits',
-      where:
-          'isActive = 1 AND isDeleted = 0 AND status = ? '
-          'AND scheduledStart >= ? AND scheduledStart < ?',
-      whereArgs: [
-        VisitStatus.scheduled.value,
-        _dateTimeToMillis(startOfDay),
-        _dateTimeToMillis(startOfNextDay),
-      ],
-      orderBy: 'scheduledStart ASC',
-    );
-    if (!_todaysVisitsController.isClosed) {
-      _todaysVisitsController.add(rows.map(_fromRow).toList());
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'visits',
+        where:
+            'isActive = 1 AND isDeleted = 0 AND status = ? '
+            'AND scheduledStart >= ? AND scheduledStart < ?',
+        whereArgs: [
+          VisitStatus.scheduled.value,
+          _dateTimeToMillis(startOfDay),
+          _dateTimeToMillis(startOfNextDay),
+        ],
+        orderBy: 'scheduledStart ASC',
+      );
+      if (!_todaysVisitsController.isClosed) {
+        _todaysVisitsController.add(rows.map(_fromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 
@@ -339,18 +365,22 @@ class VisitLocalService {
     final key = _patientStreamKey(patientId, includeDeleted: includeDeleted);
     final controller = _patientVisitControllers[key];
     if (controller == null || controller.isClosed) return;
-
-    final db = await _databaseService.localDatabase;
-    final rows = await db.query(
-      'visits',
-      where: includeDeleted
-          ? 'isActive = 1 AND patientId = ?'
-          : 'isActive = 1 AND patientId = ? AND isDeleted = 0',
-      whereArgs: [patientId],
-      orderBy: 'scheduledStart DESC',
-    );
-    if (!controller.isClosed) {
-      controller.add(rows.map(_fromRow).toList());
+    try {
+      final db = await _databaseService.localDatabase;
+      if (!db.isOpen) return;
+      final rows = await db.query(
+        'visits',
+        where: includeDeleted
+            ? 'isActive = 1 AND patientId = ?'
+            : 'isActive = 1 AND patientId = ? AND isDeleted = 0',
+        whereArgs: [patientId],
+        orderBy: 'scheduledStart DESC',
+      );
+      if (!controller.isClosed) {
+        controller.add(rows.map(_fromRow).toList());
+      }
+    } catch (_) {
+      // Non-fatal if database is closed or transitioning
     }
   }
 

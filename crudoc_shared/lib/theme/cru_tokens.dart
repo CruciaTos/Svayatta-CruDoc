@@ -119,6 +119,16 @@ abstract final class CruSize {
 
   /// Patients list (design/patients-redesign).
   static const double searchBar = 44;
+
+  /// The phone's search box, after Google's pill: tall, with the glyph
+  /// about 0.45 of the bar's height and every tool inside it a 44 px hit
+  /// area. Text in it is [CruType.body] (16). Desktop keeps [searchBar].
+  static const double searchBarPhone = 50;
+  static const double searchIconPhone = 23;
+  static const double searchToolPhone = 44;
+  static const double searchToolIconPhone = 22;
+  static const double searchClearIconPhone = 18;
+
   static const double filterChip = 36;
   static const double tableRow = 64;
   static const double compactRow = 62;

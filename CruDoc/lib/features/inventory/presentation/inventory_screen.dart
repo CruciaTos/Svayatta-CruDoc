@@ -21,6 +21,7 @@ import 'package:doctor_management_app/features/inventory/presentation/widgets/in
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_run_out_strip.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_skeleton.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_toolbar.dart';
+import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -545,13 +546,21 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       if (async.hasError) return const _LoadError();
       return const InventoryListSkeleton();
     }
-    if (view.all.isEmpty) return const _EmptyInventory();
+    if (view.all.isEmpty) {
+      return _EmptyInventory(
+        onAdd: () => InventoryActions.addItem(context, ref),
+      );
+    }
 
     final empty = _NoMatches(
       query: state.query,
       onClear: () => _controller.setQuery(''),
     );
-    final Widget items = state.viewMode == InventoryViewMode.grid
+    // Phone: nothing to list, so the empty card stands alone instead of
+    // sitting under the table's header row.
+    final Widget items = cruIsPhone(context) && view.visible.isEmpty
+        ? empty
+        : state.viewMode == InventoryViewMode.grid
         ? InventoryGrid(
             view: view,
             selectedId: highlightId,
@@ -640,6 +649,19 @@ class _NoMatches extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final q = query.trim();
+    if (cruIsPhone(context)) {
+      return MobileEmpty(
+        gutter: false,
+        icon: CruIcons.search,
+        title: q.isEmpty ? 'No items here' : 'No matches',
+        body: q.isEmpty
+            ? 'No items in this list.'
+            : 'No items match “$q”.',
+        action: q.isEmpty ? null : 'Clear search',
+        actionIcon: null,
+        onAction: onClear,
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: CruSpace.s16,
@@ -663,11 +685,23 @@ class _NoMatches extends StatelessWidget {
 }
 
 class _EmptyInventory extends StatelessWidget {
-  const _EmptyInventory();
+  const _EmptyInventory({required this.onAdd});
+
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    if (cruIsPhone(context)) {
+      return MobileEmpty(
+        gutter: false,
+        icon: CruIcons.box,
+        title: 'No items yet',
+        body: 'Add your first item to track its stock, expiry and use.',
+        action: 'Add item',
+        onAction: onAdd,
+      );
+    }
     return CruCard(
       semanticLabel: 'Items',
       child: Column(

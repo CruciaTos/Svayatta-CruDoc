@@ -121,3 +121,34 @@ class InventorySortButton extends ConsumerWidget {
     );
   }
 }
+
+/// The phone's sort control, inside the search box: no menu, each tap
+/// moves to the next order (the search hint says which is on).
+class InventorySortCycle extends ConsumerWidget {
+  const InventorySortCycle({
+    super.key,
+    required this.sort,
+    required this.hasUsage,
+  });
+
+  final InventorySort sort;
+  final bool hasUsage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final options = [
+      for (final s in InventorySort.values)
+        if (s != InventorySort.runsOut || hasUsage) s,
+    ];
+    final i = options.indexOf(sort);
+    final next = options[(i + 1) % options.length];
+    return CruIconButton(
+      icon: CruIcons.chevronsUpDown,
+      size: CruSize.searchToolPhone,
+      iconSize: CruSize.searchToolIconPhone,
+      semanticLabel: 'Sorted by ${sort.label}. Tap for ${next.label}',
+      onPressed: () =>
+          ref.read(inventoryControllerProvider.notifier).setSort(next),
+    );
+  }
+}

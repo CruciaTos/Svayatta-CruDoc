@@ -421,18 +421,41 @@ class DentalPageHeader extends StatelessWidget {
             const SizedBox(height: CruSpace.s8),
           ],
           if (pageHeading != null) ...[
-            SwipePinned(
-              child: Semantics(
-                header: true,
-                child: Text(
-                  pageHeading,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.largeTitle
-                      .copyWith(fontSize: 28)
-                      .tint(c.label),
+            // The heading is pinned; this page's buttons sit at the top
+            // right and blur away in place as the next page's blur in.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: SwipePinned(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        pageHeading,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.largeTitle
+                            .copyWith(fontSize: 28)
+                            .tint(c.label),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(width: CruSpace.s12),
+                  own(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 0; i < actions.length; i++) ...[
+                          if (i > 0) const SizedBox(width: CruSpace.s8),
+                          actions[i],
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
             if (subtitle.isNotEmpty) ...[
               const SizedBox(height: CruSpace.s2),
@@ -468,7 +491,7 @@ class DentalPageHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ],
-          if (actions.isNotEmpty) ...[
+          if (actions.isNotEmpty && pageHeading == null) ...[
             const SizedBox(height: CruSpace.s14),
             own(
               SingleChildScrollView(
@@ -635,7 +658,8 @@ class DentalFilterBar extends StatelessWidget {
 /// A search box that sits on the canvas beside the filters. On the
 /// desktop it is the same box as Patients', Inventory's and Files' (44 px,
 /// 18 px glass, input text, the Ctrl F keycap: Ctrl F focuses it from
-/// anywhere, see [PageSearch]); on a phone it stays the compact 40 px one.
+/// anywhere, see [PageSearch]); on a phone it is the tall Google-style pill
+/// ([CruSize.searchBarPhone]) with big icons.
 /// In a dialog it is just a box (Ctrl F belongs to the page behind).
 class DentalSearchField extends StatefulWidget {
   const DentalSearchField({
@@ -643,11 +667,19 @@ class DentalSearchField extends StatefulWidget {
     required this.controller,
     required this.hint,
     required this.onChanged,
+    this.onSubmitted,
+    this.trailing,
   });
 
   final TextEditingController controller;
   final String hint;
   final ValueChanged<String> onChanged;
+
+  /// Enter / the keyboard's search key.
+  final ValueChanged<String>? onSubmitted;
+
+  /// A tool at the end of the box (a filter toggle).
+  final Widget? trailing;
 
   @override
   State<DentalSearchField> createState() => _DentalSearchFieldState();
@@ -684,7 +716,7 @@ class _DentalSearchFieldState extends State<DentalSearchField> {
     final onChanged = widget.onChanged;
     final c = context.cru;
     final phone = cruIsPhone(context);
-    final text = phone ? CruType.subhead : CruType.input;
+    final text = phone ? CruType.body : CruType.input;
     return SearchLiftField(
       controller: controller,
       onClear: () {
@@ -692,9 +724,9 @@ class _DentalSearchFieldState extends State<DentalSearchField> {
         onChanged('');
       },
       child: Container(
-        height: phone ? CruSize.control : CruSize.searchBar,
+        height: phone ? CruSize.searchBarPhone : CruSize.searchBar,
         padding: phone
-            ? const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s6, 0)
+            ? const EdgeInsets.fromLTRB(CruSpace.s16, 0, CruSpace.s4, 0)
             : const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s10, 0),
         decoration: ShapeDecoration(
           color: c.surface,
@@ -708,16 +740,17 @@ class _DentalSearchFieldState extends State<DentalSearchField> {
           children: [
             CruIcon(
               CruIcons.search,
-              size: phone ? 16 : 18,
+              size: phone ? CruSize.searchIconPhone : 18,
               strokeWidth: 2,
               color: c.label3,
             ),
-            SizedBox(width: phone ? CruSpace.s8 : CruSpace.s10),
+            SizedBox(width: phone ? CruSpace.s12 : CruSpace.s10),
             Expanded(
               child: TextField(
                 controller: controller,
                 focusNode: _focus,
                 onChanged: onChanged,
+                onSubmitted: widget.onSubmitted,
                 style: text.tint(c.label),
                 cursorColor: c.accent,
                 textInputAction: TextInputAction.search,
@@ -731,7 +764,7 @@ class _DentalSearchFieldState extends State<DentalSearchField> {
                     style: text.tint(c.label3),
                     maxLines: 1,
                     softWrap: false,
-                    overflow: TextOverflow.clip,
+                    overflow: phone ? TextOverflow.ellipsis : TextOverflow.clip,
                   ),
                 ),
               ),
@@ -739,8 +772,8 @@ class _DentalSearchFieldState extends State<DentalSearchField> {
             if (controller.text.isNotEmpty)
               CruIconButton(
                 icon: CruIcons.close,
-                size: phone ? CruSize.rowCapsule : CruSize.capsule,
-                iconSize: phone ? 14 : 16,
+                size: phone ? CruSize.searchToolPhone : CruSize.capsule,
+                iconSize: phone ? CruSize.searchClearIconPhone : 16,
                 semanticLabel: 'Clear search',
                 tooltip: 'Clear search',
                 onPressed: () {
@@ -752,7 +785,14 @@ class _DentalSearchFieldState extends State<DentalSearchField> {
               const SizedBox(width: CruSpace.s10),
               CruKeycap(PageSearch.shortcut),
             ] else
-              const SizedBox(width: CruSpace.s8),
+              SizedBox(
+                width: !phone
+                    ? CruSpace.s8
+                    : widget.trailing != null
+                    ? 0
+                    : CruSpace.s12,
+              ),
+            ?widget.trailing,
           ],
         ),
       ),

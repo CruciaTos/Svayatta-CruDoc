@@ -9,12 +9,14 @@ import 'package:printing/printing.dart';
 import 'package:doctor_management_app/core/pdf/data/branding_image_store.dart';
 import 'package:doctor_management_app/core/pdf/data/doc_repository.dart';
 import 'package:doctor_management_app/core/pdf/presentation/editor/editor_block_view.dart';
+import 'package:doctor_management_app/core/pdf/presentation/editor/editor_touch_ui.dart';
 import 'package:doctor_management_app/core/pdf/presentation/editor/template_editor_controller.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_body_sections.dart';
 import 'package:doctor_management_app/core/pdf/templates/doc_template.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+/// Accent colours for the printed document (not the app's colours).
 const List<int> kDocPalette = [
   0xFF0D9488, // Teal (CruDoc default)
   0xFF2563EB, // Royal Blue
@@ -26,517 +28,528 @@ const List<int> kDocPalette = [
   0xFF334155, // Slate
 ];
 
+const _paletteNames = [
+  'Teal',
+  'Royal blue',
+  'Sky blue',
+  'Emerald',
+  'Violet',
+  'Rose',
+  'Amber',
+  'Slate',
+];
+
+/// Text and line colours a block can use (tokens resolve per template).
+const _blockColours = [
+  ('text', 'Text'),
+  ('muted', 'Grey'),
+  ('accent', 'Accent'),
+  ('white', 'White'),
+  ('#000000', 'Black'),
+  ('#2563EB', 'Blue'),
+  ('#E11D48', 'Rose'),
+];
+
+Future<Uint8List?> _pickImage({bool allowPdf = false}) async {
+  if (kIsWeb || Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+    final res = await FilePicker.pickFiles(
+      dialogTitle: allowPdf ? 'Select letterhead scan or PDF' : 'Select image',
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', if (allowPdf) 'pdf'],
+      withData: true,
+    );
+    if (res == null || res.files.isEmpty) return null;
+    final f = res.files.first;
+    return f.bytes ??
+        (f.path != null ? await File(f.path!).readAsBytes() : null);
+  }
+  final picked = await ImagePicker().pickImage(
+    source: ImageSource.gallery,
+    imageQuality: 95,
+  );
+  return picked?.readAsBytes();
+}
+
+void _toast(BuildContext context, String msg) {
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+}
+
 // =============================================================================
 // 1. ELEMENTS PANEL
 // =============================================================================
 
-class EditorElementsPanel extends StatelessWidget {
-  const EditorElementsPanel({super.key, required this.controller});
+/// Every element on the page, with hide and lock; "Add" swaps the list
+/// for a picker of what can be added.
+class EditorElementsPanel extends StatefulWidget {
+  const EditorElementsPanel({
+    super.key,
+    required this.controller,
+    this.onPicked,
+  });
 
   final TemplateEditorController controller;
 
-  void _addBlock(DocBlock b) {
-    controller.add(b);
+  /// After choosing or adding an element (the phone closes its sheet).
+  final VoidCallback? onPicked;
+
+  @override
+  State<EditorElementsPanel> createState() => _EditorElementsPanelState();
+}
+
+class _EditorElementsPanelState extends State<EditorElementsPanel> {
+  bool _adding = false;
+
+  TemplateEditorController get _ctrl => widget.controller;
+
+  static const _groups = <(String, List<(String, String)>)>[
+    (
+      'Clinic',
+      [
+        ('Clinic name', 'field:clinic.name'),
+        ('Tagline', 'field:clinic.tagline'),
+        ('Address', 'field:clinic.address'),
+        ('Phone', 'field:clinic.phone'),
+        ('Email', 'field:clinic.email'),
+        ('Contact line', 'field:clinic.contactLine'),
+        ('Registration number', 'field:clinic.regNo'),
+        ('GSTIN', 'field:clinic.gstin'),
+      ],
+    ),
+    (
+      'Doctor',
+      [
+        ('Doctor name', 'field:doctor.name'),
+        ('Qualification', 'field:doctor.qualification'),
+        ('Specialty', 'field:doctor.specialty'),
+        ('Registration number', 'field:doctor.regNo'),
+        ('Name and qualification', 'field:doctor.nameQual'),
+        ('Specialty and registration', 'field:doctor.specReg'),
+        ('All clinic doctors', 'doctorList'),
+      ],
+    ),
+    (
+      'Document and patient',
+      [
+        ('Document title', 'field:doc.title'),
+        ('Document number', 'field:doc.numberLine'),
+        ('Date', 'field:doc.dateLine'),
+        ('Patient name', 'field:patient.name'),
+        ('Patient summary', 'field:patient.line'),
+      ],
+    ),
+    (
+      'Pictures',
+      [
+        ('Clinic logo', 'image:logo'),
+        ('Signature', 'image:signature'),
+        ('Personal stamp', 'image:stamp'),
+        ('Clinic stamp', 'image:clinicStamp'),
+        ('Upload a picture…', 'image_custom'),
+      ],
+    ),
+    (
+      'Lines, boxes and codes',
+      [
+        ('Line', 'shape_line'),
+        ('Box', 'shape_box'),
+        ('UPI pay QR code', 'qr_upi'),
+        ('Link QR code', 'qr_link'),
+        ('Your own text', 'text'),
+      ],
+    ),
+  ];
+
+  static CruIconData _iconForKey(String key) {
+    if (key.startsWith('image')) return EditorIcons.image;
+    if (key == 'shape_line') return EditorIcons.line;
+    if (key == 'shape_box') return EditorIcons.box;
+    if (key.startsWith('qr')) return EditorIcons.qr;
+    if (key == 'doctorList') return CruIcons.patients;
+    return EditorIcons.text;
   }
 
-  Future<void> _uploadCustomImage(BuildContext context) async {
-    try {
-      Uint8List? raw;
-      if (kIsWeb ||
-          Platform.isWindows ||
-          Platform.isMacOS ||
-          Platform.isLinux) {
-        final res = await FilePicker.pickFiles(
-          dialogTitle: 'Select image',
-          type: FileType.custom,
-          allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-          withData: true,
-        );
-        if (res != null && res.files.isNotEmpty) {
-          final f = res.files.first;
-          raw =
-              f.bytes ??
-              (f.path != null ? await File(f.path!).readAsBytes() : null);
-        }
-      } else {
-        final picker = ImagePicker();
-        final picked = await picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 95,
-        );
-        if (picked != null) raw = await picked.readAsBytes();
-      }
-      if (raw == null) return;
+  DocBlock? _blockFor(String key) {
+    final cw = _ctrl.template.paper.contentWidthMm;
+    if (key.startsWith('field:')) {
+      return DocBlock(
+        id: '',
+        type: DocBlockType.field,
+        field: key.substring(6),
+        w: 60,
+        h: 6,
+        x: 0,
+        y: 0,
+      );
+    }
+    if (key.startsWith('image:')) {
+      final role = switch (key.substring(6)) {
+        'logo' => DocImageRole.logo,
+        'signature' => DocImageRole.signature,
+        'stamp' => DocImageRole.stamp,
+        _ => DocImageRole.clinicStamp,
+      };
+      final sz = switch (role) {
+        DocImageRole.logo => const Size(22, 22),
+        DocImageRole.signature => const Size(40, 16),
+        _ => const Size(24, 24),
+      };
+      return DocBlock(
+        id: '',
+        type: DocBlockType.image,
+        imageRole: role,
+        w: sz.width,
+        h: sz.height,
+        x: 0,
+        y: 0,
+      );
+    }
+    return switch (key) {
+      'text' => const DocBlock(
+        id: '',
+        type: DocBlockType.text,
+        text: 'Your text',
+        w: 80,
+        h: 8,
+        x: 0,
+        y: 0,
+      ),
+      'shape_line' => DocBlock(
+        id: '',
+        type: DocBlockType.line,
+        w: cw,
+        h: 1,
+        x: 0,
+        y: 0,
+        strokePt: 1,
+        color: 'border',
+      ),
+      'shape_box' => const DocBlock(
+        id: '',
+        type: DocBlockType.box,
+        w: 40,
+        h: 20,
+        x: 0,
+        y: 0,
+        strokePt: 1,
+        color: 'border',
+        fill: 'soft',
+      ),
+      'qr_upi' => const DocBlock(
+        id: '',
+        type: DocBlockType.qr,
+        qr: 'upi',
+        w: 24,
+        h: 24,
+        x: 0,
+        y: 0,
+      ),
+      'qr_link' => const DocBlock(
+        id: '',
+        type: DocBlockType.qr,
+        w: 24,
+        h: 24,
+        x: 0,
+        y: 0,
+      ),
+      'doctorList' => DocBlock(
+        id: '',
+        type: DocBlockType.doctorList,
+        w: cw,
+        h: 18,
+        x: 0,
+        y: 0,
+      ),
+      _ => null,
+    };
+  }
 
+  Future<void> _add(String key) async {
+    if (key == 'image_custom') {
+      await _uploadCustomImage();
+      return;
+    }
+    final b = _blockFor(key);
+    if (b == null) return;
+    _placed(_ctrl.add(b));
+  }
+
+  void _placed(bool ok) {
+    if (!ok) {
+      _toast(
+        context,
+        'Open a header or footer first (Page), or remove an element.',
+      );
+      return;
+    }
+    setState(() => _adding = false);
+    widget.onPicked?.call();
+  }
+
+  Future<void> _uploadCustomImage() async {
+    try {
+      final raw = await _pickImage();
+      if (raw == null) return;
       final png = await prepareBrandingImage(raw, maxSide: 2000);
       final sha = sha256Hex(png);
       final tenant = DocRepository.instance.tenantOrNull;
       if (tenant == null) throw StateError('No active clinic');
-
+      final t = _ctrl.template;
       final stored = await MedicalStorageService.instance
           .uploadClinicTemplateImage(
             doctorId: tenant,
-            templateId: controller.template.id.isNotEmpty
-                ? controller.template.id
+            templateId: t.id.isNotEmpty
+                ? t.id
                 : 'new_${DateTime.now().millisecondsSinceEpoch}',
             name: sha,
             png: png,
           );
       await BrandingImageStore.instance.remember(sha, png);
-
-      _addBlock(
-        DocBlock(
-          id: 'b${DateTime.now().microsecondsSinceEpoch}',
-          type: DocBlockType.image,
-          imageRole: DocImageRole.custom,
-          imagePath: stored.path,
-          imageSha: sha,
-          w: 30,
-          h: 30,
-          x: 0,
-          y: 0,
+      if (!mounted) return;
+      _placed(
+        _ctrl.add(
+          DocBlock(
+            id: '',
+            type: DocBlockType.image,
+            imageRole: DocImageRole.custom,
+            imagePath: stored.path,
+            imageSha: sha,
+            w: 30,
+            h: 30,
+            x: 0,
+            y: 0,
+          ),
         ),
       );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
-      }
+      if (mounted) _toast(context, 'Could not add the picture: $e');
     }
+  }
+
+  void _toggleHidden(DocBlock b) {
+    _ctrl.updateBlock(b.id, (o) => o.copyWith(hidden: !o.hidden));
+    if (!b.hidden && _ctrl.selectedId == b.id) _ctrl.select(null);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final t = controller.template;
+    final t = _ctrl.template;
     final blocks = t.blocks;
+    final hidden = blocks.where((b) => b.hidden).length;
+    final canAdd = t.headerMm > 0 || t.footerMm > 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header with + Add button
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: CruSpace.s12,
-            vertical: CruSpace.s10,
+          padding: const EdgeInsets.fromLTRB(
+            CruSpace.s16,
+            CruSpace.s12,
+            CruSpace.s12,
+            CruSpace.s12,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Elements (${blocks.length})',
-                style: CruType.headline.tint(c.label),
-              ),
-              PopupMenuButton<String>(
-                icon: Row(
-                  mainAxisSize: MainAxisSize.min,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.add, size: 16, color: c.accentText),
-                    const SizedBox(width: 4),
-                    Text('Add', style: CruType.subhead.w600.tint(c.accentText)),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        _adding ? 'Add to the page' : 'Elements',
+                        style: CruType.headline.tint(c.label),
+                      ),
+                    ),
+                    const SizedBox(height: CruSpace.s2),
+                    Text(
+                      _adding
+                          ? 'It goes in the middle of the header.'
+                          : [
+                              '${blocks.length - hidden} on the page',
+                              if (hidden > 0) '$hidden hidden',
+                            ].join(' · '),
+                      style: CruType.subhead.tabular.tint(c.label2),
+                    ),
                   ],
                 ),
-                tooltip: 'Add element',
-                onSelected: (val) {
-                  final cw = t.paper.contentWidthMm;
-                  if (val.startsWith('field:')) {
-                    final key = val.substring(6);
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.field,
-                        field: key,
-                        w: 60,
-                        h: 6,
-                        x: 0,
-                        y: 0,
-                        fontPt: 10,
-                      ),
-                    );
-                  } else if (val == 'text') {
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.text,
-                        text: 'Sample text {{doc.date}}',
-                        w: 80,
-                        h: 8,
-                        x: 0,
-                        y: 0,
-                      ),
-                    );
-                  } else if (val.startsWith('image:')) {
-                    final role = switch (val.substring(6)) {
-                      'logo' => DocImageRole.logo,
-                      'signature' => DocImageRole.signature,
-                      'stamp' => DocImageRole.stamp,
-                      'clinicStamp' => DocImageRole.clinicStamp,
-                      _ => DocImageRole.custom,
-                    };
-                    final sz = switch (role) {
-                      DocImageRole.logo => const Size(22, 22),
-                      DocImageRole.signature => const Size(40, 16),
-                      DocImageRole.stamp => const Size(24, 24),
-                      DocImageRole.clinicStamp => const Size(24, 24),
-                      DocImageRole.custom => const Size(30, 30),
-                    };
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.image,
-                        imageRole: role,
-                        w: sz.width,
-                        h: sz.height,
-                        x: 0,
-                        y: 0,
-                      ),
-                    );
-                  } else if (val == 'image_custom') {
-                    _uploadCustomImage(context);
-                  } else if (val == 'shape_line') {
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.line,
-                        w: cw,
-                        h: 1,
-                        x: 0,
-                        y: 0,
-                        strokePt: 1,
-                        color: 'border',
-                      ),
-                    );
-                  } else if (val == 'shape_box') {
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.box,
-                        w: 40,
-                        h: 20,
-                        x: 0,
-                        y: 0,
-                        strokePt: 1,
-                        color: 'border',
-                        fill: 'soft',
-                      ),
-                    );
-                  } else if (val == 'qr_upi') {
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.qr,
-                        qr: 'upi',
-                        w: 24,
-                        h: 24,
-                        x: 0,
-                        y: 0,
-                      ),
-                    );
-                  } else if (val == 'qr_link') {
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.qr,
-                        qr: 'https://crudoc.com',
-                        w: 24,
-                        h: 24,
-                        x: 0,
-                        y: 0,
-                      ),
-                    );
-                  } else if (val == 'doctorList') {
-                    _addBlock(
-                      DocBlock(
-                        id: '',
-                        type: DocBlockType.doctorList,
-                        w: cw,
-                        h: 18,
-                        x: 0,
-                        y: 0,
-                      ),
-                    );
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  const PopupMenuItem(
-                    enabled: false,
-                    child: Text(
-                      'CLINIC',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.name',
-                    child: Text('Clinic name'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.tagline',
-                    child: Text('Clinic tagline'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.address',
-                    child: Text('Clinic address'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.phone',
-                    child: Text('Clinic phone'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.email',
-                    child: Text('Clinic email'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.contactLine',
-                    child: Text('Contact line'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.regNo',
-                    child: Text('Clinic registration no.'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:clinic.gstin',
-                    child: Text('GSTIN'),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    enabled: false,
-                    child: Text(
-                      'DOCTOR',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doctor.name',
-                    child: Text('Doctor name'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doctor.qualification',
-                    child: Text('Doctor qualification'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doctor.specialty',
-                    child: Text('Doctor specialty'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doctor.regNo',
-                    child: Text('Doctor reg. no.'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doctor.nameQual',
-                    child: Text('Doctor name & qualification'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doctor.specReg',
-                    child: Text('Doctor specialty & reg.'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'doctorList',
-                    child: Text('All clinic doctors'),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    enabled: false,
-                    child: Text(
-                      'DOCUMENT & PATIENT',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doc.title',
-                    child: Text('Document title'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doc.numberLine',
-                    child: Text('Document number'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:doc.dateLine',
-                    child: Text('Document date'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:patient.name',
-                    child: Text('Patient name'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'field:patient.line',
-                    child: Text('Patient summary line'),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    enabled: false,
-                    child: Text(
-                      'IMAGES & SHAPES',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'image:logo',
-                    child: Text('Clinic logo'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'image:signature',
-                    child: Text('Signature'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'image:stamp',
-                    child: Text('Personal stamp'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'image:clinicStamp',
-                    child: Text('Clinic stamp'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'image_custom',
-                    child: Text('Upload picture…'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'shape_line',
-                    child: Text('Horizontal line'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'shape_box',
-                    child: Text('Rectangle box'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'qr_upi',
-                    child: Text('UPI QR Code'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'qr_link',
-                    child: Text('Web Link QR'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'text',
-                    child: Text('Custom text block'),
-                  ),
-                ],
               ),
+              if (canAdd)
+                CruCapsuleButton(
+                  label: _adding ? 'Back' : 'Add',
+                  icon: _adding ? CruIcons.chevronLeft : CruIcons.plus,
+                  onPressed: () => setState(() => _adding = !_adding),
+                ),
             ],
           ),
         ),
-        const Divider(height: 1),
-
-        // Block list
+        const CruSeparator(),
         Expanded(
-          child: ListView.builder(
-            itemCount: blocks.length,
-            itemBuilder: (context, i) {
-              final b = blocks[i];
-              final isSelected = controller.selectedId == b.id;
+          child: _adding
+              ? _buildAddList(context)
+              : blocks.isEmpty
+              ? _buildEmpty(context, canAdd)
+              : _buildBlockList(context, blocks),
+        ),
+      ],
+    );
+  }
 
-              final title = switch (b.type) {
-                DocBlockType.field => docFieldLabel(b.field),
-                DocBlockType.text => b.text.isNotEmpty ? b.text : 'Custom text',
-                DocBlockType.image => switch (b.imageRole) {
-                  DocImageRole.logo => 'Logo',
-                  DocImageRole.signature => 'Signature',
-                  DocImageRole.stamp => 'Personal stamp',
-                  DocImageRole.clinicStamp => 'Clinic stamp',
-                  DocImageRole.custom => 'Picture',
-                },
-                DocBlockType.line => 'Line (${b.w.toStringAsFixed(0)} mm)',
-                DocBlockType.box =>
-                  'Box (${b.w.toStringAsFixed(0)} × ${b.h.toStringAsFixed(0)} mm)',
-                DocBlockType.qr => b.qr == 'upi' ? 'UPI QR' : 'Link QR',
-                DocBlockType.doctorList => 'All doctors',
-              };
+  Widget _buildEmpty(BuildContext context, bool canAdd) {
+    final c = context.cru;
+    return Padding(
+      padding: const EdgeInsets.all(CruSpace.s24),
+      child: Text(
+        canAdd
+            ? 'Nothing on the page yet. Tap Add to put the clinic name, a '
+                  'logo or a line in the header.'
+            : 'This template prints with a fixed layout, so there is '
+                  'nothing to move. Change its name and colour from Page.',
+        textAlign: TextAlign.center,
+        style: CruType.subhead.tint(c.label2),
+      ),
+    );
+  }
 
-              final iconData = switch (b.type) {
-                DocBlockType.field => Icons.short_text,
-                DocBlockType.text => Icons.text_fields,
-                DocBlockType.image => Icons.image,
-                DocBlockType.line => Icons.horizontal_rule,
-                DocBlockType.box => Icons.crop_square,
-                DocBlockType.qr => Icons.qr_code,
-                DocBlockType.doctorList => Icons.groups,
-              };
-
-              return InkWell(
-                onTap: () => controller.select(b.id),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  color: isSelected ? c.accentWash : Colors.transparent,
-                  child: Row(
+  Widget _buildBlockList(BuildContext context, List<DocBlock> blocks) {
+    final c = context.cru;
+    return ListView.builder(
+      padding: const EdgeInsets.all(CruSpace.s8),
+      itemCount: blocks.length,
+      itemBuilder: (context, i) {
+        final b = blocks[i];
+        final selected = _ctrl.selectedId == b.id;
+        final title = editorBlockTitle(b);
+        final state = [if (b.hidden) 'Hidden', if (b.locked) 'Locked'];
+        return CruPressable(
+          scaleOnPress: false,
+          semanticLabel: title,
+          onTap: () {
+            // Picking a hidden element brings it back.
+            if (b.hidden) {
+              _ctrl.updateBlock(b.id, (o) => o.copyWith(hidden: false));
+            }
+            _ctrl.select(b.id);
+            widget.onPicked?.call();
+          },
+          builder: (context, hovered) => AnimatedContainer(
+            duration: CruMotion.of(context, CruMotion.fast),
+            curve: CruMotion.curve,
+            constraints: const BoxConstraints(minHeight: CruSize.collapsedRow),
+            padding: const EdgeInsets.only(
+              left: CruSpace.s12,
+              right: CruSpace.s4,
+            ),
+            decoration: ShapeDecoration(
+              color: selected
+                  ? c.accentWash
+                  : (hovered ? c.hoverFill : c.surface.withValues(alpha: 0)),
+              shape: cruShape(CruRadius.control),
+            ),
+            child: Row(
+              children: [
+                CruIcon(
+                  editorBlockIcon(b),
+                  size: 18,
+                  strokeWidth: 1.8,
+                  color: b.hidden ? c.label3 : c.label2,
+                ),
+                const SizedBox(width: CruSpace.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        iconData,
-                        size: 16,
-                        color: isSelected ? c.accent : c.label2,
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            (selected
+                                    ? CruType.subhead.w600
+                                    : CruType.subhead.w500)
+                                .tint(b.hidden ? c.label3 : c.label),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: CruType.subhead.tint(
-                            b.hidden
-                                ? c.label3
-                                : (isSelected ? c.label : c.label2),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      if (state.isNotEmpty)
+                        Text(
+                          state.join(' · '),
+                          style: CruType.caption.tint(c.label3),
                         ),
-                      ),
-                      // Lock toggle
-                      IconButton(
-                        iconSize: 16,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 28,
-                          minHeight: 28,
-                        ),
-                        icon: Icon(
-                          b.locked ? Icons.lock : Icons.lock_open,
-                          color: b.locked ? c.accent : c.label3,
-                        ),
-                        onPressed: () {
-                          controller.updateBlock(
-                            b.id,
-                            (orig) => orig.copyWith(locked: !orig.locked),
-                          );
-                        },
-                      ),
-                      // Eye (hide) toggle
-                      IconButton(
-                        iconSize: 16,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 28,
-                          minHeight: 28,
-                        ),
-                        icon: Icon(
-                          b.hidden ? Icons.visibility_off : Icons.visibility,
-                          color: b.hidden ? c.label3 : c.label2,
-                        ),
-                        onPressed: () {
-                          controller.updateBlock(
-                            b.id,
-                            (orig) => orig.copyWith(hidden: !orig.hidden),
-                          );
-                        },
-                      ),
                     ],
                   ),
                 ),
-              );
-            },
+                CruIconButton(
+                  icon: b.hidden ? EditorIcons.eyeOff : EditorIcons.eye,
+                  size: CruSize.squareButton,
+                  iconSize: 17,
+                  semanticLabel: b.hidden ? 'Show $title' : 'Hide $title',
+                  tooltip: b.hidden ? 'Show' : 'Hide',
+                  onPressed: () => _toggleHidden(b),
+                ),
+              ],
+            ),
           ),
-        ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAddList(BuildContext context) {
+    final c = context.cru;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s8,
+        CruSpace.s16,
+        CruSpace.s8,
+        CruSpace.s16,
+      ),
+      children: [
+        for (final (group, items) in _groups) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+            child: EditorSectionLabel(group),
+          ),
+          for (final (label, key) in items)
+            CruPressable(
+              scaleOnPress: false,
+              semanticLabel: 'Add $label',
+              onTap: () => _add(key),
+              builder: (context, hovered) => AnimatedContainer(
+                duration: CruMotion.of(context, CruMotion.fast),
+                height: CruSize.actionButton,
+                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+                decoration: ShapeDecoration(
+                  color: hovered ? c.hoverFill : c.surface.withValues(alpha: 0),
+                  shape: cruShape(CruRadius.control),
+                ),
+                child: Row(
+                  children: [
+                    CruIcon(
+                      _iconForKey(key),
+                      size: 18,
+                      strokeWidth: 1.8,
+                      color: c.label2,
+                    ),
+                    const SizedBox(width: CruSpace.s12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: CruType.subhead.w500.tint(c.label),
+                      ),
+                    ),
+                    CruIcon(
+                      CruIcons.plus,
+                      size: 16,
+                      strokeWidth: 2,
+                      color: c.label3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: CruSpace.s16),
+        ],
       ],
     );
   }
@@ -546,10 +559,18 @@ class EditorElementsPanel extends StatelessWidget {
 // 2. PROPERTIES PANEL
 // =============================================================================
 
+/// Everything about the selected element. [showTune] adds the Size and
+/// Transparency sliders and quick actions (the phone has them in its own
+/// panel already).
 class EditorPropertiesPanel extends StatelessWidget {
-  const EditorPropertiesPanel({super.key, required this.controller});
+  const EditorPropertiesPanel({
+    super.key,
+    required this.controller,
+    this.showTune = true,
+  });
 
   final TemplateEditorController controller;
+  final bool showTune;
 
   @override
   Widget build(BuildContext context) {
@@ -559,9 +580,9 @@ class EditorPropertiesPanel extends StatelessWidget {
     if (b == null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(CruSpace.s16),
+          padding: const EdgeInsets.all(CruSpace.s24),
           child: Text(
-            'Select an element on the canvas to edit its properties.',
+            'Tap an element on the page to move or change it.',
             textAlign: TextAlign.center,
             style: CruType.subhead.tint(c.label2),
           ),
@@ -569,361 +590,450 @@ class EditorPropertiesPanel extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(CruSpace.s12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Title & Actions Bar
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Element Properties',
-                  style: CruType.headline.tint(c.label),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy, size: 18),
-                tooltip: 'Duplicate',
-                onPressed: controller.duplicateSelected,
-              ),
-              IconButton(
-                icon: Icon(Icons.delete_outline, size: 18, color: c.redText),
-                tooltip: 'Delete',
-                onPressed: controller.deleteSelected,
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s12),
+    final locked = b.locked;
+    final isText =
+        b.type == DocBlockType.field ||
+        b.type == DocBlockType.text ||
+        b.type == DocBlockType.doctorList;
+    final removes =
+        !b.id.startsWith('builtin.') && !controller.template.isBuiltin;
+    const gap = SizedBox(height: CruSpace.s24);
 
-          // Content editor based on block type
-          if (b.type == DocBlockType.field) ...[
-            DropdownButtonFormField<String>(
-              initialValue: kDocFieldLabels.containsKey(b.field)
-                  ? b.field
-                  : kDocFieldLabels.keys.first,
-              decoration: InputDecoration(
-                labelText: 'Data Field',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                ),
-              ),
-              items: [
-                for (final e in kDocFieldLabels.entries)
-                  DropdownMenuItem(
-                    value: e.key,
-                    child: Text(e.value, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  controller.updateBlock(
-                    b.id,
-                    (orig) => orig.copyWith(field: v),
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: CruSpace.s12),
-          ] else if (b.type == DocBlockType.text) ...[
-            TextFormField(
-              initialValue: b.text,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Text Content',
-                hintText: 'Enter text or {{placeholders}}',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                ),
-              ),
-              onChanged: (v) {
-                controller.updateBlock(b.id, (orig) => orig.copyWith(text: v));
-              },
-            ),
-            const SizedBox(height: CruSpace.s6),
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: [
-                for (final ph in [
-                  '{{doc.date}}',
-                  '{{doc.number}}',
-                  '{{patient.name}}',
-                  '{{doctor.name}}',
-                ])
-                  ActionChip(
-                    label: Text(ph, style: const TextStyle(fontSize: 10)),
-                    onPressed: () {
-                      controller.updateBlock(
-                        b.id,
-                        (orig) => orig.copyWith(text: '${orig.text} $ph'),
-                      );
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s12),
-          ] else if (b.type == DocBlockType.qr) ...[
-            TextFormField(
-              initialValue: b.qr,
-              decoration: InputDecoration(
-                labelText: 'QR Content ("upi" or URL)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                ),
-              ),
-              onChanged: (v) {
-                controller.updateBlock(b.id, (orig) => orig.copyWith(qr: v));
-              },
-            ),
-            const SizedBox(height: CruSpace.s12),
-          ],
-
-          // Typography: Font Size, Bold, Alignment
-          if (b.type == DocBlockType.field ||
-              b.type == DocBlockType.text ||
-              b.type == DocBlockType.doctorList) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Text('Size', style: CruType.subhead.w500.tint(c.label)),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.remove, size: 16),
-                        onPressed: b.fontPt > 6
-                            ? () => controller.updateBlock(
-                                b.id,
-                                (o) => o.copyWith(fontPt: o.fontPt - 1),
-                              )
-                            : null,
-                      ),
-                      Text(
-                        '${b.fontPt.toStringAsFixed(0)} pt',
-                        style: CruType.body.w600,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add, size: 16),
-                        onPressed: b.fontPt < 28
-                            ? () => controller.updateBlock(
-                                b.id,
-                                (o) => o.copyWith(fontPt: o.fontPt + 1),
-                              )
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.format_bold,
-                    color: b.bold ? c.accent : c.label3,
-                  ),
-                  onPressed: () => controller.updateBlock(
-                    b.id,
-                    (o) => o.copyWith(bold: !o.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s8),
-
-            // Align
-            Row(
-              children: [
-                Text('Align', style: CruType.subhead.w500.tint(c.label)),
-                const SizedBox(width: CruSpace.s12),
-                SegmentedButton<DocAlign>(
-                  segments: const [
-                    ButtonSegment(
-                      value: DocAlign.left,
-                      icon: Icon(Icons.format_align_left, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: DocAlign.center,
-                      icon: Icon(Icons.format_align_center, size: 16),
-                    ),
-                    ButtonSegment(
-                      value: DocAlign.right,
-                      icon: Icon(Icons.format_align_right, size: 16),
-                    ),
-                  ],
-                  selected: {b.align},
-                  onSelectionChanged: (s) {
-                    controller.updateBlock(
-                      b.id,
-                      (o) => o.copyWith(align: s.first),
-                    );
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s12),
-          ],
-
-          // Color Swatches
-          Text('Colour', style: CruType.subhead.w500.tint(c.label)),
-          const SizedBox(height: CruSpace.s6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final colorKey in [
-                'text',
-                'muted',
-                'accent',
-                'white',
-                '#000000',
-                '#2563EB',
-                '#E11D48',
-              ])
-                InkWell(
-                  onTap: () => controller.updateBlock(
-                    b.id,
-                    (o) => o.copyWith(color: colorKey),
-                  ),
-                  child: Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: Color(controller.template.style.resolve(colorKey)),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: b.color == colorKey ? c.accent : c.hairline,
-                        width: b.color == colorKey ? 2.5 : 1,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Show On page option
-          DropdownButtonFormField<DocShowOn>(
-            initialValue: b.showOn,
-            decoration: InputDecoration(
-              labelText: 'Show On',
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-              ),
-            ),
-            items: const [
-              DropdownMenuItem(value: DocShowOn.all, child: Text('All pages')),
-              DropdownMenuItem(
-                value: DocShowOn.first,
-                child: Text('First page only'),
-              ),
-              DropdownMenuItem(
-                value: DocShowOn.last,
-                child: Text('Last page only'),
-              ),
-              DropdownMenuItem(
-                value: DocShowOn.notFirst,
-                child: Text('Not on first page'),
-              ),
-            ],
-            onChanged: (v) {
-              if (v != null) {
-                controller.updateBlock(b.id, (o) => o.copyWith(showOn: v));
-              }
-            },
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Position & Size (mm)
-          Text(
-            'Position & Size (mm)',
-            style: CruType.subhead.w500.tint(c.label),
-          ),
-          const SizedBox(height: CruSpace.s6),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'X: ${b.x.toStringAsFixed(1)} mm',
-                  style: CruType.caption,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'Y: ${b.y.toStringAsFixed(1)} mm',
-                  style: CruType.caption,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'W: ${b.w.toStringAsFixed(1)} mm',
-                  style: CruType.caption,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  'H: ${b.h.toStringAsFixed(1)} mm',
-                  style: CruType.caption,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // PUBG-Style Fine-tune Nudge Pad
-          Text(
-            'Fine-tune Nudge (0.5 mm)',
-            style: CruType.subhead.w500.tint(c.label),
-          ),
-          const SizedBox(height: CruSpace.s8),
-          Center(
-            child: SizedBox(
-              width: 130,
-              height: 110,
-              child: Stack(
-                alignment: Alignment.center,
+    return ListView(
+      padding: const EdgeInsets.all(CruSpace.s16),
+      children: [
+        // Which element, with duplicate and remove
+        Row(
+          children: [
+            CruIconTile(icon: editorBlockIcon(b), tone: CruTileTone.neutral),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_upward),
-                      onPressed: () => controller.nudge(0, -0.5),
-                    ),
+                  Text(
+                    editorBlockTitle(b),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.callout.tint(c.label),
                   ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => controller.nudge(-0.5, 0),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_forward),
-                      onPressed: () => controller.nudge(0.5, 0),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_downward),
-                      onPressed: () => controller.nudge(0, 0.5),
-                    ),
+                  Text(
+                    b.zone == DocZone.header
+                        ? 'In the header'
+                        : 'In the footer',
+                    style: CruType.caption.tint(c.label2),
                   ),
                 ],
               ),
             ),
+            // On a phone these live in the element's actions sheet.
+            if (showTune) ...[
+              CruIconButton(
+                icon: EditorIcons.copy,
+                size: CruSize.squareButton + CruSpace.s4,
+                iconSize: 18,
+                semanticLabel: 'Duplicate',
+                tooltip: 'Duplicate',
+                onPressed: controller.duplicateSelected,
+              ),
+              CruIconButton(
+                icon: removes ? EditorIcons.trash : EditorIcons.eyeOff,
+                size: CruSize.squareButton + CruSpace.s4,
+                iconSize: 18,
+                semanticLabel: removes ? 'Delete' : 'Hide',
+                tooltip: removes ? 'Delete' : 'Hide',
+                onPressed: controller.deleteSelected,
+              ),
+            ],
+          ],
+        ),
+        if (locked) ...[
+          const SizedBox(height: CruSpace.s16),
+          _Note(
+            text: 'Locked, so it can\'t move by accident.',
+            action: 'Unlock',
+            onAction: () =>
+                controller.updateBlock(b.id, (o) => o.copyWith(locked: false)),
           ),
         ],
+        if (showTune) ...[
+          gap,
+          const EditorSectionLabel('Size and transparency'),
+          EditorSlider(
+            label: 'Size',
+            value: controller.scaleOf(b),
+            min: 0.3,
+            max: controller.maxScaleOf(b).clamp(0.5, 2.5).toDouble(),
+            valueText: '${(controller.scaleOf(b) * 100).round()}%',
+            enabled: !locked,
+            onStart: controller.beginLive,
+            onChanged: (v) => controller.setScaleLive(b.id, v),
+            onEnd: controller.endLive,
+          ),
+          EditorSlider(
+            label: 'Transparency',
+            value: (1 - b.opacity).clamp(0.0, 0.8).toDouble(),
+            min: 0,
+            max: 0.8,
+            valueText: '${((1 - b.opacity) * 100).round()}%',
+            enabled: !locked,
+            onStart: controller.beginLive,
+            onChanged: (v) => controller.setTransparencyLive(b.id, v),
+            onEnd: controller.endLive,
+          ),
+          const SizedBox(height: CruSpace.s8),
+          Row(
+            children: [
+              CruCapsuleButton(
+                label: locked ? 'Unlock' : 'Lock',
+                icon: locked ? EditorIcons.unlock : EditorIcons.lock,
+                onPressed: () => controller.updateBlock(
+                  b.id,
+                  (o) => o.copyWith(locked: !o.locked),
+                ),
+              ),
+              if (!locked && controller.isChanged(b)) ...[
+                const SizedBox(width: CruSpace.s8),
+                CruCapsuleButton(
+                  label: 'Reset',
+                  icon: EditorIcons.reset,
+                  onPressed: () => controller.resetBlock(b.id),
+                ),
+              ],
+            ],
+          ),
+        ],
+
+        // What it shows
+        if (b.type == DocBlockType.field) ...[
+          gap,
+          CruDropdownField<String>(
+            label: 'Shows',
+            value: kDocFieldLabels.containsKey(b.field) ? b.field : null,
+            items: kDocFieldLabels.keys.toList(),
+            itemLabel: (k) => kDocFieldLabels[k] ?? k,
+            onChanged: (v) =>
+                controller.updateBlock(b.id, (o) => o.copyWith(field: v)),
+          ),
+        ] else if (b.type == DocBlockType.text) ...[
+          gap,
+          const EditorSectionLabel('Text'),
+          _BoundTextField(
+            id: b.id,
+            label: 'Words',
+            value: b.text,
+            maxLines: 3,
+            help: 'Tap a detail below to add it; it fills in on each document.',
+            onBegin: controller.checkpoint,
+            onChanged: (v) =>
+                controller.updateBlockLive(b.id, (o) => o.copyWith(text: v)),
+          ),
+          const SizedBox(height: CruSpace.s8),
+          Wrap(
+            spacing: CruSpace.s6,
+            runSpacing: CruSpace.s6,
+            children: [
+              for (final (label, ph) in const [
+                ('Date', '{{doc.date}}'),
+                ('Number', '{{doc.number}}'),
+                ('Patient', '{{patient.name}}'),
+                ('Doctor', '{{doctor.name}}'),
+              ])
+                IntrinsicWidth(
+                  child: CruCapsuleButton(
+                    label: label,
+                    icon: CruIcons.plus,
+                    onPressed: () => controller.updateBlock(
+                      b.id,
+                      (o) => o.copyWith(
+                        text: o.text.trim().isEmpty ? ph : '${o.text} $ph',
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ] else if (b.type == DocBlockType.qr) ...[
+          gap,
+          const EditorSectionLabel('QR code'),
+          CruSegmentedControl<bool>(
+            semanticLabel: 'QR code content',
+            segments: const [
+              CruSegment(true, 'Pay by UPI'),
+              CruSegment(false, 'A link'),
+            ],
+            selected: b.qr == 'upi',
+            onChanged: (upi) => controller.updateBlock(
+              b.id,
+              (o) => o.copyWith(qr: upi ? 'upi' : ''),
+            ),
+          ),
+          if (b.qr != 'upi') ...[
+            const SizedBox(height: CruSpace.s12),
+            _BoundTextField(
+              id: b.id,
+              label: 'Link',
+              value: b.qr,
+              hint: 'yourclinic.in/book',
+              keyboardType: TextInputType.url,
+              onBegin: controller.checkpoint,
+              onChanged: (v) =>
+                  controller.updateBlockLive(b.id, (o) => o.copyWith(qr: v)),
+            ),
+          ],
+        ],
+
+        // How text looks
+        if (isText) ...[
+          gap,
+          const EditorSectionLabel('Text style'),
+          EditorStepper(
+            label: 'Text size',
+            valueText:
+                '${b.fontPt.toStringAsFixed(b.fontPt % 1 == 0 ? 0 : 1)} pt',
+            onMinus: b.fontPt > 5
+                ? () => controller.updateBlock(
+                    b.id,
+                    (o) => o.copyWith(fontPt: (o.fontPt - 1).clamp(5.0, 40.0)),
+                  )
+                : null,
+            onPlus: b.fontPt < 40
+                ? () => controller.updateBlock(
+                    b.id,
+                    (o) => o.copyWith(fontPt: (o.fontPt + 1).clamp(5.0, 40.0)),
+                  )
+                : null,
+          ),
+          const SizedBox(height: CruSpace.s12),
+          CruSwitchRow(
+            title: 'Bold',
+            value: b.bold,
+            onChanged: (v) =>
+                controller.updateBlock(b.id, (o) => o.copyWith(bold: v)),
+          ),
+          const SizedBox(height: CruSpace.s12),
+          CruSegmentedControl<DocAlign>(
+            semanticLabel: 'Line up',
+            segments: const [
+              CruSegment(DocAlign.left, 'Left'),
+              CruSegment(DocAlign.center, 'Centre'),
+              CruSegment(DocAlign.right, 'Right'),
+            ],
+            selected: b.align,
+            onChanged: (v) =>
+                controller.updateBlock(b.id, (o) => o.copyWith(align: v)),
+          ),
+        ],
+
+        // Colour
+        if (b.type != DocBlockType.image && b.type != DocBlockType.qr) ...[
+          gap,
+          EditorSectionLabel(
+            b.type == DocBlockType.box ? 'Border colour' : 'Colour',
+          ),
+          Wrap(
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
+            children: [
+              for (final (key, name) in _blockColours)
+                EditorSwatch(
+                  color: Color(controller.template.style.resolve(key)),
+                  selected: b.color == key,
+                  semanticLabel: name,
+                  onTap: () => controller.updateBlock(
+                    b.id,
+                    (o) => o.copyWith(color: key),
+                  ),
+                ),
+            ],
+          ),
+        ],
+
+        // Where and when
+        gap,
+        CruDropdownField<DocShowOn>(
+          label: 'Prints on',
+          value: b.showOn,
+          items: DocShowOn.values,
+          itemLabel: (v) => switch (v) {
+            DocShowOn.all => 'Every page',
+            DocShowOn.first => 'First page only',
+            DocShowOn.last => 'Last page only',
+            DocShowOn.notFirst => 'Every page but the first',
+          },
+          onChanged: (v) =>
+              controller.updateBlock(b.id, (o) => o.copyWith(showOn: v)),
+        ),
+        gap,
+        _NudgePad(controller: controller, enabled: !locked),
+        const SizedBox(height: CruSpace.s16),
+      ],
+    );
+  }
+}
+
+/// Moves the element half a millimetre at a time.
+class _NudgePad extends StatelessWidget {
+  const _NudgePad({required this.controller, required this.enabled});
+
+  final TemplateEditorController controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    Widget arrow(CruIconData icon, String label, double dx, double dy) =>
+        AnimatedOpacity(
+          duration: CruMotion.of(context, CruMotion.fast),
+          opacity: enabled ? 1 : 0.35,
+          child: CruSquareButton(
+            icon: icon,
+            semanticLabel: 'Move $label',
+            tooltip: 'Move $label',
+            onPressed: enabled ? () => controller.nudge(dx, dy) : null,
+          ),
+        );
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Fine move, 0.5 mm',
+            style: CruType.subhead.w500.tint(c.label2),
+          ),
+        ),
+        arrow(CruIcons.chevronLeft, 'left', -0.5, 0),
+        const SizedBox(width: CruSpace.s6),
+        arrow(EditorIcons.chevronUp, 'up', 0, -0.5),
+        const SizedBox(width: CruSpace.s6),
+        arrow(CruIcons.chevronDown, 'down', 0, 0.5),
+        const SizedBox(width: CruSpace.s6),
+        arrow(CruIcons.chevronRight, 'right', 0.5, 0),
+      ],
+    );
+  }
+}
+
+/// A quiet inset note, with an optional capsule action.
+class _Note extends StatelessWidget {
+  const _Note({required this.text, this.action, this.onAction});
+
+  final String text;
+  final String? action;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s14,
+        CruSpace.s10,
+        CruSpace.s10,
+        CruSpace.s10,
       ),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(text, style: CruType.subhead.w500.tint(c.label2)),
+          ),
+          if (action != null) ...[
+            const SizedBox(width: CruSpace.s8),
+            CruCapsuleButton(
+              label: action!,
+              kind: CruCapsuleKind.surface,
+              onPressed: onAction,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// A text field kept in step with a value that can also change elsewhere
+/// (undo, another element). One undo step per edit: [onBegin] runs on the
+/// first change after the field is focused.
+class _BoundTextField extends StatefulWidget {
+  const _BoundTextField({
+    required this.id,
+    required this.label,
+    required this.value,
+    required this.onBegin,
+    required this.onChanged,
+    this.maxLines = 1,
+    this.hint,
+    this.help,
+    this.keyboardType,
+  });
+
+  /// What is being edited; a new id starts afresh.
+  final String id;
+  final String label;
+  final String value;
+  final VoidCallback onBegin;
+  final ValueChanged<String> onChanged;
+  final int maxLines;
+  final String? hint;
+  final String? help;
+  final TextInputType? keyboardType;
+
+  @override
+  State<_BoundTextField> createState() => _BoundTextFieldState();
+}
+
+class _BoundTextFieldState extends State<_BoundTextField> {
+  late final TextEditingController _text = TextEditingController(
+    text: widget.value,
+  );
+  final FocusNode _focus = FocusNode();
+  bool _begun = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _begun = false;
+    });
+  }
+
+  @override
+  void didUpdateWidget(_BoundTextField old) {
+    super.didUpdateWidget(old);
+    if (old.id != widget.id ||
+        (!_focus.hasFocus && widget.value != _text.text)) {
+      _text.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _text.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CruTextField(
+      label: widget.label,
+      controller: _text,
+      focusNode: _focus,
+      maxLines: widget.maxLines,
+      hint: widget.hint,
+      help: widget.help,
+      keyboardType: widget.keyboardType,
+      textCapitalization: TextCapitalization.sentences,
+      onChanged: (v) {
+        if (!_begun) {
+          _begun = true;
+          widget.onBegin();
+        }
+        widget.onChanged(v);
+      },
     );
   }
 }
@@ -932,42 +1042,27 @@ class EditorPropertiesPanel extends StatelessWidget {
 // 3. PAGE PANEL
 // =============================================================================
 
+/// The template as a whole: name, what it's for, paper, header and footer,
+/// colour, text size, print options, letterhead paper and body order.
 class EditorPagePanel extends StatelessWidget {
-  const EditorPagePanel({super.key, required this.controller});
+  const EditorPagePanel({
+    super.key,
+    required this.controller,
+    this.onResetLayout,
+  });
 
   final TemplateEditorController controller;
 
+  /// Puts every element back as in the ready-made design (asks first).
+  final VoidCallback? onResetLayout;
+
   Future<void> _uploadBackground(BuildContext context) async {
     try {
-      Uint8List? raw;
-      if (kIsWeb ||
-          Platform.isWindows ||
-          Platform.isMacOS ||
-          Platform.isLinux) {
-        final res = await FilePicker.pickFiles(
-          dialogTitle: 'Select letterhead scan or PDF',
-          type: FileType.custom,
-          allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf'],
-          withData: true,
-        );
-        if (res != null && res.files.isNotEmpty) {
-          final f = res.files.first;
-          raw =
-              f.bytes ??
-              (f.path != null ? await File(f.path!).readAsBytes() : null);
-        }
-      } else {
-        final picker = ImagePicker();
-        final picked = await picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 95,
-        );
-        if (picked != null) raw = await picked.readAsBytes();
-      }
+      final raw = await _pickImage(allowPdf: true);
       if (raw == null) return;
 
-      Uint8List pngBytes;
-      // If PDF, rasterize first page at 150 dpi
+      // A PDF: use its first page at 150 dpi.
+      var pngBytes = raw;
       if (raw.length > 4 &&
           raw[0] == 0x25 &&
           raw[1] == 0x50 &&
@@ -975,8 +1070,6 @@ class EditorPagePanel extends StatelessWidget {
           raw[3] == 0x46) {
         final pages = Printing.raster(raw, pages: [0], dpi: 150);
         pngBytes = await pages.first.then((p) => p.toPng());
-      } else {
-        pngBytes = raw;
       }
 
       final processed = await prepareBrandingImage(pngBytes, maxSide: 2480);
@@ -1005,403 +1098,385 @@ class EditorPagePanel extends StatelessWidget {
           ),
         ),
       );
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Letterhead background uploaded.')),
-        );
-      }
+      if (context.mounted) _toast(context, 'Letterhead paper added.');
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
-      }
+      if (context.mounted) _toast(context, 'Could not add it: $e');
     }
+  }
+
+  void _toggleKind(DocTemplate t, DocKind kind) {
+    // No ticks stored means "every kind".
+    final current = t.kinds.isEmpty
+        ? DocKind.values.toSet()
+        : Set<DocKind>.from(t.kinds);
+    if (current.contains(kind)) {
+      if (current.length == 1) return; // keep at least one
+      current.remove(kind);
+    } else {
+      current.add(kind);
+    }
+    final all = current.length == DocKind.values.length;
+    controller.update(
+      (o) => o.copyWith(
+        kinds: all
+            ? const []
+            : [
+                for (final k in DocKind.values)
+                  if (current.contains(k)) k,
+              ],
+      ),
+    );
+  }
+
+  void _setZone(DocZone z, double mm) {
+    controller.checkpoint();
+    controller.setZoneHeight(z, mm);
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     final t = controller.template;
+    final roll = t.paper.isRoll;
+    const gap = SizedBox(height: CruSpace.s24);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(CruSpace.s12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Page Settings', style: CruType.headline.tint(c.label)),
-          const SizedBox(height: CruSpace.s12),
+    String mm(double v) => '${v.toStringAsFixed(v % 1 == 0 ? 0 : 1)} mm';
 
-          // Template Name
-          TextFormField(
-            initialValue: t.name,
-            decoration: InputDecoration(
-              labelText: 'Template Name',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-              ),
-            ),
-            onChanged: (v) {
-              if (v.trim().isNotEmpty) {
-                controller.update((orig) => orig.copyWith(name: v.trim()));
-              }
-            },
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Applies To Kinds
-          Text('Applies to', style: CruType.subhead.w500.tint(c.label)),
-          const SizedBox(height: CruSpace.s4),
+    return ListView(
+      padding: const EdgeInsets.all(CruSpace.s16),
+      children: [
+        const EditorSectionLabel('Template'),
+        _BoundTextField(
+          id: 'template-name',
+          label: 'Name',
+          value: t.name,
+          onBegin: controller.checkpoint,
+          onChanged: (v) {
+            if (v.trim().isNotEmpty) {
+              controller.updateLive((o) => o.copyWith(name: v.trim()));
+            }
+          },
+        ),
+        if (!roll) ...[
+          const SizedBox(height: CruSpace.s16),
+          Text('Used for', style: CruType.subhead.w500.tint(c.label2)),
+          const SizedBox(height: CruSpace.s8),
           Wrap(
-            spacing: 6,
-            runSpacing: 4,
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
             children: [
               for (final kind in DocKind.values)
-                FilterChip(
-                  label: Text(kind.label),
-                  selected: t.kinds.contains(kind),
-                  onSelected: (selected) {
-                    final current = Set<DocKind>.from(t.kinds);
-                    if (selected) {
-                      current.add(kind);
-                    } else {
-                      current.remove(kind);
-                    }
-                    controller.update(
-                      (orig) => orig.copyWith(kinds: current.toList()),
-                    );
-                  },
+                EditorChoiceChip(
+                  label: kind.label,
+                  selected: t.appliesTo(kind),
+                  onTap: () => _toggleKind(t, kind),
                 ),
             ],
           ),
-          const SizedBox(height: CruSpace.s16),
+        ],
 
-          // Paper Format
-          DropdownButtonFormField<DocPaperFormat>(
-            initialValue: t.paper.format,
-            decoration: InputDecoration(
-              labelText: 'Paper Size',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-              ),
-            ),
+        gap,
+        const EditorSectionLabel('Paper'),
+        if (roll)
+          const _Note(
+            text:
+                'Receipt roll, 80 mm wide. Receipts print with a fixed '
+                'layout; only the name and colour change.',
+          )
+        else ...[
+          CruDropdownField<DocPaperFormat>(
+            label: 'Size',
+            value: t.paper.format == DocPaperFormat.custom
+                ? null
+                : t.paper.format,
             items: const [
-              DropdownMenuItem(
-                value: DocPaperFormat.a4,
-                child: Text('A4 (210 × 297 mm)'),
-              ),
-              DropdownMenuItem(
-                value: DocPaperFormat.a5,
-                child: Text('A5 (148 × 210 mm)'),
-              ),
-              DropdownMenuItem(
-                value: DocPaperFormat.letter,
-                child: Text('Letter (8.5 × 11 in)'),
-              ),
+              DocPaperFormat.a4,
+              DocPaperFormat.a5,
+              DocPaperFormat.letter,
             ],
-            onChanged: (v) {
-              if (v != null) {
-                final p = switch (v) {
-                  DocPaperFormat.a5 => const DocPaper(
-                    format: DocPaperFormat.a5,
-                    widthMm: 148,
-                    heightMm: 210,
-                  ),
-                  DocPaperFormat.letter => const DocPaper(
-                    format: DocPaperFormat.letter,
-                    widthMm: 215.9,
-                    heightMm: 279.4,
-                  ),
-                  _ => const DocPaper(
-                    format: DocPaperFormat.a4,
-                    widthMm: 210,
-                    heightMm: 297,
-                  ),
-                };
-                controller.setPaper(p);
-              }
+            itemLabel: (f) => switch (f) {
+              DocPaperFormat.a5 => 'A5 · 148 × 210 mm',
+              DocPaperFormat.letter => 'Letter · 8.5 × 11 in',
+              _ => 'A4 · 210 × 297 mm',
             },
+            tabular: true,
+            onChanged: (v) => controller.setPaper(switch (v) {
+              DocPaperFormat.a5 => const DocPaper(
+                format: DocPaperFormat.a5,
+                widthMm: 148,
+                heightMm: 210,
+              ),
+              DocPaperFormat.letter => const DocPaper(
+                format: DocPaperFormat.letter,
+                widthMm: 215.9,
+                heightMm: 279.4,
+              ),
+              _ => const DocPaper(
+                format: DocPaperFormat.a4,
+                widthMm: 210,
+                heightMm: 297,
+              ),
+            }),
           ),
           const SizedBox(height: CruSpace.s16),
-
-          // Header & Footer Height Fields
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  key: ValueKey('header_${t.headerMm}'),
-                  initialValue: t.headerMm.toStringAsFixed(1),
-                  decoration: InputDecoration(
-                    labelText: 'Header (mm)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onFieldSubmitted: (v) {
-                    final mm = double.tryParse(v);
-                    if (mm != null) {
-                      controller.checkpoint();
-                      controller.setZoneHeight(DocZone.header, mm);
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextFormField(
-                  key: ValueKey('footer_${t.footerMm}'),
-                  initialValue: t.footerMm.toStringAsFixed(1),
-                  decoration: InputDecoration(
-                    labelText: 'Footer (mm)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
-                    ),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onFieldSubmitted: (v) {
-                    final mm = double.tryParse(v);
-                    if (mm != null) {
-                      controller.checkpoint();
-                      controller.setZoneHeight(DocZone.footer, mm);
-                    }
-                  },
-                ),
-              ),
-            ],
+          EditorStepper(
+            label: 'Header height',
+            valueText: mm(t.headerMm),
+            onMinus: t.headerMm > 0
+                ? () => _setZone(DocZone.header, t.headerMm - 2)
+                : null,
+            onPlus: () => _setZone(DocZone.header, t.headerMm + 2),
           ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Accent Colour Palette
-          Text('Accent Colour', style: CruType.subhead.w500.tint(c.label)),
           const SizedBox(height: CruSpace.s8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final colorVal in kDocPalette)
-                InkWell(
-                  onTap: () {
-                    controller.update(
-                      (orig) => orig.copyWith(
-                        style: orig.style.copyWith(accent: colorVal),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Color(colorVal),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: t.style.accent == colorVal
-                            ? c.accent
-                            : c.hairline,
-                        width: t.style.accent == colorVal ? 2.5 : 1,
-                      ),
-                    ),
+          EditorStepper(
+            label: 'Footer height',
+            valueText: mm(t.footerMm),
+            onMinus: t.footerMm > 0
+                ? () => _setZone(DocZone.footer, t.footerMm - 2)
+                : null,
+            onPlus: () => _setZone(DocZone.footer, t.footerMm + 2),
+          ),
+        ],
+
+        gap,
+        const EditorSectionLabel('Colour'),
+        Wrap(
+          spacing: CruSpace.s8,
+          runSpacing: CruSpace.s8,
+          children: [
+            for (var i = 0; i < kDocPalette.length; i++)
+              EditorSwatch(
+                color: Color(kDocPalette[i]),
+                selected: t.style.accent == kDocPalette[i],
+                semanticLabel: _paletteNames[i],
+                onTap: () => controller.update(
+                  (o) => o.copyWith(
+                    style: o.style.copyWith(accent: kDocPalette[i]),
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Text Size Slider
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Text Scale', style: CruType.subhead.w500.tint(c.label)),
-              Text(
-                '${(t.style.fontScale * 100).toStringAsFixed(0)} %',
-                style: CruType.caption,
               ),
-            ],
-          ),
-          Slider(
-            value: t.style.fontScale,
+          ],
+        ),
+
+        if (!roll) ...[
+          gap,
+          const EditorSectionLabel('Body text'),
+          EditorSlider(
+            label: 'Text size',
+            value: t.style.fontScale.clamp(0.85, 1.2).toDouble(),
             min: 0.85,
-            max: 1.20,
-            divisions: 7,
+            max: 1.2,
+            valueText: '${(t.style.fontScale * 100).round()}%',
+            enabled: true,
+            onStart: controller.beginLive,
             onChanged: (v) {
-              controller.update(
-                (orig) =>
-                    orig.copyWith(style: orig.style.copyWith(fontScale: v)),
+              final stepped = (v * 20).roundToDouble() / 20;
+              controller.updateLive(
+                (o) => o.copyWith(style: o.style.copyWith(fontScale: stepped)),
               );
             },
+            onEnd: controller.endLive,
           ),
-          const SizedBox(height: CruSpace.s16),
 
-          // Options Toggles
-          Text('Options', style: CruType.subhead.w500.tint(c.label)),
-          const SizedBox(height: CruSpace.s6),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Medicines in capitals'),
+          gap,
+          const EditorSectionLabel('Print options'),
+          CruSwitchRow(
+            title: 'Medicines in capitals',
             value: t.options.medicinesInCapitals,
-            onChanged: (v) {
-              controller.update(
-                (orig) => orig.copyWith(
-                  options: orig.options.copyWith(medicinesInCapitals: v),
-                ),
-              );
-            },
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Amount in words'),
-            value: t.options.amountInWords,
-            onChanged: (v) {
-              controller.update(
-                (orig) => orig.copyWith(
-                  options: orig.options.copyWith(amountInWords: v),
-                ),
-              );
-            },
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Show UPI QR code'),
-            value: t.options.upiQr,
-            onChanged: (v) {
-              controller.update(
-                (orig) =>
-                    orig.copyWith(options: orig.options.copyWith(upiQr: v)),
-              );
-            },
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Background / Letterhead Paper Section
-          Text(
-            'Letterhead Paper Background',
-            style: CruType.subhead.w500.tint(c.label),
-          ),
-          const SizedBox(height: CruSpace.s4),
-          Text(
-            'Use a photo or scan of your pre-printed stationery behind the document.',
-            style: CruType.caption.tint(c.label2),
+            onChanged: (v) => controller.update(
+              (o) => o.copyWith(
+                options: o.options.copyWith(medicinesInCapitals: v),
+              ),
+            ),
           ),
           const SizedBox(height: CruSpace.s8),
-          if (t.background == null) ...[
-            CruButton(
-              label: 'Upload printed letterhead',
-              kind: CruButtonKind.secondary,
-              onPressed: () => _uploadBackground(context),
+          CruSwitchRow(
+            title: 'Amount in words',
+            value: t.options.amountInWords,
+            onChanged: (v) => controller.update(
+              (o) => o.copyWith(options: o.options.copyWith(amountInWords: v)),
             ),
-          ] else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Background set',
-                    style: CruType.body.w600.tint(c.label),
-                  ),
-                ),
-                CruLink(
-                  label: 'Remove',
-                  style: CruType.subhead.tint(c.redText),
-                  onPressed: () {
-                    controller.update(
-                      (orig) => orig.copyWith(background: null),
-                    );
-                  },
-                ),
-              ],
+          ),
+          const SizedBox(height: CruSpace.s8),
+          CruSwitchRow(
+            title: 'UPI pay QR code on bills',
+            value: t.options.upiQr,
+            onChanged: (v) => controller.update(
+              (o) => o.copyWith(options: o.options.copyWith(upiQr: v)),
             ),
-            const SizedBox(height: CruSpace.s6),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Print background too'),
-              subtitle: const Text('Turn off for physical pre-printed paper'),
+          ),
+
+          gap,
+          const EditorSectionLabel('Letterhead paper'),
+          Text(
+            'Use a photo or scan of your printed stationery behind the '
+            'document.',
+            style: CruType.subhead.tint(c.label2),
+          ),
+          const SizedBox(height: CruSpace.s12),
+          if (t.background == null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CruButton(
+                label: 'Add letterhead paper',
+                kind: CruButtonKind.inset,
+                onPressed: () => _uploadBackground(context),
+              ),
+            )
+          else ...[
+            _Note(
+              text: 'Letterhead paper added.',
+              action: 'Remove',
+              onAction: () =>
+                  controller.update((o) => o.copyWith(clearBackground: true)),
+            ),
+            const SizedBox(height: CruSpace.s12),
+            CruSwitchRow(
+              title: 'Print the paper too',
+              subtitle:
+                  'Turn off when you print on paper that\'s already '
+                  'printed.',
               value: t.background!.printOnPaper,
-              onChanged: (v) {
-                controller.update(
-                  (orig) => orig.copyWith(
-                    background: orig.background!.copyWith(printOnPaper: v),
-                  ),
-                );
-              },
+              onChanged: (v) => controller.update(
+                (o) => o.copyWith(
+                  background: o.background!.copyWith(printOnPaper: v),
+                ),
+              ),
             ),
-            const SizedBox(height: CruSpace.s6),
-            CruButton(
-              label: 'Clear header and footer (pre-printed)',
-              kind: CruButtonKind.inset,
-              onPressed: () {
-                controller.update(
-                  (orig) => orig.copyWith(
+            const SizedBox(height: CruSpace.s12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CruButton(
+                label: 'Hide header and footer elements',
+                kind: CruButtonKind.inset,
+                onPressed: () => controller.update(
+                  (o) => o.copyWith(
                     blocks: [
-                      for (final b in orig.blocks) b.copyWith(hidden: true),
+                      for (final b in o.blocks) b.copyWith(hidden: true),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ],
-          const SizedBox(height: CruSpace.s24),
 
-          // Reorderable Body Sections
+          gap,
+          EditorSectionLabel('Body sections · ${controller.previewKind.label}'),
           Text(
-            'Body sections order (${controller.previewKind.label})',
-            style: CruType.subhead.w500.tint(c.label),
+            'Drag to change the order. Hide what you don\'t print.',
+            style: CruType.subhead.tint(c.label2),
           ),
-          const SizedBox(height: CruSpace.s8),
-          _ReorderableBodyList(controller: controller),
-          const SizedBox(height: CruSpace.s32),
+          const SizedBox(height: CruSpace.s12),
+          _BodySections(controller: controller),
         ],
-      ),
+        if (onResetLayout != null) ...[
+          gap,
+          const EditorSectionLabel('Start over'),
+          Text(
+            'Put every element back where the ready-made design has it.',
+            style: CruType.subhead.tint(c.label2),
+          ),
+          const SizedBox(height: CruSpace.s12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: CruButton(
+              label: 'Reset layout',
+              icon: EditorIcons.reset,
+              kind: CruButtonKind.inset,
+              onPressed: onResetLayout,
+            ),
+          ),
+        ],
+        const SizedBox(height: CruSpace.s16),
+      ],
     );
   }
 }
 
-class _ReorderableBodyList extends StatelessWidget {
-  const _ReorderableBodyList({required this.controller});
+class _BodySections extends StatelessWidget {
+  const _BodySections({required this.controller});
 
   final TemplateEditorController controller;
 
   @override
   Widget build(BuildContext context) {
-    final t = controller.template;
-    final sections = t.bodyFor(controller.previewKind);
+    final c = context.cru;
+    final kind = controller.previewKind;
+    final sections = controller.template.bodyFor(kind);
 
-    return ReorderableListView(
+    void save(List<DocBodySection> list) =>
+        controller.update((o) => o.withBodySections(kind, list));
+
+    return ReorderableListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      onReorder: (oldIndex, newIndex) {
-        if (newIndex > oldIndex) newIndex -= 1;
+      buildDefaultDragHandles: false,
+      itemCount: sections.length,
+      onReorderItem: (oldIndex, newIndex) {
         final list = List<DocBodySection>.from(sections);
-        final item = list.removeAt(oldIndex);
-        list.insert(newIndex, item);
-        controller.update(
-          (orig) => orig.withBodySections(controller.previewKind, list),
-        );
+        list.insert(newIndex, list.removeAt(oldIndex));
+        save(list);
       },
-      children: [
-        for (var i = 0; i < sections.length; i++)
-          Container(
-            key: ValueKey(sections[i].id),
-            margin: const EdgeInsets.only(bottom: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: context.cru.surface,
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              border: Border.all(color: context.cru.hairline),
+      proxyDecorator: (child, _, _) =>
+          Material(color: c.surface.withValues(alpha: 0), child: child),
+      itemBuilder: (context, i) {
+        final sec = sections[i];
+        final label = DocSection.labels[sec.id] ?? sec.id;
+        return Padding(
+          key: ValueKey(sec.id),
+          padding: const EdgeInsets.only(bottom: CruSpace.s6),
+          child: Container(
+            height: CruSize.collapsedRow,
+            decoration: ShapeDecoration(
+              color: c.inset,
+              shape: cruShape(CruRadius.control),
             ),
             child: Row(
               children: [
-                const Icon(Icons.drag_handle, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    DocSection.labels[sections[i].id] ?? sections[i].id,
-                    style: CruType.subhead.tint(context.cru.label),
+                ReorderableDragStartListener(
+                  index: i,
+                  child: Semantics(
+                    label: 'Drag to move $label',
+                    child: SizedBox(
+                      width: CruSize.actionButton,
+                      height: CruSize.collapsedRow,
+                      child: Center(
+                        child: CruIcon(
+                          EditorIcons.grip,
+                          size: 18,
+                          color: c.label3,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.subhead.w500.tint(
+                      sec.visible ? c.label : c.label3,
+                    ),
+                  ),
+                ),
+                CruIconButton(
+                  icon: sec.visible ? EditorIcons.eye : EditorIcons.eyeOff,
+                  size: CruSize.squareButton + CruSpace.s4,
+                  iconSize: 17,
+                  semanticLabel: sec.visible ? 'Hide $label' : 'Show $label',
+                  tooltip: sec.visible ? 'Hide' : 'Show',
+                  onPressed: () => save([
+                    for (final s in sections)
+                      s.id == sec.id ? s.copyWith(visible: !s.visible) : s,
+                  ]),
+                ),
+                const SizedBox(width: CruSpace.s4),
               ],
             ),
           ),
-      ],
+        );
+      },
     );
   }
 }

@@ -54,6 +54,32 @@ abstract final class EditorIcons {
     circles: [(9, 9.5, 1.6)],
   );
   static const line = CruIconData('M4 12h16');
+  static const minus = CruIconData('M5 12h14');
+  static const chevronUp = CruIconData('m6 14.5 6-6 6 6');
+  static const zoomIn = CruIconData(
+    'M11 8v6M8 11h6m6 9-4.2-4.2',
+    circles: [(11, 11, 6.5)],
+  );
+  static const zoomOut = CruIconData(
+    'M8 11h6m6 9-4.2-4.2',
+    circles: [(11, 11, 6.5)],
+  );
+  static const fit = CruIconData(
+    'M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5'
+    'a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15',
+  );
+  static const grip = CruIconData(
+    '',
+    filled: true,
+    circles: [
+      (9, 6.5, 1.4),
+      (15, 6.5, 1.4),
+      (9, 12, 1.4),
+      (15, 12, 1.4),
+      (9, 17.5, 1.4),
+      (15, 17.5, 1.4),
+    ],
+  );
   static const box = CruIconData(
     'M6 6h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z',
   );
@@ -93,24 +119,125 @@ CruIconData editorBlockIcon(DocBlock b) => switch (b.type) {
   DocBlockType.doctorList => CruIcons.patients,
 };
 
+/// One row in [showEditorActions].
+class EditorAction {
+  const EditorAction(this.label, this.icon, this.onTap);
+
+  final String label;
+  final CruIconData icon;
+  final VoidCallback onTap;
+}
+
+/// A short sheet of actions for one element (from ⋯ or a long press).
+Future<void> showEditorActions(
+  BuildContext context, {
+  required String title,
+  required List<EditorAction> actions,
+}) {
+  final c = context.cru;
+  return showModalBottomSheet<void>(
+    context: context,
+    useSafeArea: true,
+    backgroundColor: c.surface,
+    shape: const RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(CruRadius.card)),
+    ),
+    clipBehavior: Clip.antiAlias,
+    builder: (sheetCtx) => SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s8,
+          CruSpace.s8,
+          CruSpace.s8,
+          CruSpace.s12,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 5,
+                decoration: ShapeDecoration(
+                  color: c.track,
+                  shape: const StadiumBorder(),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s12,
+                CruSpace.s16,
+                CruSpace.s12,
+                CruSpace.s8,
+              ),
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.headline.tint(c.label),
+              ),
+            ),
+            for (final a in actions)
+              CruPressable(
+                scaleOnPress: false,
+                semanticLabel: a.label,
+                onTap: () {
+                  Navigator.of(sheetCtx).pop();
+                  a.onTap();
+                },
+                builder: (context, hovered) => AnimatedContainer(
+                  duration: CruMotion.of(context, CruMotion.fast),
+                  height: CruSize.actionButton + CruSpace.s4,
+                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+                  decoration: ShapeDecoration(
+                    color: hovered
+                        ? c.hoverFill
+                        : c.surface.withValues(alpha: 0),
+                    shape: cruShape(CruRadius.control),
+                  ),
+                  child: Row(
+                    children: [
+                      CruIcon(
+                        a.icon,
+                        size: 20,
+                        strokeWidth: 1.7,
+                        color: c.label2,
+                      ),
+                      const SizedBox(width: CruSpace.s16),
+                      Expanded(
+                        child: Text(
+                          a.label,
+                          style: CruType.row.w500.tint(c.label),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 /// The selected element's panel, like a game's control-layout editor:
-/// its name, a Size and a Transparency slider, and quick actions. Drag
-/// the element on the page to move it.
+/// its name, Size and Transparency, ⋯ for everything else, and Done.
+/// Drag the element on the page to move it.
 class EditorTunePanel extends StatelessWidget {
   const EditorTunePanel({
     super.key,
     required this.controller,
     required this.onMore,
-    required this.onHide,
   });
 
   final TemplateEditorController controller;
 
-  /// Every other setting (field, text, bold, colour, nudge…).
+  /// The element's actions (hide, lock, duplicate, settings…).
   final VoidCallback onMore;
-
-  /// Hidden elements come back from the Elements list.
-  final VoidCallback onHide;
 
   @override
   Widget build(BuildContext context) {
@@ -119,22 +246,10 @@ class EditorTunePanel extends StatelessWidget {
     if (b == null) return const SizedBox.shrink();
 
     final locked = b.locked;
-    final isText =
-        b.type == DocBlockType.field ||
-        b.type == DocBlockType.text ||
-        b.type == DocBlockType.doctorList;
-    final zone = b.zone == DocZone.header ? 'Header' : 'Footer';
-    final subtitle = [
-      zone,
-      if (isText) '${b.fontPt.toStringAsFixed(b.fontPt % 1 == 0 ? 0 : 1)} pt',
-      if (locked) 'Locked',
-    ].join(' · ');
-
     final scale = controller.scaleOf(b);
     final maxScale = controller.maxScaleOf(b).clamp(0.5, 2.5).toDouble();
     final transparency = (1 - b.opacity).clamp(0.0, 0.8).toDouble();
-    final custom =
-        !b.id.startsWith('builtin.') && !controller.template.isBuiltin;
+    final changed = !locked && controller.isChanged(b);
 
     return Container(
       decoration: BoxDecoration(
@@ -142,10 +257,10 @@ class EditorTunePanel extends StatelessWidget {
         border: Border(top: BorderSide(color: c.hairline)),
       ),
       padding: EdgeInsets.fromLTRB(
-        CruSpace.s16,
+        CruSpace.s20,
         CruSpace.s12,
-        CruSpace.s8,
-        CruSpace.s12 + MediaQuery.paddingOf(context).bottom,
+        CruSpace.s12,
+        CruSpace.s16 + MediaQuery.paddingOf(context).bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -153,22 +268,41 @@ class EditorTunePanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              CruIconTile(icon: editorBlockIcon(b), tone: CruTileTone.neutral),
-              const SizedBox(width: CruSpace.s12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      editorBlockTitle(b),
-                      style: CruType.callout.tint(c.label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Flexible(
+                      child: Text(
+                        editorBlockTitle(b),
+                        style: CruType.callout.tint(c.label),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const SizedBox(height: CruSpace.s2),
-                    Text(
-                      subtitle,
-                      style: CruType.caption.tabular.tint(c.label2),
+                    // Only when there is something to undo for this element.
+                    AnimatedSwitcher(
+                      duration: CruMotion.of(context, CruMotion.fast),
+                      child: changed
+                          ? Padding(
+                              key: const ValueKey('reset'),
+                              padding: const EdgeInsets.only(
+                                left: CruSpace.s12,
+                              ),
+                              child: CruLink(
+                                label: 'Reset',
+                                onPressed: () => controller.resetBlock(b.id),
+                              ),
+                            )
+                          : locked
+                          ? Padding(
+                              key: const ValueKey('locked'),
+                              padding: const EdgeInsets.only(left: CruSpace.s8),
+                              child: Text(
+                                'Locked',
+                                style: CruType.caption.tint(c.label3),
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('none')),
                     ),
                   ],
                 ),
@@ -177,8 +311,8 @@ class EditorTunePanel extends StatelessWidget {
                 icon: CruIcons.more,
                 size: CruSize.squareButton + CruSpace.s4,
                 iconSize: 18,
-                semanticLabel: 'More settings',
-                tooltip: 'More settings',
+                semanticLabel: 'More for ${editorBlockTitle(b)}',
+                tooltip: 'More',
                 onPressed: onMore,
               ),
               const SizedBox(width: CruSpace.s4),
@@ -187,11 +321,10 @@ class EditorTunePanel extends StatelessWidget {
                 kind: CruCapsuleKind.tinted,
                 onPressed: () => controller.select(null),
               ),
-              const SizedBox(width: CruSpace.s8),
             ],
           ),
-          const SizedBox(height: CruSpace.s8),
-          _TuneSlider(
+          const SizedBox(height: CruSpace.s4),
+          EditorSlider(
             label: 'Size',
             value: scale.clamp(0.3, maxScale).toDouble(),
             min: 0.3,
@@ -202,7 +335,7 @@ class EditorTunePanel extends StatelessWidget {
             onChanged: (v) => controller.setScaleLive(b.id, v),
             onEnd: controller.endLive,
           ),
-          _TuneSlider(
+          EditorSlider(
             label: 'Transparency',
             value: transparency,
             min: 0,
@@ -213,87 +346,17 @@ class EditorTunePanel extends StatelessWidget {
             onChanged: (v) => controller.setTransparencyLive(b.id, v),
             onEnd: controller.endLive,
           ),
-          const SizedBox(height: CruSpace.s8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _Action(
-                  label: 'Hide',
-                  icon: EditorIcons.eyeOff,
-                  onPressed: onHide,
-                ),
-                const SizedBox(width: CruSpace.s8),
-                _Action(
-                  label: locked ? 'Unlock' : 'Lock',
-                  icon: locked ? EditorIcons.unlock : EditorIcons.lock,
-                  onPressed: () => controller.updateBlock(
-                    b.id,
-                    (o) => o.copyWith(locked: !o.locked),
-                  ),
-                ),
-                const SizedBox(width: CruSpace.s8),
-                _Action(
-                  label: 'Reset',
-                  icon: EditorIcons.reset,
-                  onPressed: !locked && controller.isChanged(b)
-                      ? () => controller.resetBlock(b.id)
-                      : null,
-                ),
-                const SizedBox(width: CruSpace.s8),
-                _Action(
-                  label: 'Duplicate',
-                  icon: EditorIcons.copy,
-                  onPressed: controller.duplicateSelected,
-                ),
-                if (custom) ...[
-                  const SizedBox(width: CruSpace.s8),
-                  _Action(
-                    label: 'Delete',
-                    icon: EditorIcons.trash,
-                    onPressed: controller.deleteSelected,
-                  ),
-                ],
-                const SizedBox(width: CruSpace.s8),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-/// A capsule action, dimmed when it can't be used right now.
-class _Action extends StatelessWidget {
-  const _Action({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-  });
-
-  final String label;
-  final CruIconData icon;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: CruMotion.of(context, CruMotion.fast),
-      opacity: onPressed == null ? 0.4 : 1,
-      child: CruCapsuleButton(
-        label: label,
-        icon: icon,
-        large: true,
-        height: CruSize.filterChip,
-        onPressed: onPressed,
-      ),
-    );
-  }
-}
-
-class _TuneSlider extends StatelessWidget {
-  const _TuneSlider({
+/// A labelled slider with its value at the right (tabular). One undo
+/// step per slide: [onStart] checkpoints, [onChanged] updates live.
+class EditorSlider extends StatelessWidget {
+  const EditorSlider({
+    super.key,
     required this.label,
     required this.value,
     required this.min,
@@ -335,7 +398,8 @@ class _TuneSlider extends StatelessWidget {
               inactiveTrackColor: c.track,
               disabledActiveTrackColor: c.label3,
               disabledInactiveTrackColor: c.track,
-              thumbColor: c.surface,
+              // White knob in both appearances, so it shows on the track.
+              thumbColor: CruBrand.white,
               disabledThumbColor: c.inset,
               overlayColor: c.accent.withValues(alpha: 0.12),
               trackShape: const RoundedRectSliderTrackShape(),
@@ -470,6 +534,195 @@ class EditorHint extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: CruType.subhead.w500.tint(c.label2),
+      ),
+    );
+  }
+}
+
+/// A small heading over a group of settings in a panel.
+class EditorSectionLabel extends StatelessWidget {
+  const EditorSectionLabel(this.text, {super.key, this.trailing});
+
+  final String text;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: CruSpace.s8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(text, style: CruType.groupLabel.tint(c.label3)),
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+}
+
+/// − value + : for millimetres and points.
+class EditorStepper extends StatelessWidget {
+  const EditorStepper({
+    super.key,
+    required this.label,
+    required this.valueText,
+    required this.onMinus,
+    required this.onPlus,
+  });
+
+  final String label;
+  final String valueText;
+
+  /// Null dims that side (at its limit, or locked).
+  final VoidCallback? onMinus;
+  final VoidCallback? onPlus;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    Widget step(CruIconData icon, VoidCallback? onTap, String semantic) =>
+        AnimatedOpacity(
+          duration: CruMotion.of(context, CruMotion.fast),
+          opacity: onTap == null ? 0.35 : 1,
+          child: CruSquareButton(
+            icon: icon,
+            semanticLabel: semantic,
+            onPressed: onTap,
+          ),
+        );
+    return Row(
+      children: [
+        Expanded(
+          child: Text(label, style: CruType.subhead.w500.tint(c.label2)),
+        ),
+        step(EditorIcons.minus, onMinus, 'Less $label'),
+        SizedBox(
+          width: 72,
+          child: Text(
+            valueText,
+            textAlign: TextAlign.center,
+            style: CruType.callout.tabular.tint(c.label),
+          ),
+        ),
+        step(CruIcons.plus, onPlus, 'More $label'),
+      ],
+    );
+  }
+}
+
+/// A chip that is on or off (filters, "applies to").
+class EditorChoiceChip extends StatelessWidget {
+  const EditorChoiceChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final fg = selected ? c.accentText : c.label;
+    return Semantics(
+      selected: selected,
+      child: CruPressable(
+        onTap: onTap,
+        semanticLabel: label,
+        builder: (context, hovered) {
+          final fill = selected ? c.accentTint : c.surface;
+          return AnimatedContainer(
+            duration: CruMotion.of(context, CruMotion.fast),
+            curve: CruMotion.curve,
+            height: CruSize.filterChip,
+            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+            decoration: ShapeDecoration(
+              color: hovered ? cruHoverShade(fill, c) : fill,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: selected
+                      ? c.hairline.withValues(alpha: 0)
+                      : c.separator,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (selected) ...[
+                  CruIcon(
+                    CruIcons.check,
+                    size: 14,
+                    strokeWidth: 2.2,
+                    color: fg,
+                  ),
+                  const SizedBox(width: CruSpace.s6),
+                ],
+                Text(
+                  label,
+                  style: (selected ? CruType.chip.w600 : CruType.chip).tint(fg),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A round colour choice for the printed document (not app colour).
+class EditorSwatch extends StatelessWidget {
+  const EditorSwatch({
+    super.key,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+    required this.semanticLabel,
+  });
+
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Semantics(
+      selected: selected,
+      child: CruPressable(
+        onTap: onTap,
+        semanticLabel: semanticLabel,
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          width: CruSize.capsule + CruSpace.s2,
+          height: CruSize.capsule + CruSpace.s2,
+          padding: const EdgeInsets.all(CruSpace.s2 + 1),
+          decoration: ShapeDecoration(
+            shape: CircleBorder(
+              side: BorderSide(
+                color: selected ? c.accent : c.inset.withValues(alpha: 0),
+                width: 2,
+              ),
+            ),
+          ),
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              color: color,
+              shape: CircleBorder(side: BorderSide(color: c.separator)),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -10,3 +10,4 @@ export 'cru_icons.dart';
 export 'cru_indicators.dart';
 export 'cru_pressable.dart';
 export 'cru_segmented_control.dart';
+export 'cru_switch.dart';

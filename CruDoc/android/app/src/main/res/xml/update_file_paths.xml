@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Where a downloaded app update is saved; lets the system installer read it. -->
+<paths>
+    <external-files-path name="updates_external" path="." />
+    <files-path name="updates_internal" path="." />
+</paths>

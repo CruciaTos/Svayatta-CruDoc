@@ -2,7 +2,10 @@
 ; Adds Windows Firewall allow rule for CruDoc executable on Private and Domain profiles (Task N8)
 
 #define MyAppName "CruDoc"
-#define MyAppVersion "1.0.0"
+; The release workflow passes /DMyAppVersion=x.y.z.
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.0"
+#endif
 #define MyAppPublisher "Svayatta CruDoc"
 #define MyAppExeName "CruDoc.exe"
 
@@ -14,7 +17,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=output
-OutputBaseFilename=CruDocSetup
+OutputBaseFilename=CruDoc-windows-{#MyAppVersion}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

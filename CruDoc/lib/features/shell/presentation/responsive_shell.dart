@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/update/presentation/update_launcher.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
@@ -66,7 +67,10 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
     // Referrals other doctors send arrive (and are announced) anywhere.
     child: ReferralNetworkWatcher(
       // A resolved bug report or feedback is announced anywhere too.
-      child: SupportTicketWatcher(child: _content(context)),
+      child: SupportTicketWatcher(
+        // New GitHub releases are offered on Windows and Android.
+        child: UpdateLauncher(child: _content(context)),
+      ),
     ),
   );
 

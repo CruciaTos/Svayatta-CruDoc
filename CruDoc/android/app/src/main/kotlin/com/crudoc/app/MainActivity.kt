@@ -3,6 +3,9 @@ package com.crudoc.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
+import androidx.core.content.FileProvider
+import java.io.File
 import android.telecom.TelecomManager
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
@@ -23,6 +26,54 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        // In-app updates (lib/core/update/platform/android_update_installer.dart).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "crudoc/update_installer")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" -> installApk(call.argument<String>("path") ?: "", result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /**
+     * Opens the system installer on the downloaded APK. Android makes the
+     * person allow "install unknown apps" for CruDoc once: if that is off,
+     * its settings page opens and the call fails with a message to try again.
+     */
+    private fun installApk(path: String, result: MethodChannel.Result) {
+        try {
+            val file = File(path)
+            if (!file.exists()) {
+                result.error("NO_FILE", "The downloaded update could not be found.", null)
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !packageManager.canRequestPackageInstalls()
+            ) {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:$packageName"),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+                result.error(
+                    "NEEDS_PERMISSION",
+                    "Allow CruDoc to install updates in the settings that just opened, then tap Update again.",
+                    null,
+                )
+                return
+            }
+            val uri = FileProvider.getUriForFile(this, "$packageName.updates", file)
+            startActivity(
+                Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(uri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("INSTALL_FAILED", e.message ?: "The installer could not be opened.", null)
+        }
     }
 
     /**

@@ -51,8 +51,9 @@ final stripColleaguesProvider = Provider.autoDispose<List<ClinicMember>>((ref) {
 });
 
 /// Which strip colleagues have a device answering on this Wi-Fi, by uid
-/// (missing: not checked yet). The strip sends over Wi-Fi only, so only
-/// these take drops. Checked when a colleague joins the strip, when the
+/// (missing: not checked yet). Those get direct Wi-Fi sends and a pulse when
+/// files waiting for Wi-Fi go; everyone else is reached through the cloud.
+/// Checked when a colleague joins the strip, when the
 /// network changes and every 30 seconds, never on a rebuild.
 final colleaguesOnWifiProvider =
     NotifierProvider.autoDispose<ColleaguesOnWifi, Map<String, bool>>(
@@ -115,14 +116,6 @@ class ColleaguesOnWifi extends Notifier<Map<String, bool>> {
     }
   }
 }
-
-/// Why the strip can't send to a colleague whose Wi-Fi check gave [onWifi]
-/// (null: not checked yet), or null when it can.
-String? offWifiReason(bool? onWifi) => switch (onWifi) {
-  true => null,
-  false => 'Not on this Wi-Fi',
-  null => 'Checking Wi-Fi…',
-};
 
 /// The colleague a file from Explorer is over, or null. Explorer drags reach
 /// the app through the Files screen's DropTarget, not Flutter's drag and
@@ -255,8 +248,8 @@ void flyFileIntoColleague(String uid, Offset from) {
   }
 }
 
-/// Sends [files] to [member] over clinic Wi-Fi (the strip never uses the
-/// cloud), waiting for them when they aren't on it, and says so, with Undo.
+/// Sends [files] to [member]: direct on clinic Wi-Fi when they're on it,
+/// otherwise through the cloud (any network), and says so, with Undo.
 Future<void> sendToColleagueWithUndo(
   ScaffoldMessengerState? messenger,
   ClinicMember member,
@@ -267,18 +260,13 @@ Future<void> sendToColleagueWithUndo(
     SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
   );
   try {
-    final onWifi =
-        await findColleagueOnWifi(
-          clinicId: FilesRepository.instance.doctorId,
-          colleagueUid: member.uid,
-        ) !=
-        null;
     final offers = await sendFilesToColleague(
       clinicId: FilesRepository.instance.doctorId,
       colleague: member,
       files: files,
-      wifiOnly: true,
     );
+    final onWifi =
+        offers.isNotEmpty && offers.first.via == FileOfferVia.lan;
     final what = files.length == 1
         ? '“${files.first.name}”'
         : '${files.length} files';
@@ -287,7 +275,7 @@ Future<void> sendToColleagueWithUndo(
         content: Text(
           onWifi
               ? 'Sent $what to $name on clinic Wi-Fi'
-              : '$what will reach $name when they’re on clinic Wi-Fi',
+              : 'Sent $what to $name',
         ),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
@@ -557,9 +545,6 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
     final c = context.cru;
     final m = widget.member;
     final motion = CruMotion.of(context, CruMotion.fast);
-    final offWifi = offWifiReason(
-      ref.watch(colleaguesOnWifiProvider.select((on) => on[m.uid])),
-    );
     // A file from Explorer hovering here looks the same as one from Files.
     final explorerOver = explorerHoverUid.value == m.uid;
     final hovering = _hovering || explorerOver;
@@ -583,7 +568,7 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
         (_lifted
             ? 'Swipe right for a note'
             : hovering
-            ? (offWifi == null ? 'Drop to send' : 'Sends on Wi-Fi')
+            ? 'Drop to send'
             : colleagueShortName(m.name));
     final ringColor = switch (ring) {
       DeliveryRing.waiting => c.amber,
@@ -596,10 +581,10 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
         'receiving, ${(progress * 100).round()} %',
       DeliveryRing.waiting =>
         '${waiting.length == 1 ? '1 file' : '${waiting.length} files'} '
-            'waiting for clinic Wi-Fi. Click to see',
+            'waiting for them. Click to see',
       DeliveryRing.received => 'received',
       DeliveryRing.declined => 'declined your last file',
-      null => offWifi?.toLowerCase(),
+      null => null,
     };
     return DragTarget<FileEntry>(
       onWillAcceptWithDetails: _onWillAccept,
@@ -1221,7 +1206,7 @@ class _WaitingDialog extends ConsumerWidget {
               Text(
                 files.isEmpty
                     ? 'Everything has arrived.'
-                    : 'These arrive when you’re both on clinic Wi-Fi.',
+                    : 'These arrive when they accept, or when you’re both on clinic Wi-Fi.',
                 style: CruType.callout.tint(c.label2),
               ),
               const SizedBox(height: CruSpace.s16),
@@ -1244,7 +1229,9 @@ class _WaitingDialog extends ConsumerWidget {
                               switch (progress[o.id]) {
                                 final p? when p < 1 =>
                                   'Receiving, ${(p * 100).round()} %',
-                                _ => 'Waiting for Wi-Fi',
+                                _ when o.via == FileOfferVia.lan =>
+                                  'Waiting for Wi-Fi',
+                                _ => 'Waiting for them',
                               },
                               style: CruType.caption.tabular.tint(c.amberText),
                             ),

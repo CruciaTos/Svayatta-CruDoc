@@ -26,8 +26,8 @@ final clinicLogoBytesProvider = FutureProvider.autoDispose<Uint8List?>((
 /// The phone's colleague strip: the clinic logo (or the CruDoc mark when the
 /// clinic has none). While a file is held it stays lit above the dimmed
 /// screen; dragging the file onto it pops out a row of colleague avatars
-/// (Instagram's hold-to-share): release on one to send over clinic Wi-Fi,
-/// waiting for them when they aren't on it, with Undo. Tapping it shows the
+/// (Instagram's hold-to-share): release on one to send (direct on clinic
+/// Wi-Fi, otherwise through the cloud), with Undo. Tapping it shows the
 /// colleagues as a list with each one's delivery ring.
 class ClinicDropTarget extends ConsumerWidget {
   const ClinicDropTarget({super.key});
@@ -48,7 +48,7 @@ class ClinicDropTarget extends ConsumerWidget {
     return Semantics(
       button: true,
       label:
-          'Send to a colleague on clinic Wi-Fi. Drag a file here, then '
+          'Send to a colleague. Drag a file here, then '
           'onto a colleague.',
       child: ColleagueShareFan(
         members: colleagues,

@@ -265,7 +265,7 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                   overdue == 0
                       ? const Text('Everything on time')
                       : Text(
-                          'Past their turnaround time',
+                          'Requires review',
                           style: CruType.caption.tint(c.amberText),
                         ),
                 ),

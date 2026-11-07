@@ -477,12 +477,14 @@ class FilesRepository {
   // ───────────────────────────── Files ─────────────────────────────
 
   /// Adds [sources] for [patientId] into [folderId] ('' for no folder).
+  /// If [patientId] is omitted or empty, files are saved under the doctor's
+  /// unassigned id.
   /// Each is copied into the app's files folder and queued for upload.
   /// Sources with a [FileSource.problem] are skipped. Returns how many were
   /// added.
   Future<int> addFiles(
     List<FileSource> sources, {
-    required String patientId,
+    String? patientId,
     String folderId = '',
   }) async => (await addFilesWithIds(
     sources,
@@ -493,18 +495,19 @@ class FilesRepository {
   /// [addFiles], returning the new files' ids in the order added.
   Future<List<String>> addFilesWithIds(
     List<FileSource> sources, {
-    required String patientId,
+    String? patientId,
     String folderId = '',
   }) async {
-    if (patientId.trim().isEmpty) {
-      throw const FilesException('Choose the patient these files are for.');
-    }
+    final me = uid;
+    final resolvedPatientId =
+        (patientId != null && patientId.trim().isNotEmpty)
+            ? patientId.trim()
+            : unassignedPatientIdFor(me.isNotEmpty ? me : doctorId);
     final dir = await _clinicDir();
     final parent = await folder(folderId);
     if (folderId.isNotEmpty && (parent == null || parent.isDeleted)) {
       throw const FilesException('That folder no longer exists.');
     }
-    final me = uid;
     final added = <String>[];
     for (final s in sources) {
       final type = s.contentType;
@@ -530,7 +533,7 @@ class FilesRepository {
         id: id,
         doctorId: doctorId,
         ownerUid: me,
-        patientId: patientId,
+        patientId: resolvedPatientId,
         folderId: parent?.id ?? '',
         rootId: parent?.rootId ?? '',
         name: s.name.trim().isEmpty ? name : s.name.trim(),
@@ -545,7 +548,7 @@ class FilesRepository {
       await _putFile(f);
       final queued = await StorageSyncQueue.instance.enqueue(
         kind: UploadKind.patientFile,
-        patientId: patientId,
+        patientId: resolvedPatientId,
         bytes: bytes,
         contentType: type,
         link: UploadLink.viaHandler(

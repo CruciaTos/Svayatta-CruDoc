@@ -318,7 +318,7 @@ class PatientImagingCard extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Text(
-                'The latest study is past its turnaround time.',
+                'The latest study is overdue.',
                 style: CruType.caption.tint(c.amberText),
               ),
             ),

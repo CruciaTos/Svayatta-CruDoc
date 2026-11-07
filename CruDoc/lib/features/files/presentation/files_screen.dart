@@ -16,9 +16,9 @@ import 'package:doctor_management_app/features/files/data/files_repository.dart'
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/file_viewer.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
-import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/files/presentation/transfer_progress_tray.dart';
 import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/clinic_drop_target.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/colleague_strip.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_list.dart';
@@ -403,9 +403,10 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         : CruSpace.mainPadding;
 
     final canEdit = ref.watch(clinicCanProvider(ClinicPermission.clinicalEdit));
-    final showStrip = !cruIsPhone(context) && ref.watch(hasColleaguesProvider);
+    final isPhone = cruIsPhone(context);
+    final hasColleagues = ref.watch(hasColleaguesProvider);
+    final hasChips = view != null && !view.isEmpty;
     final top = <Widget>[
-      const IncomingOffersCard(),
       FilesHeader(
         view: view,
         onNewFolder: canEdit ? _newFolder : null,
@@ -419,28 +420,27 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         searchFocus: _searchFocus,
         sort: view?.sort ?? state.sort,
       ),
-      // Filter chips on the left, colleague drop targets on the right,
-      // under the patient filter.
-      if ((view != null && !view.isEmpty && !cruIsPhone(context)) ||
-          showStrip) ...[
+      // Filter chips on the left, colleague drop target on the right
+      // (a strip of avatars on desktop, the clinic icon on phones).
+      if (hasChips || hasColleagues) ...[
         const SizedBox(height: CruSpace.s16),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: view != null && !view.isEmpty
-                  ? FilesChips(view: view, showPatient: !cruIsPhone(context))
+              child: hasChips
+                  ? FilesChips(view: view, showPatient: !isPhone)
                   : const SizedBox.shrink(),
             ),
-            if (showStrip) ...[
-              const SizedBox(width: CruSpace.s16),
-              Flexible(child: ColleagueStrip(key: _stripKey)),
+            if (hasColleagues) ...[
+              SizedBox(width: isPhone ? CruSpace.s12 : CruSpace.s16),
+              if (isPhone)
+                const ClinicDropTarget()
+              else
+                Flexible(child: ColleagueStrip(key: _stripKey)),
             ],
           ],
         ),
-      ],
-      if (view != null && cruIsPhone(context) && !view.isEmpty) ...[
-        const SizedBox(height: CruSpace.s16),
-        FilesChips(view: view, showPatient: false),
       ],
       if (view != null) ...[
         const SizedBox(height: CruSpace.s16),

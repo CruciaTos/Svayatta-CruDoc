@@ -659,7 +659,12 @@ class _MobileSettingsList extends ConsumerWidget {
           children: [
             for (final s in sections)
               MobileRow(
-                leading: MobileIconTile(icon: s.icon, tone: MobileTone.slate),
+                leading: MobileIconTile(
+                  icon: s.icon,
+                  tone: s == SettingsSection.aiAssistance
+                      ? MobileTone.violet
+                      : MobileTone.slate,
+                ),
                 title: s.label,
                 titleStyle: MobileType.row.copyWith(
                   fontWeight: FontWeight.w500,

@@ -59,8 +59,8 @@ findColleagueOnWifi({
 }
 
 /// Sends [files] to [colleague]: direct on clinic Wi-Fi when one of their
-/// devices answers, otherwise through the cloud. With [wifiOnly] (the
-/// desktop colleague strip) it is always a Wi-Fi offer: when the colleague
+/// devices answers, otherwise through the cloud (any network, mobile data
+/// included). With [wifiOnly] it is always a Wi-Fi offer: when the colleague
 /// isn't on this Wi-Fi it waits, and arrives once both devices are
 /// ([WifiOffers]). Returns the offers made (Undo cancels them).
 Future<List<FileOffer>> sendFilesToColleague({

@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/dental/referrals/referral_share_f
 import 'package:doctor_management_app/features/dental/referrals/referrers_screen.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_seen.dart';
 import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
@@ -124,6 +125,7 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
     final storage = ref.watch(storageNearlyFullProvider).value;
     final requests = ref.watch(incomingReferrerRequestsProvider);
     final tickets = ref.watch(resolvedTicketsProvider).value ?? const [];
+    final incoming = ref.watch(incomingOffersProvider).value ?? const [];
     final last = feed.lastPatient;
     final groups = activityGroups(feed.items, now);
     final empty =
@@ -133,9 +135,20 @@ class _NotificationsPanelState extends ConsumerState<_NotificationsPanel> {
         storage == null &&
         requests.isEmpty &&
         tickets.isEmpty &&
+        incoming.isEmpty &&
         last == null;
 
     final sections = <Widget>[
+      if (incoming.isNotEmpty)
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+            CruSpace.s12,
+            CruSpace.s12,
+            CruSpace.s12,
+            0,
+          ),
+          child: IncomingOffersCard(),
+        ),
       if (last != null)
         _Section(
           title: 'Pick up where you left off',

@@ -101,15 +101,13 @@ class _ComposeDialogState extends ConsumerState<_ComposeDialog> {
         files: _files,
         subject: _subject.text.trim(),
         note: _note.text.trim(),
-        // Opened from the colleague strip, which sends over Wi-Fi only.
-        wifiOnly: true,
       );
       navigator.pop();
       messenger?.showSnackBar(
         SnackBar(
           content: Text(
             'Sent ${_files.length == 1 ? '1 file' : '${_files.length} files'} '
-            'to ${widget.to.name} on clinic Wi-Fi',
+            'to ${widget.to.name}',
           ),
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
@@ -141,7 +139,7 @@ class _ComposeDialogState extends ConsumerState<_ComposeDialog> {
           _subject.text.isNotEmpty ||
           _note.text.isNotEmpty ||
           _files.length != widget.files.length,
-      footerHint: 'Goes direct on clinic Wi-Fi.',
+      footerHint: 'Direct on clinic Wi-Fi, otherwise over the internet.',
       onSubmit: _send,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

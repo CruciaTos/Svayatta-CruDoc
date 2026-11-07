@@ -440,9 +440,6 @@ class _FanAvatarState extends ConsumerState<_FanAvatar> {
     final c = context.cru;
     final m = widget.member;
     final motion = CruMotion.of(context, CruMotion.fast);
-    final onWifi = ref.watch(
-      colleaguesOnWifiProvider.select((on) => on[m.uid]),
-    );
     final delivery = ref.watch(
       colleagueDeliveryProvider.select((d) => d[m.uid]),
     );
@@ -458,8 +455,6 @@ class _FanAvatarState extends ConsumerState<_FanAvatar> {
         _blocked ??
         (_note
             ? 'Release to add a note'
-            : onWifi == false
-            ? 'Sends when they’re on Wi-Fi'
             : 'Release to send · hold for a note');
     return DragTarget<FileEntry>(
       onWillAcceptWithDetails: _onWillAccept,
@@ -497,22 +492,6 @@ class _FanAvatarState extends ConsumerState<_FanAvatar> {
                           size: _fanAvatar - 4,
                         ),
                       ),
-                      // Off this Wi-Fi: the file will wait for them.
-                      if (onWifi == false)
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: ShapeDecoration(
-                              color: c.amber,
-                              shape: CircleBorder(
-                                side: BorderSide(color: c.surface, width: 2),
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),

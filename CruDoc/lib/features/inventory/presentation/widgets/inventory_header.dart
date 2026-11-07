@@ -61,59 +61,67 @@ class InventoryHeader extends StatelessWidget {
           );
 
     if (cruIsPhone(context)) {
-      // Phone: title and count on left, scan and add item buttons at top right.
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      // Phone: title and count on left, scan and sterilization at top right,
+      // and whole-width Add item button above the screen switch.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    'Inventory',
-                    style: CruType.largeTitle
-                        .copyWith(fontSize: 26)
-                        .tint(c.label),
-                  ),
-                ),
-                const SizedBox(height: CruSpace.s2),
-                SizedBox(
-                  height: CruType.text.fontSize! * CruType.text.height!,
-                  child:
-                      subtitle ??
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: SkeletonBox(width: 130, height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Inventory',
+                        style: CruType.largeTitle
+                            .copyWith(fontSize: 26)
+                            .tint(c.label),
                       ),
+                    ),
+                    const SizedBox(height: CruSpace.s2),
+                    SizedBox(
+                      height: CruType.text.fontSize! * CruType.text.height!,
+                      child:
+                          subtitle ??
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: SkeletonBox(width: 130, height: 12),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onSterilization != null) ...[
+                const SizedBox(width: CruSpace.s8),
+                CruSquareButton(
+                  icon: DentalIcons.shield,
+                  secondary: true,
+                  semanticLabel: 'Sterilization',
+                  tooltip: 'Sterilization',
+                  onPressed: onSterilization,
                 ),
               ],
-            ),
+              const SizedBox(width: CruSpace.s8),
+              CruSquareButton(
+                icon: InventoryIcons.camera,
+                secondary: true,
+                semanticLabel: 'Scan item or bill',
+                tooltip: 'Scan item',
+                onPressed: onScan,
+              ),
+            ],
           ),
-          if (onSterilization != null) ...[
-            const SizedBox(width: CruSpace.s8),
-            CruSquareButton(
-              icon: DentalIcons.shield,
-              secondary: true,
-              semanticLabel: 'Sterilization',
-              tooltip: 'Sterilization',
-              onPressed: onSterilization,
-            ),
-          ],
-          const SizedBox(width: CruSpace.s8),
-          CruSquareButton(
-            icon: InventoryIcons.camera,
-            secondary: true,
-            semanticLabel: 'Scan item or bill',
-            tooltip: 'Scan item',
-            onPressed: onScan,
-          ),
-          const SizedBox(width: CruSpace.s8),
+          const SizedBox(height: CruSpace.s14),
           CruButton(
             label: 'Add item',
             icon: CruIcons.plus,
+            expand: true,
             onPressed: onAddItem,
           ),
         ],

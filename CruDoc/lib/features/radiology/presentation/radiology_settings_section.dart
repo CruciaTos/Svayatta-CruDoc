@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/radiology/data/pacs_connection.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_prefs.dart';
@@ -10,11 +10,11 @@ import 'package:doctor_management_app/features/radiology/data/radiology_provider
 import 'package:doctor_management_app/features/radiology/presentation/pacs_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
-import 'package:doctor_management_app/features/radiology/viewer_plus/ai/ai_panels.dart';
+import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Settings → Radiology (radiologists only): the report signature,
-/// turnaround times, fees, PACS, the scanner receiver, AI switches,
+/// fees, PACS, the scanner receiver, AI switches,
 /// storage and the audit log.
 class RadSettingsSection extends ConsumerWidget {
   const RadSettingsSection({super.key});
@@ -33,8 +33,6 @@ class RadSettingsSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SignatureCard(settings: settings),
-        gap,
-        _TurnaroundCard(settings: settings),
         gap,
         _Card(
           title: 'Work',
@@ -139,11 +137,23 @@ class RadSettingsSection extends ConsumerWidget {
           ),
         ),
         gap,
-        const _Card(
+        _Card(
           title: 'AI assistance',
           description:
               'Suggestions you confirm or reject; never a diagnosis on its own.',
-          child: RadAiSwitches(),
+          child: _ActionRow(
+            title: 'AI assistance settings',
+            detail:
+                'Manage imaging second read, CBCT segmentation & clinical AI tools',
+            action: 'Configure',
+            onTap: () {
+              ref.read(settingsSectionProvider.notifier).state =
+                  SettingsSection.aiAssistance;
+              if (cruIsPhone(context)) {
+                openMobileSettings(context, ref, SettingsSection.aiAssistance);
+              }
+            },
+          ),
         ),
         gap,
         const _StorageCard(),
@@ -312,95 +322,6 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
                 label: _saving ? 'Saving…' : 'Save',
                 onPressed: _saving ? null : _save,
               ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================ turnaround
-
-class _TurnaroundCard extends ConsumerStatefulWidget {
-  const _TurnaroundCard({required this.settings});
-
-  final RadSettings settings;
-
-  @override
-  ConsumerState<_TurnaroundCard> createState() => _TurnaroundCardState();
-}
-
-class _TurnaroundCardState extends ConsumerState<_TurnaroundCard> {
-  late final Map<RadPriority, TextEditingController> _hours = {
-    for (final p in RadPriority.values)
-      p: TextEditingController(
-        text: '${widget.settings.turnaround(p).inHours}',
-      ),
-  };
-  bool _dirty = false;
-
-  @override
-  void dispose() {
-    for (final c in _hours.values) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final s = await ref.read(radSettingsProvider.future);
-    await ref
-        .read(radiologyProvider)
-        .saveSettings(
-          s.copyWith(
-            tatHours: {
-              for (final e in _hours.entries)
-                e.key.name:
-                    (int.tryParse(e.value.text.trim()) ??
-                            s.turnaround(e.key).inHours)
-                        .clamp(1, 24 * 30),
-            },
-          ),
-        );
-    if (!mounted) return;
-    setState(() => _dirty = false);
-    radToast(context, 'Turnaround times saved. New studies use them.');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      title: 'Turnaround times',
-      description:
-          'When a report is due after the scan arrives. The worklist turns amber when a study is late.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CruFieldRow(
-            children: [
-              for (final p in RadPriority.values)
-                CruTextField(
-                  label: p.label,
-                  controller: _hours[p]!,
-                  tabular: true,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  trailing: Text(
-                    'hours',
-                    style: CruType.subhead.tint(context.cru.label3),
-                  ),
-                  onChanged: (_) {
-                    if (!_dirty) setState(() => _dirty = true);
-                  },
-                ),
-            ],
-          ),
-          if (_dirty) ...[
-            const SizedBox(height: CruSpace.s16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: CruButton(label: 'Save', onPressed: _save),
             ),
           ],
         ],

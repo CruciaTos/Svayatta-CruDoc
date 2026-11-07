@@ -9,8 +9,6 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/domain/files_models.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
-import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
-import 'package:doctor_management_app/features/files/presentation/widgets/clinic_drop_target.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_patient.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
@@ -171,8 +169,7 @@ class FilesHeader extends StatelessWidget {
   }
 }
 
-/// Search (with list/grid and sort inside it) and patient. On phones the
-/// colleague drop target sits on the patient row.
+/// Search (with list/grid and sort inside it) and patient.
 class FilesToolbar extends ConsumerWidget {
   const FilesToolbar({
     super.key,
@@ -198,13 +195,6 @@ class FilesToolbar extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (ref.watch(hasColleaguesProvider)) ...[
-            const Align(
-              alignment: Alignment.centerRight,
-              child: ClinicDropTarget(),
-            ),
-            const SizedBox(height: CruSpace.s10),
-          ],
           search,
           // Typing a patient's name offers them here; picking one limits
           // the list to them and slides their name in from the top.

@@ -45,6 +45,7 @@ import 'package:doctor_management_app/features/tutorial/presentation/tutorial_co
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/features/settings/presentation/documents/documents_settings_section.dart';
+import 'package:doctor_management_app/features/settings/presentation/ai_assistance_section.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 
@@ -66,6 +67,9 @@ enum SettingsSection {
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
   appearance('Appearance', CruIcons.sun),
+
+  /// AI assistance features, dictation, intelligence tools & safety.
+  aiAssistance('AI assistance', CruIcons.sparkle),
 
   /// Not on the web, which keeps nothing on the device.
   storage('Storage', CruIcons.download),
@@ -111,6 +115,8 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
     SettingsSection.callForwarding =>
       (access == null || access.can(ClinicPermission.ai)) &&
           ref.watch(isAiCallingFeatureEnabledProvider),
+    SettingsSection.aiAssistance =>
+      access == null || access.can(ClinicPermission.ai),
     _ => true,
   };
 }
@@ -162,6 +168,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.reminders => const _RemindersSection(),
       SettingsSection.dental => const _DentalSection(),
       SettingsSection.radiology => const RadSettingsSection(),
+      SettingsSection.aiAssistance => const AiAssistanceSection(),
       SettingsSection.about => const _AboutSection(),
     };
     if (cruIsPhone(context)) {

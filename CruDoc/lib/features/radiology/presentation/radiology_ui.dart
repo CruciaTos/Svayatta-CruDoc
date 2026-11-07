@@ -110,7 +110,7 @@ abstract final class RadIcons {
   );
 }
 
-/// Dates, turnaround and sizes on the radiology screens.
+/// Dates, due times and sizes on the radiology screens.
 abstract final class RadFormat {
   static String date(DateTime d) => DateFormat('d MMM yyyy').format(d);
   static String shortDate(DateTime d) => DateFormat('d MMM').format(d);
@@ -136,7 +136,7 @@ abstract final class RadFormat {
     return '${d.inMinutes.clamp(1, 59)} min';
   }
 
-  /// Turnaround text and whether it's late or close: "Due in 5h",
+  /// Due text and whether it's late or close: "Due in 5h",
   /// "Overdue 2h", "Signed".
   static ({String text, bool late, bool soon}) due(RadStudy s, DateTime now) {
     if (!s.status.isOpen) {

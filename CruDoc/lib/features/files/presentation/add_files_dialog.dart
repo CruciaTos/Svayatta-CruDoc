@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/appointments/presentation/patient_picker_dialog.dart';
+import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
@@ -13,9 +14,9 @@ import 'package:doctor_management_app/features/patients/data/providers/patient_p
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// "Add files": what was chosen or dropped, the patient each file is for
-/// (required: a file can't be saved without one) and the folder. Each file
-/// can go to a different patient. Returns how many were added, or null
-/// when cancelled.
+/// (optional: saved under the doctor's id if no patient is chosen) and
+/// the folder. Each file can go to a different patient. Returns how many
+/// were added, or null when cancelled.
 Future<int?> showAddFilesDialog(
   BuildContext context, {
   required List<FileSource> sources,
@@ -60,9 +61,6 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
   late String _folderId = widget.folderId;
   bool _saving = false;
   bool _removedAny = false;
-
-  /// After a submit with files still missing a patient, those rows say so.
-  bool _showMissing = false;
   String? _notice;
 
   @override
@@ -124,20 +122,17 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
     });
   }
 
+  void _clearPatient(_Item item) {
+    setState(() {
+      item.patient = null;
+      _notice = null;
+    });
+  }
+
   Future<void> _save() async {
     final ok = _ok;
     if (ok.isEmpty) {
       setState(() => _notice = 'None of these files can be added.');
-      return;
-    }
-    final missing = _missing.length;
-    if (missing > 0) {
-      setState(() {
-        _showMissing = true;
-        _notice = missing == 1
-            ? 'Choose a patient for 1 file, or remove it.'
-            : 'Choose a patient for $missing files, or remove them.';
-      });
       return;
     }
     setState(() {
@@ -145,10 +140,17 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
       _notice = null;
     });
 
+    final me = FilesRepository.instance.uid;
+    final doctorUnassignedId = unassignedPatientIdFor(
+      me.isNotEmpty ? me : FilesRepository.instance.doctorId,
+    );
+
     // One add per patient, in the order the patients first appear.
+    // Files without a patient are saved under the doctor's id.
     final groups = <String, List<_Item>>{};
     for (final i in ok) {
-      groups.putIfAbsent(i.patient!.id, () => []).add(i);
+      final pid = i.patient?.id ?? doctorUnassignedId;
+      groups.putIfAbsent(pid, () => []).add(i);
     }
     var added = 0;
     try {
@@ -199,7 +201,7 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
       dirty:
           _removedAny ||
           _items.any(
-            (i) => i.patient != null && i.patient!.id != widget.patientId,
+            (i) => i.patient?.id != widget.patientId,
           ),
       notice: _notice,
       body: Column(
@@ -209,8 +211,8 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
             first: true,
             title: 'Files',
             description:
-                'Every file belongs to a patient. Each one can be '
-                'for someone different.',
+                'Assign files to a patient, or leave unassigned to save '
+                'under your doctor account.',
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -218,11 +220,11 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
                   for (final i in _items)
                     _ItemRow(
                       item: i,
-                      showMissing: _showMissing,
                       remaining: i.patient == null ? 0 : missing,
                       onPickPatient: () => _pickPatient(i),
                       onRemove: () => _remove(i),
                       onUseForRest: () => _useForRest(i),
+                      onClearPatient: () => _clearPatient(i),
                     ),
                 ],
               ),
@@ -264,21 +266,21 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
 class _ItemRow extends StatelessWidget {
   const _ItemRow({
     required this.item,
-    required this.showMissing,
     required this.remaining,
     required this.onPickPatient,
     required this.onRemove,
     required this.onUseForRest,
+    this.onClearPatient,
   });
 
   final _Item item;
-  final bool showMissing;
 
   /// Files without a patient that this row's patient could be given to.
   final int remaining;
   final VoidCallback onPickPatient;
   final VoidCallback onRemove;
   final VoidCallback onUseForRest;
+  final VoidCallback? onClearPatient;
 
   static String _typeAndSize(FileSource s) {
     final dot = s.name.lastIndexOf('.');
@@ -300,7 +302,6 @@ class _ItemRow extends StatelessWidget {
     final type = source.contentType;
     final problem = source.problem;
     final patient = item.patient;
-    final needsPatient = problem == null && patient == null && showMissing;
     final narrow = MediaQuery.sizeOf(context).width < CruBreakpoint.phone;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
@@ -324,11 +325,8 @@ class _ItemRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  problem ??
-                      (needsPatient
-                          ? '${_typeAndSize(source)} · Needs a patient'
-                          : _typeAndSize(source)),
-                  style: problem == null && !needsPatient
+                  problem ?? _typeAndSize(source),
+                  style: problem == null
                       ? CruType.subhead.tabular.tint(c.label2)
                       : CruType.subhead.w600.tint(c.amberText),
                   maxLines: 1,
@@ -343,10 +341,10 @@ class _ItemRow extends StatelessWidget {
               // Phones get a shorter label so the file name keeps room.
               label: narrow
                   ? (patient == null
-                        ? 'Choose'
+                        ? 'No patient'
                         : _short(patient.firstName.trim()))
                   : (patient == null
-                        ? 'Choose patient'
+                        ? 'No patient'
                         : _short(patient.fullName.trim())),
               icon: CruIcons.user,
               onPressed: onPickPatient,
@@ -358,6 +356,8 @@ class _ItemRow extends StatelessWidget {
             endAlignedWidth: 160,
             items: [
               FilesMenuItem('Remove', onRemove),
+              if (patient != null && onClearPatient != null)
+                FilesMenuItem('Remove patient', onClearPatient!),
               if (patient != null && remaining > 0)
                 FilesMenuItem('Apply to rest', onUseForRest),
             ],

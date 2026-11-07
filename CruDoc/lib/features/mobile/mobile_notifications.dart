@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/appointments/data/providers/visit
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_feed.dart';
 import 'package:doctor_management_app/features/mobile/activity/activity_seen.dart';
 import 'package:doctor_management_app/features/mobile/activity/visit_badge.dart';
@@ -77,6 +78,7 @@ class _MobileNotificationsScreenState
     final now = ref.watch(dashboardNowProvider);
     final storage = ref.watch(storageNearlyFullProvider).value;
     final tickets = ref.watch(resolvedTicketsProvider).value ?? const [];
+    final incoming = ref.watch(incomingOffersProvider).value ?? const [];
     final last = feed.lastPatient;
     final groups = activityGroups(feed.items, now);
     final empty =
@@ -85,6 +87,7 @@ class _MobileNotificationsScreenState
         feed.birthdays.isEmpty &&
         storage == null &&
         tickets.isEmpty &&
+        incoming.isEmpty &&
         last == null;
 
     return ListView(
@@ -93,6 +96,16 @@ class _MobileNotificationsScreenState
       ),
       children: [
         const MobileHeader(pushed: true, title: 'Notifications'),
+        if (incoming.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.fromLTRB(
+              CruSpace.s16,
+              CruSpace.s12,
+              CruSpace.s16,
+              0,
+            ),
+            child: IncomingOffersCard(),
+          ),
         if (empty)
           const MobileEmpty(
             icon: mobileBellIcon,

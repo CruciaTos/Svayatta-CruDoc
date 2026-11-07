@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/dashboard/domain/dashboard_format
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
+import 'package:doctor_management_app/features/files/presentation/incoming_card.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
@@ -603,10 +604,12 @@ final activityFeedProvider = Provider<ActivityFeed>((ref) {
   );
 });
 
-/// True when someone else (a team member or a patient) did something, or
-/// one of this doctor's bug reports was resolved, since Notifications was
-/// opened.
+/// True when someone else (a team member or a patient) did something,
+/// an incoming file transfer was offered, or one of this doctor's bug
+/// reports was resolved, since Notifications was opened.
 final activityUnreadProvider = Provider<bool>((ref) {
+  final incoming = ref.watch(incomingOffersProvider).value ?? const [];
+  if (incoming.isNotEmpty) return true;
   final seen = ref.watch(activitySeenProvider);
   if (seen == null) return false;
   final tickets = ref.watch(resolvedTicketsProvider).value ?? const [];

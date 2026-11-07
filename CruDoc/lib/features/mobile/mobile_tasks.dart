@@ -32,6 +32,11 @@ import 'package:doctor_management_app/features/radiology/presentation/reports/te
 import 'package:doctor_management_app/features/radiology/presentation/rvg_capture_dialog.dart';
 import 'package:doctor_management_app/features/radiology/viewer/thumbnail_strip.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
+import 'package:doctor_management_app/features/todos/data/todo.dart';
+import 'package:doctor_management_app/features/todos/data/todo_repository.dart';
+import 'package:doctor_management_app/features/todos/presentation/mobile_todos.dart';
+import 'package:doctor_management_app/features/todos/presentation/todo_dialog.dart';
+import 'package:doctor_management_app/features/todos/presentation/todo_icons.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
 
@@ -100,7 +105,14 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
     required bool radiology,
     required bool dental,
   }) {
+    void newTodo() => showTodoDialog(mobileRoot(context));
     final actions = <MobileSheetAction>[
+      MobileSheetAction(
+        label: 'Task or reminder',
+        icon: TodoIcons.check,
+        tone: MobileTone.blue,
+        onTap: newTodo,
+      ),
       if (radiology) ...[
         MobileSheetAction(
           label: 'Import scans',
@@ -147,7 +159,8 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
         ),
     ];
 
-    if (actions.isEmpty) return;
+    // Only to-dos here: straight to the form.
+    if (actions.length == 1) return newTodo();
     showMobileActionSheet(context, title: 'New task', actions: actions);
   }
 
@@ -787,6 +800,7 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       if (reportsOn) TaskSourceFilter.reports,
       if (plansOn) TaskSourceFilter.plans,
       if (labOn) TaskSourceFilter.labCases,
+      TaskSourceFilter.todo,
     ];
 
     // With one source there are no pills: it is the only filter.
@@ -809,6 +823,11 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
         ? ref.watch(patientsStreamProvider)
         : null;
 
+    final uid = ref.watch(clinicAccessProvider).value?.uid ?? '';
+    final openTodos = (ref.watch(myTodosProvider).value ?? const <Todo>[])
+        .where((t) => !t.done && t.assignedTo == uid)
+        .length;
+
     final isLoading =
         (radiologyOn && studiesAsync?.value == null) ||
         (dentalOn &&
@@ -825,8 +844,6 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       now: now,
       labCases: labCases,
     );
-
-    final hasAddActions = radiologyOn || dentalOn;
 
     // Counts for source pills
     int countForSource(TaskSourceFilter s) => switch (s) {
@@ -857,11 +874,13 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
             .length,
       TaskSourceFilter.labCases =>
         board.items.where((t) => t.source == TaskSource.lab).length,
+      TaskSourceFilter.todo => openTodos,
     };
 
     // One source's page: its recent strip, search and list. Picking a
     // source clears the status filter, so the page beside uses none.
     Widget page(TaskSourceFilter source) {
+      if (source == TaskSourceFilter.todo) return const MobileTodoPage();
       final statusFilter = source == effectiveSource
           ? _statusFilter
           : TaskStatusFilter.any;
@@ -906,6 +925,14 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Pinned, overdue and today's to-dos lead the All page.
+          if (source == TaskSourceFilter.all)
+            MobileTodoDueGroup(
+              onSeeAll: () => setState(() {
+                _sourceFilter = TaskSourceFilter.todo;
+                _statusFilter = TaskStatusFilter.any;
+              }),
+            ),
           // 2. Recent activity, as a sliding strip
           _RecentActivityStrip(
             items: recentActivity,
@@ -1010,17 +1037,15 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
       children: [
         MobileHeader(
           title: 'Tasks',
-          trailing: hasAddActions
-              ? MobileCircleButton(
-                  icon: CruIcons.plus,
-                  semanticLabel: 'Add',
-                  onPressed: () => _openAddSheet(
-                    context,
-                    radiology: radiologyOn,
-                    dental: dentalOn,
-                  ),
-                )
-              : null,
+          trailing: MobileCircleButton(
+            icon: CruIcons.plus,
+            semanticLabel: 'Add',
+            onPressed: () => _openAddSheet(
+              context,
+              radiology: radiologyOn,
+              dental: dentalOn,
+            ),
+          ),
         ),
         const SizedBox(height: CruSpace.s16),
         if (received.isNotEmpty) ...[
@@ -1040,13 +1065,9 @@ class _MobileTasksScreenState extends ConsumerState<MobileTasksScreen> {
           ),
           const SizedBox(height: CruSpace.s12),
         ],
+        // No clinical sources: Tasks is just the to-do list.
         if (none)
-          const MobileEmpty(
-            icon: CruIcons.check,
-            title: 'No tasks here yet',
-            body:
-                'Scans to report and treatment plans show up here once radiology or dental features are on.',
-          )
+          const MobileTodoPage()
         else if (isLoading)
           const MobileRowGroup(
             children: [MobileLoading('Loading your tasks…', height: 160)],

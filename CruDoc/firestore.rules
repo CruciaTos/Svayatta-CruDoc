@@ -865,6 +865,55 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // To-dos and reminders (features/todos). Each person sees only the
+      // ones they made or were given; the clinic owner sees no one else's.
+      // Pins are per person: you may only add or remove yourself.
+      match /todos/{todoId} {
+        function todoParty(d) {
+          return request.auth.uid == d.createdBy
+            || request.auth.uid == d.assignedTo;
+        }
+        function todoKeys() {
+          return ['title', 'note', 'createdBy', 'createdByName', 'assignedTo',
+            'assignedToName', 'dueAt', 'remind', 'repeat', 'done', 'doneAt',
+            'lastDoneAt', 'pinnedBy', 'createdAt', 'updatedAt'];
+        }
+        function validTodo(d) {
+          return d.keys().hasOnly(todoKeys())
+            && d.title is string && d.title.size() > 0 && d.title.size() <= 200
+            && d.note is string && d.note.size() <= 2000
+            && d.createdByName is string && d.createdByName.size() <= 200
+            && d.assignedToName is string && d.assignedToName.size() <= 200
+            && (d.dueAt == null || d.dueAt is timestamp)
+            && (d.doneAt == null || d.doneAt is timestamp)
+            && d.remind in ['none', 'atTime', 'min15', 'hour1', 'day1']
+            && d.repeat in ['none', 'daily', 'weekly', 'monthly', 'yearly']
+            && d.done is bool
+            && d.pinnedBy is list && d.pinnedBy.size() <= 30
+            && d.assignedTo is string
+            && isClinicMember(clinicId, d.assignedTo);
+        }
+        allow read: if clinicAllows(clinicId, 'member')
+          && todoParty(resource.data);
+        allow create: if clinicAllows(clinicId, 'member')
+          && request.resource.data.createdBy == request.auth.uid
+          && validTodo(request.resource.data)
+          && request.resource.data.pinnedBy.toSet()
+            .hasOnly([request.auth.uid]);
+        allow update: if clinicAllows(clinicId, 'member')
+          && todoParty(resource.data)
+          && request.resource.data.createdBy == resource.data.createdBy
+          && validTodo(request.resource.data)
+          && request.resource.data.pinnedBy.toSet()
+            .difference(resource.data.pinnedBy.toSet())
+            .hasOnly([request.auth.uid])
+          && resource.data.pinnedBy.toSet()
+            .difference(request.resource.data.pinnedBy.toSet())
+            .hasOnly([request.auth.uid]);
+        allow delete: if clinicAllows(clinicId, 'member')
+          && request.auth.uid == resource.data.createdBy;
+      }
+
       // File offers (Phase 2): Send to colleague.
       match /file_offers/{offerId} {
         allow read: if isAuthenticated() && (

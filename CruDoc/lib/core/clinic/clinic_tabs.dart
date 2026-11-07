@@ -10,7 +10,12 @@ import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 /// shown as an upgrade. No clinic access yet (or a solo doctor): every tab.
 bool clinicAllowsDesktopTab(ClinicAccess? access, int tab) {
   if (access == null || access.isOwner) return true;
-  if (tab == DesktopTab.dashboard || tab == DesktopTab.settings) return true;
+  // Everyone keeps their own to-do list.
+  if (tab == DesktopTab.dashboard ||
+      tab == DesktopTab.settings ||
+      tab == DesktopTab.todos) {
+    return true;
+  }
   // Dental and radiology pages read clinical records, except the
   // sterilization log (stock) and the procedure list (clinic settings).
   if (tab == DesktopTab.sterilization) {

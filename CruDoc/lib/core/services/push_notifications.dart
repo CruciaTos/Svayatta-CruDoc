@@ -8,6 +8,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
 /// Opens what a tapped notification is about. Gets the message data; its
 /// 'type' says what it is ('referral', 'file_offer'...).
@@ -50,6 +52,15 @@ class PushNotifications {
     'support',
     'Support',
     description: 'When an issue you reported is resolved',
+    importance: Importance.high,
+  );
+
+  /// Android channel for to-do reminders (bills, renewals, chores) and
+  /// tasks a colleague assigns you. Scheduled on the device itself.
+  static const tasksChannel = AndroidNotificationChannel(
+    'tasks',
+    'Tasks and reminders',
+    description: 'Reminders for your to-dos and tasks assigned to you',
     importance: Importance.high,
   );
 
@@ -134,6 +145,8 @@ class PushNotifications {
       await android?.createNotificationChannel(referralChannel);
       await android?.createNotificationChannel(filesChannel);
       await android?.createNotificationChannel(supportChannel);
+      await android?.createNotificationChannel(tasksChannel);
+      tz_data.initializeTimeZones();
       await android?.requestNotificationsPermission();
       return true;
     } catch (e) {
@@ -155,6 +168,7 @@ class PushNotifications {
     final channel = switch (data['type']) {
       'file_offer' => filesChannel,
       'support_ticket' => supportChannel,
+      'todo' => tasksChannel,
       _ => referralChannel,
     };
     try {
@@ -178,6 +192,57 @@ class PushNotifications {
       );
     } catch (e) {
       debugPrint('[PushNotifications] show failed: $e');
+    }
+  }
+
+  /// Schedules a notification for [when] (a to-do reminder). The OS shows
+  /// it even if the app is closed, on Android and Windows. Replaces any
+  /// notification already scheduled with [id]. A time already past is
+  /// skipped.
+  Future<void> schedule({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime when,
+    Map<String, String> data = const {},
+  }) async {
+    if (!when.isAfter(DateTime.now())) return;
+    if (!await _init()) return;
+    try {
+      await _plugin.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: tz.TZDateTime.from(when.toUtc(), tz.UTC),
+        payload: data.isEmpty ? null : jsonEncode(data),
+        // Inexact needs no special permission; Android may delay it by a
+        // few minutes while the phone sleeps.
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            tasksChannel.id,
+            tasksChannel.name,
+            channelDescription: tasksChannel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: const DarwinNotificationDetails(),
+          macOS: const DarwinNotificationDetails(),
+          windows: const WindowsNotificationDetails(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[PushNotifications] schedule failed: $e');
+    }
+  }
+
+  /// Cancels a scheduled (or shown) notification.
+  Future<void> cancel(int id) async {
+    if (!await _init()) return;
+    try {
+      await _plugin.cancel(id: id);
+    } catch (e) {
+      debugPrint('[PushNotifications] cancel failed: $e');
     }
   }
 

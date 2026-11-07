@@ -104,6 +104,9 @@ abstract final class DesktopTab {
   /// patient picked on the page.
   static const charting = 33;
 
+  /// To-dos and reminders (bills, renewals, jobs for colleagues).
+  static const todos = 34;
+
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
   static const reports = 13;
@@ -147,6 +150,7 @@ abstract final class DesktopTab {
     files => 'Files',
     documents => 'Documents',
     charting => 'Charting',
+    todos => 'To-do',
     _ => 'Back',
   };
 }

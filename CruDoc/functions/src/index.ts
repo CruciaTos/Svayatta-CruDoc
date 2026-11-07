@@ -34,4 +34,5 @@ export {voiceApi} from "./voice";
 export {onPatientWrittenIndexPhone} from "./crypto/patientIndex";
 export * from "./blobs";
 export * from "./file_offers";
+export * from "./todos";
 export {onSupportTicketResolved} from "./support_tickets";

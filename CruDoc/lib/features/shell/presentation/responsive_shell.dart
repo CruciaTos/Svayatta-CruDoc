@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/update/presentation/update_launcher.dart';
+import 'package:doctor_management_app/features/todos/presentation/todo_reminder_watcher.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
@@ -68,8 +69,11 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
     child: ReferralNetworkWatcher(
       // A resolved bug report or feedback is announced anywhere too.
       child: SupportTicketWatcher(
-        // New GitHub releases are offered on Windows and Android.
-        child: UpdateLauncher(child: _content(context)),
+        // To-do reminders are scheduled on every device.
+        child: TodoReminderWatcher(
+          // New GitHub releases are offered on Windows and Android.
+          child: UpdateLauncher(child: _content(context)),
+        ),
       ),
     ),
   );

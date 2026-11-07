@@ -91,7 +91,11 @@ enum TaskSourceFilter {
   worklist('Worklist'),
   reports('Reports'),
   plans('Treatment plans'),
-  labCases('Lab cases');
+  labCases('Lab cases'),
+
+  /// Your own to-dos and reminders (features/todos), drawn by their own
+  /// page rather than the board.
+  todo('To-do');
 
   const TaskSourceFilter(this.label);
   final String label;
@@ -161,6 +165,7 @@ List<TaskStatusFilter> statusFiltersFor(TaskSourceFilter source) =>
         TaskStatusFilter.invoiced,
         TaskStatusFilter.declined,
       ],
+      TaskSourceFilter.todo => const [TaskStatusFilter.any],
       TaskSourceFilter.labCases => const [
         TaskStatusFilter.any,
         TaskStatusFilter.open,
@@ -187,6 +192,7 @@ bool matchesSource(TaskItem t, TaskSourceFilter f) {
           t.stage == TaskStage.invoiced ||
           t.stage == TaskStage.declined,
     TaskSourceFilter.labCases => t.source == TaskSource.lab,
+    TaskSourceFilter.todo => false,
   };
 }
 

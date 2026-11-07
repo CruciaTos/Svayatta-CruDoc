@@ -18,6 +18,7 @@ import 'package:doctor_management_app/core/clinic/clinic_access.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
+import 'package:doctor_management_app/features/todos/presentation/todo_icons.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 class _NavItem {
@@ -62,6 +63,7 @@ const _tasksTabs = {
   DesktopTab.reports,
   DesktopTab.treatmentPlans,
   DesktopTab.labCases,
+  DesktopTab.todos,
 };
 const _referralTabs = {DesktopTab.dentalReferrals, DesktopTab.referrers};
 
@@ -91,8 +93,8 @@ const _notDrawn = {
   DesktopTab.emergency,
 };
 
-/// The sidebar as drawn. Worklist, reports, treatment plans and lab cases
-/// are one Tasks page, referrals and referrers one Consults page, and
+/// The sidebar as drawn. Worklist, reports, treatment plans, lab cases
+/// and to-dos are one Tasks page, referrals and referrers one Consults page, and
 /// the pages in [_notDrawn] are reached from elsewhere. [sidebarTabs]
 /// still lists every page, for voice, gating and the phone.
 List<_NavGroup> _drawnGroups(List<_NavGroup> groups) {
@@ -194,6 +196,9 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
       const _NavItem(DesktopTab.documents, 'Documents', CruIcons.fileText),
       const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
+      // Drawn inside Tasks as its To-do tab, for everyone. Last, so Tasks
+      // opens on the clinical work when there is any.
+      const _NavItem(DesktopTab.todos, 'To-do', TodoIcons.check),
     ]),
     if (specialtyItems.isNotEmpty) _NavGroup('Specialty care', specialtyItems),
   ];

@@ -245,6 +245,6 @@ jobs:
         env:
           NOTES: ${{ inputs.notes }}
         run: |
-          args=("$TAG" dist/* --target "$GITHUB_SHA" --title "CruDoc $VERSION")
+          args=("$TAG" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CruDoc $VERSION")
           if [ -n "$NOTES" ]; then args+=(--notes "$NOTES"); else args+=(--generate-notes); fi
           gh release create "${args[@]}"

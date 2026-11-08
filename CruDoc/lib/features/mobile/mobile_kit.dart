@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -329,7 +330,7 @@ BuildContext mobileRoot(BuildContext context) =>
 void mobileSay(BuildContext context, String message) {
   ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()
-    ..showSnackBar(
+    ..showIsland(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
 }

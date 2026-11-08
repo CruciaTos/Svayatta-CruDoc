@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -41,7 +42,7 @@ class PlanModules {
   /// says so and returns false.
   bool require(BuildContext context, String module, String feature) {
     if (isOn(module)) return true;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    ScaffoldMessenger.maybeOf(context)?.showIsland(
       SnackBar(
         content: Text(
           "$feature isn't in your plan. Add it in Subscription & Billing.",

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/core/widgets/legal_links_row.dart';
+import 'package:doctor_management_app/features/settings/presentation/delete_account_dialog.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
@@ -748,8 +750,27 @@ class _MobileSettingsList extends ConsumerWidget {
                 if (context.mounted) context.go('/auth');
               },
             ),
+            MobileRow(
+              leading: const MobileIconTile(
+                icon: CruIcons.warning,
+                tone: MobileTone.slate,
+              ),
+              title: 'Delete account',
+              titleStyle: MobileType.row
+                  .copyWith(fontWeight: FontWeight.w500)
+                  .tint(c.redText),
+              onTap: () async {
+                final deleted = await showDeleteAccountDialog(context, ref);
+                if (deleted && context.mounted) {
+                  context.go('/auth');
+                }
+              },
+            ),
           ],
         ),
+        const SizedBox(height: CruSpace.s16),
+        const Center(child: LegalLinksRow()),
+        const SizedBox(height: CruSpace.s24),
       ],
     );
   }

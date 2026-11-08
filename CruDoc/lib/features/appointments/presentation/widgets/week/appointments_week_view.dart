@@ -82,7 +82,10 @@ class _AppointmentsWeekViewState extends ConsumerState<AppointmentsWeekView>
     final fromDay = controller.takeWeekFromDay();
     // Back from Day: start where Day was scrolled.
     _scroll = ScrollController(
-      initialScrollOffset: fromDay ? controller.dayScroll : 0,
+      // Fresh week: open near 8 AM, not midnight.
+      initialScrollOffset: fromDay
+          ? controller.dayScroll
+          : 7 * 60 * WeekMetrics.pxPerMinute,
     );
     if (!fromDay) return;
     final state = ref.read(apptsControllerProvider);

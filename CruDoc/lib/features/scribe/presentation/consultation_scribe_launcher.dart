@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -87,10 +88,8 @@ class _ConsultationScribeLauncherState
 
     final patientId = entry.patientId;
     if (patientId == null || patientId.isEmpty) {
-      final name = entry.walkInName?.trim();
       _say(
-        'Register ${name == null || name.isEmpty ? 'this walk-in' : name} '
-        'as a patient to keep session notes.',
+        'Use "Register as patient" on token #${entry.tokenNumber} to keep session notes.',
       );
       return;
     }
@@ -150,7 +149,7 @@ class _ConsultationScribeLauncherState
   void _say(String message) {
     final navContext = appRouter.routerDelegate.navigatorKey.currentContext;
     if (navContext == null || !navContext.mounted) return;
-    ScaffoldMessenger.maybeOf(navContext)?.showSnackBar(
+    ScaffoldMessenger.maybeOf(navContext)?.showIsland(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,7 +70,7 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
       await repo.rescheduleVisit(item.id, newStart: slot);
     } on VisitException catch (e) {
       if (mounted) setState(() => _moving = false);
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text(
             e is VisitOverlapWarning
@@ -82,7 +83,7 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
       return;
     } catch (_) {
       if (mounted) setState(() => _moving = false);
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         const SnackBar(
           content: Text("Couldn't move the visit. Try again."),
           behavior: SnackBarBehavior.floating,
@@ -92,7 +93,7 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
     }
 
     controller.select(item.id);
-    messenger?.showSnackBar(
+    messenger?.showIsland(
       SnackBar(
         content: Text('Moved ${item.name} to ${ApptFormat.time(slot)}'),
         behavior: SnackBarBehavior.floating,
@@ -107,7 +108,7 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
                 acknowledgeOverlap: true,
               );
             } catch (_) {
-              messenger.showSnackBar(
+              messenger.showIsland(
                 const SnackBar(
                   content: Text("Couldn't undo the move."),
                   behavior: SnackBarBehavior.floating,

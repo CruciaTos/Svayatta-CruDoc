@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -99,7 +100,7 @@ class _OrthoBeforeAfterDialogState
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showIsland(
             SnackBar(
               content: Text('Saved comparison: ${p.basename(savePath)}'),
               action: SnackBarAction(

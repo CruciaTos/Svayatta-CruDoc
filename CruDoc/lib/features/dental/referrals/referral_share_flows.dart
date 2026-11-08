@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -292,7 +293,7 @@ void _showSavedLetter(
   String path, {
   bool attach = false,
 }) {
-  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+  ScaffoldMessenger.maybeOf(context)?.showIsland(
     SnackBar(
       content: Text(
         attach

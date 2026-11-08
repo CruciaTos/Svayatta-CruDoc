@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -156,7 +157,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                   style: FilledButton.styleFrom(backgroundColor: _accentTeal),
                   onPressed: () {
                     if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(context).showIsland(
                         const SnackBar(content: Text('Name is required')),
                       );
                       return;
@@ -193,7 +194,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
 
       await ref.read(inventoryRepositoryProvider).createMedicine(med);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text('${med.name} added to dental inventory'),
             backgroundColor: _accentTeal,
@@ -309,7 +310,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text('Stock updated for ${med.name}'),
             backgroundColor: _accentTeal,

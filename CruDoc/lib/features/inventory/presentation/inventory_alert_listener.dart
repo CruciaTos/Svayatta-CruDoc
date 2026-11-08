@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -108,7 +109,7 @@ class _InventoryAlertListenerState
 
     for (final medicine in newlyEntered) {
       final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.showSnackBar(SnackBar(content: Text(message(medicine))));
+      messenger?.showIsland(SnackBar(content: Text(message(medicine))));
       markNotified(medicine);
     }
   }

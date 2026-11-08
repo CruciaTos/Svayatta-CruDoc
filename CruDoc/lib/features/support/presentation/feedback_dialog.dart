@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,7 +23,7 @@ Future<void> showFeedbackDialog(
   if (outcome == null) return;
   messenger
     ?..hideCurrentSnackBar()
-    ..showSnackBar(
+    ..showIsland(
       SnackBar(
         behavior: SnackBarBehavior.floating,
         content: Text(

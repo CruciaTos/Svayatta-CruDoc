@@ -66,7 +66,17 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Allow access to your photo library to attach medicine receipts.</string>
+	<string>CruDoc lets you pick photos and scans from your library to attach to a patient's record or to a supplier bill.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>CruDoc finds other CruDoc devices in your clinic on the same Wi-Fi so you can send files to colleagues and connect to your scanner or imaging server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_crudoc._tcp</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>CruDoc uses your location to list home-visit addresses nearest to you first.</string>
 	<key>NSContactsUsageDescription</key>
@@ -89,6 +99,69 @@
 			<array>
 				<string>com.googleusercontent.apps.474729174031-gtf53g9053lilt2cebjgkvinvj0kopkh</string>
 			</array>
+		</dict>
+	</array>
+	<key>GMSApiKey</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false/>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>PDF document</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>DICOM image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.nema.dicom</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.nema.dicom</string>
+			<key>UTTypeDescription</key>
+			<string>DICOM image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>dcm</string>
+				</array>
+			</dict>
 		</dict>
 	</array>
 </dict>

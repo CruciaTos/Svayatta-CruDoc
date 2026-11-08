@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 /// Utilities for WhatsApp phone number normalization, message templating,
@@ -73,6 +74,37 @@ class WhatsAppTemplateService {
     return type == VisitType.home
         ? 'Home Visit Consultation'
         : 'In-Clinic Consultation';
+  }
+
+  /// Builds a standard WhatsApp cancellation notice.
+  static String buildCancellationMessage({
+    required Visit visit,
+    required Patient patient,
+    required String clinicName,
+  }) {
+    final patientName = patient.fullName.trim().isNotEmpty
+        ? patient.fullName.trim()
+        : 'Valued Patient';
+    final dateStr = ApptFormat.dateLine(visit.scheduledStart);
+    final timeStr = ApptFormat.time(visit.scheduledStart);
+    return 'Hello $patientName, your appointment on $dateStr at $timeStr has been cancelled. Please reply to book a new time.';
+  }
+
+  /// Builds a standard WhatsApp rescheduling notice.
+  static String buildRescheduleMessage({
+    required DateTime oldStart,
+    required DateTime newStart,
+    required Patient patient,
+    required String clinicName,
+  }) {
+    final patientName = patient.fullName.trim().isNotEmpty
+        ? patient.fullName.trim()
+        : 'Valued Patient';
+    final oldStr =
+        '${ApptFormat.dateLine(oldStart)} at ${ApptFormat.time(oldStart)}';
+    final newStr =
+        '${ApptFormat.dateLine(newStart)} at ${ApptFormat.time(newStart)}';
+    return 'Hello $patientName, your appointment has been moved from $oldStr to $newStr.';
   }
 
   /// Builds a standard, privacy-compliant WhatsApp confirmation message.

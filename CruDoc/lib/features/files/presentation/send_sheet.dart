@@ -1,3 +1,5 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,7 +31,7 @@ Future<void> showSendToColleagueSheet(
   final colleagues = ref.read(stripColleaguesProvider);
 
   if (colleagues.isEmpty) {
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    ScaffoldMessenger.maybeOf(context)?.showIsland(
       const SnackBar(
         content: Text('No colleagues in your clinic to send to.'),
         behavior: SnackBarBehavior.floating,
@@ -99,10 +101,7 @@ class _SendSheetState extends State<_SendSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ColleagueMonogram(
-                name: m.name,
-                size: CruSize.searchBar,
-              ),
+              ColleagueMonogram(name: m.name, size: CruSize.searchBar),
               const SizedBox(height: CruSpace.s4),
               Text(
                 colleagueShortName(m.name),
@@ -135,7 +134,7 @@ class _SendSheetState extends State<_SendSheet> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text(
               via == FileOfferVia.lan
@@ -149,7 +148,7 @@ class _SendSheetState extends State<_SendSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text('Could not send: $e'),
             behavior: SnackBarBehavior.floating,
@@ -230,14 +229,15 @@ class _SendSheetState extends State<_SendSheet> {
             ),
           ] else ...[
             if (widget.colleagues.length > 4) ...[
-              Text(
-                'Recent',
-                style: CruType.caption.tint(c.label2),
-              ),
+              Text('Recent', style: CruType.caption.tint(c.label2)),
               const SizedBox(height: CruSpace.s8),
               Row(
                 children: [
-                  for (var i = 0; i < widget.colleagues.take(4).length; i++) ...[
+                  for (
+                    var i = 0;
+                    i < widget.colleagues.take(4).length;
+                    i++
+                  ) ...[
                     if (i > 0) const SizedBox(width: CruSpace.s12),
                     _recentAvatar(widget.colleagues[i], c),
                   ],
@@ -287,13 +287,28 @@ class _SendSheetState extends State<_SendSheet> {
                         color: eligible ? c.label : c.label3,
                       ),
                     ),
-                    subtitle: Text(
-                      reason ?? transportLabel,
-                      style: CruType.caption.tint(
-                        eligible
-                            ? (cachedPeer != null ? Colors.green : c.label2)
-                            : c.label3,
-                      ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          reason ?? transportLabel,
+                          style: CruType.caption.tint(
+                            eligible
+                                ? (cachedPeer != null ? Colors.green : c.label2)
+                                : c.label3,
+                          ),
+                        ),
+                        if ((Platform.isIOS || Platform.isMacOS) &&
+                            cachedPeer == null &&
+                            reason == null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Not on the same Wi-Fi, or CruDoc is closed on their phone.',
+                            style: CruType.caption.tint(c.label3),
+                          ),
+                        ],
+                      ],
                     ),
                     enabled: eligible,
                     onTap: eligible ? () => _sendTo(colleague) : null,

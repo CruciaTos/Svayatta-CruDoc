@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -77,7 +78,7 @@ class _CampaignAnalyticsDialogState
           _isRetrying = false;
         });
         widget.onCampaignUpdated?.call();
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(
             content: Text('Retry process completed for failed recipients.'),
           ),
@@ -88,7 +89,7 @@ class _CampaignAnalyticsDialogState
         setState(() => _isRetrying = false);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Retry failed: $e')));
+        ).showIsland(SnackBar(content: Text('Retry failed: $e')));
       }
     }
   }

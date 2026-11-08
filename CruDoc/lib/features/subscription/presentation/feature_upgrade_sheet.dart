@@ -1,8 +1,11 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:doctor_management_app/core/utils/store_policy.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
 import 'package:doctor_management_app/features/subscription/data/upgrade_request_model.dart';
 import 'package:doctor_management_app/features/subscription/presentation/payment_checkout_sheet.dart';
+import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Modal bottom sheet that lets doctors view available features,
@@ -16,6 +19,13 @@ class FeatureUpgradeSheet extends StatefulWidget {
     BuildContext context, {
     required DoctorSubscriptionInfo subscriptionInfo,
   }) {
+    if (!storePurchasesAllowed) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SubscriptionBillingPage()),
+      );
+      return Future.value();
+    }
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -70,6 +80,14 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
 
   Future<void> _launchPaymentCheckout() async {
     if (_selectedModuleKeys.isEmpty) return;
+    if (!storePurchasesAllowed) {
+      Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SubscriptionBillingPage()),
+      );
+      return;
+    }
 
     final selectedList = _selectedModuleKeys.toList();
     final result = await PaymentCheckoutSheet.show(
@@ -80,7 +98,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
 
     if (result == true && mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text('Features unlocked and active for 30 days.'),
           duration: Duration(seconds: 4),
@@ -178,7 +196,8 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                     CruSpace.s24,
                   ),
                   children: [
-                    if (pendingRequest != null) _pendingBanner(c, pendingRequest),
+                    if (pendingRequest != null)
+                      _pendingBanner(c, pendingRequest),
                     _currentPlan(c),
                     const SizedBox(height: CruSpace.s20),
                     Row(
@@ -196,7 +215,8 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                       ],
                     ),
                     const SizedBox(height: CruSpace.s10),
-                    for (final item in DoctorSubscriptionService.availableFeatures)
+                    for (final item
+                        in DoctorSubscriptionService.availableFeatures)
                       _moduleRow(c, item),
                     const SizedBox(height: CruSpace.s16),
                     _howItWorks(c),
@@ -318,7 +338,10 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
           ),
           child: Row(
             children: [
-              CruIconTile(icon: _iconFor(item.iconName), tone: CruTileTone.neutral),
+              CruIconTile(
+                icon: _iconFor(item.iconName),
+                tone: CruTileTone.neutral,
+              ),
               const SizedBox(width: CruSpace.s12),
               Expanded(
                 child: Column(
@@ -417,7 +440,9 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
             const SizedBox(width: CruSpace.s20),
             Expanded(
               child: CruButton(
-                label: count == 0 ? 'Pick a module' : 'Pay and turn on ($count)',
+                label: count == 0
+                    ? 'Pick a module'
+                    : 'Pay and turn on ($count)',
                 expand: true,
                 large: true,
                 onPressed: count == 0 ? null : _launchPaymentCheckout,

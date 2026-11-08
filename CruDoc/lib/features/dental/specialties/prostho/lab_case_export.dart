@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -301,7 +302,7 @@ Future<bool> exportLabCaseZip({
   }
 
   if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showIsland(
       SnackBar(
         content: Text('Case exported: ${p.basename(savePath)}'),
         action: SnackBarAction(

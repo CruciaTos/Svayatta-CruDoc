@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -623,7 +624,7 @@ class _Steps extends StatelessWidget {
 
 void _toast(BuildContext context, String message) {
   final c = context.cru;
-  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+  ScaffoldMessenger.maybeOf(context)?.showIsland(
     SnackBar(
       content: Text(message, style: CruType.text.tint(c.surface)),
       backgroundColor: c.label,

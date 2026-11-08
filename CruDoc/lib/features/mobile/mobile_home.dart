@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/hero_stat_card.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/core/utils/store_policy.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
@@ -925,21 +926,22 @@ class _QuickActions extends ConsumerWidget {
           (ctx, _) => DashboardActions.newVisit(ctx),
         ),
       // Paper in: handwritten notes, reports, supplier bills.
-      _Action(
-        'Scan',
-        CruIcons.scan,
-        MobileTone.sky,
-        (ctx, r) => startScanFlow(
-          ctx,
-          clinical: r.read(clinicCanProvider(ClinicPermission.clinicalEdit)),
-          inventory:
-              on('inventory') &&
-              r.read(clinicCanProvider(ClinicPermission.inventory)),
-          revenue:
-              on('revenue') &&
-              r.read(clinicCanProvider(ClinicPermission.revenue)),
+      if (documentScanSupported)
+        _Action(
+          'Scan',
+          CruIcons.scan,
+          MobileTone.sky,
+          (ctx, r) => startScanFlow(
+            ctx,
+            clinical: r.read(clinicCanProvider(ClinicPermission.clinicalEdit)),
+            inventory:
+                on('inventory') &&
+                r.read(clinicCanProvider(ClinicPermission.inventory)),
+            revenue:
+                on('revenue') &&
+                r.read(clinicCanProvider(ClinicPermission.revenue)),
+          ),
         ),
-      ),
       if (on('appointments'))
         _Action('Book visit', CruIcons.calendar, MobileTone.blue, _bookVisit),
       _Action(

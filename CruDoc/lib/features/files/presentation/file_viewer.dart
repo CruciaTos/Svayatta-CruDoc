@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -13,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
+import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/progressive_picture.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -85,6 +87,16 @@ class FileViewerPage extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                        const SizedBox(width: CruSpace.s12),
+                        CruButton(
+                          label: 'Share (AirDrop…)',
+                          kind: CruButtonKind.secondary,
+                          icon: CruIcons.arrowUpRight,
+                          onPressed: () =>
+                              FilesActions.shareOutside(context, file),
+                        ),
+                      ],
                       if (filesOnDesktop) ...[
                         const SizedBox(width: CruSpace.s12),
                         CruButton(
@@ -118,7 +130,7 @@ class FileViewerPage extends StatelessWidget {
       final local = await FilesRepository.instance.localCopy(file);
       await launchUrl(Uri.file(local.path));
     } on FilesException catch (e) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
       );
     }

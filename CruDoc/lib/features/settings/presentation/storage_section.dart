@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/core/services/local_storage_manager.dart';
@@ -77,7 +78,7 @@ class _StorageSectionState extends State<StorageSection> {
               'yet (still uploading, or offline) and were kept.'
         : ' The rest is patient records, uploads still waiting, or files '
               'that are only on this device, which are never removed.';
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    ScaffoldMessenger.maybeOf(context)?.showIsland(
       SnackBar(
         content: Text('$freed$still'),
         behavior: SnackBarBehavior.floating,

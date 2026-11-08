@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -72,7 +73,7 @@ Future<Uint8List?> _pickImage({bool allowPdf = false}) async {
 
 void _toast(BuildContext context, String msg) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  ScaffoldMessenger.of(context).showIsland(SnackBar(content: Text(msg)));
 }
 
 // =============================================================================

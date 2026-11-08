@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+
+import 'package:doctor_management_app/core/widgets/legal_links_row.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -621,6 +625,42 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
+  // ---------- Sign in with Apple ----------
+
+  Future<void> _handleAppleSignIn() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await FirestoreAccountReset.done;
+      final userCredential = await _authService.signInWithApple();
+      final user = userCredential.user;
+      if (user != null) {
+        if (await _refusedAsSuperAdmin(user)) return;
+        await DeviceSessionService.instance.registerNewSession(user.uid);
+        await _syncUserProfile(user);
+      }
+      if (!mounted) return;
+      _enterApp();
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (!mounted) return;
+      if (e.code == AuthorizationErrorCode.canceled) return;
+      _showError('Apple sign-in failed');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      if (e.code == 'sign-in-cancelled') return;
+      _showError(e.message ?? 'Apple sign-in failed');
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().toLowerCase();
+      if (!msg.contains('cancel')) {
+        _showError('Apple sign-in failed');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   // ---------- Phone Sign-In ----------
 
   Future<void> _handlePhoneSignIn() async {
@@ -798,6 +838,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       expand: true,
                       onPressed: busy ? null : _handleGoogleSignIn,
                     ),
+                    if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) ...[
+                      const SizedBox(height: CruSpace.s12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: SignInWithAppleButton(
+                          height: 44,
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(CruRadius.control),
+                          ),
+                          style: Theme.of(context).brightness == Brightness.dark
+                              ? SignInWithAppleButtonStyle.white
+                              : SignInWithAppleButtonStyle.black,
+                          onPressed: busy ? null : _handleAppleSignIn,
+                        ),
+                      ),
+                    ],
                     if (_phoneSignInAvailable) ...[
                       const SizedBox(height: CruSpace.s12),
                       CruButton(
@@ -825,6 +882,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: CruSpace.s20),
+                    const LegalLinksRow(),
                   ],
                 ),
               ),

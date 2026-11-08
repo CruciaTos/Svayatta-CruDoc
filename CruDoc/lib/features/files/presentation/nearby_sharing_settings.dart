@@ -1,6 +1,8 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/files/lan/device_identity.dart';
@@ -209,7 +211,7 @@ class _NearbySharingSettingsCardState
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(
-                      dev.platform == 'android'
+                      (dev.platform == 'android' || dev.platform == 'ios')
                           ? Icons.phone_android
                           : Icons.computer,
                       color: isMe ? c.accent : c.label2,
@@ -256,6 +258,29 @@ class _NearbySharingSettingsCardState
               );
             },
           ),
+          if (Platform.isIOS || Platform.isMacOS) ...[
+            const SizedBox(height: CruSpace.s16),
+            const CruSeparator(),
+            const SizedBox(height: CruSpace.s16),
+            Text(
+              'Colleagues not showing up? On this device open Settings, then '
+              'CruDoc, and turn on Local Network. Both devices must be on the '
+              'same Wi-Fi, and the clinic\'s Wi-Fi must allow devices to see '
+              'each other (guest Wi-Fi often does not).',
+              style: CruType.caption.tint(c.label2),
+            ),
+            const SizedBox(height: CruSpace.s8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => launchUrl(Uri.parse('app-settings:')),
+                child: Text(
+                  'Open Settings',
+                  style: CruType.caption.tint(c.accentText),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

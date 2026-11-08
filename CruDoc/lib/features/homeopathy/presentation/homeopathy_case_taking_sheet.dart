@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_overlay.dart';
@@ -825,7 +826,7 @@ class _HomeopathyCaseTakingSheetState
       ref.invalidate(homeopathyCaseSheetProvider(widget.patient.id));
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         SnackBar(
           content: Text(
             markComplete
@@ -837,7 +838,7 @@ class _HomeopathyCaseTakingSheetState
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         SnackBar(content: Text('Could not save the case sheet: $e')),
       );
     } finally {
@@ -857,7 +858,7 @@ class _HomeopathyCaseTakingSheetState
         _populateControllersFromSheet(updated);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           duration: Duration(seconds: 4),
           content: Text(

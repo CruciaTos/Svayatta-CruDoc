@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
@@ -276,6 +277,7 @@ RULES:
     required DateTime today,
     String mimeType = 'audio/mp4',
   }) async {
+    if (!await AiConsent.granted) throw const AiConsentRequired();
     final date = today.toIso8601String().split('T').first;
     final json = await _client.generateJson(
       systemPrompt: systemPrompt,

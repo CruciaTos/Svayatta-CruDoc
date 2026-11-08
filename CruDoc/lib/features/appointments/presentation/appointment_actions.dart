@@ -1,4 +1,12 @@
+import 'package:intl/intl.dart';
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,16 +43,18 @@ abstract final class ApptActions {
     DateTime? day,
     DateTime? start,
     VisitType type = VisitType.clinic,
+    Patient? patient,
   }) async {
     final root = _root(context);
-    final patient = await showPatientPickerDialog(
-      root,
-      title: 'Choose a patient',
-    );
-    if (patient == null || !root.mounted) return;
+    final p = patient ??
+        await showPatientPickerDialog(
+          root,
+          title: 'Choose a patient',
+        );
+    if (p == null || !root.mounted) return;
     await showDesktopScheduleVisitDialog(
       root,
-      patient: patient,
+      patient: p,
       visitRepository: ref.read(visitRepositoryProvider),
       initialDate: start != null
           ? ApptsBuilder.dateOnly(start)
@@ -86,13 +96,119 @@ abstract final class ApptActions {
     final when = ApptsBuilder.sameDay(moved, item.start)
         ? ApptFormat.time(moved)
         : '${ApptFormat.time(moved)}, ${ApptFormat.dateLine(moved)}';
-    messenger?.showSnackBar(
+
+    final leadPatient = item.patient;
+    SnackBarAction? tellAction;
+    if (leadPatient != null &&
+        WhatsAppTemplateService.isValidWhatsAppPhone(leadPatient.phone)) {
+      final clinic =
+          ref.read(activeClinicProvider).value?.name ?? 'your clinic';
+      final msg = WhatsAppTemplateService.buildRescheduleMessage(
+        oldStart: item.start,
+        newStart: moved,
+        patient: leadPatient,
+        clinicName: clinic,
+      );
+      final url = WhatsAppTemplateService.buildDirectWhatsAppUrl(
+        rawPhone: leadPatient.phone,
+        message: msg,
+      );
+      if (url != null) {
+        tellAction = SnackBarAction(
+          label: 'Tell patient',
+          onPressed: () =>
+              launchUrl(url, mode: LaunchMode.externalApplication),
+        );
+      }
+    }
+
+    messenger?.showIsland(
       SnackBar(
         content: Text('Moved ${item.name} to $when'),
         behavior: SnackBarBehavior.floating,
+        action: tellAction,
+      ),
+      from: _stamp(item.start),
+      to: _stamp(moved),
+    );
+  }
+
+  /// Moves [item] (and everyone seen with it) to [start], from a drag and
+  /// drop. Dropping on another visit's time is allowed (same as Move in the
+  /// overlap card); the same patient twice or too many at once is refused.
+  /// Undo puts it back.
+  static Future<void> moveTo(
+    BuildContext context,
+    WidgetRef ref,
+    ApptItem item,
+    DateTime start,
+  ) async {
+    if (start == item.start) return;
+    // Read before awaiting: the caller may be gone when the write returns.
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final repo = ref.read(visitRepositoryProvider);
+    final controller = ref.read(apptsControllerProvider.notifier);
+    final people = item.isGroup ? item.members : [item];
+    final from = {for (final m in people) m.id: m.start};
+    void say(
+      String text, {
+      SnackBarAction? action,
+      String? stampFrom,
+      String? stampTo,
+    }) => messenger?.showIsland(
+      SnackBar(
+        content: Text(text),
+        behavior: SnackBarBehavior.floating,
+        action: action,
+      ),
+      from: stampFrom,
+      to: stampTo,
+    );
+    try {
+      for (final m in people) {
+        await repo.rescheduleVisit(
+          m.id,
+          newStart: start,
+          acknowledgeOverlap: true,
+        );
+      }
+    } on VisitException catch (e) {
+      say(e.message);
+      return;
+    } catch (_) {
+      say("Couldn't move the appointment. Try again.");
+      return;
+    }
+    controller.select(item.id);
+    final when = ApptsBuilder.sameDay(start, from[item.id] ?? item.start)
+        ? ApptFormat.time(start)
+        : '${ApptFormat.time(start)}, ${ApptFormat.dateLine(start)}';
+    say(
+      'Moved ${item.name} to $when',
+      stampFrom: _stamp(from[item.id] ?? item.start),
+      stampTo: _stamp(start),
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () async {
+          try {
+            for (final e in from.entries) {
+              await repo.rescheduleVisit(
+                e.key,
+                newStart: e.value,
+                acknowledgeOverlap: true,
+              );
+            }
+          } catch (_) {
+            say("Couldn't undo the move.");
+          }
+        },
       ),
     );
   }
+
+  /// "Sun, 8 Nov · 9:00 AM" for the island's from → to line.
+  static String _stamp(DateTime t) =>
+      '${DateFormat('EEE, d MMM').format(t)} · ${ApptFormat.time(t)}';
 
   static bool canReschedule(ApptItem item) =>
       item.status == ApptStatus.booked ||
@@ -134,14 +250,38 @@ abstract final class ApptActions {
         await repo.cancelVisit(v.id);
       }
       controller.select(null);
-      messenger?.showSnackBar(
+      final leadPatient = item.patient;
+      SnackBarAction? tellAction;
+      if (leadPatient != null &&
+          WhatsAppTemplateService.isValidWhatsAppPhone(leadPatient.phone)) {
+        final clinic =
+            ref.read(activeClinicProvider).value?.name ?? 'your clinic';
+        final msg = WhatsAppTemplateService.buildCancellationMessage(
+          visit: item.visit,
+          patient: leadPatient,
+          clinicName: clinic,
+        );
+        final url = WhatsAppTemplateService.buildDirectWhatsAppUrl(
+          rawPhone: leadPatient.phone,
+          message: msg,
+        );
+        if (url != null) {
+          tellAction = SnackBarAction(
+            label: 'Tell patient',
+            onPressed: () =>
+                launchUrl(url, mode: LaunchMode.externalApplication),
+          );
+        }
+      }
+      messenger?.showIsland(
         SnackBar(
           content: Text("Cancelled ${item.name}'s appointment"),
           behavior: SnackBarBehavior.floating,
+          action: tellAction,
         ),
       );
     } catch (_) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         const SnackBar(
           content: Text("Couldn't cancel the appointment. Try again."),
           behavior: SnackBarBehavior.floating,
@@ -167,7 +307,7 @@ abstract final class ApptActions {
     );
     if (patient == null || !root.mounted) return;
     if (item.visits.any((v) => v.patientId == patient.id)) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text('${patient.firstName} is already on this appointment'),
           behavior: SnackBarBehavior.floating,
@@ -198,7 +338,7 @@ abstract final class ApptActions {
       await queue.adoptVisitGroup([
         for (final v in item.visits) v.id,
       ], added.groupId);
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text(
             'Added ${patient.firstName} to ${item.firstName}\'s appointment',
@@ -207,7 +347,7 @@ abstract final class ApptActions {
         ),
       );
     } catch (e) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text("Couldn't add ${patient.firstName}: $e"),
           behavior: SnackBarBehavior.floating,
@@ -250,7 +390,7 @@ abstract final class ApptActions {
       await repo.leaveGroup(member.visit, others);
       await repo.cancelVisit(member.id);
     } catch (_) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         const SnackBar(
           content: Text("Couldn't change the appointment. Try again."),
           behavior: SnackBarBehavior.floating,
@@ -271,7 +411,7 @@ abstract final class ApptActions {
     final queue = ref.read(queueRepositoryProvider);
     final visits = [for (final i in items) ...i.visits];
     if (visits.length > kMaxGroupPatients) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         const SnackBar(
           content: Text(
             'One appointment can hold at most $kMaxGroupPatients patients.',
@@ -284,14 +424,14 @@ abstract final class ApptActions {
     try {
       final groupId = await repo.combineVisits(visits);
       await queue.adoptVisitGroup([for (final v in visits) v.id], groupId);
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         const SnackBar(
           content: Text('Combined into one appointment'),
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text("Couldn't combine them: $e"),
           behavior: SnackBarBehavior.floating,

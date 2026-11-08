@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -118,7 +119,7 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
       await action();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        ScaffoldMessenger.maybeOf(context)?.showIsland(
           SnackBar(
             content: Text('$failed: $e'),
             behavior: SnackBarBehavior.floating,
@@ -137,7 +138,7 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
     } on SenderNotOnWifiException {
       await WifiOffers.instance.wait(o);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(
             content: Text(
               'It will download when you’re on the same Wi-Fi as the sender',

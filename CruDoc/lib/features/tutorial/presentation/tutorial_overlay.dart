@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -72,7 +73,7 @@ class _TutorialHostState extends ConsumerState<TutorialHost> {
         : CruSpace.s16;
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(
+      ..showIsland(
         SnackBar(
           content: Text(
             'You can take the tour again from Settings.',

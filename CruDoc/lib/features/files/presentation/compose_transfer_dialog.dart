@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -52,7 +53,7 @@ class _ComposeDialogState extends ConsumerState<_ComposeDialog> {
     super.dispose();
   }
 
-  void _say(String text) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+  void _say(String text) => ScaffoldMessenger.maybeOf(context)?.showIsland(
     SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
   );
 
@@ -103,7 +104,7 @@ class _ComposeDialogState extends ConsumerState<_ComposeDialog> {
         note: _note.text.trim(),
       );
       navigator.pop();
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text(
             'Sent ${_files.length == 1 ? '1 file' : '${_files.length} files'} '

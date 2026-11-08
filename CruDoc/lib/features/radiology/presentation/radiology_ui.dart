@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -357,7 +358,7 @@ void radToast(BuildContext context, String message) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   messenger
     ?..hideCurrentSnackBar()
-    ..showSnackBar(
+    ..showIsland(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,

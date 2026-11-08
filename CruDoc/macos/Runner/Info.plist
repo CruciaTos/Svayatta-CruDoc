@@ -32,5 +32,34 @@
 	<string>CruDoc uses your location to list home-visit addresses nearest to you first.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>CruDoc uses your location to list home-visit addresses nearest to you first.</string>
+	<key>CFBundleDisplayName</key>
+	<string>CruDoc</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.medical</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>CruDoc uses the microphone to record consultation audio for the AI Voice Scribe and to understand voice commands. Recordings are deleted after the doctor reviews them.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>CruDoc uses the camera to scan notes, reports and supplier bills.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>CruDoc checks your contacts' phone numbers to show colleagues already on CruDoc, so you can invite them to your clinic. Your contacts aren't stored.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>CruDoc turns what you say into commands, like booking an appointment or opening a patient.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>CruDoc finds other CruDoc devices in your clinic on the same Wi-Fi so you can send files to colleagues and connect to your scanner or imaging server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_crudoc._tcp</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.474729174031-gtf53g9053lilt2cebjgkvinvj0kopkh</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

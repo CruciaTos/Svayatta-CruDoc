@@ -1,10 +1,13 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/utils/store_policy.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
+import 'package:doctor_management_app/features/subscription/presentation/apple_checkout_list.dart';
 import 'package:doctor_management_app/features/subscription/presentation/payment_checkout_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -99,7 +102,7 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     );
     if (ok == true && mounted) {
       setState(_selected.clear);
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text('Features unlocked and active for 30 days.'),
         ),
@@ -163,6 +166,23 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
   }
 
   Widget _content(DoctorSubscriptionInfo info) {
+    if (!storePurchasesAllowed) {
+      return ListView(
+        padding: const EdgeInsets.only(bottom: CruSpace.s24),
+        children: [
+          const MobileHeader(
+            title: 'Subscription & Billing',
+            subtitle: 'Manage your plan',
+            pushed: true,
+          ),
+          const SizedBox(height: CruSpace.s16),
+          _planCard(info),
+          const SizedBox(height: CruSpace.s20),
+          const AppleCheckoutList(),
+        ],
+      );
+    }
+
     // Only what the doctor doesn't have: owned and base modules aren't
     // for sale.
     final offers = info.purchasableModules;
@@ -184,7 +204,8 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
                 const MobileEmpty(
                   icon: CruIcons.check,
                   title: 'You have every module',
-                  body: 'Everything CruDoc offers is switched on for your clinic.',
+                  body:
+                      'Everything CruDoc offers is switched on for your clinic.',
                 )
               else
                 MobileRowGroup(
@@ -235,10 +256,7 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
                         ),
                       ),
                       const SizedBox(width: CruSpace.s8),
-                      MobilePill(
-                        expired ? 'Expired' : 'Active',
-                        tone: tone,
-                      ),
+                      MobilePill(expired ? 'Expired' : 'Active', tone: tone),
                     ],
                   ),
                   const SizedBox(height: CruSpace.s4),
@@ -354,7 +372,10 @@ class _SubscriptionBillingPageState extends State<SubscriptionBillingPage> {
     final count = (data['activatedModules'] as List?)?.length ?? 0;
 
     return MobileRow(
-      leading: const MobileIconTile(icon: CruIcons.check, tone: MobileTone.green),
+      leading: const MobileIconTile(
+        icon: CruIcons.check,
+        tone: MobileTone.green,
+      ),
       title: when != null
           ? DateFormat('dd MMM yyyy, h:mm a').format(when)
           : 'Payment',

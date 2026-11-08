@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -27,6 +28,7 @@ import 'package:doctor_management_app/features/patients/data/providers/patients_
 import 'package:doctor_management_app/features/patients/data/providers/session_files_provider.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
@@ -174,7 +176,7 @@ class _VisitSessionDialogState extends ConsumerState<VisitSessionDialog> {
     try {
       await _repo.updateStatus(widget.visit.id, status);
     } catch (e) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text("Couldn't change the visit: $e"),
           behavior: SnackBarBehavior.floating,
@@ -409,6 +411,16 @@ class _VisitSessionDialogState extends ConsumerState<VisitSessionDialog> {
                         : null,
                   ),
                 ),
+              CruCapsuleButton(
+                label: 'Book follow-up',
+                icon: CruIcons.calendar,
+                onPressed: () => ApptActions.newAppointment(
+                  context,
+                  ref,
+                  patient: widget.patient,
+                  day: visit.scheduledStart.add(const Duration(days: 7)),
+                ),
+              ),
               if (isPhysio)
                 CruCapsuleButton(
                   label: 'Session photos',

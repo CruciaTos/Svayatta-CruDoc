@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:io';
 
 import 'package:crudoc_j2k/crudoc_j2k.dart';
@@ -541,7 +542,7 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
         );
         final notice = sync.notice;
         if (notice != null) {
-          messenger?.showSnackBar(SnackBar(content: Text(notice)));
+          messenger?.showIsland(SnackBar(content: Text(notice)));
         }
       }
       if (mounted) Navigator.of(context).pop(true);

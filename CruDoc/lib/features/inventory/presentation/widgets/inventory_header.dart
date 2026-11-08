@@ -15,7 +15,7 @@ class InventoryHeader extends StatelessWidget {
     required this.view,
     required this.onNewOrder,
     required this.onAddItem,
-    required this.onScan,
+    this.onScan,
     this.onSterilization,
   });
 
@@ -25,7 +25,7 @@ class InventoryHeader extends StatelessWidget {
   /// Opens the existing Orders (reorder queue) section.
   final VoidCallback onNewOrder;
   final VoidCallback onAddItem;
-  final VoidCallback onScan;
+  final VoidCallback? onScan;
 
   /// Opens the sterilization log; null hides the button (no sterilization
   /// for this login).
@@ -170,13 +170,15 @@ class InventoryHeader extends StatelessWidget {
             onPressed: onSterilization,
           ),
         ],
-        const SizedBox(width: CruSpace.s10),
-        CruButton(
-          label: 'Scan',
-          kind: CruButtonKind.secondary,
-          icon: InventoryIcons.camera,
-          onPressed: onScan,
-        ),
+        if (onScan != null) ...[
+          const SizedBox(width: CruSpace.s10),
+          CruButton(
+            label: 'Scan',
+            kind: CruButtonKind.secondary,
+            icon: InventoryIcons.camera,
+            onPressed: onScan,
+          ),
+        ],
         const SizedBox(width: CruSpace.s10),
         CruButton(label: 'Add item', icon: CruIcons.plus, onPressed: onAddItem),
       ],

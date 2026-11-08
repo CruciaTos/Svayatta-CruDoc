@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -256,7 +257,7 @@ Future<void> sendToColleagueWithUndo(
   List<PatientFile> files,
 ) async {
   final name = member.name;
-  void say(String text) => messenger?.showSnackBar(
+  void say(String text) => messenger?.showIsland(
     SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
   );
   try {
@@ -270,7 +271,7 @@ Future<void> sendToColleagueWithUndo(
     final what = files.length == 1
         ? '“${files.first.name}”'
         : '${files.length} files';
-    messenger?.showSnackBar(
+    messenger?.showIsland(
       SnackBar(
         content: Text(
           onWifi
@@ -439,7 +440,7 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
 
   void _onMove(DragTargetDetails<FileEntry> d) {
     _lastX = d.offset.dx;
-    if (_lifted && !_composeOpened && _lastX - _liftX >= _swipeToCompose) {
+    if (_lifted && !_composeOpened && _liftX - _lastX >= _swipeToCompose) {
       _openCompose(d.data.file);
     }
   }
@@ -448,7 +449,7 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
     if (data != null &&
         _lifted &&
         !_composeOpened &&
-        _lastX - _liftX >= _swipeOffAvatar) {
+        _liftX - _lastX >= _swipeOffAvatar) {
       _openCompose(data.file);
       return;
     }
@@ -566,7 +567,7 @@ class _ColleagueDropChipState extends ConsumerState<ColleagueDropChip> {
     final caption =
         _blocked ??
         (_lifted
-            ? 'Swipe right for a note'
+            ? 'Swipe left for a note'
             : hovering
             ? 'Drop to send'
             : colleagueShortName(m.name));

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:io' as io;
 
@@ -213,7 +214,7 @@ class _MedicalPdfPreviewScreenState
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Saved')));
+        ).showIsland(const SnackBar(content: Text('Saved')));
       }
     }
     await _recordAction(rendered);
@@ -261,7 +262,7 @@ class _MedicalPdfPreviewScreenState
       );
       await launchUrl(waUri, mode: LaunchMode.externalApplication);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(
             content: Text('PDF saved to Downloads — attach it in WhatsApp'),
           ),

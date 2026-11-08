@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -466,7 +467,7 @@ class _DesktopCreateInvoiceDialogState extends State<DesktopCreateInvoiceDialog>
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         SnackBar(
           content: Text(
             'Added ${DashFormat.plural(result.treatments.length, 'treatment')} '

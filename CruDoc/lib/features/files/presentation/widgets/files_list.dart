@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,6 +59,11 @@ List<FilesMenuItem> fileMenuItems(
     'Send to colleague…',
     () => FilesActions.sendToColleague(context, ref, [e.file]),
   ),
+  if (!kIsWeb && (Platform.isIOS || Platform.isMacOS))
+    FilesMenuItem(
+      'Share (AirDrop…)',
+      () => FilesActions.shareOutside(context, e.file),
+    ),
   if (e.canManage) ...[
     FilesMenuItem('Move to…', () => FilesActions.moveFile(context, ref, e)),
     FilesMenuItem(

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -67,7 +68,7 @@ Future<void> toggleTodo(BuildContext context, WidgetRef ref, Todo todo) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
   void say(String text, {VoidCallback? undo}) => messenger
     ?..hideCurrentSnackBar()
-    ..showSnackBar(
+    ..showIsland(
       SnackBar(
         content: Text(text),
         behavior: SnackBarBehavior.floating,

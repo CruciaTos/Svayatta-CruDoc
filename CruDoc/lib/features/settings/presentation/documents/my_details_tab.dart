@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -98,7 +99,7 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showIsland(SnackBar(content: Text(msg)));
   }
 
   Future<void> _loadInitial(DoctorDocProfile? prof) async {

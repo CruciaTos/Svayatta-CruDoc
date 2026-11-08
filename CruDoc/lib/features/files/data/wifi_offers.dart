@@ -135,6 +135,9 @@ class WifiOffers {
     _served.clear();
   }
 
+  /// Checks for waiting incoming Wi-Fi offers immediately.
+  Future<void> checkNow() => _tryWaiting();
+
   /// Keeps this device's waiting Wi-Fi offers downloadable.
   void _serve(List<FileOffer> sent) {
     final open = {

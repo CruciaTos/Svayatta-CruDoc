@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -50,7 +51,7 @@ Future<bool> showScribeFlow(
   );
   if (note == null) return false;
   if (context.mounted) {
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    ScaffoldMessenger.maybeOf(context)?.showIsland(
       SnackBar(
         content: Text(
           'Session note saved to ${patient?.fullName ?? 'the patient'}’s '

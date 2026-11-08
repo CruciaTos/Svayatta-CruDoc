@@ -1,5 +1,4 @@
 import 'package:doctor_management_app/features/shell/components/sync_status_line.dart';
-import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
@@ -320,7 +319,10 @@ class CruSidebar extends ConsumerWidget {
               decoration: c.isEvening
                   ? ShapeDecoration(
                       color: const Color(0xFF111214),
-                      shape: cruShape(CruRadius.card),
+                      shape: cruShape(
+                        CruRadius.card,
+                        side: BorderSide(color: c.accent, width: 1),
+                      ),
                       shadows: const [
                         BoxShadow(
                           color: Color(0x66000000),
@@ -351,55 +353,29 @@ class CruSidebar extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _Brand(
-                              collapsed: collapsed,
-                              progress: progress,
-                            ),
-                          ),
-                          if (canExpand && progress > 0.25)
-                            Opacity(
-                              opacity: ((progress - 0.25) / 0.75).clamp(
-                                0.0,
-                                1.0,
-                              ),
-                              child: CruPressable(
-                                onTap: callbacks.onToggleCollapsed,
-                                tooltip: 'Collapse sidebar (Ctrl+B)',
-                                builder: (context, hovered) => Container(
-                                  width: 28,
-                                  height: 28,
-                                  alignment: Alignment.center,
-                                  decoration: ShapeDecoration(
-                                    color: hovered
-                                        ? (c.isEvening
-                                              ? c.inset
-                                              : Colors.white.withValues(
-                                                  alpha: 0.12,
-                                                ))
-                                        : Colors.transparent,
-                                    shape: cruShape(8),
-                                  ),
-                                  child: CruIcon(
-                                    CruIcons.chevronLeft,
-                                    size: 16,
-                                    color: c.isEvening
-                                        ? c.label2
-                                        : CruBrand.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+                      // The logo and name open and close the sidebar.
+                      CruPressable(
+                        onTap: canExpand ? callbacks.onToggleCollapsed : null,
+                        tooltip: canExpand
+                            ? (collapsed
+                                  ? 'Expand sidebar (Ctrl+B)'
+                                  : 'Collapse sidebar (Ctrl+B)')
+                            : null,
+                        scaleOnPress: false,
+                        builder: (context, hovered) =>
+                            _Brand(collapsed: collapsed, progress: progress),
                       ),
                       const SizedBox(height: CruSpace.s16),
-                      _ClinicSwitcher(
-                        identity: identity,
-                        collapsed: collapsed,
-                        onTap: callbacks.onClinicSwitcher,
-                        progress: progress,
+                      TutorialAnchor(
+                        target: TutorialTarget.account,
+                        radius: CruRadius.switcher,
+                        child: _ProfileButton(
+                          name: identity.fullName,
+                          collapsed: collapsed,
+                          callbacks: callbacks,
+                          canExpand: canExpand,
+                          progress: progress,
+                        ),
                       ),
                       const SizedBox(height: CruSpace.s16),
                       Expanded(
@@ -411,46 +387,59 @@ class CruSidebar extends ConsumerWidget {
                               // and items; 18 px between groups.
                               for (var g = 0; g < groups.length; g++) ...[
                                 if (g > 0) const SizedBox(height: 16),
-                                if (progress > 0.1)
-                                  Padding(
-                                    padding: EdgeInsets.fromLTRB(
-                                      lerpDouble(4, 10, progress)!,
-                                      0,
-                                      10,
-                                      6,
-                                    ),
-                                    child: Opacity(
-                                      opacity: ((progress - 0.25) / 0.75).clamp(
-                                        0.0,
-                                        1.0,
+                                // The label's slot grows and shrinks with the
+                                // sidebar, so the icons below glide up and down
+                                // instead of jumping.
+                                ClipRect(
+                                  child: Align(
+                                    alignment: Alignment.topLeft,
+                                    heightFactor: Curves.easeInOutCubic
+                                        .transform(progress),
+                                    child: Padding(
+                                      padding: EdgeInsets.fromLTRB(
+                                        lerpDouble(4, 10, progress)!,
+                                        0,
+                                        10,
+                                        6,
                                       ),
-                                      child: Transform.translate(
-                                        offset: Offset(
-                                          (1.0 - progress) * -12.0,
-                                          0,
-                                        ),
-                                        child: Text(
-                                          groups[g].label,
-                                          style: c.isEvening
-                                              ? CruType.groupLabel.tint(
-                                                  c.label3,
-                                                )
-                                              : CruType.groupLabel.tint(
-                                                  CruBrand.white.withValues(
-                                                    alpha: 0.72,
+                                      child: Opacity(
+                                        opacity: ((progress - 0.25) / 0.75)
+                                            .clamp(0.0, 1.0),
+                                        child: Transform.translate(
+                                          offset: Offset(
+                                            (1.0 - progress) * -12.0,
+                                            0,
+                                          ),
+                                          child: Text(
+                                            groups[g].label,
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            overflow: TextOverflow.clip,
+                                            style: c.isEvening
+                                                ? CruType.groupLabel.tint(
+                                                    c.label3,
+                                                  )
+                                                : CruType.groupLabel.tint(
+                                                    CruBrand.white.withValues(
+                                                      alpha: 0.72,
+                                                    ),
                                                   ),
-                                                ),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
+                                ),
                                 for (
                                   var i = 0;
                                   i < groups[g].items.length;
                                   i++
                                 ) ...[
-                                  if (i > 0 || !collapsed)
-                                    const SizedBox(height: CruSpace.s2),
+                                  SizedBox(
+                                    height: i > 0
+                                        ? CruSpace.s2
+                                        : lerpDouble(0, CruSpace.s2, progress)!,
+                                  ),
                                   TutorialAnchor.maybe(
                                     target:
                                         _tourTargets[groups[g].items[i].tab],
@@ -509,86 +498,6 @@ class CruSidebar extends ConsumerWidget {
                         const SizedBox(height: CruSpace.s8),
                       ],
                       SyncStatusLine(collapsed: collapsed),
-                      TutorialAnchor(
-                        target: TutorialTarget.account,
-                        radius: CruRadius.switcher,
-                        child: _ProfileButton(
-                          name: identity.fullName,
-                          collapsed: collapsed,
-                          callbacks: callbacks,
-                          canExpand: canExpand,
-                          progress: progress,
-                        ),
-                      ),
-                      if (canExpand && progress < 0.75) ...[
-                        Opacity(
-                          opacity: ((0.75 - progress) / 0.75).clamp(0.0, 1.0),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: CruSpace.s8),
-                              if (callbacks.onToggleTheme != null) ...[
-                                CruPressable(
-                                  onTap: callbacks.onToggleTheme,
-                                  tooltip: c.isEvening
-                                      ? 'Night Mode (Click to switch to Day Mode)'
-                                      : 'Day Mode (Click to switch to Night Mode)',
-                                  builder: (context, hovered) => Container(
-                                    width: 32,
-                                    height: 32,
-                                    alignment: Alignment.center,
-                                    decoration: ShapeDecoration(
-                                      color: hovered
-                                          ? (c.isEvening
-                                                ? c.inset
-                                                : Colors.white.withValues(
-                                                    alpha: 0.12,
-                                                  ))
-                                          : Colors.transparent,
-                                      shape: cruShape(8),
-                                    ),
-                                    child: CruIcon(
-                                      c.isEvening
-                                          ? CruIcons.moon
-                                          : CruIcons.sun,
-                                      size: 16,
-                                      color: c.isEvening
-                                          ? c.accentText
-                                          : const Color(0xFFF59E0B),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: CruSpace.s4),
-                              ],
-                              CruPressable(
-                                onTap: callbacks.onToggleCollapsed,
-                                tooltip: 'Expand sidebar (Ctrl+B)',
-                                builder: (context, hovered) => Container(
-                                  width: 32,
-                                  height: 32,
-                                  alignment: Alignment.center,
-                                  decoration: ShapeDecoration(
-                                    color: hovered
-                                        ? (c.isEvening
-                                              ? c.inset
-                                              : Colors.white.withValues(
-                                                  alpha: 0.12,
-                                                ))
-                                        : Colors.transparent,
-                                    shape: cruShape(8),
-                                  ),
-                                  child: CruIcon(
-                                    CruIcons.chevronRight,
-                                    size: 16,
-                                    color: c.isEvening
-                                        ? c.label2
-                                        : CruBrand.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -609,12 +518,12 @@ class _Brand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final curveProgress = Curves.easeInOutCubic.transform(progress);
-    final impulse = math.sin(progress * math.pi);
+    // `progress` is already the sidebar width's own curve, so the icon moves
+    // in step with the edge: no extra easing, bounce or scale.
+    final curveProgress = progress;
     // In collapsed (48px wide): mark is 32px wide. Centered: (48 - 32) / 2 = 8.0.
     // In expanded: left margin is 8.0.
-    final markX = lerpDouble(8.0, 8.0, curveProgress)! + impulse * 3.0;
-    final markScale = 1.0 + impulse * 0.10;
+    final markX = lerpDouble(8.0, 10.0, curveProgress)!;
 
     final mark = Container(
       width: CruSize.appMark,
@@ -639,14 +548,10 @@ class _Brand extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Positioned(
-              left: markX,
-              top: 0,
-              child: Transform.scale(scale: markScale, child: mark),
-            ),
+            Positioned(left: markX, top: 0, child: mark),
             if (progress > 0.15)
               Positioned(
-                left: 8.0 + CruSize.appMark + CruSpace.s10,
+                left: 10.0 + CruSize.appMark + CruSpace.s10,
                 top: 0,
                 bottom: 0,
                 child: Opacity(
@@ -662,125 +567,6 @@ class _Brand extends StatelessWidget {
                         ),
                       ),
                     ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Replaces the old Specialty Mode card and Switch Specialty button.
-class _ClinicSwitcher extends StatelessWidget {
-  const _ClinicSwitcher({
-    required this.identity,
-    required this.collapsed,
-    required this.onTap,
-    this.progress = 1.0,
-  });
-
-  final DoctorIdentity identity;
-  final bool collapsed;
-  final VoidCallback onTap;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    final title = identity.clinicName ?? identity.specialty ?? '';
-    final subtitle = identity.clinicName == null ? null : identity.specialty;
-    final letter = title.isEmpty ? '·' : title[0].toUpperCase();
-
-    final curveProgress = Curves.easeInOutCubic.transform(progress);
-    final impulse = math.sin(progress * math.pi);
-    // Collapsed: centered in 48 -> (48 - 32) / 2 = 8.0.
-    // Expanded: left docked at 10.0.
-    final tileX = lerpDouble(8.0, 10.0, curveProgress)! + impulse * 3.0;
-    final tileScale = 1.0 + impulse * 0.10;
-    final switcherHeight = lerpDouble(40.0, 52.0, curveProgress)!;
-
-    final tile = Container(
-      width: CruSize.clinicTile,
-      height: CruSize.clinicTile,
-      alignment: Alignment.center,
-      decoration: ShapeDecoration(
-        color: c.accentTint,
-        shape: cruShape(CruRadius.appMark),
-      ),
-      child: Text(letter, style: CruType.callout.tint(c.accentText)),
-    );
-
-    return CruPressable(
-      onTap: onTap,
-      semanticLabel: 'Clinic: $title. Open clinic settings',
-      tooltip: collapsed ? title : null,
-      builder: (context, hovered) => AnimatedContainer(
-        duration: CruMotion.of(context, CruMotion.fast),
-        height: switcherHeight,
-        decoration: ShapeDecoration(
-          color: hovered ? cruHoverShade(c.surface, c) : c.surface,
-          shape: cruShape(
-            CruRadius.switcher,
-            side: BorderSide(color: c.hairline),
-          ),
-          shadows: c.cardShadow,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: tileX,
-              top: (switcherHeight - CruSize.clinicTile) / 2,
-              child: Transform.scale(scale: tileScale, child: tile),
-            ),
-            if (progress > 0.2)
-              Positioned(
-                left: 10.0 + CruSize.clinicTile + CruSpace.s10,
-                right: 32.0,
-                top: 0,
-                bottom: 0,
-                child: Opacity(
-                  opacity: ((progress - 0.3) / 0.7).clamp(0.0, 1.0),
-                  child: Transform.translate(
-                    offset: Offset((1.0 - progress) * 16.0, 0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: CruType.callout
-                              .copyWith(height: 18 / 14)
-                              .tint(c.label),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (subtitle != null)
-                          Text(
-                            subtitle,
-                            style: CruType.caption.tint(c.label2),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (progress > 0.35)
-              Positioned(
-                right: 10.0,
-                top: (switcherHeight - 16.0) / 2,
-                child: Opacity(
-                  opacity: ((progress - 0.35) / 0.65).clamp(0.0, 1.0),
-                  child: CruIcon(
-                    CruIcons.chevronsUpDown,
-                    size: 16,
-                    strokeWidth: 1.8,
-                    color: c.label3,
                   ),
                 ),
               ),
@@ -852,14 +638,9 @@ class _SidebarItem extends StatelessWidget {
             shadows = null;
           }
 
-          final curveProgress = Curves.easeInOutCubic.transform(progress);
-          final impulse = math.sin(progress * math.pi);
           // Collapsed: centered in 48 -> (48 - 20) / 2 = 14.0.
-          // Expanded: left docked at 10.0.
-          // Dynamic impulse glides the icon physically across space with dynamic lift and settling
-          final iconX = lerpDouble(14.0, 10.0, curveProgress)! + impulse * 4.0;
-          final iconScale = 1.0 + impulse * 0.15;
-          final iconShiftY = -impulse * 1.5;
+          // Expanded: left docked at 10.0. Moves with the sidebar's edge.
+          final iconX = lerpDouble(14.0, 10.0, progress)!;
 
           final icon = CruIcon(
             item.icon,
@@ -883,14 +664,14 @@ class _SidebarItem extends StatelessWidget {
                 // Icon that physically glides dynamically
                 Positioned(
                   left: iconX,
-                  top: (CruSize.navItem - CruSize.navIcon) / 2 + iconShiftY,
-                  child: Transform.scale(scale: iconScale, child: icon),
+                  top: (CruSize.navItem - CruSize.navIcon) / 2,
+                  child: icon,
                 ),
                 // Collapsed status dot
                 if (badge != null && progress < 0.6)
                   Positioned(
                     left: iconX + 13.0,
-                    top: 7.0 + iconShiftY,
+                    top: 7.0,
                     child: Opacity(
                       opacity: ((0.6 - progress) / 0.6).clamp(0.0, 1.0),
                       child: const CruStatusDot(
@@ -1072,12 +853,10 @@ class _ProfileButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final display = name ?? 'Account';
-    final curveProgress = Curves.easeInOutCubic.transform(progress);
-    final impulse = math.sin(progress * math.pi);
+    final curveProgress = progress;
     // Collapsed: centered in 48 -> (48 - 34) / 2 = 7.0.
     // Expanded: left docked at 10.0.
-    final avatarX = lerpDouble(7.0, 10.0, curveProgress)! + impulse * 3.0;
-    final avatarScale = 1.0 + impulse * 0.10;
+    final avatarX = lerpDouble(7.0, 10.0, curveProgress)!;
     final cardHeight = lerpDouble(42.0, 52.0, curveProgress)!;
 
     final avatar = CruMonogram(
@@ -1114,7 +893,7 @@ class _ProfileButton extends StatelessWidget {
             Positioned(
               left: avatarX,
               top: (cardHeight - 34.0) / 2,
-              child: Transform.scale(scale: avatarScale, child: avatar),
+              child: avatar,
             ),
             if (progress > 0.2)
               Positioned(

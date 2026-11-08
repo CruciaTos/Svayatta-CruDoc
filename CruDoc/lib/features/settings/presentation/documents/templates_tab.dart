@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -37,7 +38,7 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showIsland(SnackBar(content: Text(msg)));
   }
 
   Future<void> _openNewTemplateDialog(bool canEditClinic) async {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
+import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -131,6 +133,35 @@ class PatientDetailsHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         );
+        final nameRow = Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: name),
+            if (patientDetailsPending(p)) ...[
+              const SizedBox(width: CruSpace.s8),
+              CruPressable(
+                onTap: () => showEditPatientSheet(context, patient: p),
+                semanticLabel: 'Details pending. Edit patient.',
+                builder: (context, hovered) => Container(
+                  height: CruSize.infoPill,
+                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+                  decoration: ShapeDecoration(
+                    color: hovered
+                        ? cruHoverShade(c.amberTint, c)
+                        : c.amberTint,
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Details pending',
+                      style: CruType.caption.w600.tint(c.amberText),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
         final metaText = Text(
           meta,
           style: CruType.text.tabular.tint(c.label2),
@@ -197,7 +228,7 @@ class PatientDetailsHeader extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
-                      children: [name, metaText],
+                      children: [nameRow, metaText],
                     ),
                   ),
                   ...contact,
@@ -236,7 +267,7 @@ class PatientDetailsHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      name,
+                      nameRow,
                       const SizedBox(height: CruSpace.s2),
                       metaText,
                       if (allergyPill != null) ...[

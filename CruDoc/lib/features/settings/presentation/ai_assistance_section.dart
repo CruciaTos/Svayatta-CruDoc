@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
@@ -32,6 +33,10 @@ class AiAssistanceSection extends ConsumerWidget {
       children: [
         // Clinician-in-the-loop safety banner
         _SafetyBanner(),
+        gap,
+
+        // Cloud AI consent switch
+        const _CloudAiSwitchCard(),
         gap,
 
         // Medical Scribe & Consultation AI
@@ -308,6 +313,90 @@ class _Card extends StatelessWidget {
           const SizedBox(height: CruSpace.s20),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _CloudAiSwitchCard extends StatefulWidget {
+  const _CloudAiSwitchCard();
+
+  @override
+  State<_CloudAiSwitchCard> createState() => _CloudAiSwitchCardState();
+}
+
+class _CloudAiSwitchCardState extends State<_CloudAiSwitchCard> {
+  bool _granted = false;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final v = await AiConsent.read();
+    if (mounted) {
+      setState(() {
+        _granted = v == true;
+        _loaded = true;
+      });
+    }
+  }
+
+  Future<void> _toggle(bool value) async {
+    await AiConsent.set(value);
+    if (mounted) {
+      setState(() => _granted = value);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return _Card(
+      title: 'Cloud AI',
+      description:
+          'CruDoc uses Google Gemini AI for consultation notes, voice commands, form filling, and scan reading.',
+      trailing: _loaded
+          ? Semantics(
+              toggled: _granted,
+              child: CruPressable(
+                onTap: () => _toggle(!_granted),
+                semanticLabel: 'Use cloud AI',
+                builder: (context, hovered) => AnimatedContainer(
+                  duration: CruMotion.of(context, CruMotion.fast),
+                  curve: CruMotion.curve,
+                  width: CruSpace.s32 + CruSpace.s8,
+                  height: CruSpace.s24,
+                  padding: const EdgeInsets.all(CruSpace.s2),
+                  alignment: _granted
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                    color: _granted ? c.accent : c.track,
+                    borderRadius: BorderRadius.circular(CruRadius.full),
+                  ),
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      shape: BoxShape.circle,
+                      boxShadow: c.cardShadow,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : null,
+      child: _FeatureRow(
+        icon: CruIcons.sparkle,
+        title: 'Use cloud AI',
+        detail: _granted
+            ? 'Cloud AI features are enabled.'
+            : 'Turn on to enable ambient scribe notes, voice commands, and scan reading.',
       ),
     );
   }

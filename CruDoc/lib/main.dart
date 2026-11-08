@@ -1,4 +1,6 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -44,7 +46,10 @@ import 'features/files/data/files_cloud_sync.dart';
 import 'features/files/data/files_repository.dart';
 import 'features/files/lan/device_registry_service.dart';
 import 'features/files/lan/lan_mdns_service.dart';
+import 'features/files/lan/lan_lifecycle.dart';
 import 'features/files/lan/lan_server.dart';
+import 'features/files/lan/lan_startup.dart';
+import 'features/files/data/incoming_open_in.dart';
 import 'features/files/lan/offline_offer_queue.dart';
 import 'features/files/data/wifi_offers.dart';
 import 'features/files/presentation/incoming_card.dart' show markOfferHandled;
@@ -126,6 +131,8 @@ Future<void> main() async {
   FilesRepository.register();
   StorageSyncQueue.instance.start();
 
+  IncomingOpenIn.start();
+
   runApp(const ProviderScope(child: MoodyDashboardApp()));
 }
 
@@ -138,7 +145,7 @@ void _showForcedLogoutSnackBar(String reason) {
 
     if (messenger != null && messenger.mounted) {
       try {
-        messenger.showSnackBar(
+        messenger.showIsland(
           // The app's toast (see CruTheme): never red, red is for allergies.
           SnackBar(content: Text(reason), duration: const Duration(seconds: 5)),
         );
@@ -205,6 +212,7 @@ void _wireDoctorScopedStartup() {
     close: () async {
       await _lanTeamWatch?.cancel();
       _lanTeamWatch = null;
+      LanLifecycle.instance.stop();
       WifiOffers.instance.stop();
       await LanMdnsService.instance.stopBroadcast();
       OfflineOfferQueue.instance.stop();
@@ -230,11 +238,16 @@ StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _lanTeamWatch;
 /// joins instead of on the next app start. The team answer is remembered
 /// for starts without internet.
 Future<void> _startLanServices(ClinicAccess access, String myUid) async {
+  LanStartup.starter = () => _startLanServices(access, myUid);
   await _lanTeamWatch?.cancel();
   _lanTeamWatch = null;
   if (!access.can(ClinicPermission.clinicalView)) return;
   final prefs = await SharedPreferences.getInstance();
   if (!(prefs.getBool('crudoc.lan.enabled') ?? true)) return;
+  if ((Platform.isIOS || Platform.isMacOS) &&
+      !(prefs.getBool(LanStartup.askedKey) ?? false)) {
+    return;
+  }
   if (access.clinicId != myUid) return _runLanServices(access.clinicId, myUid);
 
   final key = 'crudoc.lan.team.${access.clinicId}';
@@ -276,6 +289,7 @@ Future<void> _runLanServices(String clinicId, String myUid) async {
       uid: myUid,
       onReceived: markOfferHandled,
     );
+    LanLifecycle.instance.start();
     unawaited(LanMdnsService.instance.startBroadcast(port: lanPort));
   } catch (e) {
     debugPrint('[LanStartup] Non-critical LAN startup notice: $e');

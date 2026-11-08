@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,8 @@ import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dar
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
+import 'package:doctor_management_app/core/widgets/legal_links_row.dart';
+import 'package:doctor_management_app/features/settings/presentation/delete_account_dialog.dart';
 import 'package:doctor_management_app/features/settings/presentation/documents/documents_settings_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/ai_assistance_section.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -187,6 +190,9 @@ class DesktopSettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: CruSpace.s16),
             body(section),
+            const SizedBox(height: CruSpace.s24),
+            const Center(child: LegalLinksRow()),
+            const SizedBox(height: CruSpace.s16),
           ],
         ),
       );
@@ -214,18 +220,26 @@ class DesktopSettingsScreen extends ConsumerWidget {
               children: [
                 SizedBox(
                   width: _kNavWidth,
-                  child: TutorialAnchor(
-                    target: TutorialTarget.settingsSections,
-                    radius: CruRadius.card,
-                    child: _SectionList(
-                      sections: [
-                        for (final s in SettingsSection.values)
-                          if (showSettingsSection(ref, s)) s,
-                      ],
-                      selected: section,
-                      onSelect: (s) =>
-                          ref.read(settingsSectionProvider.notifier).state = s,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TutorialAnchor(
+                        target: TutorialTarget.settingsSections,
+                        radius: CruRadius.card,
+                        child: _SectionList(
+                          sections: [
+                            for (final s in SettingsSection.values)
+                              if (showSettingsSection(ref, s)) s,
+                          ],
+                          selected: section,
+                          onSelect: (s) =>
+                              ref.read(settingsSectionProvider.notifier).state =
+                                  s,
+                        ),
+                      ),
+                      const SizedBox(height: CruSpace.s16),
+                      const Center(child: LegalLinksRow()),
+                    ],
                   ),
                 ),
                 const SizedBox(width: CruSpace.cardGap),
@@ -465,10 +479,7 @@ class _ActionRow extends StatelessWidget {
             ],
           ),
         ),
-        if (action != null) ...[
-          const SizedBox(width: CruSpace.s16),
-          action!,
-        ],
+        if (action != null) ...[const SizedBox(width: CruSpace.s16), action!],
       ],
     );
   }
@@ -476,7 +487,7 @@ class _ActionRow extends StatelessWidget {
 
 void _toast(BuildContext context, String message) {
   final c = context.cru;
-  ScaffoldMessenger.of(context).showSnackBar(
+  ScaffoldMessenger.of(context).showIsland(
     SnackBar(
       content: Text(message, style: CruType.text.tint(c.surface)),
       backgroundColor: c.label,
@@ -578,6 +589,13 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
     if (mounted) context.go('/auth');
   }
 
+  Future<void> _deleteAccount() async {
+    final deleted = await showDeleteAccountDialog(context, ref);
+    if (deleted && mounted) {
+      context.go('/auth');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -632,6 +650,18 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                 kind: CruButtonKind.inset,
                 icon: CruIcons.logout,
                 onPressed: _signOut,
+              ),
+            ),
+            const SizedBox(height: CruSpace.s16),
+            const CruSeparator(),
+            const SizedBox(height: CruSpace.s16),
+            _ActionRow(
+              title: 'Delete account',
+              detail: 'Permanently deletes your account and clinic data.',
+              action: CruButton(
+                label: 'Delete account',
+                kind: CruButtonKind.inset,
+                onPressed: _deleteAccount,
               ),
             ),
           ],
@@ -777,10 +807,6 @@ class _PlanSectionState extends State<_PlanSection> {
     );
   }
 }
-
-
-
-
 
 // =============================================================================
 // CONNECTED ACCOUNTS
@@ -1292,7 +1318,8 @@ class _DentalSection extends ConsumerWidget {
           trailing: CruButton(
             label: 'Open',
             kind: CruButtonKind.secondary,
-            onPressed: () => _openDentalPage(context, ref, DesktopTab.procedures),
+            onPressed: () =>
+                _openDentalPage(context, ref, DesktopTab.procedures),
           ),
           child: const SizedBox.shrink(),
         ),

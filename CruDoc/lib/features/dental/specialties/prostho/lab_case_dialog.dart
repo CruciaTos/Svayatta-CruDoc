@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -854,7 +855,7 @@ Future<void> sendLabCaseToLab(
   }
 
   if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showIsland(
       SnackBar(
         content: Text('Prescription saved: ${p.basename(pdfPath)}'),
         action: SnackBarAction(

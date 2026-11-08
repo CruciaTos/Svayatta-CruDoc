@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_ai/firebase_ai.dart';
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/core/services/callable_client.dart';
 import 'package:doctor_management_app/core/services/api_usage_service.dart';
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
@@ -176,6 +177,7 @@ class VoiceTranscriptionService {
 
   /// Internal speech-to-text transcription engine using Gemini multimodal audio.
   Future<String> _transcribeAudio(Uint8List audioBytes) async {
+    if (!await AiConsent.granted) throw const AiConsentRequired();
     const prompt =
         'Transcribe the spoken audio query verbatim. '
         'The speaker is a doctor asking a question or giving a command. '

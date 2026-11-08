@@ -7,6 +7,7 @@ import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/core/services/api_usage_service.dart';
 
 /// Sends a prompt (with optional audio) to Gemini and returns the model's
@@ -149,6 +150,7 @@ class GeminiJsonClient {
     bool quick = false,
     String feature = 'other',
   }) async {
+    if (!await AiConsent.granted) throw const AiConsentRequired();
     final model = await modelName();
     final _GeminiReply reply;
     try {

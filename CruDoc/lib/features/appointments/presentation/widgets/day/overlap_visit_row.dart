@@ -28,10 +28,7 @@ class OverlapVisitRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s10),
       child: Row(
         children: [
-          CruMonogram(
-            name: item.name,
-            size: CruSize.monogramList,
-          ),
+          CruMonogram(name: item.name, size: CruSize.monogramList),
           const SizedBox(width: CruSpace.s12),
           Expanded(
             child: Column(

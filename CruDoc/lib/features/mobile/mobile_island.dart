@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
@@ -74,6 +75,7 @@ class MobileIsland extends ConsumerStatefulWidget {
 class _MobileIslandState extends ConsumerState<MobileIsland> {
   bool _expanded = false;
   String? _notice;
+  AppNotice? _appNotice;
   Timer? _noticeTimer;
 
   static const _spring = Cubic(0.2, 1.18, 0.32, 1);
@@ -81,7 +83,26 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
   static const _black = Color(0xFF000000);
 
   @override
+  void initState() {
+    super.initState();
+    AppNotices.current.addListener(_onAppNotice);
+  }
+
+  /// A message from the app (a SnackBar's old job): grow to show it.
+  void _onAppNotice() {
+    final n = AppNotices.current.value;
+    _noticeTimer?.cancel();
+    setState(() {
+      _appNotice = n;
+      _notice = n?.text;
+      if (n != null) _expanded = false;
+    });
+  }
+
+  @override
   void dispose() {
+    AppNotices.current.removeListener(_onAppNotice);
+    AppNotices.hosted = false;
     _noticeTimer?.cancel();
     super.dispose();
   }
@@ -89,6 +110,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
   void _say(String text) {
     _noticeTimer?.cancel();
     setState(() {
+      _appNotice = null;
       _notice = text;
       _expanded = false;
     });
@@ -135,6 +157,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
     final signedIn =
         ref.watch(authStateProvider).value != null ||
         DemoSessionService.isDemoMode;
+    AppNotices.hosted = signedIn;
     if (!signedIn) return const SizedBox.shrink();
 
     final data = ref.watch(dashboardDataProvider);
@@ -237,7 +260,19 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
                         ? 'Say "confirm"'
                         : widget.voice.need,
                   ),
-                  _Mode.notice => _line(_notice!),
+                  _Mode.notice => _line(
+                    _notice!,
+                    detail:
+                        _appNotice?.from != null && _appNotice?.to != null
+                        ? '${_appNotice!.from} → ${_appNotice!.to}'
+                        : null,
+                    action: _appNotice?.actionLabel,
+                    onAction: () {
+                      final n = _appNotice;
+                      AppNotices.clear();
+                      n?.onAction?.call();
+                    },
+                  ),
                   _Mode.question => _question(),
                 },
               ),
@@ -592,16 +627,35 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
     );
   }
 
-  Widget _line(String text, {String? hint}) => Padding(
+  Widget _line(
+    String text, {
+    String? hint,
+    String? detail,
+    String? action,
+    VoidCallback? onAction,
+  }) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
     child: Row(
       children: [
         Expanded(
-          child: Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: MobileType.callout.tint(_white),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: MobileType.callout.tint(_white),
+              ),
+              if (detail != null)
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MobileType.caption.tint(const Color(0xFFB5B5BA)),
+                ),
+            ],
           ),
         ),
         if (hint != null) ...[
@@ -609,6 +663,24 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
           Text(
             hint,
             style: MobileType.caption.w600.tint(const Color(0xFFCDB0F2)),
+          ),
+        ],
+        if (action != null) ...[
+          const SizedBox(width: 14),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onAction,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                action,
+                style: MobileType.callout.w700.tint(_black),
+              ),
+            ),
           ),
         ],
       ],

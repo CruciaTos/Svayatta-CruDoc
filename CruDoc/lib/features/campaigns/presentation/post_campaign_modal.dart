@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -197,7 +198,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
     final targetList = _filteredAudience;
 
     if (targetList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text(
             'No eligible patients found for the selected audience.',
@@ -1621,7 +1622,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
               onPressed: () {
                 if (_currentStep == 0) {
                   if (_titleController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context).showIsland(
                       const SnackBar(
                         content: Text('Please enter a campaign title.'),
                       ),
@@ -1629,7 +1630,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                     return;
                   }
                   if (_messageController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(context).showIsland(
                       const SnackBar(
                         content: Text('Please enter campaign message body.'),
                       ),

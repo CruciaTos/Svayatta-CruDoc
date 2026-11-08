@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
 
@@ -555,6 +556,7 @@ be printed or handwritten.
     required List<ScannedPage> pages,
     required Schema schema,
   }) async {
+    if (!await AiConsent.granted) throw const AiConsentRequired();
     final images = [for (final p in pages) p.jpeg];
     try {
       return await _client.generateJson(

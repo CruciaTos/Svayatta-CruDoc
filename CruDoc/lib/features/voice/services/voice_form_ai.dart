@@ -5,6 +5,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 
 /// The forms voice can fill, each with the fields Gemini may return.
@@ -57,6 +58,7 @@ class VoiceFormAi {
     Map<String, Object?> current = const {},
     Map<String, List<String>> choices = const {},
   }) async {
+    if (!await AiConsent.granted) throw const AiConsentRequired();
     final said = text.trim();
     if (said.isEmpty) return null;
     final off = _offUntil;

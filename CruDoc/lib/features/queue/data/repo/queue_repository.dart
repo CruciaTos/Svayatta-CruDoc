@@ -575,4 +575,15 @@ class QueueRepository {
     }
     unawaited(_syncService.triggerPostWriteSync());
   }
+
+  /// A walk-in token gets a patient record; the token keeps its number.
+  Future<void> linkWalkInToPatient(String entryId, String patientId) async {
+    await _localService.updateEntry(entryId, {
+      'patientId': patientId,
+      'walkInName': null,
+      'walkInPhone': null,
+      'updatedAt': DateTime.now(),
+    });
+    unawaited(_syncService.triggerPostWriteSync());
+  }
 }

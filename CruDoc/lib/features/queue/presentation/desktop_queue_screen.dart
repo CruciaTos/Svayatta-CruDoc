@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -20,6 +21,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/patient_picker_dialog.dart';
+import 'package:doctor_management_app/features/patients/presentation/quick_patient_dialog.dart';
 
 /// How long a patient may wait in line before their card is flagged
 /// as breaching the target.
@@ -131,7 +133,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
   void _showFeedback(String message) {
     if (!mounted) return;
     final c = context.cru;
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showIsland(
       SnackBar(
         content: Text(message, style: CruType.text.tint(c.surface)),
         backgroundColor: c.label,
@@ -226,6 +228,24 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
       );
     } catch (e) {
       _showFeedback('Could not add ${patient.firstName}: $e');
+    }
+  }
+
+  Future<void> _registerWalkIn(QueueEntry entry) async {
+    final patient = await showQuickPatientDialog(
+      context,
+      initialName: entry.walkInName ?? '',
+      initialPhone: entry.walkInPhone ?? '',
+      submitLabel: 'Register',
+    );
+    if (patient == null || !mounted) return;
+    try {
+      await ref
+          .read(queueRepositoryProvider)
+          .linkWalkInToPatient(entry.id, patient.id);
+      _showFeedback('Registered ${patient.fullName}');
+    } catch (e) {
+      _showFeedback('Could not register ${patient.fullName}: $e');
     }
   }
 
@@ -1064,6 +1084,11 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
     final open =
         entry.status != QueueStatus.completed &&
         entry.status != QueueStatus.cancelled;
+    if (entry.patientId == null || entry.patientId!.isEmpty) {
+      menu.add(
+        _MenuAction('Register as patient', () => _registerWalkIn(entry)),
+      );
+    }
     if (open && members.length < kMaxGroupPatients) {
       menu.add(
         _MenuAction('Add a patient to this token', () => _addToToken(item)),

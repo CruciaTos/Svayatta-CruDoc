@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/core/utils/store_policy.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_view_providers.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
@@ -315,7 +316,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         view: view,
         onNewOrder: () => _controller.setTab(InventoryTab.orders),
         onAddItem: () => InventoryActions.addItem(context, ref),
-        onScan: () => InventoryActions.scanItem(context, ref),
+        onScan: documentScanSupported
+            ? () => InventoryActions.scanItem(context, ref)
+            : null,
         onSterilization: sterilization ? _openSterilization : null,
       ),
     );
@@ -654,9 +657,7 @@ class _NoMatches extends StatelessWidget {
         gutter: false,
         icon: CruIcons.search,
         title: q.isEmpty ? 'No items here' : 'No matches',
-        body: q.isEmpty
-            ? 'No items in this list.'
-            : 'No items match “$q”.',
+        body: q.isEmpty ? 'No items in this list.' : 'No items match “$q”.',
         action: q.isEmpty ? null : 'Clear search',
         actionIcon: null,
         onAction: onClear,

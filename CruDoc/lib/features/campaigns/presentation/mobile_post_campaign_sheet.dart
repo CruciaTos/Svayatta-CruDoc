@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1198,7 +1199,7 @@ class _MobilePostCampaignSheetState
                 if (_currentStep == 0 &&
                     (_titleController.text.trim().isEmpty ||
                         _messageController.text.trim().isEmpty)) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  ScaffoldMessenger.of(context).showIsland(
                     const SnackBar(
                       content: Text(
                         'Please fill out the campaign title and message.',
@@ -1253,7 +1254,7 @@ class _MobilePostCampaignSheetState
   Future<void> _handlePublish() async {
     final audience = _filteredAudience;
     if (audience.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text(
             'Target audience is empty. Please choose eligible patients.',

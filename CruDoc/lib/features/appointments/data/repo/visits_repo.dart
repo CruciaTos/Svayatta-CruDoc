@@ -160,15 +160,9 @@ class VisitRepository {
   /// and use the id it returns here. This method never creates a
   /// patient, and never should.
   ///
-  /// TEMPORARY (functional-verification phase): the patient-existence
-  /// check and the overlap check below are disabled for now — both were
-  /// pre-create Firestore reads, and the patient-existence read in
-  /// particular was crashing the app when adding a new visitation.
-  /// [acknowledgeOverlap] is kept as a no-op parameter so the call site
-  /// doesn't need to change. Restore both `_checkPatient` and
-  /// `_checkOverlap` calls (and remove the `unused_element` ignore on
-  /// `_checkPatient`) once this is revisited — likely alongside the
-  /// planned Local-First/SQLite refactor.
+  /// Note: The overlap check and same-patient double booking check are enabled
+  /// (reading from local database). The patient-existence check remains disabled
+  /// for now as its pre-create Firestore read crashed the app.
   ///
   /// Throws:
   /// - [VisitValidationException] for missing/invalid fields.
@@ -177,17 +171,14 @@ class VisitRepository {
   /// - [InactivePatientException] if that patient is archived. —
   ///   currently disabled, see above.
   /// - [SamePatientDoubleBookingException] if the same patient already
-  ///   has an overlapping visit — never bypassable. — currently
-  ///   disabled, see above.
+  ///   has an overlapping visit — never bypassable.
   /// - [VisitOverlapWarning] if a *different* patient has an overlapping
   ///   visit and [acknowledgeOverlap] is false. Catch this, show the
   ///   doctor the conflicting visits, and call again with
-  ///   `acknowledgeOverlap: true` if they confirm. — currently disabled,
-  ///   see above.
+  ///   `acknowledgeOverlap: true` if they confirm.
   /// - [VisitOverlapLimitExceededException] if saving would exceed
   ///   [kMaxOverlappingVisits] simultaneous active visits — never
-  ///   bypassable, regardless of [acknowledgeOverlap]. — currently
-  ///   disabled, see above.
+  ///   bypassable, regardless of [acknowledgeOverlap].
   ///
   /// Note: geocoding the address is best-effort and never throws — see
   /// [_resolveCoords]. A visit always saves successfully regardless of
@@ -199,12 +190,15 @@ class VisitRepository {
   }) async {
     _validate(visit);
     // await _checkPatient(visit.patientId);
-    // await _checkOverlap(
-    //   patientId: visit.patientId,
-    //   start: visit.scheduledStart,
-    //   end: visit.scheduledEnd,
-    //   acknowledgeOverlap: acknowledgeOverlap,
-    // );
+    // The check reads the local database, which the web build doesn't have.
+    if (!kIsWeb) {
+      await _checkOverlap(
+        patientId: visit.patientId,
+        start: visit.scheduledStart,
+        end: visit.scheduledEnd,
+        acknowledgeOverlap: acknowledgeOverlap,
+      );
+    }
 
     // Geocoding is a nice-to-have (map preview / tap-to-navigate), not a
     // requirement for saving a visit — the address field is optional.

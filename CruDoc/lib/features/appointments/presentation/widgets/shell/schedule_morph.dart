@@ -58,7 +58,8 @@ class ScheduleMorph extends ChangeNotifier {
 
   /// Each page's calendar area. Day shares Week's page, so its key.
   final Map<ApptsView, GlobalKey> _areas = {
-    for (final v in ApptsView.values) v: GlobalKey(debugLabel: '${v.name} area'),
+    for (final v in ApptsView.values)
+      v: GlobalKey(debugLabel: '${v.name} area'),
   };
 
   GlobalKey areaFor(ApptsView view) =>
@@ -70,8 +71,7 @@ class ScheduleMorph extends ChangeNotifier {
   /// The pages swap in place (no sideways slide) for the next change.
   bool takeSwap() {
     final swap =
-        _swapOnce ||
-        (trip != null && trip!.phase == ScheduleTripPhase.opening);
+        _swapOnce || (trip != null && trip!.phase == ScheduleTripPhase.opening);
     _swapOnce = false;
     return swap;
   }
@@ -281,7 +281,9 @@ class _ScheduleMorphAreaState extends ConsumerState<ScheduleMorphArea>
 
   void _measure(ScheduleTrip trip) {
     final me = context.findRenderObject();
-    final area = _morph.areaFor(ApptsView.day).currentContext
+    final area = _morph
+        .areaFor(ApptsView.day)
+        .currentContext
         ?.findRenderObject();
     if (me is! RenderBox || area is! RenderBox) return;
     final dests = captureMorphTags(

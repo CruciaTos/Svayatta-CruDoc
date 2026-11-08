@@ -9,6 +9,9 @@ import 'package:doctor_management_app/features/voice/domain/medical_conditions.d
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/features/patients/domain/duplicate_patient.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_voice_fill_bar.dart';
@@ -24,36 +27,42 @@ Future<bool?> showDesktopAddEditPatientDialog(
   BuildContext context, {
   Patient? patient,
   PatientRepository? repository,
+  ValueChanged<String>? onCreated,
 }) {
   return showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (_) =>
-        DesktopAddEditPatientDialog(patient: patient, repository: repository),
+    builder: (_) => DesktopAddEditPatientDialog(
+      patient: patient,
+      repository: repository,
+      onCreated: onCreated,
+    ),
   );
 }
 
-class DesktopAddEditPatientDialog extends StatefulWidget {
+class DesktopAddEditPatientDialog extends ConsumerStatefulWidget {
   const DesktopAddEditPatientDialog({
     super.key,
     this.patient,
     this.repository,
     this.voiceFillService,
+    this.onCreated,
   });
 
   final Patient? patient;
   final PatientRepository? repository;
+  final ValueChanged<String>? onCreated;
 
   /// Injected in tests.
   final PatientVoiceFillService? voiceFillService;
 
   @override
-  State<DesktopAddEditPatientDialog> createState() =>
+  ConsumerState<DesktopAddEditPatientDialog> createState() =>
       _DesktopAddEditPatientDialogState();
 }
 
 class _DesktopAddEditPatientDialogState
-    extends State<DesktopAddEditPatientDialog>
+    extends ConsumerState<DesktopAddEditPatientDialog>
     with VoiceDialogHook<DesktopAddEditPatientDialog> {
   static const _sexes = ['Male', 'Female', 'Other'];
 
@@ -533,7 +542,35 @@ class _DesktopAddEditPatientDialogState
           'packageBalance': balance,
         });
       } else {
-        await _repository.createPatient(
+        if (phone.isNotEmpty) {
+          final existing =
+              ref.read(patientsStreamProvider).value ?? const <Patient>[];
+          final dup = duplicateByPhone(existing, phone);
+          if (dup != null) {
+            final useExisting = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (dContext) => PatientDialog(
+                title: '${dup.fullName} already has this number',
+                body: Text(
+                  '${dup.phone} · ${dup.age}',
+                  style: CruType.text.tabular.tint(dContext.cru.label2),
+                ),
+                cancelLabel: 'Add anyway',
+                confirmLabel: 'Use ${dup.fullName}',
+                onConfirm: () => Navigator.of(dContext).pop(true),
+              ),
+            );
+            if (!mounted) return;
+            if (useExisting == true) {
+              widget.onCreated?.call(dup.id);
+              Navigator.of(context).pop(true);
+              return;
+            }
+          }
+        }
+
+        final id = await _repository.createPatient(
           Patient(
             id: '',
             firstName: _firstName.text.trim(),
@@ -550,6 +587,7 @@ class _DesktopAddEditPatientDialogState
             updatedAt: now,
           ),
         );
+        widget.onCreated?.call(id);
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);

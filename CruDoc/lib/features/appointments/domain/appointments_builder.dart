@@ -21,10 +21,10 @@ abstract final class ApptsBuilder {
   static DateTime weekStart(DateTime t) =>
       dateOnly(t).subtract(Duration(days: t.weekday - DateTime.monday));
 
-  /// The 7 dates Monday..Sunday of the week containing [t].
+  /// The 7 dates shown for [t]: the 3 days before, [t] in the middle, the
+  /// 3 days after.
   static List<DateTime> weekDays(DateTime t) {
-    final s = weekStart(t);
-    return [for (var i = 0; i < 7; i++) DateTime(s.year, s.month, s.day + i)];
+    return [for (var i = -3; i <= 3; i++) DateTime(t.year, t.month, t.day + i)];
   }
 
   /// Every date shown in a Monday-first month grid (whole weeks).
@@ -271,39 +271,13 @@ abstract final class ApptsBuilder {
   // Ranges, slots, counts
   // ---------------------------------------------------------------------
 
-  /// The range to draw for [items] on [day] (items may span a whole week;
-  /// only their times of day are used). Working hours aren't stored
-  /// (GAP): one continuous session from the earliest start to the latest
-  /// end, rounded out to whole hours, with no break band. An empty day
-  /// draws an unlabeled 9 AM to 6 PM canvas so empty time can be clicked.
+  /// The range to draw on [day]: always the whole 24 hours, so any time
+  /// can be booked. [items] no longer shrink it.
   static DayRange range(List<ApptItem> items, DateTime day) {
     final d = dateOnly(day);
-    if (items.isEmpty) {
-      return DayRange(
-        sessions: [
-          ClinicSession(
-            start: d.add(const Duration(hours: 9)),
-            end: d.add(const Duration(hours: 18)),
-          ),
-        ],
-      );
-    }
-    var startMin = 24 * 60;
-    var endMin = 0;
-    for (final i in items) {
-      final s = i.start.hour * 60 + i.start.minute;
-      final e = s + i.durationMinutes;
-      startMin = math.min(startMin, s);
-      endMin = math.max(endMin, e);
-    }
-    final startHour = startMin ~/ 60;
-    final endHour = math.min(24, (endMin + 59) ~/ 60);
     return DayRange(
       sessions: [
-        ClinicSession(
-          start: d.add(Duration(hours: startHour)),
-          end: d.add(Duration(hours: math.max(endHour, startHour + 1))),
-        ),
+        ClinicSession(start: d, end: d.add(const Duration(hours: 24))),
       ],
     );
   }

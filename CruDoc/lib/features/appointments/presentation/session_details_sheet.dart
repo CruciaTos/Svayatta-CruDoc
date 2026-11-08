@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -121,15 +122,15 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Note saved.')));
+      ).showIsland(const SnackBar(content: Text('Note saved.')));
     } on VisitException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      ).showIsland(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text('Could not save the note. Please try again.'),
         ),
@@ -216,11 +217,11 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
         ref.invalidate(lastVisitPerPatientProvider);
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Appointment deleted.')));
+        ).showIsland(const SnackBar(content: Text('Appointment deleted.')));
         Navigator.pop(context);
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(content: Text('Failed to delete appointment: $e')),
         );
       }
@@ -235,13 +236,13 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(content: Text('Could not open the dialer')),
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text('Unable to place the call. Please try again.'),
         ),
@@ -269,13 +270,13 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(content: Text('Could not open the link')),
         );
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(content: Text('Unable to open link. Please try again.')),
       );
     }
@@ -847,7 +848,7 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
     final rawPhone = patient?.phone;
     if (rawPhone == null ||
         !WhatsAppTemplateService.isValidWhatsAppPhone(rawPhone)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text('No valid WhatsApp mobile number for this patient.'),
         ),
@@ -884,7 +885,7 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text(
             'Could not launch WhatsApp. Please check if WhatsApp is installed.',

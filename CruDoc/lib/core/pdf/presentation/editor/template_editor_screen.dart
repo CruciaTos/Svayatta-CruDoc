@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -326,7 +327,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen>
     _controller.select(null);
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
+    messenger.showIsland(
       SnackBar(
         content: Text(
           '${editorBlockTitle(b)} hidden. Show it again from Elements.',
@@ -468,7 +469,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Template saved.')));
+        ).showIsland(const SnackBar(content: Text('Template saved.')));
       }
     } on DocTemplateConflict {
       if (!mounted) return;
@@ -512,7 +513,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+        ).showIsland(SnackBar(content: Text('Save failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -572,7 +573,7 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could not render preview: $e')));
+        ).showIsland(SnackBar(content: Text('Could not render preview: $e')));
       }
     }
   }

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -437,7 +438,7 @@ class CrudocIdCard extends ConsumerWidget {
 
 void _toast(BuildContext context, String message) {
   final c = context.cru;
-  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+  ScaffoldMessenger.maybeOf(context)?.showIsland(
     SnackBar(
       content: Text(message, style: CruType.text.tint(c.surface)),
       backgroundColor: c.label,

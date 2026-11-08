@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/router/app_router.dart';
 import 'package:doctor_management_app/core/theme/cru_colors.dart';
 import 'package:doctor_management_app/core/theme/cru_tokens.dart';
 import 'package:doctor_management_app/core/theme/cru_type.dart';
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/features/mobile/mobile_island.dart';
 import 'package:doctor_management_app/features/shell/presentation/responsive_shell.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
@@ -283,6 +284,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
     if (_isDuplicate) return widget.child;
     // Phone-sized: the island in the status bar instead of the pill.
     if (MediaQuery.sizeOf(context).width < kDesktopBreakpoint) {
+      AppNotices.hosted = false; // MobileIsland sets it when signed in
       return Stack(
         children: [
           widget.child,
@@ -333,11 +335,13 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
         ],
       );
     }
+    AppNotices.hosted = true;
     final listenable = Listenable.merge([
       _voice.understood,
       _voice.ready,
       _voice.hint,
       _voice.asking,
+      AppNotices.current,
       VoicePillAvoid._clearances,
     ]);
     return Stack(
@@ -347,19 +351,12 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
           listenable: listenable,
           builder: (context, _) {
             final understood = _showResult ? _voice.understood.value : null;
-            // At rest (or off) the pill waits at the bottom, out of every
-            // page's header; while talking it comes up to the top.
-            final resting =
-                _voice.asking.value == null &&
-                !_listening &&
-                (_error != null ||
-                    (_loaded && (understood == null || understood.isEmpty)));
+            // The island: always at the top of the window, small at rest and
+            // growing downwards while talking.
             return Positioned(
               left: CruSpace.s16,
               right: CruSpace.s16,
-              top: resting ? null : CruSpace.s12,
-              // Above any bottom bar on screen (VoicePillAvoid).
-              bottom: resting ? CruSpace.s16 + VoicePillAvoid.clearance : null,
+              top: CruSpace.s8,
               child: Center(
                 child: Material(
                   type: MaterialType.transparency,
@@ -371,6 +368,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
                       loaded: _loaded,
                       error: _error,
                       understood: understood,
+                      notice: AppNotices.current.value,
                       ready: _voice.ready.value,
                       need: _voice.hint.value,
                       heard: _heard,
@@ -397,8 +395,28 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
   }
 }
 
+/// The island's colours: dark with white text in the light theme, white with
+/// dark text in the evening theme.
+class _Ink {
+  _Ink(CruColors c)
+    : bg = c.isEvening ? c.label : c.ink,
+      fg = c.isEvening ? c.canvas : c.surface,
+      ai = c.isEvening ? c.ai : c.aiTint,
+      amber = c.isEvening ? c.amber : c.amberTint;
+
+  final Color bg;
+  final Color fg;
+  final Color ai;
+  final Color amber;
+
+  Color get fg2 => fg.withValues(alpha: 0.72);
+  Color get fg3 => fg.withValues(alpha: 0.55);
+  Color get row => fg.withValues(alpha: 0.10);
+  Color get rowHover => fg.withValues(alpha: 0.18);
+}
+
 /// What the pill is doing; each has its own contents and size.
-enum _Mode { resting, listening, result, question }
+enum _Mode { resting, listening, result, question, notice }
 
 /// The voice pill: one rounded surface that grows and shrinks to fit what
 /// it is doing, like the iPhone's island. At rest it is a small capsule;
@@ -413,6 +431,7 @@ class _Strip extends StatelessWidget {
     required this.loaded,
     required this.error,
     required this.understood,
+    required this.notice,
     required this.ready,
     required this.need,
     required this.heard,
@@ -439,6 +458,9 @@ class _Strip extends StatelessWidget {
   final bool loaded;
   final String? error;
   final String? understood;
+
+  /// A message from the app (a saved/moved/failed line, maybe with Undo).
+  final AppNotice? notice;
   final bool ready;
 
   /// Required fields the open form still needs.
@@ -476,6 +498,7 @@ class _Strip extends StatelessWidget {
   _Mode get _mode {
     if (ask != null) return _Mode.question;
     if (listening) return _Mode.listening;
+    if (notice != null) return _Mode.notice;
     final hasLine = understood != null && understood!.isNotEmpty;
     // A failed voice set-up rests as a small "Voice off" pill rather
     // than a long error across the top of every page.
@@ -486,14 +509,15 @@ class _Strip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
+    final k = _Ink(context.cru);
     final mode = _mode;
 
     final Widget contents = switch (mode) {
-      _Mode.resting => _resting(c),
-      _Mode.listening => _listening(c),
-      _Mode.result => _result(c),
-      _Mode.question => _question(c),
+      _Mode.resting => _resting(k),
+      _Mode.listening => _listening(k),
+      _Mode.result => _result(k),
+      _Mode.question => _question(k),
+      _Mode.notice => _notice(k),
     };
 
     return AnimatedContainer(
@@ -501,13 +525,13 @@ class _Strip extends StatelessWidget {
       curve: Curves.easeOutCubic,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: c.surface,
+        color: k.bg,
         borderRadius: BorderRadius.circular(
           mode == _Mode.question ? CruRadius.card : _capsuleRadius,
         ),
-        border: Border.all(
-          color: listening || ready || ask != null ? c.ai : c.hairline,
-        ),
+        border: listening || ready || ask != null
+            ? Border.all(color: k.ai)
+            : null,
       ),
       child: AnimatedSize(
         duration: _morph,
@@ -547,7 +571,11 @@ class _Strip extends StatelessWidget {
           ),
           child: KeyedSubtree(
             key: ValueKey(
-              mode == _Mode.question ? 'question:${ask!.prompt}' : mode,
+              mode == _Mode.question
+                  ? 'question:${ask!.prompt}'
+                  : mode == _Mode.notice
+                  ? 'notice:${identityHashCode(notice)}'
+                  : mode,
             ),
             child: contents,
           ),
@@ -556,22 +584,22 @@ class _Strip extends StatelessWidget {
     );
   }
 
-  Widget _micIcon(CruColors c, IconData icon, {required bool lit}) =>
+  Widget _micIcon(_Ink c, IconData icon, {required bool lit}) =>
       GestureDetector(
         onTap: onMic,
         child: MouseRegion(
           cursor: onMic == null ? MouseCursor.defer : SystemMouseCursors.click,
-          child: Icon(icon, size: 18, color: lit ? c.ai : c.label3),
+          child: Icon(icon, size: 18, color: lit ? c.ai : c.fg3),
         ),
       );
 
-  TextStyle _lineStyle(CruColors c) => CruType.callout.copyWith(
-    color: c.label,
+  TextStyle _lineStyle(_Ink c) => CruType.callout.copyWith(
+    color: c.fg,
     fontFeatures: const [FontFeature.tabularFigures()],
   );
 
   /// Small capsule: how to start.
-  Widget _resting(CruColors c) {
+  Widget _resting(_Ink c) {
     final pill = Padding(
       padding: const EdgeInsets.fromLTRB(
         CruSpace.s12,
@@ -600,7 +628,7 @@ class _Strip extends StatelessWidget {
                 : tapToTalk
                 ? 'Tap to talk'
                 : 'Hold Space',
-            style: CruType.callout.copyWith(color: c.label2),
+            style: CruType.callout.copyWith(color: c.fg2),
           ),
         ],
       ),
@@ -610,14 +638,125 @@ class _Strip extends StatelessWidget {
     // Navigator, so there is no Overlay for a tooltip to float in.
     return _OffReason(
       reason: error!.replaceFirst('Bad state: ', ''),
-      style: CruType.caption.copyWith(color: c.label3),
+      style: CruType.caption.copyWith(color: c.fg3),
       child: pill,
+    );
+  }
+
+  /// A message from the app. A change (a visit moved) shows what it was
+  /// and what it is now; the action (Undo) is a bright button on the right.
+  Widget _notice(_Ink c) {
+    final n = notice!;
+    final change = n.from != null && n.to != null;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: change ? 400 : 260,
+        maxWidth: _maxWidth,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s20,
+          CruSpace.s12,
+          CruSpace.s12,
+          CruSpace.s12,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    n.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: _lineStyle(c).copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (change) ...[
+                    const SizedBox(height: CruSpace.s4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            n.from!,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.caption.copyWith(
+                              color: c.fg3,
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: c.fg3,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CruSpace.s8,
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 14,
+                            color: c.fg2,
+                          ),
+                        ),
+                        Flexible(
+                          child: Text(
+                            n.to!,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.caption.copyWith(
+                              color: c.fg,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (n.actionLabel != null) ...[
+              const SizedBox(width: CruSpace.s20),
+              GestureDetector(
+                onTap: () {
+                  AppNotices.clear();
+                  n.onAction?.call();
+                },
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s20,
+                      vertical: CruSpace.s10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.fg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      n.actionLabel!,
+                      style: CruType.callout.copyWith(
+                        color: c.bg,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
   /// Wider capsule: sound bars and the words as they come, and under
   /// them, live, what the app makes of them.
-  Widget _listening(CruColors c) {
+  Widget _listening(_Ink c) {
     final response = understood;
     final hasResponse = response != null && response.isNotEmpty;
     return ConstrainedBox(
@@ -634,7 +773,7 @@ class _Strip extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _Bars(level: level),
+                _Bars(level: level, color: c.ai),
                 const SizedBox(width: CruSpace.s12),
                 Flexible(
                   child: Text(
@@ -642,7 +781,7 @@ class _Strip extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: hasResponse
-                        ? CruType.caption.copyWith(color: c.label3)
+                        ? CruType.caption.copyWith(color: c.fg3)
                         : _lineStyle(c),
                   ),
                 ),
@@ -668,7 +807,7 @@ class _Strip extends StatelessWidget {
   }
 
   /// Capsule with what happened, and what's next ("say confirm").
-  Widget _result(CruColors c) {
+  Widget _result(_Ink c) {
     final String line;
     if (error != null) {
       line = error!;
@@ -724,8 +863,8 @@ class _Strip extends StatelessWidget {
                   color: ready
                       ? c.ai
                       : need != null
-                      ? c.amberText
-                      : c.label3,
+                      ? c.amber
+                      : c.fg3,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -737,7 +876,7 @@ class _Strip extends StatelessWidget {
   }
 
   /// Card: the question and its choices.
-  Widget _question(CruColors c) => SizedBox(
+  Widget _question(_Ink c) => SizedBox(
     width: _cardWidth,
     child: Padding(
       padding: const EdgeInsets.all(CruSpace.s12),
@@ -756,7 +895,7 @@ class _Strip extends StatelessWidget {
                     ask!.prompt,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: CruType.headline.copyWith(color: c.label),
+                    style: CruType.headline.copyWith(color: c.fg),
                   ),
                 ),
               ],
@@ -766,6 +905,7 @@ class _Strip extends StatelessWidget {
           for (var i = 0; i < ask!.options.length; i++) ...[
             if (i > 0) const SizedBox(height: CruSpace.s4),
             _ChoiceRow(
+              ink: c,
               index: i,
               choice: ask!.options[i],
               onTap: () => onPick(i),
@@ -775,7 +915,7 @@ class _Strip extends StatelessWidget {
           Text(
             'Say it, tap it, or press its number',
             textAlign: TextAlign.center,
-            style: CruType.caption.copyWith(color: c.label3),
+            style: CruType.caption.copyWith(color: c.fg3),
           ),
         ],
       ),
@@ -786,11 +926,13 @@ class _Strip extends StatelessWidget {
 /// One answer in the open pill: its number, what it is, and a detail line.
 class _ChoiceRow extends StatefulWidget {
   const _ChoiceRow({
+    required this.ink,
     required this.index,
     required this.choice,
     required this.onTap,
   });
 
+  final _Ink ink;
   final int index;
   final VoiceChoice choice;
   final VoidCallback onTap;
@@ -804,7 +946,7 @@ class _ChoiceRowState extends State<_ChoiceRow> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
+    final c = widget.ink;
     final detail = widget.choice.detail;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -820,7 +962,7 @@ class _ChoiceRowState extends State<_ChoiceRow> {
             vertical: CruSpace.s8,
           ),
           decoration: BoxDecoration(
-            color: _hover ? c.hoverFill : c.inset,
+            color: _hover ? c.rowHover : c.row,
             borderRadius: BorderRadius.circular(CruRadius.control),
           ),
           child: Row(
@@ -830,7 +972,7 @@ class _ChoiceRowState extends State<_ChoiceRow> {
                 height: 24,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: c.aiTint,
+                  color: c.ai.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(CruRadius.full),
                 ),
                 child: Text(
@@ -849,13 +991,13 @@ class _ChoiceRowState extends State<_ChoiceRow> {
                   children: [
                     Text(
                       widget.choice.label,
-                      style: CruType.callout.copyWith(color: c.label),
+                      style: CruType.callout.copyWith(color: c.fg),
                     ),
                     if (detail != null)
                       Text(
                         detail,
                         style: CruType.caption.copyWith(
-                          color: c.label3,
+                          color: c.fg3,
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
@@ -872,16 +1014,16 @@ class _ChoiceRowState extends State<_ChoiceRow> {
 
 /// Four bars that rise and fall with the doctor's voice.
 class _Bars extends StatelessWidget {
-  const _Bars({required this.level});
+  const _Bars({required this.level, required this.color});
 
   final ValueListenable<double> level;
+  final Color color;
 
   static const _shape = [0.55, 1.0, 0.75, 0.4];
   static const _height = 16.0;
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     return SizedBox(
       height: _height,
       child: ValueListenableBuilder<double>(
@@ -897,7 +1039,7 @@ class _Bars extends StatelessWidget {
                 width: 3,
                 height: 4 + (_height - 4) * (0.2 + 0.8 * v) * _shape[i],
                 decoration: BoxDecoration(
-                  color: c.ai,
+                  color: color,
                   borderRadius: BorderRadius.circular(CruRadius.full),
                 ),
               ),

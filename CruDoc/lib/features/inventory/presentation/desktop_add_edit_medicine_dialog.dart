@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
+import 'package:doctor_management_app/core/utils/store_policy.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_receipt_sync.dart';
@@ -845,17 +846,25 @@ class _DesktopAddEditMedicineDialogState
         ),
         title: 'Fill from a bill',
         subtitle: 'Supplier bill or a photo of the strip',
-        onTap: _saving ? null : () => _pickReceiptImage(ImageSource.camera),
+        onTap: _saving
+            ? null
+            : () => _pickReceiptImage(
+                documentScanSupported
+                    ? ImageSource.camera
+                    : ImageSource.gallery,
+              ),
         actions: [
-          CruCapsuleButton(
-            label: 'Camera',
-            icon: InventoryIcons.camera,
-            kind: CruCapsuleKind.surface,
-            onPressed: _saving
-                ? null
-                : () => _pickReceiptImage(ImageSource.camera),
-          ),
-          const SizedBox(width: CruSpace.s6),
+          if (documentScanSupported) ...[
+            CruCapsuleButton(
+              label: 'Camera',
+              icon: InventoryIcons.camera,
+              kind: CruCapsuleKind.surface,
+              onPressed: _saving
+                  ? null
+                  : () => _pickReceiptImage(ImageSource.camera),
+            ),
+            const SizedBox(width: CruSpace.s6),
+          ],
           CruCapsuleButton(
             label: 'Choose…',
             kind: CruCapsuleKind.surface,

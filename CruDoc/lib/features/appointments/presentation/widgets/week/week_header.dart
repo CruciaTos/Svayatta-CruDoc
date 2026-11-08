@@ -7,6 +7,9 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_drag.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
+
 import 'week_focus.dart';
 import 'week_metrics.dart';
 
@@ -158,28 +161,40 @@ class WeekDayHeader extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: CruSpace.s2),
-              SizedBox(
-                height: CruType.caption.fontSize! * CruType.caption.height!,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        line,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CruType.caption.tabular.tint(c.label3),
-                      ),
-                    ),
-                    if (overlap) ...[
-                      const SizedBox(width: CruSpace.s4),
-                      const CruStatusDot(
-                        CruDotKind.waiting,
-                        size: CruSize.smallDot,
-                      ),
-                    ],
-                  ],
-                ),
+              ValueListenableBuilder<DateTime?>(
+                valueListenable: ApptDragHint.time,
+                builder: (context, hint, _) {
+                  final over =
+                      hint != null &&
+                      hint.year == date.year &&
+                      hint.month == date.month &&
+                      hint.day == date.day;
+                  return SizedBox(
+                    height: CruType.caption.fontSize! * CruType.caption.height!,
+                    child: over
+                        ? Center(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: c.accent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CruSpace.s8,
+                                ),
+                                child: Text(
+                                  ApptFormat.time(hint),
+                                  maxLines: 1,
+                                  style: CruType.caption.w600.tabular.tint(
+                                    c.onAccent,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        : _countRow(c, line, overlap),
+                  );
+                },
               ),
             ],
           ),
@@ -187,4 +202,22 @@ class WeekDayHeader extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _countRow(CruColors c, String line, bool overlap) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Flexible(
+        child: Text(
+          line,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: CruType.caption.tabular.tint(c.label3),
+        ),
+      ),
+      if (overlap) ...[
+        const SizedBox(width: CruSpace.s4),
+        const CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
+      ],
+    ],
+  );
 }

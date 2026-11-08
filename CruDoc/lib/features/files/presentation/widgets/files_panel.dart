@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -122,6 +125,12 @@ class FilePanel extends ConsumerWidget {
               onTap: () =>
                   FilesActions.sendToColleague(context, ref, [entry.file]),
             ),
+            if (!kIsWeb && (Platform.isIOS || Platform.isMacOS))
+              _Capsule(
+                label: 'Share',
+                icon: CruIcons.arrowUpRight,
+                onTap: () => FilesActions.shareOutside(context, entry.file),
+              ),
             _Capsule(
               label: 'Move',
               icon: FileIcons.folder,
@@ -155,6 +164,12 @@ class FilePanel extends ConsumerWidget {
               onTap: () =>
                   FilesActions.sendToColleague(context, ref, [entry.file]),
             ),
+            if (!kIsWeb && (Platform.isIOS || Platform.isMacOS))
+              _Capsule(
+                label: 'Share',
+                icon: CruIcons.arrowUpRight,
+                onTap: () => FilesActions.shareOutside(context, entry.file),
+              ),
           ],
         ),
     ];

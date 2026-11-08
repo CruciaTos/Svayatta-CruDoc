@@ -86,10 +86,7 @@ class _PrescriptionGenerationSheetState
     if (p == null) return '';
     final g = p.gender.trim();
     final sex = g.isEmpty ? '' : g[0].toUpperCase();
-    return [
-      '${p.age} Y',
-      if (sex.isNotEmpty) sex,
-    ].join(' / ');
+    return ['${p.age} Y', if (sex.isNotEmpty) sex].join(' / ');
   }
 
   @override
@@ -220,6 +217,11 @@ class _PrescriptionGenerationSheetState
             child: ListView(
               padding: const EdgeInsets.all(CruSpace.s20),
               children: [
+                Text(
+                  'AI draft. Review and correct before you use it.',
+                  style: CruType.caption.tint(c.label3),
+                ),
+                const SizedBox(height: CruSpace.s12),
                 // ---- Doctor & Clinic Letterhead Banner ----
                 _section(
                   c,
@@ -230,9 +232,7 @@ class _PrescriptionGenerationSheetState
                         if (cfg.logoUrl != null &&
                             cfg.logoUrl!.trim().isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(
-                              right: CruSpace.s14,
-                            ),
+                            padding: const EdgeInsets.only(right: CruSpace.s14),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(
                                 CruRadius.control,
@@ -617,7 +617,8 @@ class _PrescriptionGenerationSheetState
   }
 
   Future<void> _generateAndSavePrescription() async {
-    final issuingDoctorUid = widget.initialVisit?.attendingDoctorUid.trim().isNotEmpty == true
+    final issuingDoctorUid =
+        widget.initialVisit?.attendingDoctorUid.trim().isNotEmpty == true
         ? widget.initialVisit!.attendingDoctorUid.trim()
         : defaultIssuingDoctorUid();
     final docNum = _rxNumber.isNotEmpty && !_rxNumber.startsWith('RX-')

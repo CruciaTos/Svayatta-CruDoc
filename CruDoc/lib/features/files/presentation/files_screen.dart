@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -18,6 +19,7 @@ import 'package:doctor_management_app/features/files/presentation/file_viewer.da
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
 import 'package:doctor_management_app/features/files/presentation/transfer_progress_tray.dart';
 import 'package:doctor_management_app/features/files/presentation/transfers_sheet.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/nearby_ask_card.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/clinic_drop_target.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/colleague_strip.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
@@ -350,7 +352,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     List<String> paths,
   ) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
-    void say(String text) => messenger?.showSnackBar(
+    void say(String text) => messenger?.showIsland(
       SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
     );
     final reason = colleagueBlockReason(colleague);
@@ -407,6 +409,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
     final hasColleagues = ref.watch(hasColleaguesProvider);
     final hasChips = view != null && !view.isEmpty;
     final top = <Widget>[
+      const NearbyAskCard(),
       FilesHeader(
         view: view,
         onNewFolder: canEdit ? _newFolder : null,

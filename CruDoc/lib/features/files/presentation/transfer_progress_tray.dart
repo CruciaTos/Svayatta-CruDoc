@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -127,6 +128,13 @@ class TransferProgressTray extends ConsumerWidget {
                     minHeight: 5,
                   ),
                 ),
+                if (Platform.isIOS || Platform.isMacOS) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Keep CruDoc open until this finishes.',
+                    style: CruType.caption.tint(c.label3),
+                  ),
+                ],
               ],
             ),
           ),

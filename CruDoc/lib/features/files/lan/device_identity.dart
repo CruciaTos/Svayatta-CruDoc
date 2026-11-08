@@ -56,7 +56,11 @@ class DeviceIdentity {
   Future<void> _load() async {
     if (_initialized) return;
 
-    _platform = Platform.isAndroid
+    _platform = Platform.isIOS
+        ? 'ios'
+        : Platform.isMacOS
+        ? 'macos'
+        : Platform.isAndroid
         ? 'android'
         : (Platform.isWindows ? 'windows' : Platform.operatingSystem);
 
@@ -224,6 +228,8 @@ class DeviceIdentity {
       final host = Platform.localHostname.trim();
       if (host.isNotEmpty) return host;
     } catch (_) {}
+    if (Platform.isIOS) return 'iPhone';
+    if (Platform.isMacOS) return 'Mac';
     return Platform.isAndroid ? 'Android Device' : 'Windows PC';
   }
 

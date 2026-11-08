@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,7 +119,7 @@ class _HomeopathyPatientDetailsScreenState
     if (!scheduled || !mounted) return;
     ref.invalidate(visitsForPatientProvider(widget.patient.id));
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showIsland(
       SnackBar(
         content: Text('Consultation scheduled for ${widget.patient.fullName}'),
       ),

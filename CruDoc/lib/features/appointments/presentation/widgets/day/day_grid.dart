@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/appointments/presentation/appoint
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_block.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_grid_marks.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_grid_metrics.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_drag.dart';
 import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -82,8 +83,9 @@ class _DayGridState extends ConsumerState<DayGrid> {
       final isToday = ApptsBuilder.sameDay(widget.day, widget.now);
       final target = isToday
           ? widget.now
-          : (widget.items.isEmpty ? null : widget.items.first.start);
-      if (target == null) return;
+          : (widget.items.isEmpty
+                ? DateTime(widget.day.year, widget.day.month, widget.day.day, 8)
+                : widget.items.first.start);
       final y = _offsetOf(range, target);
       final viewport = _scroll.position.viewportDimension;
       if (y < viewport - CruSpace.s32 * 2) return;
@@ -238,65 +240,91 @@ class _SessionCanvas extends ConsumerWidget {
             final width = constraints.maxWidth;
             final lane =
                 width - DayGridMetrics.blockLeft - DayGridMetrics.blockRight;
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // Empty time: New appointment at the snapped time.
-                Positioned(
-                  left: DayGridMetrics.gutter,
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTapUp: (d) {
-                        final minutes =
-                            (d.localPosition.dy / DayGridMetrics.pxPerMinute)
-                                .floor();
-                        final t = session.start.add(Duration(minutes: minutes));
-                        ApptActions.newAppointment(
-                          context,
-                          ref,
-                          start: ApptsBuilder.snap(t),
-                        );
-                      },
+            return ApptDropArea(
+              ghostRadius: DayGridMetrics.blockRadius,
+              resolve: (topLeft, data, _) {
+                // The block's top sits 1 px under its start line.
+                final m = snapMinutes(
+                  (topLeft.dy - 1) / DayGridMetrics.pxPerMinute,
+                  session.end.difference(session.start).inMinutes -
+                      kApptSnapMinutes,
+                );
+                final start = session.start.add(Duration(minutes: m));
+                return (
+                  start: start,
+                  rect: Rect.fromLTWH(
+                    DayGridMetrics.blockLeft,
+                    _y(start) + 1,
+                    math.max(0, lane),
+                    math.max(
+                      DayGridMetrics.minutes(data.item.durationMinutes) - 2,
+                      DayGridMetrics.minutes(5),
                     ),
                   ),
-                ),
-                for (final h in hours)
+                );
+              },
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Empty time: New appointment at the snapped time.
                   Positioned(
-                    left: 0,
+                    left: DayGridMetrics.gutter,
                     right: 0,
-                    top: _y(h) - labelHalf,
-                    child: DayHourMark(hour: h.hour),
-                  ),
-                for (final g in sessionGroups)
-                  if (g.isOverlap && g.kind == OverlapKind.unsorted)
-                    Positioned(
-                      left: 0,
-                      width: DayGridMetrics.blockLeft,
-                      top: _y(g.start) + 1,
-                      height: math.max(0, _y(g.end) - _y(g.start) - 2),
-                      child: DayOverlapMarker(
-                        group: g,
-                        height: math.max(0, _y(g.end) - _y(g.start) - 2),
+                    top: 0,
+                    bottom: 0,
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapUp: (d) {
+                          final minutes =
+                              (d.localPosition.dy / DayGridMetrics.pxPerMinute)
+                                  .floor();
+                          final t = session.start.add(
+                            Duration(minutes: minutes),
+                          );
+                          ApptActions.newAppointment(
+                            context,
+                            ref,
+                            start: ApptsBuilder.snap(t),
+                          );
+                        },
                       ),
                     ),
-                for (final g in sessionGroups)
-                  for (final item in g.items)
-                    if (ids.contains(item.id))
-                      _positioned(context, ref, g, item, lane),
-                if (showNow)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: _y(now) - DayGridMetrics.gutterPill / 2,
-                    height: DayGridMetrics.gutterPill,
-                    child: DayNowLine(now: now),
                   ),
-              ],
+                  for (final h in hours)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: _y(h) - labelHalf,
+                      child: DayHourMark(hour: h.hour),
+                    ),
+                  for (final g in sessionGroups)
+                    if (g.isOverlap && g.kind == OverlapKind.unsorted)
+                      Positioned(
+                        left: 0,
+                        width: DayGridMetrics.blockLeft,
+                        top: _y(g.start) + 1,
+                        height: math.max(0, _y(g.end) - _y(g.start) - 2),
+                        child: DayOverlapMarker(
+                          group: g,
+                          height: math.max(0, _y(g.end) - _y(g.start) - 2),
+                        ),
+                      ),
+                  for (final g in sessionGroups)
+                    for (final item in g.items)
+                      if (ids.contains(item.id))
+                        _positioned(context, ref, g, item, lane),
+                  if (showNow)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: _y(now) - DayGridMetrics.gutterPill / 2,
+                      height: DayGridMetrics.gutterPill,
+                      child: DayNowLine(now: now),
+                    ),
+                ],
+              ),
             );
           },
         ),
@@ -328,12 +356,22 @@ class _SessionCanvas extends ConsumerWidget {
       ),
       child: MorphTag(
         id: 'visit:${item.id}',
-        child: DayBlock(
+        child: ApptDraggable(
           item: item,
-          ringed: ringedIds.contains(item.id),
-          onTap: () =>
-              unsorted ? controller.selectGroup(g) : controller.select(item.id),
-          onDoubleTap: () => ApptActions.openVisit(context, item),
+          feedback: DayBlock(
+            item: item,
+            ringed: true,
+            onTap: () {},
+            onDoubleTap: () {},
+          ),
+          child: DayBlock(
+            item: item,
+            ringed: ringedIds.contains(item.id),
+            onTap: () => unsorted
+                ? controller.selectGroup(g)
+                : controller.select(item.id),
+            onDoubleTap: () => ApptActions.openVisit(context, item),
+          ),
         ),
       ),
     );

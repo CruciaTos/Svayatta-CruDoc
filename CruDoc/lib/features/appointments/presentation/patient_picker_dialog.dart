@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart' show StateController;
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
+import 'package:doctor_management_app/features/patients/presentation/quick_patient_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Opens a patient search/picker dialog conforming to Calm Clinical design.
@@ -32,11 +36,40 @@ class _PatientPickerDialog extends ConsumerStatefulWidget {
 class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  // Read now, while mounted: dispose() can't touch ref.
+  late final StateController<String> _query;
+
+  @override
+  void initState() {
+    super.initState();
+    _query = ref.read(searchQueryProvider.notifier);
+    Future.microtask(() => _query.state = '');
+  }
 
   @override
   void dispose() {
+    Future.microtask(() => _query.state = '');
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _quickAdd([String? initialName]) async {
+    final name = initialName ?? _searchController.text.trim();
+    final p = await showQuickPatientDialog(context, initialName: name);
+    if (p != null && mounted) {
+      Navigator.of(context).pop<Patient>(p);
+    }
+  }
+
+  Future<void> _fullAdd() async {
+    String? id;
+    final ok = await showAddPatientSheet(context, onCreated: (v) => id = v);
+    if (ok == true && id != null && mounted) {
+      final p = await ref.read(patientRepositoryProvider).getPatient(id!);
+      if (p != null && mounted) {
+        Navigator.of(context).pop<Patient>(p);
+      }
+    }
   }
 
   @override
@@ -52,10 +85,7 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
         horizontal: CruSpace.s16,
         vertical: CruSpace.s24,
       ),
-      shape: cruShape(
-        CruRadius.card,
-        side: BorderSide(color: c.cardBorder),
-      ),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 540, maxHeight: 620),
@@ -73,10 +103,7 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
               ),
               child: Row(
                 children: [
-                  CruIconTile(
-                    icon: CruIcons.search,
-                    tone: CruTileTone.neutral,
-                  ),
+                  CruIconTile(icon: CruIcons.search, tone: CruTileTone.neutral),
                   const SizedBox(width: CruSpace.s12),
                   Expanded(
                     child: Text(
@@ -180,15 +207,60 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
                 ),
                 data: (patients) {
                   if (patients.isEmpty) {
+                    if (_searchQuery.isNotEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(CruSpace.s24),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'No patients match "$_searchQuery".',
+                                textAlign: TextAlign.center,
+                                style: CruType.subhead.tint(c.label3),
+                              ),
+                              const SizedBox(height: CruSpace.s16),
+                              CruButton(
+                                label: 'Add "$_searchQuery" as a new patient',
+                                kind: CruButtonKind.inset,
+                                onPressed: () => _quickAdd(_searchQuery),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(CruSpace.s24),
-                        child: Text(
-                          _searchQuery.isEmpty
-                              ? 'No patients yet. Create one to get started.'
-                              : 'No patients match "$_searchQuery".',
-                          textAlign: TextAlign.center,
-                          style: CruType.subhead.tint(c.label3),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'No patients yet.',
+                              textAlign: TextAlign.center,
+                              style: CruType.subhead.tint(c.label3),
+                            ),
+                            const SizedBox(height: CruSpace.s16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CruButton(
+                                  label: 'Quick add',
+                                  kind: CruButtonKind.inset,
+                                  onPressed: () => _quickAdd(),
+                                ),
+                                if (!phone) ...[
+                                  const SizedBox(width: CruSpace.s10),
+                                  CruButton(
+                                    label: 'New patient (full details)',
+                                    kind: CruButtonKind.inset,
+                                    onPressed: _fullAdd,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -196,10 +268,8 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
 
                   return ListView.separated(
                     itemCount: patients.length,
-                    separatorBuilder: (_, _) => const CruSeparator(
-                      indent: 72,
-                      endIndent: CruSpace.s20,
-                    ),
+                    separatorBuilder: (_, _) =>
+                        const CruSeparator(indent: 72, endIndent: CruSpace.s20),
                     itemBuilder: (context, index) {
                       final patient = patients[index];
                       return _PatientListItem(
@@ -210,6 +280,27 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
                     },
                   );
                 },
+              ),
+            ),
+            const CruSeparator(),
+            Padding(
+              padding: const EdgeInsets.all(CruSpace.s16),
+              child: Row(
+                children: [
+                  CruButton(
+                    label: 'Quick add',
+                    kind: CruButtonKind.inset,
+                    onPressed: () => _quickAdd(),
+                  ),
+                  if (!phone) ...[
+                    const SizedBox(width: CruSpace.s10),
+                    CruButton(
+                      label: 'New patient (full details)',
+                      kind: CruButtonKind.inset,
+                      onPressed: _fullAdd,
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -241,21 +332,31 @@ class _PatientListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CruMonogram(
-              name: patient.fullName,
-              size: CruSize.monogramList,
-            ),
+            CruMonogram(name: patient.fullName, size: CruSize.monogramList),
             const SizedBox(width: CruSpace.s14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    patient.fullName,
-                    style: CruType.body.w600.tint(c.label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          patient.fullName,
+                          style: CruType.body.w600.tint(c.label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (patientDetailsPending(patient)) ...[
+                        const SizedBox(width: CruSpace.s8),
+                        Text(
+                          'Details pending',
+                          style: CruType.caption.tint(c.amberText),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: CruSpace.s2),
                   Row(
@@ -266,10 +367,7 @@ class _PatientListItem extends StatelessWidget {
                           style: CruType.subhead.tabular.tint(c.label2),
                         ),
                         if (diagnosis.isNotEmpty) ...[
-                          Text(
-                            '  ·  ',
-                            style: CruType.caption.tint(c.label3),
-                          ),
+                          Text('  ·  ', style: CruType.caption.tint(c.label3)),
                         ],
                       ],
                       if (diagnosis.isNotEmpty)

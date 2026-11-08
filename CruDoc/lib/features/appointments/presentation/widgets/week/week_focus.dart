@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 import '../day/day_grid_metrics.dart';
+import '../shell/appt_drag.dart';
 import 'week_metrics.dart';
 
 /// One Week column opening into its Day. [t] 0 is the plain week; at 1
@@ -64,7 +65,7 @@ class WeekFocus {
 /// The focused column's edges move out and its contents are laid out at
 /// the new width, so its blocks widen with it. The others keep their week
 /// layout and are squeezed, clipped and faded as they go.
-class WeekColumnsRow extends StatelessWidget {
+class WeekColumnsRow extends StatefulWidget {
   const WeekColumnsRow({
     super.key,
     required this.focus,
@@ -79,17 +80,78 @@ class WeekColumnsRow extends StatelessWidget {
   final CrossAxisAlignment crossAxisAlignment;
 
   @override
+  State<WeekColumnsRow> createState() => _WeekColumnsRowState();
+}
+
+class _WeekColumnsRowState extends State<WeekColumnsRow>
+    with SingleTickerProviderStateMixin {
+  /// Columns still to slide: starts at the step's direction (±1) and eases
+  /// to 0, so the days glide across instead of jumping.
+  late final AnimationController _slide = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+    lowerBound: -1,
+    upperBound: 1,
+    value: 0,
+  );
+  int _seen = ApptSlide.steps.value.seq;
+
+  @override
+  void initState() {
+    super.initState();
+    ApptSlide.steps.addListener(_onStep);
+  }
+
+  void _onStep() {
+    final s = ApptSlide.steps.value;
+    if (s.seq == _seen) return;
+    _seen = s.seq;
+    _slide.value = s.dir.toDouble();
+    _slide.animateTo(0, curve: Curves.easeOutCubic);
+  }
+
+  @override
+  void dispose() {
+    ApptSlide.steps.removeListener(_onStep);
+    _slide.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final focus = widget.focus;
+    final columns = widget.columns;
     return LayoutBuilder(
       builder: (context, constraints) {
         final available = math.max(0.0, constraints.maxWidth - focus.gutter);
         final even = columns.isEmpty ? 0.0 : available / columns.length;
-        return Row(
-          crossAxisAlignment: crossAxisAlignment,
+        final cells = Row(
+          crossAxisAlignment: widget.crossAxisAlignment,
           children: [
-            SizedBox(width: focus.gutter, child: gutter),
             for (var i = 0; i < columns.length; i++)
               _column(i, even, available),
+          ],
+        );
+        return Row(
+          crossAxisAlignment: widget.crossAxisAlignment,
+          children: [
+            SizedBox(width: focus.gutter, child: widget.gutter),
+            if (focus.active)
+              cells
+            else
+              SizedBox(
+                width: available,
+                child: ClipRect(
+                  child: AnimatedBuilder(
+                    animation: _slide,
+                    builder: (context, child) => Transform.translate(
+                      offset: Offset(_slide.value * even, 0),
+                      child: child,
+                    ),
+                    child: cells,
+                  ),
+                ),
+              ),
           ],
         );
       },
@@ -97,6 +159,8 @@ class WeekColumnsRow extends StatelessWidget {
   }
 
   Widget _column(int i, double even, double available) {
+    final focus = widget.focus;
+    final columns = widget.columns;
     final active = focus.active;
     final focused = i == focus.index;
     final t = focus.t;

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/core/utils/store_policy.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
@@ -78,27 +80,32 @@ abstract final class InventoryActions {
                   ),
                 ),
                 const SizedBox(height: CruSpace.s16),
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s8,
+                if (documentScanSupported) ...[
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s8,
+                    ),
+                    leading: const CruSquareButton(
+                      icon: InventoryIcons.camera,
+                      secondary: true,
+                      onPressed: null,
+                      semanticLabel: 'Camera',
+                    ),
+                    title: Text(
+                      'Take a photo',
+                      style: CruType.row.tint(c.label),
+                    ),
+                    subtitle: Text(
+                      'Scan with device camera',
+                      style: CruType.caption.tint(c.label2),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onTap: () => Navigator.pop(ctx, ImageSource.camera),
                   ),
-                  leading: const CruSquareButton(
-                    icon: InventoryIcons.camera,
-                    secondary: true,
-                    onPressed: null,
-                    semanticLabel: 'Camera',
-                  ),
-                  title: Text('Take a photo', style: CruType.row.tint(c.label)),
-                  subtitle: Text(
-                    'Scan with device camera',
-                    style: CruType.caption.tint(c.label2),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onTap: () => Navigator.pop(ctx, ImageSource.camera),
-                ),
-                const SizedBox(height: CruSpace.s8),
+                  const SizedBox(height: CruSpace.s8),
+                ],
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: CruSpace.s8,
@@ -152,10 +159,10 @@ abstract final class InventoryActions {
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(_billSummary(outcome))));
+      ).showIsland(SnackBar(content: Text(_billSummary(outcome))));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         SnackBar(content: Text('Could not open camera or image: $e')),
       );
     }
@@ -174,7 +181,7 @@ abstract final class InventoryActions {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        ).showIsland(SnackBar(content: Text(e.message)));
       }
       return;
     }
@@ -259,7 +266,7 @@ abstract final class InventoryActions {
     try {
       await repository.deleteMedicine(medicine.id);
     } catch (_) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text("Couldn't archive ${medicine.name}. Try again."),
         ),

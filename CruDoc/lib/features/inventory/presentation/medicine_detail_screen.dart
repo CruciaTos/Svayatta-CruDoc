@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -38,7 +39,7 @@ class MedicineDetailScreen extends ConsumerWidget {
     Navigator.pop(context);
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('${medicine.name} deleted')));
+    ).showIsland(SnackBar(content: Text('${medicine.name} deleted')));
   }
 
   @override

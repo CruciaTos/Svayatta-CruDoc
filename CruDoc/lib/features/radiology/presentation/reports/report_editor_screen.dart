@@ -68,7 +68,8 @@ class RadReportEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
-  late final RadiologyController _rad = ref.read(radiologyProvider);
+  // Read in initState, while mounted: dispose() saves through it.
+  late final RadiologyController _rad;
 
   /// The working copy; the text lives in the controllers until saved.
   RadReport? _report;
@@ -110,6 +111,12 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   bool _prefsRead = false;
 
   bool get _locked => _report?.isSigned ?? false;
+
+  @override
+  void initState() {
+    super.initState();
+    _rad = ref.read(radiologyProvider);
+  }
 
   @override
   void dispose() {

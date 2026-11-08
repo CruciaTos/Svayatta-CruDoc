@@ -6,6 +6,7 @@ enum PatientFilter {
   all('All'),
   last7Days('Last 7 days'),
   followUpOverdue('Follow-up overdue'),
+  needsDetails('Needs details'),
   balanceDue('Balance due'),
   inTreatment('In treatment'),
   newThisMonth('New this month'),
@@ -18,7 +19,8 @@ enum PatientFilter {
   final String label;
 
   /// Amber dot before the label: needs attention.
-  bool get attention => this == followUpOverdue || this == balanceDue;
+  bool get attention =>
+      this == followUpOverdue || this == needsDetails || this == balanceDue;
 
   /// Work-through filters open straight into split mode with the first
   /// patient selected, a summary strip and their own sort.

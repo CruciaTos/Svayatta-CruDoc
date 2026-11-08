@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -78,12 +79,12 @@ class _DesktopSessionDetailsDialogState
       ref.invalidate(allVisitsWithPatientsProvider);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Note saved')));
+      ).showIsland(const SnackBar(content: Text('Note saved')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
+      ).showIsland(SnackBar(content: Text('Failed to save note: $e')));
     } finally {
       if (mounted) setState(() => _savingNote = false);
     }
@@ -101,7 +102,7 @@ class _DesktopSessionDetailsDialogState
       });
       ref.invalidate(visitsWithPatientsProvider);
       ref.invalidate(allVisitsWithPatientsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         SnackBar(
           content: Text(switch (newStatus) {
             VisitStatus.completed => 'Marked as done',
@@ -115,7 +116,7 @@ class _DesktopSessionDetailsDialogState
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
+      ).showIsland(SnackBar(content: Text('Failed to update status: $e')));
     } finally {
       if (mounted) setState(() => _updatingStatus = false);
     }
@@ -128,14 +129,14 @@ class _DesktopSessionDetailsDialogState
       final created = await repo.checkInVisit(_visit);
       if (!mounted) return;
       ref.invalidate(todaysQueueWithPatientsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         SnackBar(content: Text('Checked in as token ${created.tokenNumber}')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not check into queue: $e')));
+      ).showIsland(SnackBar(content: Text('Could not check into queue: $e')));
     } finally {
       if (mounted) setState(() => _checkingIntoQueue = false);
     }
@@ -160,12 +161,12 @@ class _DesktopSessionDetailsDialogState
       Navigator.of(context).pop();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Appointment removed.')));
+      ).showIsland(const SnackBar(content: Text('Appointment removed.')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+      ).showIsland(SnackBar(content: Text('Failed to delete: $e')));
     }
   }
 
@@ -173,7 +174,7 @@ class _DesktopSessionDetailsDialogState
     final patient = _patient;
     if (patient == null) return;
     if (!WhatsAppTemplateService.isValidWhatsAppPhone(patient.phone)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(
           content: Text('No valid WhatsApp mobile number for this patient.'),
         ),
@@ -195,7 +196,7 @@ class _DesktopSessionDetailsDialogState
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp.')));
+      ).showIsland(const SnackBar(content: Text('Could not open WhatsApp.')));
     }
   }
 

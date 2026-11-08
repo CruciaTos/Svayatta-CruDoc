@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -357,7 +358,7 @@ Future<void> deleteDentalRecord(WidgetRef ref, DentalRecord r) async {
 void recToast(BuildContext context, String message) {
   ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()
-    ..showSnackBar(
+    ..showIsland(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,

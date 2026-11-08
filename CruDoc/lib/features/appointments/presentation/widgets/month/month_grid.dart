@@ -47,6 +47,7 @@ class MonthGrid extends StatelessWidget {
   /// Visits are still loading: tiles show placeholders.
   final bool loading;
   final ValueChanged<DateTime> onSelect;
+
   /// Double-click on a tile: the date and the tile, to grow from.
   final void Function(DateTime date, BuildContext tile) onOpen;
   final double tileHeight;

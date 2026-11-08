@@ -1,5 +1,8 @@
 import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:doctor_management_app/features/appointments/presentation/widgets/appt_doctor_tint.dart';
 
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/appt_status_style.dart';
@@ -13,7 +16,7 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 /// " · reason", start time on the right). Longer: name with "start to
 /// end", then the reason. Home visits carry a house icon, a blue left
 /// edge and their address on the second line.
-class DayBlock extends StatefulWidget {
+class DayBlock extends ConsumerStatefulWidget {
   const DayBlock({
     super.key,
     required this.item,
@@ -31,10 +34,10 @@ class DayBlock extends StatefulWidget {
   final VoidCallback onDoubleTap;
 
   @override
-  State<DayBlock> createState() => _DayBlockState();
+  ConsumerState<DayBlock> createState() => _DayBlockState();
 }
 
-class _DayBlockState extends State<DayBlock> {
+class _DayBlockState extends ConsumerState<DayBlock> {
   bool _hovered = false;
 
   /// A second click within [kDoubleTapTimeout] opens the visit. Detected
@@ -57,7 +60,11 @@ class _DayBlockState extends State<DayBlock> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final item = widget.item;
-    final style = ApptStatusStyle.of(item.status, c);
+    final style = ApptStatusStyle.of(
+      item.status,
+      c,
+      tint: apptDoctorTint(context, ref, item),
+    );
     final oneLine = item.durationMinutes <= DayGridMetrics.oneLineMaxMinutes;
     final fill = _hovered ? cruHoverShade(style.fill, c) : style.fill;
 

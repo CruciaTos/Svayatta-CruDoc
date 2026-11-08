@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -116,7 +117,7 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
     return false;
   }
 
-  void _say(String message) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+  void _say(String message) => ScaffoldMessenger.maybeOf(context)?.showIsland(
     SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
   );
 
@@ -164,6 +165,11 @@ class _SessionNoteScreenState extends ConsumerState<SessionNoteScreen> {
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       children: [
+                        Text(
+                          'AI draft. Review and correct before you use it.',
+                          style: CruType.caption.tint(c.label3),
+                        ),
+                        const SizedBox(height: CruSpace.s12),
                         SessionNoteHeader(note: _note, patient: widget.patient),
                         const SizedBox(height: CruSpace.s16),
                         if (edit == null) ...[

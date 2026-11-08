@@ -1,16 +1,24 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
+import 'package:doctor_management_app/core/pdf/render/pdf_text.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/features/revenue/data/invoice_pdf_mapper.dart';
+import 'package:doctor_management_app/features/revenue/data/models/invoice_bill.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
+import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
+import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 export 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
@@ -55,6 +63,7 @@ class DesktopInvoicesScreen extends StatefulWidget {
 
 class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
   late final InvoiceRepository _repository = InvoiceRepository();
+  late final RevenueRepository _revenueRepository = RevenueRepository();
   final PatientRepository _patientRepository = PatientRepository();
   final TextEditingController _search = TextEditingController();
   late final Stream<List<InvoiceModel>> _invoices =
@@ -71,6 +80,372 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
 
   void _newInvoice() =>
       showDesktopCreateInvoiceDialog(context, repository: _repository);
+
+  double _amountPaid(InvoiceModel invoice) {
+    if (invoice.billJson.isNotEmpty) {
+      final bill = invoice.bill;
+      if (bill.paidPaise > 0) {
+        return bill.paidPaise / 100.0;
+      }
+    }
+    return invoice.isPaid ? invoice.amount : 0.0;
+  }
+
+  double _balanceDue(InvoiceModel invoice) {
+    if (invoice.isPaid || invoice.isCancelled) return 0.0;
+    if (invoice.billJson.isNotEmpty) {
+      final bill = invoice.bill;
+      if (bill.items.isNotEmpty) {
+        final totals = InvoiceTotals.of(bill);
+        return (totals.balance / 100.0).clamp(0.0, totals.grand / 100.0);
+      }
+    }
+    final paid = _amountPaid(invoice);
+    return (invoice.amount - paid).clamp(0.0, invoice.amount);
+  }
+
+  Future<void> _recordPayment(InvoiceModel invoice) async {
+    final balance = _balanceDue(invoice);
+    if (balance <= 0) return;
+
+    final amountController = TextEditingController(
+      text: balance == balance.roundToDouble()
+          ? '${balance.toInt()}'
+          : balance.toStringAsFixed(2),
+    );
+    String? error;
+
+    final recorded = await showDialog<double>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final c = context.cru;
+          return PatientDialog(
+            title: 'Record payment',
+            cancelLabel: 'Cancel',
+            confirmLabel: 'Record payment',
+            onConfirm: () {
+              final raw = amountController.text.replaceAll(
+                RegExp(r'[₹,\s]'),
+                '',
+              );
+              final val = double.tryParse(raw);
+              if (val == null || val <= 0) {
+                setDialogState(() => error = 'Enter an amount above ₹0.');
+                return;
+              }
+              if (val > balance) {
+                setDialogState(
+                  () => error =
+                      'Cannot exceed balance due (${DashFormat.rupees(balance)}).',
+                );
+                return;
+              }
+              Navigator.of(dialogCtx).pop(val);
+            },
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_patient(invoice)} · ${DashFormat.rupees(balance)} due',
+                  style: CruType.text.tabular.tint(c.label2),
+                ),
+                const SizedBox(height: CruSpace.s16),
+                CruTextField(
+                  label: 'Amount',
+                  controller: amountController,
+                  autofocus: true,
+                  prefix: '₹',
+                  tabular: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: CruSpace.s6),
+                  Text(error!, style: CruType.caption.w500.tint(c.amberText)),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (recorded == null || !mounted) return;
+
+    final currentPaid = _amountPaid(invoice);
+    final newPaid = currentPaid + recorded;
+    final invBill = invoice.bill.items.isNotEmpty
+        ? invoice.bill.copyWith(paidPaise: toPaise(newPaid))
+        : InvoiceBill(
+            items: [
+              InvoiceBillItem(
+                name: invoice.service.isNotEmpty
+                    ? invoice.service
+                    : 'Medical Consultation',
+                ratePaise: toPaise(invoice.amount),
+              ),
+            ],
+            paidPaise: toPaise(newPaid),
+            templateId: invoice.bill.templateId,
+            signedByUid: invoice.bill.signedByUid,
+          );
+
+    await _repository.updateBilledInvoice(
+      invoice,
+      patientName: invoice.patientName,
+      patientId: invoice.patientId,
+      bill: invBill,
+      date: invoice.date,
+      dueDate: invoice.dueDate,
+      notes: invoice.notes,
+      attendingDoctorUid: invoice.attendingDoctorUid,
+      invoiceNumber: invoice.invoiceNumber,
+    );
+
+    final newBalance = (invoice.amount - newPaid).clamp(0.0, invoice.amount);
+    if (newBalance <= 0) {
+      await _repository.updateInvoiceStatus(invoice.id, 'Paid');
+    }
+
+    final now = DateTime.now();
+    final invNo = invoice.invoiceNumber.isNotEmpty
+        ? invoice.invoiceNumber
+        : invoice.id;
+    await _revenueRepository.createRevenueEntry(
+      RevenueEntry(
+        id: '',
+        date: now,
+        description:
+            'Invoice $invNo · ${invoice.service.isNotEmpty ? invoice.service : 'Payment'}',
+        amount: recorded,
+        type: RevenueType.visit,
+        payer: invoice.patientName.isNotEmpty ? invoice.patientName : null,
+        patientId: invoice.patientId,
+        attendingDoctorUid: invoice.attendingDoctorUid,
+        createdByUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+        createdAt: now,
+        updatedAt: now,
+        kind: TransactionKind.income,
+      ),
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showIsland(
+        SnackBar(
+          content: Text('Payment of ${DashFormat.rupees(recorded)} recorded'),
+        ),
+      );
+      setState(() {});
+    }
+  }
+
+  /// Money already given back on [invoice], across every refund.
+  double _amountRefunded(InvoiceModel invoice) {
+    if (invoice.billJson.isEmpty) return 0.0;
+    return invoice.bill.refundedPaise / 100.0;
+  }
+
+  Future<void> _refund(InvoiceModel invoice) async {
+    final paidAmount = _amountPaid(invoice);
+    final alreadyRefunded = _amountRefunded(invoice);
+    // What can still go back: paid so far minus earlier refunds.
+    final refundable = paidAmount - alreadyRefunded;
+    if (refundable <= 0) {
+      ScaffoldMessenger.maybeOf(context)?.showIsland(
+        const SnackBar(
+          content: Text('This invoice is already fully refunded.'),
+        ),
+      );
+      return;
+    }
+
+    final amountController = TextEditingController(
+      text: refundable == refundable.roundToDouble()
+          ? '${refundable.toInt()}'
+          : refundable.toStringAsFixed(2),
+    );
+    final reasonController = TextEditingController();
+    String? error;
+
+    final result = await showDialog<(double, String)>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final c = context.cru;
+          return PatientDialog(
+            title: 'Refund invoice',
+            cancelLabel: 'Cancel',
+            confirmLabel: 'Refund',
+            onConfirm: () {
+              final raw = amountController.text.replaceAll(
+                RegExp(r'[₹,\s]'),
+                '',
+              );
+              final val = double.tryParse(raw);
+              final reason = reasonController.text.trim();
+              if (val == null || val <= 0) {
+                setDialogState(() => error = 'Enter an amount above ₹0.');
+                return;
+              }
+              // Compared in paise so rounding can't slip a rupee past.
+              if (toPaise(val) > toPaise(refundable)) {
+                setDialogState(
+                  () => error =
+                      'Cannot exceed what can still be refunded '
+                      '(${DashFormat.rupees(refundable)}).',
+                );
+                return;
+              }
+              if (reason.isEmpty) {
+                setDialogState(
+                  () => error = 'A reason for the refund is required.',
+                );
+                return;
+              }
+              Navigator.of(dialogCtx).pop((val, reason));
+            },
+            body: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  alreadyRefunded > 0
+                      ? '${_patient(invoice)} · '
+                            '${DashFormat.rupees(paidAmount)} paid · '
+                            '${DashFormat.rupees(alreadyRefunded)} '
+                            'already refunded'
+                      : '${_patient(invoice)} · '
+                            '${DashFormat.rupees(paidAmount)} paid',
+                  style: CruType.text.tabular.tint(c.label2),
+                ),
+                const SizedBox(height: CruSpace.s16),
+                CruTextField(
+                  label: 'Refund amount',
+                  controller: amountController,
+                  autofocus: true,
+                  prefix: '₹',
+                  tabular: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s14),
+                CruTextField(
+                  label: 'Reason',
+                  controller: reasonController,
+                  hint: 'e.g. Treatment cancelled, overcharged',
+                ),
+                if (error != null) ...[
+                  const SizedBox(height: CruSpace.s6),
+                  Text(error!, style: CruType.caption.w500.tint(c.amberText)),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    final (refundAmount, reason) = result;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
+    final totalRefundedPaise = toPaise(alreadyRefunded) + toPaise(refundAmount);
+    final fullyRefunded = totalRefundedPaise >= toPaise(paidAmount);
+
+    try {
+      // 1. Note the refund on the invoice first: if anything after this
+      // fails, a second try can never give the money back twice.
+      final bill = invoice.bill.items.isNotEmpty
+          ? invoice.bill.copyWith(refundedPaise: totalRefundedPaise)
+          : InvoiceBill(
+              items: [
+                InvoiceBillItem(
+                  name: invoice.service.isNotEmpty
+                      ? invoice.service
+                      : 'Medical Consultation',
+                  ratePaise: toPaise(invoice.amount),
+                ),
+              ],
+              paidPaise: toPaise(paidAmount),
+              refundedPaise: totalRefundedPaise,
+              templateId: invoice.bill.templateId,
+              signedByUid: invoice.bill.signedByUid,
+            );
+      await _repository.updateBilledInvoice(
+        invoice,
+        patientName: invoice.patientName,
+        patientId: invoice.patientId,
+        bill: bill,
+        date: invoice.date,
+        dueDate: invoice.dueDate,
+        notes: invoice.notes,
+        attendingDoctorUid: invoice.attendingDoctorUid,
+        invoiceNumber: invoice.invoiceNumber,
+      );
+    } catch (_) {
+      messenger?.showIsland(
+        const SnackBar(
+          content: Text("Couldn't record the refund. Nothing was changed."),
+        ),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    final invNo = invoice.invoiceNumber.isNotEmpty
+        ? invoice.invoiceNumber
+        : invoice.id;
+    try {
+      // 2. The money going out, in Revenue.
+      await _revenueRepository.createRevenueEntry(
+        RevenueEntry(
+          id: '',
+          date: now,
+          description: 'Refund · invoice $invNo · $reason',
+          amount: refundAmount,
+          type: RevenueType.miscellaneous,
+          payer: invoice.patientName.isNotEmpty ? invoice.patientName : null,
+          patientId: invoice.patientId,
+          attendingDoctorUid: invoice.attendingDoctorUid,
+          createdByUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+          createdAt: now,
+          updatedAt: now,
+          kind: TransactionKind.expense,
+        ),
+      );
+      // 3. Everything paid has gone back: the invoice is cancelled.
+      if (fullyRefunded) {
+        await _repository.updateInvoiceStatus(invoice.id, 'Cancelled');
+      }
+    } catch (_) {
+      messenger?.showIsland(
+        SnackBar(
+          content: Text(
+            'The refund is noted on the invoice, but Revenue was not '
+            'updated. Add a ${DashFormat.rupees(refundAmount)} expense '
+            'there by hand. Do not refund again.',
+          ),
+        ),
+      );
+      if (mounted) setState(() {});
+      return;
+    }
+
+    messenger?.showIsland(
+      SnackBar(content: Text('Refunded ${DashFormat.rupees(refundAmount)}')),
+    );
+    if (mounted) setState(() {});
+  }
 
   List<InvoiceModel> _shown(List<InvoiceModel> all) {
     final q = _search.text.toLowerCase().trim();
@@ -180,6 +555,8 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
             selectedId: _selectedId,
             onTap: (i) =>
                 setState(() => _selectedId = _selectedId == i.id ? null : i.id),
+            onRecordPayment: _recordPayment,
+            onRefund: _refund,
           );
         }
 
@@ -239,6 +616,8 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
                               selected!.id,
                               'Paid',
                             ),
+                            onRecordPayment: () => _recordPayment(selected!),
+                            onRefund: () => _refund(selected!),
                           ),
                   ),
                 ],
@@ -349,13 +728,17 @@ class _InvoiceList extends StatelessWidget {
     required this.invoices,
     required this.selectedId,
     required this.onTap,
+    required this.onRecordPayment,
+    required this.onRefund,
   });
 
   final List<InvoiceModel> invoices;
   final String? selectedId;
   final ValueChanged<InvoiceModel> onTap;
+  final ValueChanged<InvoiceModel> onRecordPayment;
+  final ValueChanged<InvoiceModel> onRefund;
 
-  static const _flex = [3, 5, 4, 3, 3, 3];
+  static const _flex = [3, 5, 4, 3, 3, 4];
 
   @override
   Widget build(BuildContext context) {
@@ -404,6 +787,8 @@ class _InvoiceList extends StatelessWidget {
                 invoice: invoices[i],
                 selected: invoices[i].id == selectedId,
                 onTap: () => onTap(invoices[i]),
+                onRecordPayment: () => onRecordPayment(invoices[i]),
+                onRefund: () => onRefund(invoices[i]),
               ),
             ),
           ),
@@ -418,11 +803,15 @@ class _InvoiceRow extends StatelessWidget {
     required this.invoice,
     required this.selected,
     required this.onTap,
+    required this.onRecordPayment,
+    required this.onRefund,
   });
 
   final InvoiceModel invoice;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback onRecordPayment;
+  final VoidCallback onRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -477,9 +866,36 @@ class _InvoiceRow extends StatelessWidget {
               ),
               cell(
                 5,
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _StatusPill(invoice: invoice),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _StatusPill(invoice: invoice),
+                    if (!invoice.isCancelled &&
+                        (invoice.isPending ||
+                            invoice.isOverdue ||
+                            invoice.isPaid))
+                      PopupMenuButton<String>(
+                        tooltip: 'Invoice actions',
+                        padding: EdgeInsets.zero,
+                        icon: CruIcon(CruIcons.more, size: 16, color: c.label3),
+                        onSelected: (val) {
+                          if (val == 'payment') onRecordPayment();
+                          if (val == 'refund') onRefund();
+                        },
+                        itemBuilder: (context) => [
+                          if (invoice.isPending || invoice.isOverdue)
+                            const PopupMenuItem(
+                              value: 'payment',
+                              child: Text('Record payment'),
+                            ),
+                          if (_canRefund(invoice))
+                            const PopupMenuItem(
+                              value: 'refund',
+                              child: Text('Refund'),
+                            ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -500,6 +916,8 @@ class _InvoiceDetails extends StatelessWidget {
     required this.onEdit,
     required this.onCancel,
     required this.onMarkPaid,
+    this.onRecordPayment,
+    this.onRefund,
   });
 
   final InvoiceModel invoice;
@@ -508,6 +926,8 @@ class _InvoiceDetails extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onCancel;
   final VoidCallback onMarkPaid;
+  final VoidCallback? onRecordPayment;
+  final VoidCallback? onRefund;
 
   @override
   Widget build(BuildContext context) {
@@ -588,6 +1008,16 @@ class _InvoiceDetails extends StatelessWidget {
           ),
           const SizedBox(height: CruSpace.s8),
           if (!invoice.isPaid && !invoice.isCancelled) ...[
+            if (onRecordPayment != null) ...[
+              CruButton(
+                label: 'Record payment',
+                kind: CruButtonKind.inset,
+                icon: CruIcons.rupee,
+                expand: true,
+                onPressed: onRecordPayment,
+              ),
+              const SizedBox(height: CruSpace.s8),
+            ],
             CruButton(
               label: 'Mark as paid',
               kind: CruButtonKind.inset,
@@ -596,6 +1026,18 @@ class _InvoiceDetails extends StatelessWidget {
               onPressed: onMarkPaid,
             ),
             const SizedBox(height: CruSpace.s8),
+          ],
+          if (_canRefund(invoice)) ...[
+            if (onRefund != null) ...[
+              CruButton(
+                label: 'Refund',
+                kind: CruButtonKind.inset,
+                icon: CruIcons.rupee,
+                expand: true,
+                onPressed: onRefund,
+              ),
+              const SizedBox(height: CruSpace.s8),
+            ],
           ],
           if (!invoice.isCancelled) ...[
             CruButton(
@@ -643,4 +1085,14 @@ class _MessageCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// True when something paid on [i] has not been refunded yet.
+bool _canRefund(InvoiceModel i) {
+  if (!i.isPaid || i.isCancelled) return false;
+  final bill = i.billJson.isEmpty ? null : i.bill;
+  final paidPaise = (bill != null && bill.paidPaise > 0)
+      ? bill.paidPaise
+      : toPaise(i.amount);
+  return paidPaise - (bill?.refundedPaise ?? 0) > 0;
 }

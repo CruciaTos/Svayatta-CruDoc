@@ -2,9 +2,13 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_drag.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -58,36 +62,72 @@ class WeekSessionGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nowY = _nowY;
+    final row = WeekColumnsRow(
+      focus: focus,
+      gutter: _Gutter(
+        startMinute: startMinute,
+        endMinute: endMinute,
+        now: now,
+        nowY: nowY,
+        focus: focus,
+        // Opening another day than today: Day has no now line, so the
+        // time pill fades as the column opens.
+        nowOpacity: focus.active && days[focus.index!] != today
+            ? 1 - focus.dayLook
+            : 1,
+      ),
+      columns: [
+        for (var i = 0; i < days.length; i++)
+          _DayColumn(
+            focus: focus,
+            opening: focus.active && focus.index == i,
+            day: days[i],
+            startMinute: startMinute,
+            endMinute: endMinute,
+            groups: groupsByDay[days[i]] ?? const [],
+            isToday: days[i] == today,
+            nowY: days[i] == today ? nowY : null,
+            onOpenVisit: (item) => onOpenVisit(days[i], item),
+          ),
+      ],
+    );
     return SizedBox(
       height: _height,
-      child: WeekColumnsRow(
-        focus: focus,
-        gutter: _Gutter(
-          startMinute: startMinute,
-          endMinute: endMinute,
-          now: now,
-          nowY: nowY,
-          focus: focus,
-          // Opening another day than today: Day has no now line, so the
-          // time pill fades as the column opens.
-          nowOpacity: focus.active && days[focus.index!] != today
-              ? 1 - focus.dayLook
-              : 1,
-        ),
-        columns: [
-          for (var i = 0; i < days.length; i++)
-            _DayColumn(
-              focus: focus,
-              opening: focus.active && focus.index == i,
-              day: days[i],
-              startMinute: startMinute,
-              endMinute: endMinute,
-              groups: groupsByDay[days[i]] ?? const [],
-              isToday: days[i] == today,
-              nowY: days[i] == today ? nowY : null,
-              onOpenVisit: (item) => onOpenVisit(days[i], item),
+      // Not while a column is opening into its Day.
+      child: focus.active
+          ? row
+          : ApptDropArea(
+              ghostRadius: CruRadius.bar,
+              stepDaysAtEdge: true,
+              resolve: _resolve,
+              child: row,
             ),
-        ],
+    );
+  }
+
+  /// The day column under the dragged chip's middle and the time under its
+  /// top, snapped.
+  ApptDrop? _resolve(Offset topLeft, ApptDragData data, Size area) {
+    final even = (area.width - WeekMetrics.gutter) / days.length;
+    if (even <= 0) return null;
+    final i = ((topLeft.dx + data.size.width / 2 - WeekMetrics.gutter) / even)
+        .floor()
+        .clamp(0, days.length - 1);
+    // A chip's top sits 1 px under its start line.
+    final m =
+        startMinute +
+        snapMinutes(
+          (topLeft.dy - 1) / pxPerMinute,
+          endMinute - startMinute - kApptSnapMinutes,
+        );
+    final d = days[i];
+    return (
+      start: DateTime(d.year, d.month, d.day, 0, m),
+      rect: Rect.fromLTWH(
+        WeekMetrics.gutter + i * even + WeekMetrics.blockInset,
+        (m - startMinute) * pxPerMinute + 1,
+        math.max(0, even - 2 * WeekMetrics.blockInset),
+        WeekMetrics.blockHeight,
       ),
     );
   }
@@ -231,6 +271,11 @@ class _DayColumn extends StatelessWidget {
             final col = g.columnOf[item.id] ?? 0;
             final m = item.start.hour * 60 + item.start.minute;
             final chip = WeekBlock(item: item, onTap: () => onOpenVisit(item));
+            final grabbable = ApptDraggable(
+              item: item,
+              feedback: WeekBlock(item: item, onTap: () {}),
+              child: chip,
+            );
             blocks.add(
               Positioned(
                 left: inset + col * (bw + WeekMetrics.overlapGap),
@@ -263,7 +308,7 @@ class _DayColumn extends StatelessWidget {
                           ),
                         ],
                       )
-                    : chip,
+                    : grabbable,
               ),
             );
           }
@@ -300,6 +345,33 @@ class _DayColumn extends StatelessWidget {
                 child: ColoredBox(color: c.separator),
               ),
             ),
+            if (!opening)
+              Positioned.fill(
+                child: Consumer(
+                  builder: (context, ref, _) => MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapUp: (d) {
+                        final minutes = (d.localPosition.dy / pxPerMinute)
+                            .floor();
+                        final t = DateTime(
+                          day.year,
+                          day.month,
+                          day.day,
+                          0,
+                          startMinute + minutes,
+                        );
+                        ApptActions.newAppointment(
+                          context,
+                          ref,
+                          start: ApptsBuilder.snap(t),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
             ...blocks,
             if (nowY != null) ...[
               Positioned(

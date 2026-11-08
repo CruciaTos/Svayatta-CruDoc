@@ -65,6 +65,7 @@ class InvoiceBill {
     this.discountPaise = 0,
     this.roundOff = true,
     this.paidPaise = 0,
+    this.refundedPaise = 0,
     this.paymentMode = '',
     this.templateId = '',
     this.signedByUid = '',
@@ -74,6 +75,9 @@ class InvoiceBill {
   final int discountPaise;
   final bool roundOff;
   final int paidPaise;
+
+  /// Money given back so far, across all refunds. Never more than [paidPaise].
+  final int refundedPaise;
   final String paymentMode;
   final String templateId;
   final String signedByUid;
@@ -83,6 +87,7 @@ class InvoiceBill {
     int? discountPaise,
     bool? roundOff,
     int? paidPaise,
+    int? refundedPaise,
     String? paymentMode,
     String? templateId,
     String? signedByUid,
@@ -92,6 +97,7 @@ class InvoiceBill {
       discountPaise: discountPaise ?? this.discountPaise,
       roundOff: roundOff ?? this.roundOff,
       paidPaise: paidPaise ?? this.paidPaise,
+      refundedPaise: refundedPaise ?? this.refundedPaise,
       paymentMode: paymentMode ?? this.paymentMode,
       templateId: templateId ?? this.templateId,
       signedByUid: signedByUid ?? this.signedByUid,
@@ -104,6 +110,7 @@ class InvoiceBill {
     'discount': discountPaise,
     'roundOff': roundOff,
     'paid': paidPaise,
+    'refunded': refundedPaise,
     'paymentMode': paymentMode,
     'templateId': templateId,
     'signedByUid': signedByUid,
@@ -138,6 +145,7 @@ class InvoiceBill {
       discountPaise: (m['discount'] as num?)?.toInt() ?? 0,
       roundOff: m['roundOff'] is bool ? m['roundOff'] as bool : true,
       paidPaise: (m['paid'] as num?)?.toInt() ?? 0,
+      refundedPaise: (m['refunded'] as num?)?.toInt() ?? 0,
       paymentMode: (m['paymentMode'] ?? '').toString(),
       templateId: (m['templateId'] ?? '').toString(),
       signedByUid: (m['signedByUid'] ?? '').toString(),

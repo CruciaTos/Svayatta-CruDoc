@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -147,7 +148,7 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
       }
       if (waiting > 0) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showIsland(
             SnackBar(
               content: Text(
                 '${waiting == 1 ? 'It' : '$waiting files'} will download '
@@ -161,7 +162,7 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text(
               batch.length == 1
@@ -174,7 +175,7 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text('Failed to accept: $e'),
             behavior: SnackBarBehavior.floating,
@@ -200,7 +201,7 @@ class _IncomingOffersCardState extends ConsumerState<IncomingOffersCard> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           SnackBar(
             content: Text('Failed to decline: $e'),
             behavior: SnackBarBehavior.floating,

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -229,7 +230,7 @@ abstract final class PatientActions {
   }
 
   static void _say(ScaffoldMessengerState? messenger, String text) =>
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
       );
 }

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -6,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -18,6 +21,7 @@ import 'package:doctor_management_app/features/files/presentation/add_files_dial
 import 'package:doctor_management_app/features/files/presentation/file_viewer.dart';
 import 'package:doctor_management_app/features/files/presentation/files_dialogs.dart';
 import 'package:doctor_management_app/features/appointments/presentation/patient_picker_dialog.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_dicom_file.dart';
@@ -33,7 +37,7 @@ abstract final class FilesActions {
       Navigator.of(context, rootNavigator: true).context;
 
   static void say(BuildContext context, String text) =>
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showIsland(
         SnackBar(content: Text(text), behavior: SnackBarBehavior.floating),
       );
 
@@ -91,7 +95,7 @@ abstract final class FilesActions {
       return;
     }
     if (file.localPath.isEmpty && file.storagePath.isNotEmpty) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text('Downloading ${file.name}…'),
           behavior: SnackBarBehavior.floating,
@@ -115,7 +119,7 @@ abstract final class FilesActions {
       }
       final opened = await launchUrl(Uri.file(local.path));
       if (!opened) {
-        messenger?.showSnackBar(
+        messenger?.showIsland(
           SnackBar(
             content: Text(
               filesOnDesktop
@@ -128,13 +132,13 @@ abstract final class FilesActions {
       }
     } on FilesException catch (e) {
       messenger?.hideCurrentSnackBar();
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(content: Text(e.message), behavior: SnackBarBehavior.floating),
       );
     } catch (e) {
       debugPrint('[Files] opening ${file.id}: $e');
       messenger?.hideCurrentSnackBar();
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(
           content: Text("Couldn't open ${file.name}."),
           behavior: SnackBarBehavior.floating,
@@ -538,6 +542,58 @@ abstract final class FilesActions {
   ) async {
     if (files.isEmpty) return;
     await showSendToColleagueSheet(context, ref, files);
+  }
+
+  /// Opens the system share sheet (AirDrop, Messages, Mail…) for [file].
+  static Future<void> shareOutside(
+    BuildContext context,
+    PatientFile file,
+  ) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box == null
+        ? null
+        : box.localToGlobal(Offset.zero) & box.size; // iPad needs this
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => PatientDialog(
+        title: 'Share outside CruDoc?',
+        cancelLabel: 'Cancel',
+        confirmLabel: 'Share',
+        onConfirm: () => Navigator.of(ctx).pop(true),
+        body: Text(
+          'A shared copy leaves CruDoc\'s protection. Share it only with '
+          'someone who is allowed to see this patient\'s record.',
+          style: CruType.text.tint(ctx.cru.label2),
+        ),
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    File? temp;
+    try {
+      final local = await FilesRepository.instance.localCopy(file);
+      final dir = await getTemporaryDirectory();
+      temp = await File(
+        '${dir.path}/${file.name}',
+      ).writeAsBytes(await local.readAsBytes(), flush: true);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(temp.path, mimeType: file.contentType)],
+          sharePositionOrigin: origin,
+        ),
+      );
+    } catch (_) {
+      messenger?.showIsland(
+        const SnackBar(
+          content: Text("Couldn't share this file. Try again."),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      try {
+        await temp?.delete();
+      } catch (_) {}
+    }
   }
 }
 

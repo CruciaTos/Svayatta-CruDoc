@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
+import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
 
 /// Pure functions that turn repository data into Patients view models.
 /// No Flutter, no I/O: easy to test.
@@ -102,6 +103,7 @@ abstract final class PatientsBuilder {
     PatientFilter.all => true,
     PatientFilter.last7Days => s.seenWithin7Days,
     PatientFilter.followUpOverdue => s.followUpOverdue,
+    PatientFilter.needsDetails => patientDetailsPending(s.patient),
     PatientFilter.balanceDue => s.hasBalance,
     PatientFilter.inTreatment => s.inTreatment,
     PatientFilter.newThisMonth => s.isNewThisMonth,

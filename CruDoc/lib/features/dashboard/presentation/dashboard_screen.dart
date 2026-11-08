@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/services/ai_consent.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
@@ -40,6 +42,39 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAiConsent());
+  }
+
+  Future<void> _checkAiConsent() async {
+    if (!mounted) return;
+    final consent = await AiConsent.read();
+    if (consent == null && mounted) {
+      final allowed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PatientDialog(
+          title: 'Use AI features?',
+          cancelLabel: 'Not now',
+          confirmLabel: 'Allow',
+          onConfirm: () => Navigator.of(ctx).pop(true),
+          body: Text(
+            'CruDoc can use Google\'s Gemini AI to write session notes from '
+            'your recordings, understand voice commands, read scanned pages '
+            'and fill forms. When you use these, the audio, text or image you '
+            'give it, which can include patient details, is sent to Google to '
+            'be processed. Google does not use it to train its models. You can '
+            'change this any time in Settings > AI assistance.',
+            style: CruType.text.tint(ctx.cru.label2),
+          ),
+        ),
+      );
+      await AiConsent.set(allowed ?? false);
+    }
+  }
+
   /// Enter on the dashboard starts the Up next consultation.
   void startUpNext() {
     final upNext = ref.read(dashboardDataProvider).upNext;

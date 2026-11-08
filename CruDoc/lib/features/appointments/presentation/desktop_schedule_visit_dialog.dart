@@ -404,6 +404,24 @@ class _DesktopScheduleVisitDialogState
   Future<void> _submit({bool acknowledgeOverlap = false}) async {
     if (_saving) return;
 
+    if (!acknowledgeOverlap &&
+        _start.isBefore(DateTime.now().subtract(const Duration(minutes: 5)))) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => PatientDialog(
+          title: 'This time has already passed',
+          body: Text(
+            '${ApptFormat.dateLine(_start)} at ${ApptFormat.time(_start)}',
+            style: CruType.text.tabular.tint(ctx.cru.label2),
+          ),
+          cancelLabel: 'Change time',
+          confirmLabel: 'Book anyway',
+          onConfirm: () => Navigator.of(ctx).pop(true),
+        ),
+      );
+      if (proceed != true) return;
+    }
+
     setState(() {
       _saving = true;
       _notice = null;

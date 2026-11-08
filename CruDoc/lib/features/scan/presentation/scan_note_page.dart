@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -201,7 +202,7 @@ class _ScanNotePageState extends ConsumerState<ScanNotePage> {
       Navigator.of(context).pop();
       ScaffoldMessenger.maybeOf(root)
         ?..hideCurrentSnackBar()
-        ..showSnackBar(
+        ..showIsland(
           SnackBar(
             behavior: SnackBarBehavior.floating,
             content: Text(

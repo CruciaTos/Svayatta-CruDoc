@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/desktop_google_oauth.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
@@ -16,6 +21,10 @@ class AuthService {
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;
+
+  /// Holds the most recent Apple authorization code, required for token revocation
+  /// upon account deletion.
+  static String? lastAppleAuthorizationCode;
 
   // --------------- Getters ---------------
 
@@ -35,7 +44,7 @@ class AuthService {
         final tokens = await DesktopGoogleOAuth.authorize(
           scopes: const ['openid', 'email', 'profile'],
         );
-        return _auth.signInWithCredential(
+        return await _auth.signInWithCredential(
           GoogleAuthProvider.credential(
             accessToken: tokens.accessToken,
             idToken: tokens.idToken,
@@ -66,6 +75,46 @@ class AuthService {
     );
 
     return _auth.signInWithCredential(credential);
+  }
+
+  // --------------- Sign in with Apple ---------------
+
+  String _randomNonce([int length = 32]) {
+    const chars =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(
+      length,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
+  }
+
+  /// Triggers Sign in with Apple and authenticates with Firebase.
+  Future<UserCredential> signInWithApple() async {
+    final raw = _randomNonce();
+    final nonce = sha256.convert(utf8.encode(raw)).toString();
+    final apple = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: nonce,
+    );
+    lastAppleAuthorizationCode = apple.authorizationCode;
+    final credential = OAuthProvider('apple.com').credential(
+      idToken: apple.identityToken,
+      rawNonce: raw,
+      accessToken: apple.authorizationCode,
+    );
+    final result = await _auth.signInWithCredential(credential);
+    // Apple only sends the name the first time: keep it.
+    final given = apple.givenName?.trim() ?? '';
+    final family = apple.familyName?.trim() ?? '';
+    if ((result.user?.displayName ?? '').isEmpty &&
+        (given + family).isNotEmpty) {
+      await result.user?.updateDisplayName('$given $family'.trim());
+    }
+    return result;
   }
 
   // --------------- Phone OTP ---------------

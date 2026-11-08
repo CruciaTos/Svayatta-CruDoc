@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -213,7 +214,7 @@ class PatientFormState extends State<PatientForm> {
     if (!isValid) return false;
 
     if (_dateOfBirth == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(content: Text('Please select a date of birth')),
       );
       return false;
@@ -226,7 +227,7 @@ class PatientFormState extends State<PatientForm> {
         .toList();
 
     if (diagnoses.isEmpty && widget.showDiagnosis) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(content: Text('Please enter at least one diagnosis')),
       );
       return false;
@@ -611,9 +612,14 @@ class _DateOfBirthField extends StatelessWidget {
 Future<bool?> showAddPatientSheet(
   BuildContext context, {
   PatientRepository? repository,
+  ValueChanged<String>? onCreated,
 }) {
   if (MediaQuery.of(context).size.width >= 800) {
-    return showDesktopAddEditPatientDialog(context, repository: repository);
+    return showDesktopAddEditPatientDialog(
+      context,
+      repository: repository,
+      onCreated: onCreated,
+    );
   }
   return showModalBottomSheet<bool>(
     context: context,
@@ -700,7 +706,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(content: Text('Patient added successfully')),
       );
       Navigator.of(context).pop();
@@ -708,7 +714,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to save patient: $e')));
+      ).showIsland(SnackBar(content: Text('Failed to save patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -877,7 +883,7 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showIsland(
         const SnackBar(content: Text('Patient updated successfully')),
       );
       Navigator.of(context).pop(true);
@@ -885,7 +891,7 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update patient: $e')));
+      ).showIsland(SnackBar(content: Text('Failed to update patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

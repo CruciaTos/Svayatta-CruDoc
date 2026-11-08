@@ -130,6 +130,11 @@ class _MedicalReportGenerationSheetState
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                Text(
+                  'AI draft. Review and correct before you use it.',
+                  style: CruType.caption.tint(_c.label3),
+                ),
+                const SizedBox(height: 12),
                 _buildLetterheadBanner(cfg),
                 const SizedBox(height: 16),
                 _buildMetadataSection(),

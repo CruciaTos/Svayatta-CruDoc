@@ -228,6 +228,12 @@ class ApptsController extends Notifier<ApptsState> {
     state = state.copyWith(anchor: next, clearSelection: true);
   }
 
+  /// Moves the view by [days] days (a drag held at the screen's edge).
+  void shiftDays(int days) {
+    final a = state.anchor;
+    state = state.copyWith(anchor: DateTime(a.year, a.month, a.day + days));
+  }
+
   /// T : jump to today.
   void today() {
     state = state.copyWith(

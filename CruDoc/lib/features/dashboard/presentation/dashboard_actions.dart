@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -231,7 +232,7 @@ abstract final class DashboardActions {
     required ValueChanged<int> navigate,
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
-    void say(String m) => messenger?.showSnackBar(
+    void say(String m) => messenger?.showIsland(
       SnackBar(content: Text(m), behavior: SnackBarBehavior.floating),
     );
 
@@ -285,11 +286,11 @@ abstract final class DashboardActions {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       await action();
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(content: Text(done), behavior: SnackBarBehavior.floating),
       );
     } catch (e) {
-      messenger?.showSnackBar(
+      messenger?.showIsland(
         SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
       );
     }

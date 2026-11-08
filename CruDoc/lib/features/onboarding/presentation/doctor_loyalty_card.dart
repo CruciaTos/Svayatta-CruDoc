@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -67,13 +68,13 @@ class _DoctorLoyaltyCardState extends ConsumerState<DoctorLoyaltyCard> {
     try {
       await LoyaltyService.claimFreeMonth();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(content: Text('Free month added to your plan.')),
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showIsland(
           const SnackBar(content: Text('Could not claim. Try again.')),
         );
       }

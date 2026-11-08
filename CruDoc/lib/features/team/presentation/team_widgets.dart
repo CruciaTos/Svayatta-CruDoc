@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -220,7 +221,7 @@ class WaitingPill extends StatelessWidget {
 }
 
 void showTeamToast(BuildContext context, String message) {
-  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+  ScaffoldMessenger.maybeOf(context)?.showIsland(
     SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
   );
 }

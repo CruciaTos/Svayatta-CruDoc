@@ -9,9 +9,11 @@ import GoogleMaps
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     // Google Maps SDK for iOS — required by google_maps_flutter.
-    // Replace the placeholder with your real API key from
-    // https://console.cloud.google.com/apis/credentials
-    GMSServices.provideAPIKey("YOUR_GOOGLE_MAPS_API_KEY")
+    // The API key is read from Info.plist, supplied by ios/Flutter/Secrets.xcconfig.
+    if let key = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String,
+       !key.isEmpty, !key.hasPrefix("$(") {
+      GMSServices.provideAPIKey(key)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

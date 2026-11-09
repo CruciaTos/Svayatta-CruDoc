@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CBCT Viewer - Reference vs Screenshot Comparison</title>
+  <style>
+    body {
+      margin: 0;
+      background: #121212;
+      color: #e0e0e0;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      padding: 10px 18px;
+      background: #1e1e1e;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #333;
+      flex-wrap: wrap;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    input[type="text"] {
+      background: #2b2b2b;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      width: 180px;
+      font-size: 13px;
+    }
+    input[type="range"] {
+      width: 180px;
+      accent-color: #3b82f6;
+    }
+    .info {
+      font-size: 13px;
+      color: #888;
+    }
+    #stage {
+      position: relative;
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+    }
+    .stack {
+      position: relative;
+      width: 1440px;
+      height: 913px;
+      background: #000;
+      border: 1px solid #333;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .stack img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1440px;
+      height: 913px;
+      user-select: none;
+      display: block;
+    }
+    #refImg {
+      z-index: 1;
+    }
+    #shotImg {
+      z-index: 2;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <label>
+      Screenshot:
+      <input type="text" id="shotInput" value="out/step-0.png">
+    </label>
+    <label>
+      Onion skin opacity:
+      <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
+      <span id="opacityVal">50%</span>
+    </label>
+    <div class="info">
+      Bottom: Reference (handoff/cbct_reference.png) &middot; Top: Screenshot
+    </div>
+  </header>
+  <div id="stage">
+    <div class="stack">
+      <img id="refImg" src="../../handoff/cbct_reference.png" alt="Reference">
+      <img id="shotImg" src="out/step-0.png" alt="Screenshot">
+    </div>
+  </div>
+  <script>
+    const slider = document.getElementById('opacitySlider');
+    const opacityVal = document.getElementById('opacityVal');
+    const shotImg = document.getElementById('shotImg');
+    const shotInput = document.getElementById('shotInput');
+
+    slider.addEventListener('input', () => {
+      shotImg.style.opacity = slider.value;
+      opacityVal.textContent = Math.round(slider.value * 100) + '%';
+    });
+
+    shotInput.addEventListener('change', () => {
+      shotImg.src = shotInput.value;
+    });
+  </script>
+</body>
+</html>
+

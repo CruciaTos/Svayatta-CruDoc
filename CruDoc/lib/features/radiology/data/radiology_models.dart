@@ -713,6 +713,7 @@ class RadReferrer {
     this.regNo = '',
     this.notes = '',
     required this.createdAt,
+    this.isColleague = false,
   });
 
   final String id;
@@ -726,8 +727,33 @@ class RadReferrer {
   final String regNo;
   final String notes;
   final DateTime createdAt;
+  final bool isColleague;
 
   String get display => clinic.isEmpty ? name : '$name · $clinic';
+
+  RadReferrer copyWith({
+    String? id,
+    String? name,
+    String? clinic,
+    String? phone,
+    String? email,
+    String? city,
+    String? regNo,
+    String? notes,
+    DateTime? createdAt,
+    bool? isColleague,
+  }) => RadReferrer(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    clinic: clinic ?? this.clinic,
+    phone: phone ?? this.phone,
+    email: email ?? this.email,
+    city: city ?? this.city,
+    regNo: regNo ?? this.regNo,
+    notes: notes ?? this.notes,
+    createdAt: createdAt ?? this.createdAt,
+    isColleague: isColleague ?? this.isColleague,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -739,6 +765,7 @@ class RadReferrer {
     'regNo': regNo,
     'notes': notes,
     'createdAt': createdAt.millisecondsSinceEpoch,
+    'isColleague': isColleague,
   };
 
   factory RadReferrer.fromJson(Map<String, dynamic> j) => RadReferrer(
@@ -751,6 +778,7 @@ class RadReferrer {
     regNo: _str(j['regNo']),
     notes: _str(j['notes']),
     createdAt: _date(j['createdAt']) ?? DateTime.now(),
+    isColleague: j['isColleague'] == true || _str(j['id']).startsWith('colleague_'),
   );
 }
 

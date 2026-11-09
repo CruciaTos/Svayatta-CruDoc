@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -8,12 +9,13 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:path/path.dart' as p;
 
+import 'package:doctor_management_app/features/radiology/cbct/cbct_posters.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/dicom/dicom_file.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
 
 /// Bump to force every scan to be packed again.
-const cbctPackVersion = 1;
+const cbctPackVersion = 3;
 
 /// The most voxels along one axis the viewer loads; bigger scans are
 /// averaged down by a whole factor (the DICOM files are never touched).
@@ -37,39 +39,124 @@ class CbctPack {
 
 final Map<String, Future<CbctPack>> _inflight = {};
 
+/// Where a study's pack lives and the fingerprint of the files it is made
+/// from; a pack with another fingerprint is out of date.
+class CbctPlan {
+  const CbctPlan({required this.dir, required this.fingerprint});
+  final String dir;
+  final String fingerprint;
+}
+
+/// Plans [study] without reading pixels. Throws [CbctPackException] when the
+/// scan can't be a volume.
+CbctPlan planCbctPack(RadStudy study, Directory studyDir) {
+  final job = _plan(study, studyDir);
+  return CbctPlan(dir: job.dir, fingerprint: job.fingerprint);
+}
+
+/// The parsed `meta.json` of [dir] when it is a finished, current pack made
+/// from files with [fingerprint]; otherwise null.
+Future<Map<String, dynamic>?> readReadyCbctMeta(String dir, String fingerprint) async {
+  final metaFile = File(p.join(dir, 'meta.json'));
+  if (!await metaFile.exists()) return null;
+  try {
+    final meta = jsonDecode(await metaFile.readAsString()) as Map<String, dynamic>;
+    final source = meta['source'] as Map<String, dynamic>?;
+    if (meta['packVersion'] == cbctPackVersion &&
+        source?['fingerprint'] == fingerprint &&
+        await File(p.join(dir, 'full.i16')).exists() &&
+        await File(p.join(dir, 'preview.i16')).exists()) {
+      final vols = meta['volumes'] as Map<String, dynamic>?;
+      final lods = vols?['lods'] as List?;
+      if (lods != null) {
+        for (final entry in lods) {
+          if (entry is Map && entry['file'] is String) {
+            if (!await File(p.join(dir, entry['file'] as String)).exists()) {
+              return null;
+            }
+          }
+        }
+      }
+      return meta;
+    }
+  } on Object {
+    // Unreadable: pack again.
+  }
+  return null;
+}
+
 /// The ready pack for [study], building it in a background isolate when it
-/// is missing or out of date. One build per folder at a time.
+/// is missing or out of date. One build per folder at a time. [onProgress]
+/// gets a stage name and 0..1 while it builds.
 Future<CbctPack> ensureCbctPack({
   required RadStudy study,
   required Directory studyDir,
+  void Function(String stage, double progress)? onProgress,
 }) {
   final job = _plan(study, studyDir);
-  return _inflight[job.dir] ??= _run(job).whenComplete(() {
+  return _inflight[job.dir] ??= _run(job, onProgress).whenComplete(() {
     // A block body: returning the removed future would make it wait on itself.
     _inflight.remove(job.dir);
   });
 }
 
-Future<CbctPack> _run(_Job job) async {
+Future<CbctPack> _run(_Job job, void Function(String, double)? onProgress) async {
   final dir = Directory(job.dir);
-  final metaFile = File(p.join(job.dir, 'meta.json'));
-  if (await metaFile.exists()) {
-    try {
-      final meta = jsonDecode(await metaFile.readAsString()) as Map<String, dynamic>;
-      final source = meta['source'] as Map<String, dynamic>?;
-      if (meta['packVersion'] == cbctPackVersion &&
-          source?['fingerprint'] == job.fingerprint &&
-          await File(p.join(job.dir, 'full.i16')).exists()) {
-        return CbctPack(dir: dir, meta: meta);
-      }
-    } on Object {
-      // Unreadable: pack again.
-    }
-  }
+  final ready = await readReadyCbctMeta(job.dir, job.fingerprint);
+  if (ready != null) return CbctPack(dir: dir, meta: ready);
   final watch = Stopwatch()..start();
-  final meta = await Isolate.run(() => _build(job));
+  final meta = await _buildInIsolate(job, onProgress);
   debugPrint('[cbct] packed ${job.slices.length} slices in ${watch.elapsedMilliseconds} ms');
   return CbctPack(dir: dir, meta: meta);
+}
+
+void _entry(List<Object> args) {
+  final port = args[0] as SendPort;
+  final job = args[1] as _Job;
+  try {
+    final meta = _build(job, (stage, p) => port.send(['p', stage, p]));
+    port.send(['ok', jsonEncode(meta)]);
+  } on CbctPackException catch (e) {
+    port.send(['pack', e.message]);
+  } on Object catch (e) {
+    port.send(['err', '$e']);
+  }
+}
+
+Future<Map<String, dynamic>> _buildInIsolate(
+  _Job job,
+  void Function(String, double)? onProgress,
+) async {
+  final port = ReceivePort();
+  final done = Completer<Map<String, dynamic>>();
+  final sub = port.listen((m) {
+    final msg = m as List;
+    switch (msg[0]) {
+      case 'p':
+        onProgress?.call(msg[1] as String, (msg[2] as num).toDouble());
+      case 'ok':
+        done.complete(jsonDecode(msg[1] as String) as Map<String, dynamic>);
+      case 'pack':
+        done.completeError(CbctPackException(msg[1] as String));
+      default:
+        done.completeError(StateError(msg[1] as String));
+    }
+  });
+  final exit = ReceivePort();
+  exit.listen((_) {
+    // The result message may still be on its way; give it a moment.
+    Future<void>.delayed(const Duration(milliseconds: 100), () {
+      if (!done.isCompleted) done.completeError(StateError('The packer stopped.'));
+    });
+  });
+  try {
+    await Isolate.spawn<List<Object>>(_entry, [port.sendPort, job], onExit: exit.sendPort);
+    return await done.future;
+  } finally {
+    await sub.cancel();
+    port.close();
+    exit.close();
+  }
 }
 
 // ───────────────────────────── Planning ─────────────────────────────
@@ -200,7 +287,47 @@ double _dot(List<double> a, List<double> b) => a[0] * b[0] + a[1] * b[1] + a[2] 
 
 // ───────────────────────────── Building (isolate) ─────────────────────────────
 
-Map<String, dynamic> _build(_Job job) {
+typedef _Report = void Function(String stage, double progress);
+
+/// Box-averages [src] by a whole [f] along every axis (edge boxes average
+/// the voxels they have).
+(Int16List, List<int>) _downsample(Int16List src, List<int> d, int f) {
+  final nx = (d[0] / f).ceil(), ny = (d[1] / f).ceil(), nz = (d[2] / f).ceil();
+  final out = Int16List(nx * ny * nz);
+  final acc = Int32List(nx * ny);
+  final cnt = Int32List(nx * ny);
+  for (var oz = 0; oz < nz; oz++) {
+    acc.fillRange(0, acc.length, 0);
+    cnt.fillRange(0, cnt.length, 0);
+    for (var z = oz * f; z < math.min(d[2], oz * f + f); z++) {
+      final zb = z * d[0] * d[1];
+      for (var y = 0; y < d[1]; y++) {
+        final row = (y ~/ f) * nx;
+        final sb = zb + y * d[0];
+        for (var x = 0; x < d[0]; x++) {
+          final o = row + x ~/ f;
+          acc[o] += src[sb + x];
+          cnt[o]++;
+        }
+      }
+    }
+    final base = oz * nx * ny;
+    for (var i = 0; i < acc.length; i++) {
+      out[base + i] = (acc[i] / math.max(1, cnt[i])).round();
+    }
+  }
+  return (out, [nx, ny, nz]);
+}
+
+Uint8List _bytes(Int16List v) => v.buffer.asUint8List(v.offsetInBytes, v.lengthInBytes);
+
+void _writeAtomic(String dir, String name, List<int> bytes) {
+  final tmp = File(p.join(dir, '$name.tmp'));
+  tmp.writeAsBytesSync(bytes, flush: true);
+  tmp.renameSync(p.join(dir, name));
+}
+
+Map<String, dynamic> _build(_Job job, _Report report) {
   final slices = job.slices;
   final n = slices.length;
 
@@ -219,6 +346,7 @@ Map<String, dynamic> _build(_Job job) {
   final acc = Float32List(dx * dy);
   final cnt = Int32List(dx * dy);
   for (var z = 0; z < dz; z++) {
+    report('Reading slices', 0.6 * z / dz);
     acc.fillRange(0, acc.length, 0);
     cnt.fillRange(0, cnt.length, 0);
     for (var s = z * f; s < math.min(n, z * f + f); s++) {
@@ -243,20 +371,92 @@ Map<String, dynamic> _build(_Job job) {
     }
   }
 
+  report('Measuring', 0.62);
   final stats = _landmarks(out);
 
   final dir = Directory(job.dir)..createSync(recursive: true);
   final spacing = [job.pixelSpacing * f, job.pixelSpacing * f, job.gap * f];
   final ori = job.orientation;
   final normal = _cross(ori.sublist(0, 3), ori.sublist(3, 6));
+  final direction = [...ori, ...normal];
   // Averaging f voxels puts the new voxel centre (f-1)/2 old voxels along.
-  final shift = (f - 1) / 2;
-  final origin = [
+  List<double> shifted(List<double> from, List<double> sp, double shiftVox) => [
     for (var i = 0; i < 3; i++)
-      job.origin[i] +
-          ori[i] * shift * job.pixelSpacing +
-          ori[3 + i] * shift * job.pixelSpacing +
-          normal[i] * shift * job.gap,
+      from[i] +
+          ori[i] * shiftVox * sp[0] +
+          ori[3 + i] * shiftVox * sp[1] +
+          normal[i] * shiftVox * sp[2],
+  ];
+  final origin = shifted(
+    job.origin,
+    [job.pixelSpacing, job.pixelSpacing, job.gap],
+    (f - 1) / 2,
+  );
+  final fullDims = [dx, dy, dz];
+
+  // Preview: at most about 128 along the longest axis, never below 2.
+  report('Preview', 0.66);
+  final fp = math.max(2, (math.max(dx, math.max(dy, dz)) / 128).ceil());
+  final (prevData, prevDims) = _downsample(out, fullDims, fp);
+  final prevSpacing = [for (final s in spacing) s * fp];
+  final prevOrigin = shifted(origin, spacing, (fp - 1) / 2);
+
+  // Mid: only when a full axis is over 384.
+  Int16List? midData;
+  List<int>? midDims;
+  List<double>? midSpacing, midOrigin;
+  final maxFull = math.max(dx, math.max(dy, dz));
+  if (maxFull > 384) {
+    final fm = (maxFull / 384).ceil();
+    final r = _downsample(out, fullDims, fm);
+    midData = r.$1;
+    midDims = r.$2;
+    midSpacing = [for (final s in spacing) s * fm];
+    midOrigin = shifted(origin, spacing, (fm - 1) / 2);
+  }
+
+  // 3D LOD levels (coarse to fine):
+  // lod0: <=128 per axis (points to preview.i16; same data).
+  final lod0 = <String, dynamic>{
+    'file': 'preview.i16',
+    'factor': fp,
+    'dims': prevDims,
+    'spacing': prevSpacing,
+    'origin': prevOrigin,
+  };
+
+  // lod1: <=256 per axis (box average). Only when maxFull > 256.
+  Int16List? lod1Data;
+  Map<String, dynamic>? lod1;
+  if (maxFull > 256) {
+    final f1 = math.max(2, (maxFull / 256).ceil());
+    final r1 = _downsample(out, fullDims, f1);
+    lod1Data = r1.$1;
+    final lod1Dims = r1.$2;
+    final lod1Spacing = [for (final s in spacing) s * f1];
+    final lod1Origin = shifted(origin, spacing, (f1 - 1) / 2);
+    lod1 = <String, dynamic>{
+      'file': 'lod1.i16',
+      'factor': f1,
+      'dims': lod1Dims,
+      'spacing': lod1Spacing,
+      'origin': lod1Origin,
+    };
+  }
+
+  // last level: full volume (full.i16)
+  final lodLast = <String, dynamic>{
+    'file': 'full.i16',
+    'factor': 1,
+    'dims': fullDims,
+    'spacing': spacing,
+    'origin': origin,
+  };
+
+  final lods = <Map<String, dynamic>>[
+    lod0,
+    ?lod1,
+    lodLast,
   ];
 
   String? manufacturer, model;
@@ -273,13 +473,30 @@ Map<String, dynamic> _build(_Job job) {
     'seriesKey': job.seriesKey,
     'source': {'fingerprint': job.fingerprint},
     'geometry': {
-      'dims': [dx, dy, dz],
+      'dims': fullDims,
       'spacing': spacing,
       'origin': origin,
-      'direction': [...ori, ...normal],
+      'direction': direction,
     },
     'volumes': {
-      'full': {'file': 'full.i16'},
+      'full': {'file': 'full.i16', 'dims': fullDims, 'spacing': spacing, 'origin': origin},
+      'mid': midData == null
+          ? null
+          : {'file': 'mid.i16', 'dims': midDims, 'spacing': midSpacing, 'origin': midOrigin},
+      'preview': {
+        'file': 'preview.i16',
+        'factor': fp,
+        'dims': prevDims,
+        'spacing': prevSpacing,
+        'origin': prevOrigin,
+      },
+      'lods': lods,
+    },
+    'posters': {
+      'axial': 'poster_axial.png',
+      'coronal': 'poster_coronal.png',
+      'sagittal': 'poster_sagittal.png',
+      'threeD': 'poster_3d.png',
     },
     'values': {
       'min': stats.min,
@@ -305,13 +522,37 @@ Map<String, dynamic> _build(_Job job) {
     'createdAt': DateTime.now().toUtc().toIso8601String(),
   };
 
-  // Binary first, meta last (atomic renames): meta.json means "complete".
-  final tmpVol = File(p.join(dir.path, 'full.i16.tmp'));
-  tmpVol.writeAsBytesSync(out.buffer.asUint8List(out.offsetInBytes, out.lengthInBytes));
-  tmpVol.renameSync(p.join(dir.path, 'full.i16'));
-  final tmpMeta = File(p.join(dir.path, 'meta.json.tmp'));
-  tmpMeta.writeAsStringSync(jsonEncode(meta));
-  tmpMeta.renameSync(p.join(dir.path, 'meta.json'));
+  // Posters first (the viewer's first frame), then the volumes, and the
+  // meta last: meta.json means "complete". Every file lands by rename.
+  report('Posters', 0.7);
+  final full = CbctVolume(
+    data: out,
+    dims: fullDims,
+    spacing: spacing,
+    origin: origin,
+    direction: direction,
+  );
+  final lo = stats.air, hi = stats.teeth;
+  _writeAtomic(dir.path, 'poster_axial.png', renderPlanePoster(full, CbctPlane.axial, lo, hi));
+  _writeAtomic(dir.path, 'poster_coronal.png', renderPlanePoster(full, CbctPlane.coronal, lo, hi));
+  _writeAtomic(dir.path, 'poster_sagittal.png', renderPlanePoster(full, CbctPlane.sagittal, lo, hi));
+  report('3D poster', 0.8);
+  final previewVol = CbctVolume(
+    data: prevData,
+    dims: prevDims,
+    spacing: prevSpacing,
+    origin: prevOrigin,
+    direction: direction,
+  );
+  _writeAtomic(dir.path, 'poster_3d.png', renderMipPoster(previewVol, stats.soft, stats.max));
+
+  report('Saving', 0.9);
+  _writeAtomic(dir.path, 'preview.i16', _bytes(prevData));
+  if (midData != null) _writeAtomic(dir.path, 'mid.i16', _bytes(midData));
+  if (lod1Data != null) _writeAtomic(dir.path, 'lod1.i16', _bytes(lod1Data));
+  _writeAtomic(dir.path, 'full.i16', _bytes(out));
+  _writeAtomic(dir.path, 'meta.json', utf8.encode(jsonEncode(meta)));
+  report('Done', 1);
   return meta;
 }
 

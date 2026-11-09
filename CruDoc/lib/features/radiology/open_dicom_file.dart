@@ -113,10 +113,12 @@ Future<RadStudy?> _studyFromFile(
       auditAction: 'Imported from Files',
       detail: '$name · ${g.modality.short} · ${RadFormat.images(images.length)}',
     );
-    await RadiologyCloudSync.enqueueStudyImages(
-      ctrl: ctrl,
-      study: study,
-      studyDir: dir.path,
+    unawaited(
+      RadiologyCloudSync.enqueueStudyImages(
+        ctrl: ctrl,
+        study: study,
+        studyDir: dir.path,
+      ),
     );
     return study;
   } finally {

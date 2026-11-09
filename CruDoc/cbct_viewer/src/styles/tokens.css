@@ -89,8 +89,15 @@
   --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
   --dur-fast: 200ms;
   --dur: 240ms;
-  --dur-focus-pull: 250ms;
-  --dur-stagger: 40ms;
+  --dur-page-enter: 450ms;
+  --dur-chrome-delay: 60ms;
+  --dur-preview-fade: 500ms;
+  --dur-focus-pull: 600ms;
+  --dur-sharpen: 260ms;
+  --dur-lod-swap: 350ms;
+  --dur-progress-in: 300ms;
+  --dur-progress-out: 400ms;
+  --dur-stagger: 0ms;
   --dur-solidify: 500ms;    /* first-ever open only (G1) */
 }
 
@@ -98,10 +105,32 @@
   :root {
     --dur-fast: 80ms;
     --dur: 80ms;
+    --dur-page-enter: 80ms;
+    --dur-chrome-delay: 0ms;
+    --dur-preview-fade: 80ms;
     --dur-focus-pull: 80ms;
+    --dur-sharpen: 80ms;
+    --dur-lod-swap: 80ms;
+    --dur-progress-in: 80ms;
+    --dur-progress-out: 80ms;
     --dur-stagger: 0ms;
     --dur-solidify: 0ms;
   }
+}
+
+html.reduced {
+  --dur-fast: 80ms;
+  --dur: 80ms;
+  --dur-page-enter: 80ms;
+  --dur-chrome-delay: 0ms;
+  --dur-preview-fade: 80ms;
+  --dur-focus-pull: 80ms;
+  --dur-sharpen: 80ms;
+  --dur-lod-swap: 80ms;
+  --dur-progress-in: 80ms;
+  --dur-progress-out: 80ms;
+  --dur-stagger: 0ms;
+  --dur-solidify: 0ms;
 }
 
 /* Minimal base so the empty page is dark, not white. Step 4's viewer.css

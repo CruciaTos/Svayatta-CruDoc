@@ -1,3 +1,7 @@
 node_modules/
 .vite/
 npm-debug.log*
+dev/phantom/
+dev/phantom_big/
+tests/out/
+

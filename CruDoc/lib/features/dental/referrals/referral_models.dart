@@ -1,8 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_network.dart';
+import 'package:doctor_management_app/features/team/data/team_providers.dart';
 
 /// Direction of referral.
 enum ReferralDirection {
@@ -358,7 +362,43 @@ final referralContactsProvider = Provider<List<ReferralContact>>((ref) {
   final records =
       ref.watch(clinicRecordsProvider(RecKind.referralContact)).value ??
       const <DentalRecord>[];
-  return records.map(ReferralContact.fromRecord).toList()
+  final contacts = records.map(ReferralContact.fromRecord).toList();
+
+  final members = ref.watch(clinicMembersProvider).value ?? const <ClinicMember>[];
+  final user = ref.watch(authStateProvider).value;
+  final myUid = user?.uid ?? ClinicSession.instance.access?.uid;
+  final clinic = ref.watch(activeClinicProvider).value;
+
+  final existingUids = {for (final c in contacts) if (c.crudocUid.isNotEmpty) c.crudocUid};
+  final existingNames = {for (final c in contacts) c.name.trim().toLowerCase()};
+
+  for (final m in members) {
+    if (!m.active || (myUid != null && myUid.isNotEmpty && m.uid == myUid)) continue;
+    if (existingUids.contains(m.uid) || existingNames.contains(m.name.trim().toLowerCase())) {
+      continue;
+    }
+    String cleanName = m.name.trim();
+    if (m.kind == MemberKind.doctor && !cleanName.toLowerCase().startsWith('dr')) {
+      cleanName = 'Dr. $cleanName';
+    }
+    contacts.add(
+      ReferralContact(
+        id: 'colleague_${m.uid}',
+        name: cleanName,
+        clinic: clinic?.name ?? '',
+        specialty: m.specialty.isNotEmpty ? m.specialty : (m.roleName.isNotEmpty ? m.roleName : 'Dentist'),
+        phone: m.phone,
+        email: m.email,
+        city: '',
+        notes: 'Colleague · ${m.roleName}',
+        crudocUid: m.uid,
+        crudocName: m.name,
+        crudocSpecialty: m.specialty,
+      ),
+    );
+  }
+
+  return contacts
     ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 });
 

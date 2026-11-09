@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/services/local_storage_manager.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/services/storage_sync_queue.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_store.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
@@ -193,9 +194,12 @@ abstract final class RadiologyCloudSync {
                 link: link,
               );
         if (id != null) queued++;
-        if (image.previewPath.isEmpty && !image.compressed) {
+        if (image.previewPath.isEmpty &&
+            !image.compressed &&
+            !study.modality.isVolume) {
           // Decoding the preview needs the bytes once; they are dropped
-          // as soon as the small JPEG is made.
+          // as soon as the small JPEG is made. Volume scans are packaged
+          // for 3D/MPR via CbctStore and do not need per-slice raster preview thumbnails.
           await _enqueuePreview(study, image, await file.readAsBytes());
         }
       }
@@ -217,6 +221,12 @@ abstract final class RadiologyCloudSync {
       }
     } catch (e) {
       debugPrint('[RadiologyCloudSync] could not queue images: $e');
+    }
+    if (!kIsWeb && study.modality.isVolume) {
+      // Its files are all on this device now: build the 3D pack. Never throws.
+      try {
+        CbctStore.instance.enqueue(study);
+      } catch (_) {}
     }
     return RadCloudSyncSummary(
       queued: queued,

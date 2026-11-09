@@ -1,4 +1,5 @@
 import 'package:doctor_management_app/core/utils/app_notice.dart';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:crudoc_j2k/crudoc_j2k.dart';
@@ -12,6 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_store.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_cloud_sync.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
@@ -496,6 +498,16 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
           auditAction: 'Edited referral',
           detail: name,
         );
+        if (e.patientId.isEmpty && patientId.isNotEmpty) {
+          final dir = await ctrl.studyDir(e.id);
+          unawaited(
+            RadiologyCloudSync.enqueueStudyImages(
+              ctrl: ctrl,
+              study: e.copyWith(patientId: patientId),
+              studyDir: dir.path,
+            ),
+          );
+        }
       } else {
         final g = widget.group!;
         final id = radId('study_');
@@ -534,23 +546,41 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
           detail:
               '$name · ${_modality.short} · ${RadFormat.images(images.length)}',
         );
-        // Only now, with the study saved, does anything go to the cloud.
-        final sync = await RadiologyCloudSync.enqueueStudyImages(
-          ctrl: ctrl,
-          study: study,
-          studyDir: dir.path,
-        );
-        final notice = sync.notice;
-        if (notice != null) {
-          messenger?.showIsland(SnackBar(content: Text(notice)));
+        // The 3D pack is built in the background; it never blocks the import.
+        if (study.modality.isVolume) {
+          try {
+            CbctStore.instance.enqueue(study);
+          } on Object {
+            // The viewer packs it on first open instead.
+          }
         }
+        // Only now, with the study saved, does anything go to the cloud.
+        // Queue cloud uploads in the background so the dialog is dismissed
+        // immediately and does not leave the user stuck on "Saving...".
+        unawaited(
+          RadiologyCloudSync.enqueueStudyImages(
+            ctrl: ctrl,
+            study: study,
+            studyDir: dir.path,
+          ).then((sync) {
+            final notice = sync.notice;
+            if (notice != null) {
+              messenger?.showIsland(SnackBar(content: Text(notice)));
+            }
+          }).catchError((err) {
+            debugPrint('[RadStudyFormDialog] cloud sync failed: $err');
+          }),
+        );
       }
       if (mounted) Navigator.of(context).pop(true);
-    } catch (err) {
-      setState(() {
-        _saving = false;
-        _notice = "Couldn't save the study. Try again.";
-      });
+    } catch (err, stack) {
+      debugPrint('[RadStudyFormDialog] save failed: $err\n$stack');
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _notice = "Couldn't save the study. Try again.";
+        });
+      }
     }
   }
 

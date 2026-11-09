@@ -1,16 +1,24 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crudoc_j2k/crudoc_j2k.dart' show j2kSupported;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
+import 'package:doctor_management_app/features/radiology/cbct/cbct_device.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_pack.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_poster_layer.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_server.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_snapshot.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_store.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/dicom/dicom_file.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -35,60 +43,150 @@ class _CbctViewerScreenState extends ConsumerState<CbctViewerScreen> {
   String? _token;
   String? _error;
   bool _started = false;
+  bool _opening = false;
+  bool _shown = false;
+  CbctStatus _status = const CbctStatus.missing();
+  StreamSubscription<CbctStatus>? _sub;
+  Directory? _packDir;
+  Map<String, dynamic>? _meta;
+  Color? _background;
+  InAppWebViewController? _web;
+  bool _saved = false;
 
-  static bool get _platformSupported =>
-      !kIsWeb &&
-      (Platform.isWindows || Platform.isMacOS || Platform.isIOS || Platform.isAndroid);
+  /// Asks the page to save fresh posters and its view state (it answers within
+  /// 300 ms), then leaves. System back, Esc and the page's back button all end here.
+  Future<void> _leave() async {
+    if (!_saved) {
+      _saved = true;
+      try {
+        await _web
+            ?.callAsyncJavaScript(
+              functionBody:
+                  'if (window.CbctViewer) await window.CbctViewer.prepareClose();',
+            )
+            .timeout(const Duration(milliseconds: 600));
+      } on Object {
+        // Leaving anyway: the next open just starts from the older posters.
+      }
+    }
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  /// "Anonymized" when the DICOM says the identity was removed, else "On this device".
+  Future<String> _badge(RadStudy study, Directory packDir) async {
+    try {
+      final studyDir = packDir.parent.parent.path;
+      final first = study.images.firstWhere((i) => i.kind == RadFileKind.dicom);
+      final d = await DicomFile.load(File(p.join(studyDir, first.path)));
+      if ((d.string(DicomTag.identityRemoved) ?? '').toUpperCase() == 'YES') {
+        return 'Anonymized';
+      }
+    } on Object {
+      // No readable header: the safe wording.
+    }
+    return 'On this device';
+  }
 
   @override
   void dispose() {
+    unawaited(_sub?.cancel());
     final token = _token;
     if (token != null) CbctServer.instance.revoke(token);
     super.dispose();
   }
 
-  bool _tooSmall(BuildContext context) =>
-      !_platformSupported || MediaQuery.sizeOf(context).shortestSide < 600;
-
   Future<void> _load() async {
     try {
       final study = await ref.read(radStudyProvider(widget.studyId).future);
-      if (study == null) throw CbctPackException('This study could not be found.');
-      final repo = ref.read(radiologyRepositoryProvider);
-      final dir = await repo.studyDir(ref.read(radDoctorIdProvider), study.id);
-      final pack = await ensureCbctPack(study: study, studyDir: dir);
-      debugPrint('[cbct] tap->pack ${_clock.elapsedMilliseconds} ms');
-      final opened = await CbctServer.instance.open(pack.dir);
-      if (!mounted) {
-        CbctServer.instance.revoke(opened.token);
-        return;
+      if (study == null) {
+        throw CbctPackException('This study could not be found.');
       }
-      setState(() {
-        _token = opened.token;
-        _url = opened.page.replace(
-          queryParameters: {
-            'base': opened.base,
-            'title': study.patientName.isNotEmpty ? study.patientName : study.description,
-            'chip': _chip(study, pack.meta),
-          },
-        );
-      });
+      unawaited(cbctPageBackground().then((c) => _background = c));
+      final store = ref.read(cbctStoreProvider);
+      final first = await store.refresh(study);
+      if (first.state != CbctPackState.ready &&
+          first.state != CbctPackState.failed) {
+        store.enqueue(study, priority: true);
+      }
+      if (!mounted) return;
+      _sub = store.watch(study).listen((s) => _onStatus(study, s));
+      _onStatus(study, store.statusOf(study));
     } on CbctPackException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } on Object catch (e) {
       debugPrint('[cbct] open failed: $e');
-      if (mounted) setState(() => _error = 'The 3D viewer could not read this scan.');
+      if (mounted) {
+        setState(() => _error = 'The 3D viewer could not read this scan.');
+      }
+    }
+  }
+
+  void _onStatus(RadStudy study, CbctStatus s) {
+    if (!mounted) return;
+    setState(() {
+      _status = s;
+      if (s.state == CbctPackState.failed) {
+        _error = s.failure ?? 'The 3D viewer could not read this scan.';
+      }
+    });
+    if (s.state == CbctPackState.ready && !_opening) {
+      _opening = true;
+      unawaited(_open(study, s));
+    }
+  }
+
+  Future<void> _open(RadStudy study, CbctStatus s) async {
+    try {
+      final dir = s.packDir!;
+      final meta = s.meta!;
+      debugPrint('[cbct] tap->pack ${_clock.elapsedMilliseconds} ms');
+      final hasState = await File(p.join(dir.path, 'state.json')).exists();
+      final opened = await CbctServer.instance.open(dir);
+      if (!mounted) {
+        CbctServer.instance.revoke(opened.token);
+        return;
+      }
+      final device = CbctDevice.deviceClass(context);
+      final reduced = MediaQuery.disableAnimationsOf(context);
+      final badge = await _badge(study, dir);
+      if (!mounted) return;
+      setState(() {
+        _token = opened.token;
+        _packDir = dir;
+        _meta = meta;
+        _url = opened.page.replace(
+          queryParameters: {
+            'base': opened.base,
+            'title': study.patientName.isNotEmpty
+                ? study.patientName
+                : study.description,
+            'chip': _chip(study, meta),
+            'badge': badge,
+            'device': device.name,
+            'first': hasState ? '0' : '1',
+            'reduced': reduced ? '1' : '0',
+          },
+        );
+      });
+    } on Object catch (e) {
+      debugPrint('[cbct] open failed: $e');
+      if (mounted) {
+        setState(() => _error = 'The 3D viewer could not read this scan.');
+      }
     }
   }
 
   /// "CBCT · Maker Model · 22 Jul 2026 · 40 × 40 × 40 mm"
   String _chip(RadStudy study, Map<String, dynamic> meta) {
     final device = meta['device'] as Map<String, dynamic>? ?? const {};
-    final maker = '${device['manufacturer'] ?? ''} ${device['model'] ?? ''}'.trim();
+    final maker = '${device['manufacturer'] ?? ''} ${device['model'] ?? ''}'
+        .trim();
     final g = meta['geometry'] as Map<String, dynamic>;
     final dims = (g['dims'] as List).cast<num>();
     final sp = (g['spacing'] as List).cast<num>();
-    final fov = [for (var i = 0; i < 3; i++) (dims[i] * sp[i]).round()].join(' × ');
+    final fov = [
+      for (var i = 0; i < 3; i++) (dims[i] * sp[i]).round(),
+    ].join(' × ');
     return [
       'CBCT',
       if (maker.isNotEmpty) maker,
@@ -97,29 +195,85 @@ class _CbctViewerScreenState extends ConsumerState<CbctViewerScreen> {
     ].join(' · ');
   }
 
+  void _hidePosters() {
+    if (mounted && !_shown) setState(() => _shown = true);
+  }
+
   void _onMessage(List<dynamic> args) {
-    final msg = args.isNotEmpty && args.first is Map ? args.first as Map : const {};
+    final msg = args.isNotEmpty && args.first is Map
+        ? args.first as Map
+        : const {};
     switch (msg['type']) {
       case 'close':
-        if (mounted) unawaited(Navigator.of(context).maybePop());
+        // The page already saved its state before posting this.
+        _saved = true;
+        unawaited(_leave());
+      case 'shown':
+        debugPrint('[cbct] tap->shown ${_clock.elapsedMilliseconds} ms');
+        _hidePosters();
+      case 'preview':
+        debugPrint('[cbct] tap->preview ${_clock.elapsedMilliseconds} ms');
       case 'full':
-        debugPrint('[cbct] tap->viewer ${_clock.elapsedMilliseconds} ms');
+        debugPrint('[cbct] tap->full ${_clock.elapsedMilliseconds} ms');
+        _hidePosters();
+      case 'snapshot':
+        final dir = _packDir;
+        if (dir != null && mounted) {
+          unawaited(
+            saveCbctSnapshot(
+              context: context,
+              ref: ref,
+              studyId: widget.studyId,
+              packDir: dir,
+              file: '${msg['file'] ?? ''}',
+              view: '${msg['view'] ?? ''}',
+            ),
+          );
+        }
       case 'error':
         debugPrint('[cbct] viewer error: ${msg['message']}');
-        if (mounted) setState(() => _error = '${msg['message'] ?? 'The 3D viewer hit a problem.'}');
+        _hidePosters();
+        if (mounted) {
+          setState(
+            () =>
+                _error = '${msg['message'] ?? 'The 3D viewer hit a problem.'}',
+          );
+        }
+    }
+  }
+
+  /// Posters from an earlier pack of this scan, shown behind the label
+  /// while it is rebuilt; null when there are none.
+  Widget? _stalePosters() {
+    final dir = _status.packDir;
+    if (dir == null) return null;
+    try {
+      final f = File(p.join(dir.path, 'meta.json'));
+      if (!f.existsSync()) return null;
+      final meta = jsonDecode(f.readAsStringSync()) as Map<String, dynamic>;
+      if (meta['posters'] is! Map || meta['geometry'] is! Map) return null;
+      return CbctPosterLayer(
+        packDir: dir,
+        meta: meta,
+        visible: true,
+        background: _background,
+      );
+    } on Object {
+      return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    if (_tooSmall(context)) {
+    if (!CbctDevice.canOpen3d(context)) {
       return _shell(
         context,
         const RadNotConnected(
           icon: RadIcons.cube,
           title: '3D needs a tablet or computer',
-          body: 'This screen is too small for the 3D viewer. Page through the slices '
+          body:
+              'This screen is too small for the 3D viewer. Page through the slices '
               'in the 2D viewer instead.',
         ),
       );
@@ -132,51 +286,96 @@ class _CbctViewerScreenState extends ConsumerState<CbctViewerScreen> {
     if (error != null) {
       return _shell(
         context,
-        RadNotConnected(icon: RadIcons.cube, title: "Can't open the 3D viewer", body: error),
+        RadNotConnected(
+          icon: RadIcons.cube,
+          title: "Can't open the 3D viewer",
+          body: error,
+        ),
       );
     }
     final url = _url;
     if (url == null) {
+      final packing =
+          _status.state == CbctPackState.packing && _status.progress > 0;
+      final pct = (_status.progress * 100).round();
+      final stale = _stalePosters();
       return Scaffold(
         backgroundColor: c.canvas,
-        body: Center(
-          child: SizedBox(
-            width: 240,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Preparing 3D · once per scan',
-                  textAlign: TextAlign.center,
-                  style: CruType.callout.tint(c.label2),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            ?stale,
+            Center(
+              child: SizedBox(
+                width: 240,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      packing
+                          ? 'Preparing 3D · once per scan · $pct%'
+                          : 'Preparing 3D · once per scan',
+                      textAlign: TextAlign.center,
+                      style: CruType.callout.tint(c.label2),
+                    ),
+                    const SizedBox(height: CruSpace.s12),
+                    LinearProgressIndicator(
+                      minHeight: 2,
+                      value: packing ? _status.progress : null,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: CruSpace.s12),
-                const LinearProgressIndicator(minHeight: 2),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       );
     }
-    return Scaffold(
-      backgroundColor: c.canvas,
-      body: SafeArea(
-        child: InAppWebView(
-          initialUrlRequest: URLRequest(url: WebUri.uri(url)),
-          initialSettings: InAppWebViewSettings(
-            disableContextMenu: true,
-            isInspectable: kDebugMode,
-            supportZoom: false,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_leave());
+      },
+      child: Scaffold(
+        backgroundColor: c.canvas,
+        body: SafeArea(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              InAppWebView(
+                initialUrlRequest: URLRequest(url: WebUri.uri(url)),
+                initialSettings: InAppWebViewSettings(
+                  disableContextMenu: true,
+                  isInspectable: kDebugMode,
+                  supportZoom: false,
+                ),
+                // Keep drags and the wheel inside the viewer instead of scrolling.
+                gestureRecognizers: {
+                  Factory<OneSequenceGestureRecognizer>(
+                    EagerGestureRecognizer.new,
+                  ),
+                },
+                onWebViewCreated: (controller) {
+                  _web = controller;
+                  controller.addJavaScriptHandler(
+                    handlerName: 'cbct',
+                    callback: _onMessage,
+                  );
+                },
+                onConsoleMessage: kDebugMode
+                    ? (_, m) => debugPrint('[cbct web] ${m.message}')
+                    : null,
+              ),
+              if (_packDir != null && _meta != null)
+                CbctPosterLayer(
+                  packDir: _packDir!,
+                  meta: _meta!,
+                  visible: !_shown,
+                  background: _background,
+                ),
+            ],
           ),
-          // Keep drags and the wheel inside the viewer instead of scrolling.
-          gestureRecognizers: {
-            Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
-          },
-          onWebViewCreated: (controller) {
-            controller.addJavaScriptHandler(handlerName: 'cbct', callback: _onMessage);
-          },
-          onConsoleMessage: kDebugMode ? (_, m) => debugPrint('[cbct web] ${m.message}') : null,
         ),
       ),
     );
@@ -232,10 +431,20 @@ class _CbctViewerScreenState extends ConsumerState<CbctViewerScreen> {
   }
 }
 
-/// A CBCT volume: several slices, or one multi-frame file.
+/// A CBCT volume: several slices, or one multi-frame file. Compressed files
+/// count when they are JPEG 2000 / HTJ2K and this build can decode those.
 bool radIsVolume(RadStudy s) {
   if (!s.modality.isVolume) return false;
-  final readable = s.images.where((i) => !i.compressed).toList();
+  final readable = s.images
+      .where((i) => !i.compressed || _decodableCompressed(i))
+      .toList();
   return readable.length > 1 ||
       (readable.length == 1 && readable.first.frames > 1);
+}
+
+bool _decodableCompressed(RadImageRef i) {
+  if (!j2kSupported || i.kind != RadFileKind.dicom) return false;
+  final ts = i.transferSyntax;
+  return ts.startsWith('1.2.840.10008.1.2.4.9') ||
+      ts.startsWith('1.2.840.10008.1.2.4.20');
 }

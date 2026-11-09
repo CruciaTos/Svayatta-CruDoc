@@ -20,6 +20,8 @@ import 'package:doctor_management_app/features/radiology/imaging/rad_preview.dar
 import 'package:doctor_management_app/features/radiology/imaging/rad_view_pixels.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/features/team/data/team_providers.dart';
 
 const _uuid = Uuid();
 
@@ -58,10 +60,80 @@ final radStudyProvider = FutureProvider.family<RadStudy?, String>((ref, id) {
   return ref.watch(radiologyRepositoryProvider).study(id);
 });
 
-final radReferrersProvider = FutureProvider<List<RadReferrer>>((ref) {
+final radReferrersProvider = FutureProvider<List<RadReferrer>>((ref) async {
   ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
-  return ref.watch(radiologyRepositoryProvider).referrers(id);
+  final members = ref.watch(clinicMembersProvider).value ?? const <ClinicMember>[];
+  final clinic = ref.watch(activeClinicProvider).value;
+  final user = ref.watch(authStateProvider).value;
+  final repo = ref.watch(radiologyRepositoryProvider);
+
+  final saved = await repo.referrers(id);
+  final myUid = user?.uid ?? ClinicSession.instance.access?.uid;
+
+  final savedById = {for (final r in saved) r.id: r};
+
+  final out = <RadReferrer>[];
+  final handledColleagueIds = <String>{};
+
+  for (final m in members) {
+    if (!m.active) continue;
+    final colleagueId = 'colleague_${m.uid}';
+    handledColleagueIds.add(colleagueId);
+    handledColleagueIds.add(m.uid);
+
+    final existing = savedById[colleagueId] ?? savedById[m.uid];
+    final isMe = myUid != null && myUid.isNotEmpty && m.uid == myUid;
+
+    String cleanName = m.name.trim();
+    if (m.kind == MemberKind.doctor && !cleanName.toLowerCase().startsWith('dr')) {
+      cleanName = 'Dr. $cleanName';
+    }
+
+    final clinicDesc = [
+      if (m.specialty.isNotEmpty) m.specialty,
+      if (clinic?.name != null && clinic!.name.isNotEmpty) clinic.name,
+    ].join(' · ');
+
+    final referrer = RadReferrer(
+      id: colleagueId,
+      name: existing?.name.isNotEmpty == true ? existing!.name : cleanName,
+      clinic: existing?.clinic.isNotEmpty == true
+          ? existing!.clinic
+          : (clinicDesc.isNotEmpty
+              ? clinicDesc
+              : (m.roleName.isNotEmpty ? m.roleName : 'Clinic')),
+      phone: existing?.phone.isNotEmpty == true ? existing!.phone : m.phone,
+      email: existing?.email.isNotEmpty == true ? existing!.email : m.email,
+      city: existing?.city.isNotEmpty == true ? existing!.city : '',
+      regNo: existing?.regNo.isNotEmpty == true
+          ? existing!.regNo
+          : m.registrationNo,
+      notes: existing?.notes.isNotEmpty == true
+          ? existing!.notes
+          : (isMe
+              ? 'You · ${m.roleName}'
+              : 'Colleague · ${m.roleName.isNotEmpty ? m.roleName : (m.kind == MemberKind.doctor ? 'Doctor' : 'Staff')}'),
+      createdAt: existing?.createdAt ?? m.joinedAt ?? DateTime.now(),
+      isColleague: !isMe,
+    );
+    out.add(referrer);
+  }
+
+  for (final r in saved) {
+    if (!handledColleagueIds.contains(r.id)) {
+      out.add(r);
+    }
+  }
+
+  out.sort((a, b) {
+    if (a.isColleague != b.isColleague) {
+      return a.isColleague ? -1 : 1;
+    }
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  });
+
+  return out;
 });
 
 final radReportsProvider = FutureProvider<List<RadReport>>((ref) {
@@ -121,7 +193,14 @@ final radSettingsProvider = FutureProvider<RadSettings>((ref) {
 /// Referrers by id, for rows that show who sent a study.
 final radReferrerByIdProvider = Provider<Map<String, RadReferrer>>((ref) {
   final list = ref.watch(radReferrersProvider).value ?? const <RadReferrer>[];
-  return {for (final r in list) r.id: r};
+  final map = <String, RadReferrer>{};
+  for (final r in list) {
+    map[r.id] = r;
+    if (r.id.startsWith('colleague_')) {
+      map[r.id.substring('colleague_'.length)] = r;
+    }
+  }
+  return map;
 });
 
 final radiologyProvider = Provider<RadiologyController>(
@@ -266,7 +345,7 @@ class RadiologyController {
     try {
       final info = await RadViewFetch.instance.info(image.storagePath);
       if (info == null || !info.ready) {
-        return oldPath();
+        return await oldPath();
       }
 
       final dir = await studyDir(s.id);

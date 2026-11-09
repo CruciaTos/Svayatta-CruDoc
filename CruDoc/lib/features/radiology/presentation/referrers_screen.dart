@@ -67,7 +67,8 @@ class _RadReferrersScreenState extends ConsumerState<RadReferrersScreen> {
                   q.isEmpty ||
                   r.name.toLowerCase().contains(q) ||
                   r.clinic.toLowerCase().contains(q) ||
-                  r.city.toLowerCase().contains(q),
+                  r.city.toLowerCase().contains(q) ||
+                  (r.isColleague && 'colleague'.contains(q)),
             )
             .toList()
           // Busiest this month first.
@@ -241,11 +242,25 @@ class _ReferrerRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  referrer.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.callout.tint(c.label),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        referrer.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.callout.tint(c.label),
+                      ),
+                    ),
+                    if (referrer.isColleague) ...[
+                      const SizedBox(width: CruSpace.s6),
+                      CruPill(
+                        text: 'Colleague',
+                        background: c.accentTint,
+                        foreground: c.accent,
+                      ),
+                    ],
+                  ],
                 ),
                 Text(
                   [
@@ -413,6 +428,7 @@ class _ReferrerDetailState extends ConsumerState<_ReferrerDetail> {
     return DentalPanelDialog(
       title: r.name,
       subtitle: [
+        if (r.isColleague) 'Colleague',
         r.clinic,
         r.city,
         if (r.regNo.isNotEmpty) 'Reg. ${r.regNo}',

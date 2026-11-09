@@ -96,12 +96,14 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
   Future<void> _delete() async {
     final e = widget.existing;
     if (e == null) return;
+    final isColleague = e.isColleague;
     final ok = await confirmDental(
       context,
-      title: 'Delete ${e.name}?',
-      body:
-          'Their studies stay on the worklist; they just no longer show who referred them.',
-      action: 'Delete',
+      title: isColleague ? 'Reset ${e.name}?' : 'Delete ${e.name}?',
+      body: isColleague
+          ? 'Colleagues are managed in Clinic Team. This will clear any custom radiology notes or details for ${e.name}.'
+          : 'Their studies stay on the worklist; they just no longer show who referred them.',
+      action: isColleague ? 'Reset' : 'Delete',
     );
     if (!ok || !mounted) return;
     await ref.read(radiologyProvider).deleteReferrer(e);
@@ -242,15 +244,27 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
 Future<RadReferrer?> pickRadReferrer(
   BuildContext context, {
   String? selectedId,
+  String title = 'Referred by',
+  String subtitle = 'Pick the dentist who sent this scan',
 }) => showDialog<RadReferrer>(
   context: context,
-  builder: (_) => _ReferrerPicker(selectedId: selectedId),
+  builder: (_) => _ReferrerPicker(
+    selectedId: selectedId,
+    title: title,
+    subtitle: subtitle,
+  ),
 );
 
 class _ReferrerPicker extends ConsumerStatefulWidget {
-  const _ReferrerPicker({this.selectedId});
+  const _ReferrerPicker({
+    this.selectedId,
+    this.title = 'Referred by',
+    this.subtitle = 'Pick the dentist who sent this scan',
+  });
 
   final String? selectedId;
+  final String title;
+  final String subtitle;
 
   @override
   ConsumerState<_ReferrerPicker> createState() => _ReferrerPickerState();
@@ -277,12 +291,13 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
               q.isEmpty ||
               r.name.toLowerCase().contains(q) ||
               r.clinic.toLowerCase().contains(q) ||
-              r.city.toLowerCase().contains(q),
+              r.city.toLowerCase().contains(q) ||
+              (r.isColleague && 'colleague'.contains(q)),
         )
         .toList();
     return DentalPanelDialog(
-      title: 'Referred by',
-      subtitle: 'Pick the dentist who sent this scan',
+      title: widget.title,
+      subtitle: widget.subtitle,
       width: CruSize.dialog + 120,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -296,10 +311,34 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
             ),
             child: DentalSearchField(
               controller: _search,
-              hint: 'Search name, clinic or city',
+              hint: 'Search colleague, name or clinic',
               onChanged: (v) => setState(() => _q = v),
             ),
           ),
+          if (widget.selectedId != null &&
+              widget.selectedId!.isNotEmpty &&
+              q.isEmpty)
+            DentalListRow(
+              semanticLabel: 'No referrer',
+              onTap: () => Navigator.of(context).pop(
+                RadReferrer(
+                  id: '',
+                  name: '',
+                  createdAt: DateTime.now(),
+                ),
+              ),
+              minHeight: 44,
+              child: Row(
+                children: [
+                  CruIcon(CruIcons.close, size: 16, color: c.label2),
+                  const SizedBox(width: CruSpace.s12),
+                  Text(
+                    'No referrer (clear)',
+                    style: CruType.callout.tint(c.label2),
+                  ),
+                ],
+              ),
+            ),
           if (shown.isEmpty)
             Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
@@ -323,7 +362,24 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(r.name, style: CruType.callout.tint(c.label)),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                r.name,
+                                style: CruType.callout.tint(c.label),
+                              ),
+                            ),
+                            if (r.isColleague) ...[
+                              const SizedBox(width: CruSpace.s8),
+                              CruPill(
+                                text: 'Colleague',
+                                background: c.accentTint,
+                                foreground: c.accent,
+                              ),
+                            ],
+                          ],
+                        ),
                         if (r.clinic.isNotEmpty || r.city.isNotEmpty)
                           Text(
                             [
@@ -335,7 +391,9 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
                       ],
                     ),
                   ),
-                  if (r.id == widget.selectedId)
+                  if (r.id == widget.selectedId ||
+                      (widget.selectedId != null &&
+                          r.id == 'colleague_${widget.selectedId}'))
                     CruIcon(
                       CruIcons.check,
                       size: 16,

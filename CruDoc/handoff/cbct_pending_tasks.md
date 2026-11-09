@@ -1,54 +1,63 @@
-# CBCT 3D viewer: what's left, sorted by difficulty (do top to bottom)
+# CBCT 3D viewer: status and what's left (updated 2026-11-09, evening)
 
-**Already working** (2026-11-09): tap 3D opens the viewer inside CruDoc. DICOM slices are
-packed once into a volume file, a local server hands it to the WebView, and the page shows
-Axial / 3D / Coronal / Sagittal with linked crosshairs, contrast and 3D presets, cut at
-crosshair and Reset. Tested on a synthetic scan in Edge, plus the packer test.
-Not yet tried on a real scan inside the app.
+Tap 3D on a CBCT study (PC or tablet) and the viewer opens inside CruDoc: Axial / 3D /
+Coronal / Sagittal with linked crosshairs. Spec: `handoff/cbct_3d_viewer_build_guide.md`;
+look: `handoff/cbct_reference.png`; web/Flutter contract: `handoff/cbct_protocol.md`
+(being written by Antigravity, see below).
 
-Source of truth for the look and rules: `handoff/cbct_3d_viewer_build_guide.md` (Parts A-C)
-and `handoff/cbct_reference.png`. Cornerstone gotchas are in the memory note `cbct-viewer-build`.
+## Done and tested (headless Edge on a synthetic scan, plus Dart tests)
 
-## Tier 1: easy (small UI or wiring, low risk)
+- **Packer** (Dart, background isolate): one volume + a small preview + optional mid
+  (tablets) + four poster PNGs + `meta.json`, pack format v2. Tests: order after
+  shuffle, geometry, landmarks, preview dims/origin, poster orientation.
+- **Loopback server**: token per open, GET/PUT whitelists, size and PNG checks (tests).
+- **Screen**: pack-on-demand with progress, WebView, back/Esc/system-back save the view
+  first (posters + state), "Anonymized / On this device" badge, key-image snapshot save,
+  poster layer while the page boots, phone message, JPEG 2000 gate.
+- **Store**: one pack at a time, priority bump, failures remembered per app version,
+  enqueue after import (tests with a fake packer).
+- **Viewer page** (all in `cbct_viewer/src/`): top bar + tools (C P Z W L A E), layouts,
+  right panel (contrast presets, histogram with draggable window, level/width, invert,
+  slab Thin/MIP/Mean/MinIP + thickness, 3D presets incl. Skin + bone, threshold,
+  opacity, cut at crosshair + flip), orientation letters, slice/window/zoom lines, scale
+  bar, slice scrollbar, status readout, 3D gizmo + plane outlines + crosshair dot,
+  click-to-place, Length/Angle/Ellipse measurements, key-image snapshot, help sheet,
+  all shortcuts, preview then full loading with the focus-pull swap, posters then live,
+  saved view state and restore, first-open "solidify", reduced motion, offline CSP.
+  Browser smoke test: 30 checks pass; re-open/restore test passes.
 
-| # | Task | Where |
-|---|---|---|
-| 1 | Bundle Geist fonts (done: Geist; Geist Mono still uses the system mono) | `cbct_viewer/public/fonts`, `viewer.css` |
-| 2 | Hide the 3D buttons on phones (`canOpen3d`: not web, shortest side >= 600) | new `cbct_device.dart`, `worklist_screen.dart`, `viewer_screen.dart` |
-| 3 | **Done (2026-11-09):** Invert toggle and editable Width / Level boxes in the status bar, two-way with window drags. Still to do: the sliders, once the right panel exists | `main.js` |
-| 4 | **Partly done:** R, H, F, ?, Esc and 1-5 work, with the help sheet. Still to do: C P Z W L A E (needs the toolbar tools, task 10) and ] (needs the panel) | `main.js` |
-| 5 | **Done:** 2 x 2, 1 + 3 and single layouts, maximise and reset buttons on each view, double-click | `main.js`, `viewer.css` |
-| 6 | Right panel (CONTRAST / SLAB / 3D VIEW) and its show/hide slide: not built yet | `main.js`, `viewer.css` |
-| 7 | Server and fit-maths tests (Dart + `node --test`) | `test/features/radiology/cbct/`, `src/fit.js` |
+## Not verified (needs the real app)
 
-## Tier 2: medium (Cornerstone events or new maths)
+- Opening 3D from a real imported CBCT in the Windows app (WebView2), and the poster
+  layer fade there. Nothing here could drive the Flutter window.
+- A real scan's size and speed (400 x 400 x 400, 512 x 512 x 512): packing time, memory,
+  the 3D poster ray march, 16-bit GPU textures (Cornerstone may fall back to float).
+- iPad / Android tablet (touch gestures, memory, WebKit).
+- Angle and Ellipse tools by hand (Length was driven; the other two use the same wiring).
+- Dragging the histogram handles and the slice scrollbar by hand.
 
-| # | Task |
-|---|---|
-| 8 | Orientation letters (A3.8), info overlay (slice mm, W/L, zoom), scale bar, slice scrollbar |
-| 9 | Status bar readout: mouse position in mm and voxel value |
-| 10 | Toolbar tools: Pan, Zoom, Window/Level, Length, Angle, Ellipse ROI, with styling |
-| 11 | Slab: Thin, MIP, Mean, MinIP + thickness (Cornerstone uses half-thickness; see notes) |
-| 12 | 3D panel: Skin + bone preset, Threshold and Opacity sliders |
-| 13 | 3D gizmo and plane outlines; click on the 3D to place the crosshair (ray march) |
-| 14 | Histogram with ramp and draggable window handles, landmark labels |
-| 15 | Snapshot (S) saved as a key image on the study |
-| 16 | Pack on import and after cloud download, with queue and `failed.json` (`CbctStore`) |
-| 17 | JPEG 2000 CBCT studies (the 3D gate still needs uncompressed files) |
+## Still to build
 
-## Tier 3: hard (cross-layer, or needs real devices)
+1. **Crosshair look from the reference**: filled dots and hollow rings that are always
+   visible (the Cornerstone tool shows its own handles on hover only).
+2. **WebView warm-up / keep-alive** (guide Step 16): needs a spike on Windows WebView2
+   with flutter_inappwebview 6.1.5, then timing on PC, iPad, Android tablet.
+3. **Tablet memory**: confirm what the 16-bit option does on iPad; adjust the caps.
+4. Save 3D measurements to the study (decision G6 = later).
+5. Roadmap features: `handoff/cbct_roadmap.md`.
 
-| # | Task |
-|---|---|
-| 18 | Preview-then-full loading (`preview.i16`, swap keeping cameras, window and slab) |
-| 19 | Posters and instant first frame (packer plane sampling + PNG, web image layer, Flutter poster layer) |
-| 20 | Saved view state (`state.json`, canvas capture on close, restore before the first render) |
-| 21 | Crosshair look from the reference: filled dots, hollow rings, oblique labels |
-| 22 | Warm-up of the WebView (keep-alive) and timing on PC, iPad, Android tablet |
-| 23 | Tablet memory (16-bit GPU textures are not guaranteed), solidify animation, reduced motion |
+## Antigravity (`handoff/antigravity_cbct_support.md`)
 
-## Tier 4: needs you, or later
+Round 1 is done and reviewed by Claude: unit tests (19 of 19 pass with `npm test`), phantom
+generator, smoke (all pass) and responsive (30 of 30) scripts, three Dart test files, the
+analyzer fix. Its STOPs on the cloud-download hook and the Settings cache label were right
+(no study-level "download finished" point; no screen lists the caches), so cloud-fetched
+CBCTs are packed on first open. Round 2 is written (paste the whole file): fix the wrong
+statements found in `docs/cbct_3d_viewer_guide.md`, `handoff/cbct_protocol.md` and the
+README module map, plus a poster-layer widget test.
 
-- Try a real CBCT import on the PC, then an iPad / Android tablet (nothing here can do that).
-- Save 3D measurements to the study (decision G6 = later).
-- Roadmap items: panoramic from CBCT, nerve canal, airway, implant planning, STL / GIF export.
+## Real-data check (2026-11-09)
+
+A public torso CT (107 slices, 512 x 512, Zenodo 18225140, kept in
+`C:\Users\Soham\Downloads\cbct_test_dicom\`) packs in 7.7 s and renders correctly in the
+viewer in headless Edge (full volume on screen at 3.7 s). Not yet opened in the Windows app.

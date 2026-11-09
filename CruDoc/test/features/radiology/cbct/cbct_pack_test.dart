@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/radiology/cbct/cbct_pack.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/dicom/dicom_file.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -86,5 +87,49 @@ void main() {
     // A second call finds the finished pack and does not build again.
     final again = await ensureCbctPack(study: study, studyDir: dir);
     expect(again.meta['createdAt'], pack.meta['createdAt']);
+  });
+
+  test('writes a preview volume and four posters, axial with anterior on top', () async {
+    final pack = await ensureCbctPack(study: synthetic(), studyDir: dir);
+    expect(cbctPackVersion, 3);
+    final vols = pack.meta['volumes'] as Map<String, dynamic>;
+    expect(vols['mid'], isNull); // 96 voxels: no mid volume
+    final lods = vols['lods'] as List;
+    expect(lods.length, 2);
+    expect(lods[0]['dims'], [48, 48, 20]);
+    expect(lods[0]['file'], 'preview.i16');
+    expect(lods[1]['dims'], [96, 96, 40]);
+    expect(lods[1]['file'], 'full.i16');
+    final pv = vols['preview'] as Map<String, dynamic>;
+    final f = pv['factor'] as int;
+    expect(f, 2);
+    expect(pv['dims'], [(96 / f).ceil(), (96 / f).ceil(), (40 / f).ceil()]);
+    expect(
+      (pv['spacing'] as List).map((e) => (e as num).toDouble()),
+      everyElement(closeTo(0.8, 1e-9)),
+    );
+    // The first preview voxel sits half a full voxel along each axis.
+    expect(
+      (pv['origin'] as List).map((e) => (e as num).toDouble()),
+      everyElement(closeTo(0.2, 1e-9)),
+    );
+    final previewBytes = File(p.join(pack.dir.path, pv['file'] as String)).lengthSync();
+    expect(previewBytes, 48 * 48 * 20 * 2);
+
+    final names = (pack.meta['posters'] as Map).cast<String, String>();
+    expect(names.keys, containsAll(['axial', 'coronal', 'sagittal', 'threeD']));
+    for (final n in names.values) {
+      final bytes = File(p.join(pack.dir.path, n)).readAsBytesSync();
+      expect(bytes.sublist(0, 4), [0x89, 0x50, 0x4E, 0x47], reason: n);
+      final im = img.decodePng(bytes)!;
+      expect(im.width > im.height ? im.width : im.height, lessThanOrEqualTo(1024));
+    }
+
+    // The bony arch has its apex at low y and is open toward +y: on the
+    // axial poster the apex is near the top and the opening at the bottom.
+    final axial = img.decodePng(File(p.join(pack.dir.path, 'poster_axial.png')).readAsBytesSync())!;
+    num at(double fx, double fy) =>
+        axial.getPixel((fx * axial.width).floor(), (fy * axial.height).floor()).r;
+    expect(at(0.5, 33.5 / 96), greaterThan(at(0.5, 62.5 / 96) + 60));
   });
 }

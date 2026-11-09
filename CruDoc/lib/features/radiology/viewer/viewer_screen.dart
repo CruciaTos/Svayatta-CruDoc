@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/files/data/files_repository.dart'
     show FileSource, FilesRepository;
 import 'package:doctor_management_app/features/radiology/ai/rad_ai.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_device.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_viewer_screen.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
@@ -1172,7 +1173,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   @override
   void dropImage(RadPane pane, RadImageDrag drag) {
-    setState(() => _show(pane, drag.studyId, drag.imageId));
+    setState(() {
+      unawaited(_show(pane, drag.studyId, drag.imageId));
+    });
     activatePane(pane);
   }
 
@@ -1190,7 +1193,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     final st = pane.stack;
     if (st != null) {
       if (index < 0 || index >= st.length || st[index] == pane.imageId) return;
-      setState(() => _show(pane, pane.studyId, st[index], keepView: true));
+      setState(() {
+        unawaited(_show(pane, pane.studyId, st[index], keepView: true));
+      });
       return;
     }
     if (index == pane.frame || index < 0 || index >= pane.frames) return;
@@ -1204,7 +1209,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     final i = slots.indexWhere((id) => _paneShows(pane, id));
     final next = i + delta;
     if (next < 0 || next >= slots.length) return;
-    setState(() => _show(pane, s.id, slots[next]));
+    setState(() {
+      unawaited(_show(pane, s.id, slots[next]));
+    });
   }
 
   // ───────────────────────────── Side panel host ─────────────────────────────
@@ -1295,7 +1302,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   void openKeyImage(RadKeyImage k) {
     final s = _study;
     if (s == null) return;
-    setState(() => _show(_pane, s.id, k.imageId));
+    setState(() {
+      unawaited(_show(_pane, s.id, k.imageId));
+    });
   }
 
   @override
@@ -2773,7 +2782,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                   onReport: _openReport,
                   onShortcuts: _openShortcuts,
                   shortcutsKey: _prefs.keyFor(RadViewerAction.shortcuts),
-                  onOpen3d: radIsVolume(s) ? _open3d : null,
+                  onOpen3d: radIsVolume(s) && CbctDevice.canOpen3d(context)
+                      ? _open3d
+                      : null,
                   saveState: _saveState,
                 ),
                 if (!phone) _toolbar(s, others),
@@ -2794,7 +2805,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                         },
                         active: '${p.studyId}/${p.imageId}',
                         onOpen: (studyId, imageId) {
-                          setState(() => _show(_pane, studyId, imageId));
+                          setState(() {
+                            unawaited(_show(_pane, studyId, imageId));
+                          });
                           _focus.requestFocus();
                         },
                       ),

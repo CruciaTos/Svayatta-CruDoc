@@ -43,9 +43,37 @@ Future<void> openRadReport(BuildContext context, RadStudy s) => Navigator.of(
   rootNavigator: true,
 ).push(radRoute<void>(RadReportEditorScreen(studyId: s.id)));
 
-/// Opens a CBCT study in the 3D viewer (planned; its page says so and
-/// offers the 2D slices meanwhile).
-Future<void> openRadCbct3d(BuildContext context, RadStudy s) => Navigator.of(
-  context,
-  rootNavigator: true,
-).push(radRoute<void>(CbctViewerScreen(studyId: s.id)));
+/// Opens a CBCT study in the 3D viewer: a 320 ms fade with the page growing
+/// from 98.5 % to full size (fade only for reduced motion).
+Future<void> openRadCbct3d(BuildContext context, RadStudy s) {
+  final reduced = MediaQuery.disableAnimationsOf(context);
+  final dur = reduced
+      ? const Duration(milliseconds: 80)
+      : const Duration(milliseconds: 320);
+  return Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push(
+    PageRouteBuilder<void>(
+      transitionDuration: dur,
+      reverseTransitionDuration: dur,
+      pageBuilder: (_, _, _) => Consumer(
+        builder: (context, ref, _) => Theme(
+          data: CruTheme.of(ref.watch(resolvedAppearanceProvider)),
+          child: CbctViewerScreen(studyId: s.id),
+        ),
+      ),
+      transitionsBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        final fade = FadeTransition(opacity: curved, child: child);
+        if (MediaQuery.disableAnimationsOf(context)) {
+          return fade;
+        }
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+          child: fade,
+        );
+      },
+    ),
+  );
+}

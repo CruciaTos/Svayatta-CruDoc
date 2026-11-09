@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dashboard/domain/dashboard_format
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/radiology/cbct/cbct_device.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_viewer_screen.dart';
 import 'package:doctor_management_app/features/radiology/data/pacs_connection.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
@@ -88,7 +89,8 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
         s.clinicalQuestion.toLowerCase().contains(q) ||
         s.description.toLowerCase().contains(q) ||
         (r?.name.toLowerCase().contains(q) ?? false) ||
-        (r?.clinic.toLowerCase().contains(q) ?? false);
+        (r?.clinic.toLowerCase().contains(q) ?? false) ||
+        ((r?.isColleague ?? false) && 'colleague'.contains(q));
   }
 
   @override
@@ -471,6 +473,7 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
 enum _RowAction {
   report,
   view3d,
+  refer,
   edit,
   sendPacs,
   routine,
@@ -491,6 +494,34 @@ class _StudyRow extends ConsumerWidget {
   final RadReferrer? referrer;
   final DateTime now;
 
+  Future<void> _referStudy(BuildContext context, WidgetRef ref) async {
+    final picked = await pickRadReferrer(
+      context,
+      selectedId: study.referrerId.isNotEmpty ? study.referrerId : null,
+      title: 'Refer to colleague',
+      subtitle:
+          'Pick a colleague or referrer for ${study.patientName.isEmpty ? 'this study' : study.patientName}',
+    );
+    if (picked == null) return;
+    if (picked.id == study.referrerId) return;
+
+    final ctrl = ref.read(radiologyProvider);
+    final isClear = picked.id.isEmpty;
+    await ctrl.saveStudy(
+      study.copyWith(referrerId: picked.id),
+      auditAction: isClear ? 'Cleared referrer' : 'Referred to ${picked.name}',
+      detail: study.patientName,
+    );
+    if (context.mounted) {
+      radToast(
+        context,
+        isClear
+            ? 'Removed referrer from ${study.patientName}'
+            : 'Referred ${study.patientName} to ${picked.name}',
+      );
+    }
+  }
+
   Future<void> _act(BuildContext context, WidgetRef ref, _RowAction a) async {
     final ctrl = ref.read(radiologyProvider);
     switch (a) {
@@ -498,6 +529,8 @@ class _StudyRow extends ConsumerWidget {
         await openRadReport(context, study);
       case _RowAction.view3d:
         await openRadCbct3d(context, study);
+      case _RowAction.refer:
+        await _referStudy(context, ref);
       case _RowAction.edit:
         await showDialog<bool>(
           context: context,
@@ -596,6 +629,8 @@ class _StudyRow extends ConsumerWidget {
                   Text(
                     phone
                         ? [
+                            if (referrer != null && referrer!.name.isNotEmpty)
+                              referrer!.name,
                             due.text,
                             line,
                           ].where((t) => t.isNotEmpty).join(' · ')
@@ -611,23 +646,49 @@ class _StudyRow extends ConsumerWidget {
             const SizedBox(width: CruSpace.s12),
             Expanded(
               flex: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    referrer?.name ?? 'No referrer',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.subhead.tint(
-                      referrer == null ? c.label3 : c.label,
-                    ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                onTap: () => _referStudy(context, ref),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: CruSpace.s4,
+                    horizontal: CruSpace.s4,
                   ),
-                  Text(
-                    RadFormat.ago(study.receivedAt, now),
-                    maxLines: 1,
-                    style: CruType.caption.tabular.tint(c.label2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              referrer?.name ?? 'No referrer',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CruType.subhead.tint(
+                                referrer == null ? c.label3 : c.label,
+                              ),
+                            ),
+                          ),
+                          if (referrer?.isColleague == true) ...[
+                            const SizedBox(width: CruSpace.s6),
+                            CruPill(
+                              text: 'Colleague',
+                              background: c.accentTint,
+                              foreground: c.accent,
+                            ),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        RadFormat.ago(study.receivedAt, now),
+                        maxLines: 1,
+                        style: CruType.caption.tabular.tint(c.label2),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
             const SizedBox(width: CruSpace.s12),
@@ -668,11 +729,19 @@ class _StudyRow extends ConsumerWidget {
                 value: _RowAction.report,
                 child: Text('Open report'),
               ),
-              if (radIsVolume(study))
+              if (radIsVolume(study) && CbctDevice.canOpen3d(context))
                 const PopupMenuItem(
                   value: _RowAction.view3d,
                   child: Text('Open in 3D'),
                 ),
+              PopupMenuItem(
+                value: _RowAction.refer,
+                child: Text(
+                  study.referrerId.isEmpty
+                      ? 'Refer to colleague…'
+                      : 'Change referrer…',
+                ),
+              ),
               const PopupMenuItem(
                 value: _RowAction.edit,
                 child: Text('Edit referral'),

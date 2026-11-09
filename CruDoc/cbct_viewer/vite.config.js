@@ -1,13 +1,34 @@
 import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 const shim = (name) => fileURLToPath(new URL(`./src/shims/${name}.js`, import.meta.url));
+
+// Writes assets/cbct_viewer/layout.json from tokens.css so Flutter's poster
+// layer can draw the same background and gutters. It runs after Vite empties
+// the output folder, so it is regenerated on every build.
+function layoutJson() {
+  return {
+    name: 'cbct-layout-json',
+    closeBundle() {
+      const css = readFileSync(fileURLToPath(new URL('./src/styles/tokens.css', import.meta.url)), 'utf8');
+      const tokens = {};
+      for (const [, name, value] of css.matchAll(/--([a-z0-9-]+):\s*([^;]+);/gi)) {
+        const v = value.trim();
+        tokens[name] = /^-?\d+(\.\d+)?(px|ms)$/.test(v) ? parseFloat(v) : v;
+      }
+      const out = { version: 1, bg: tokens.bg, background: tokens.bg, tokens };
+      writeFileSync(fileURLToPath(new URL('../assets/cbct_viewer/layout.json', import.meta.url)), JSON.stringify(out));
+    },
+  };
+}
 
 // Builds the CBCT viewer into Flutter's assets folder (committed, so the app
 // builds on a machine without Node). Stable file names, no hashes: Flutter
 // lists asset folders one by one, and hashed names would leave stale files.
 export default defineConfig({
   base: './',
+  plugins: [layoutJson()],
   resolve: {
     // Node built-ins that vtk.js' xmlbuilder2 needs at module load: Vite's
     // empty stub for "events" crashes the whole bundle at startup.

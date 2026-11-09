@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- The viewer never touches the network: it may only talk to its own
+         loopback server (see handoff/cbct_3d_viewer_build_guide.md, C6). -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; font-src 'self'"
+    />
+    <link rel="icon" href="data:," />
+    <title>CruDoc CBCT viewer</title>
+    <script type="module" crossorigin src="./a/main.js"></script>
+    <link rel="stylesheet" crossorigin href="./a/main.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

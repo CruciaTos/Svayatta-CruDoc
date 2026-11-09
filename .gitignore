@@ -23,6 +23,10 @@ GoogleService-Info.plist
 !CruDoc/lifecycle.json
 # The muscle chart can't load without it.
 !CruDoc/assets/muscle_viewer/catalog.json
+# The CBCT viewer web project (handoff/cbct_3d_viewer_build_guide.md).
+!CruDoc/cbct_viewer/package.json
+!CruDoc/cbct_viewer/package-lock.json
+!CruDoc/assets/cbct_viewer/layout.json
 CruDoc/lib/firebase_options.dart
 .agents/
 .cursor/

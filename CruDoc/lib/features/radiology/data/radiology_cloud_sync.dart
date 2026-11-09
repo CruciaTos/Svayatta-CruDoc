@@ -282,7 +282,7 @@ abstract final class RadiologyCloudSync {
 /// the small cloud preview meanwhile), and the preview and viewing-file
 /// caches, which are always fetched again on demand.
 class _RadiologyLocalSource implements LocalAssetSource {
-  static const _caches = ['.previews', '.views'];
+  static const _caches = ['.previews', '.views', '.cbct'];
 
   @override
   String get name => 'radiology';

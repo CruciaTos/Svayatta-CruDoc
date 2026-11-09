@@ -1,0 +1,118 @@
+/* CBCT viewer design tokens: starting values from
+   handoff/cbct_3d_viewer_build_guide.md, A3.1 (colours) and A3.2 (type).
+   Measure against handoff/cbct_reference.png and adjust by eye.
+   Step 4 copies the same values into assets/cbct_viewer/layout.json so
+   Flutter's poster layer can draw the same geometry. */
+
+:root {
+  /* ---- A3.1 Colours ---- */
+  --bg: #06080c;            /* page behind everything */
+  --chrome: #0b0e14;        /* top bar, status bar */
+  --panel: #0c1017;         /* right panel */
+  --raised: #121722;        /* chips, inputs, histogram box, active segment */
+  --line: #1b212c;          /* gutters, section dividers, chip borders */
+  --track: #262d3a;         /* slider track, scrollbar track */
+  --text: #e7eaf0;          /* primary words, orientation letters */
+  --text2: #8c94a3;         /* labels, overlay text, hints */
+  --text3: #5d6573;         /* section headings, key-hint digits */
+  --accent: #4d8ef7;        /* slider fill, active chip border, histogram ramp and handles */
+  --accent-fill: rgba(77, 142, 247, 0.16); /* active chip fill */
+  --axial: #e9ae45;         /* axial dot, line/plane, scrollbar thumb */
+  --coronal: #2fc1ae;       /* coronal dot, line/plane, thumb */
+  --sagittal: #a193ff;      /* sagittal dot, line/plane, thumb */
+  --good: #3fd08f;          /* "Anonymized" badge, "No network access" dot */
+  --mpr-bg: #000000;        /* MPR viewport background */
+  --3d-bg-centre: #0e1626;  /* 3D viewport background, centre */
+  --3d-bg-edge: #070a10;    /* 3D viewport background, edge */
+  --3d-bg: radial-gradient(circle at 50% 50%, var(--3d-bg-centre) 0%, var(--3d-bg-edge) 100%);
+  --bone: #ece1c9;          /* ivory bone colour in 3D (A3.7) */
+
+  /* ---- Colours named elsewhere in A3 ---- */
+  --btn-active: #1e2532;                /* active toolbar button square (A3.3) */
+  --pill-bg: rgba(12, 16, 23, 0.85);    /* viewport label pill and corner buttons (A3.4) */
+  --bone-low: #c8b48c;                  /* Bone ramp colour at the threshold (A3.7) */
+  --teeth-tint: #f3eee4;                /* Teeth preset colour (A3.7) */
+  --skin: #d9a58a;                      /* Skin + bone: skin layer colour (A3.7) */
+  --hist-fill: #3a4250;                 /* histogram area outside the window (A3.7) */
+  --hist-window-top: #c3cad5;           /* histogram area inside the window, top */
+  --hist-window-bottom: #8e97a5;        /* histogram area inside the window, bottom */
+  --gizmo-l: #e8674f;                   /* 3D gizmo: Left (A3.6) */
+  --gizmo-p: #4fb47e;                   /* 3D gizmo: Posterior */
+  --gizmo-s: #5aa2f0;                   /* 3D gizmo: Superior */
+  --gizmo-neg: #141a24;                 /* 3D gizmo: R, A, I end circles */
+  --measure-label-bg: rgba(0, 0, 0, 0.72); /* measurement labels (Step 11) */
+
+  /* ---- A3.2 Type ---- */
+  /* Fonts are bundled in public/fonts/ and never fetched at runtime (Step 4
+     adds the files and the @font-face rules). */
+  --font-ui: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  --fs-ui: 13px;            /* UI text */
+  --fw-ui: 400;
+  --fs-title: 14px;         /* title "Tooth Scan" */
+  --fw-title: 600;
+  --fs-chip: 12px;          /* info chip */
+  --fw-chip: 500;
+  --fs-section: 10.5px;     /* section headings (CONTRAST, SLAB, 3D VIEW) */
+  --fw-section: 600;
+  --ls-section: 0.14em;
+  --fs-vp-label: 11px;      /* viewport label "AXIAL" */
+  --fw-vp-label: 700;
+  --ls-vp-label: 0.08em;
+  --fs-vp-sub: 11px;        /* "Oblique", "Bone · cut axial" */
+  --fw-vp-sub: 500;
+  --fs-mono: 11px;          /* overlays, status bar, number inputs */
+  --fw-mono: 400;
+  --fs-orient: 12px;        /* orientation letters */
+  --fw-orient: 600;
+  --orient-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
+  --fs-hint: 11px;          /* 3D hint */
+  --fs-histogram-label: 10px;
+
+  /* ---- Sizes (A2, A3.3, A3.4) ---- */
+  --topbar-h: 44px;
+  --statusbar-h: 28px;
+  --panel-w: 272px;
+  --gutter: 1px;
+  --radius-chip: 8px;
+  --radius-small: 6px;
+  --btn: 28px;              /* toolbar button */
+  --btn-icon: 16px;         /* toolbar icon stroke box */
+  --vp-inset: 10px;         /* label pill and corner buttons inset */
+  --vp-btn: 26px;           /* viewport corner buttons */
+  --scrollbar-thumb-w: 4px;
+  --scrollbar-thumb-w-hover: 6px;
+  --scrollbar-thumb-h: 18px;
+
+  /* ---- Motion (B4.6): 200-250 ms easeOutCubic, no bounce ---- */
+  --ease: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --dur-fast: 200ms;
+  --dur: 240ms;
+  --dur-focus-pull: 250ms;
+  --dur-stagger: 40ms;
+  --dur-solidify: 500ms;    /* first-ever open only (G1) */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 80ms;
+    --dur: 80ms;
+    --dur-focus-pull: 80ms;
+    --dur-stagger: 0ms;
+    --dur-solidify: 0ms;
+  }
+}
+
+/* Minimal base so the empty page is dark, not white. Step 4's viewer.css
+   takes over from here. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-ui);
+  font-weight: var(--fw-ui);
+}

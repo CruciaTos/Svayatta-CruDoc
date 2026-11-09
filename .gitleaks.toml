@@ -15,6 +15,8 @@ paths = [
   '''\.example$''',
   '''\.sample$''',
   '''README\.md$''',
+  # Minified CBCT viewer bundle: `{key:...,value:function}` class code, not secrets.
+  '''^CruDoc/assets/cbct_viewer/a/''',
 ]
 regexes = [
   '''AIzaSy[0-9A-Za-z\-_]{33}[X_]{2}''',

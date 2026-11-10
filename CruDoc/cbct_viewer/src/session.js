@@ -5,8 +5,9 @@
 import { core, IDS, MPR, vp, planeExtents } from './core.js';
 import { state, set, subscribe, bus, presetWindow } from './state.js';
 import { showVolume, freeEverything, fitCameras, captureView, restoreView, applyContrast, applySlab, resetAll } from './engine.js';
-import { refresh3D, aim3d, solidify, prepareSolidify, snapshot3dCanvas, fadeOutOverlay } from './view3d.js';
-import { initLod } from './lod.js';
+import { refresh3D, aim3d, solidify, prepareSolidify, close3d } from './view3d.js';
+import { initLod, evaluateLod } from './lod.js';
+import { validPreset } from './presets3d.js';
 import { scheduleUpdate } from './overlays.js';
 
 const POSTER_FILE = { axial: 'poster_axial.png', coronal: 'poster_coronal.png', sagittal: 'poster_sagittal.png', threeD: 'poster_3d.png' };
@@ -58,10 +59,8 @@ async function fetchVoxels(file, dims, onProgress) {
   return new Int16Array(out.buffer);
 }
 
+// Fetches one of the 3D view's in-between detail levels (lod.js asks for it).
 export async function loadLevel(entry) {
-  if (core.voxels && (entry.file === 'full.i16' || entry.factor === 1)) {
-    return { data: core.voxels, geo: geoOf(entry, core.meta) };
-  }
   const geo = geoOf(entry, core.meta);
   const data = await fetchVoxels(entry.file, geo.dims, (f) => set({ progress: f }));
   set({ progress: null });
@@ -110,14 +109,14 @@ export async function open(args) {
   const preview = meta.volumes && meta.volumes.preview;
   const wantMid = args.deviceClass === 'tablet' && meta.volumes && meta.volumes.mid;
   const full = wantMid ? meta.volumes.mid : meta.volumes.full;
-  // The 3D ray caster is the expensive part: it draws a smaller copy when the pack has one.
-  const mid3d = !wantMid && meta.volumes && meta.volumes.mid;
+  // The 3D view keeps the small preview as its light copy; lod.js adds a sharper
+  // one for the still picture once the full volume is in.
+  initLod(meta);
 
   if (preview) {
     const data = await fetchVoxels(preview.file, geoOf(preview, meta).dims);
     await showVolume(data, geoOf(preview, meta), core.valueOffset);
     await applyEverything(saved, first);
-    initLod(data, geoOf(preview, meta), meta);
     await revealLive(ms);
     if (first) solidify(500);
     set({ phase: 'preview' });
@@ -144,8 +143,20 @@ function applySavedUi(saved, meta) {
     for (const k of ['layout', 'focus', 'panelOpen', 'tool', 'overlays']) if (saved[k] !== undefined) patch[k] = saved[k];
     if (saved.contrast) patch.contrast = { ...patch.contrast, ...saved.contrast };
     if (saved.slab) patch.slab = saved.slab;
-    if (saved.view3d) patch.view3d = saved.view3d;
+    if (saved.view3d) patch.view3d = { ...saved.view3d };
   }
+  // The implant plan belongs to this scan: the saved one, or an empty one.
+  const sp = saved && saved.plan;
+  patch.plan = {
+    nerves: { right: (sp && sp.nerves && sp.nerves.right) || [], left: (sp && sp.nerves && sp.nerves.left) || [] },
+    side: 'right',
+    implants: (sp && Array.isArray(sp.implants) && sp.implants) || [],
+    selected: -1,
+    follow: true,
+  };
+  if (patch.tool === 'nerve') patch.tool = 'crosshair'; // tracing is never left on between visits
+  // A look this kind of scan does not have (an older save, or the default "bone" on an MR).
+  patch.view3d = { ...(patch.view3d || {}), preset: validPreset(meta, (patch.view3d && patch.view3d.preset) || state.view3d.preset) };
   if (window.innerWidth < 1100 && !(saved && saved.panelOpen !== undefined)) patch.panelOpen = false;
   set(patch);
 }
@@ -160,7 +171,8 @@ async function applyEverything(saved, first) {
   }
   applyContrast(true);
   applySlab();
-  refresh3D();
+  // Paints the 3D look and compiles its shaders while the poster still covers the view.
+  await refresh3D({ cover: false });
   core.engine.renderViewports(IDS);
   scheduleUpdate();
 }
@@ -197,31 +209,23 @@ async function swapToFull(voxels, geo, hadPreview, onlyFull, saved, first, split
   restoreView(view);
   applyContrast(true);
   applySlab();
-  refresh3D();
-  core.engine.renderViewports(IDS);
+  if (!splitThreeD) await refresh3D({ cover: false });
+  core.engine.renderViewports(views);
   scheduleUpdate();
+  // The 3D view gets its sharper still picture now, while the snapshots still
+  // cover the slice views: compiling its shader freezes the page for a moment,
+  // and a frozen still picture is invisible.
+  if (splitThreeD) await evaluateLod(true);
   await nextFrames(2);
   await Promise.all(views.map((id) => ui.frames[id].fadePoster(state.reduced ? 80 : 600)));
-}
-
-// Gives the 3D view its own, smaller volume and keeps its camera.
-async function swap3d(entry, meta) {
-  const geo = geoOf(entry, meta);
-  const data = await fetchVoxels(entry.file, geo.dims);
-  const overlay = snapshot3dCanvas();
-  const cam = vp('threeD').getCamera();
-  await showVolume(data, geo, core.valueOffset, ['threeD']);
-  vp('threeD').setCamera({ viewUp: cam.viewUp, viewPlaneNormal: cam.viewPlaneNormal, position: cam.position, focalPoint: cam.focalPoint, parallelScale: cam.parallelScale });
-  refresh3D();
-  await fadeOutOverlay(overlay, 450);
 }
 
 // ───────────────────────── Saving ─────────────────────────
 
 function snapshotState() {
-  const { layout, focus, panelOpen, tool, overlays, contrast, slab, view3d } = state;
+  const { layout, focus, panelOpen, tool, overlays, contrast, slab, view3d, plan } = state;
   const v = core.volumeId ? captureView() : { cameras: null, centre: null };
-  return { version: 1, layout, focus, panelOpen, tool, overlays, contrast: { ...contrast }, slab: { ...slab }, view3d: { ...view3d }, cameras: v.cameras, centre: v.centre, posters: savedPosters, savedAt: new Date().toISOString() };
+  return { version: 1, layout, focus, panelOpen, tool, overlays, contrast: { ...contrast }, slab: { ...slab }, view3d: { ...view3d }, plan: { nerves: plan.nerves, implants: plan.implants }, cameras: v.cameras, centre: v.centre, posters: savedPosters, savedAt: new Date().toISOString() };
 }
 
 async function put(name, body) {
@@ -244,7 +248,7 @@ function wireAutosave() {
     saveTimer = setTimeout(saveState, 2000);
   };
   subscribe((s, changed) => {
-    if (['layout', 'focus', 'panelOpen', 'tool', 'overlays', 'contrast', 'slab', 'view3d'].some((k) => changed.has(k))) later();
+    if (['layout', 'focus', 'panelOpen', 'tool', 'overlays', 'contrast', 'slab', 'view3d', 'plan'].some((k) => changed.has(k))) later();
   });
 }
 
@@ -272,6 +276,7 @@ export async function prepareClose() {
 export function close() {
   sessionOpen = false;
   clearTimeout(saveTimer);
+  close3d();
   freeEverything();
   set({ phase: 'empty', progress: null });
 }

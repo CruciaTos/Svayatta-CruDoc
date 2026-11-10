@@ -111,6 +111,38 @@ const check = (name, ok, detail = '') => results.push({ name, ok: !!ok, detail }
   await $('.chip:has-text("Bone")').nth(1).click(); // 3D bone (second Bone chip)
   await page.locator('.seg button:text-is("Off")').click();
 
+  // A6: new look "Teeth in bone", Smooth slider, gizmo letter click
+  const teethInBoneChip = await page.locator('.chips .chip').evaluateAll((chips) =>
+    chips.some((c) => c.textContent.trim() === 'Teeth in bone'));
+  check('3D chip row contains "Teeth in bone"', teethInBoneChip);
+  await $('.chip:has-text("Teeth in bone")').first().click();
+  await page.waitForTimeout(200);
+  check('"Teeth in bone" chip sets 3D label', (await text('.vp[data-id=threeD] .pill small')).includes('Teeth in bone'), await text('.vp[data-id=threeD] .pill small'));
+
+  const smoothRow = await page.locator('.prow:has(label:text-is("Smooth"))').count();
+  check('Smooth slider row exists', smoothRow > 0);
+
+  // Click a gizmo circle (force: true because it may be small / covered) and wait
+  // up to 1500 ms for viewPlaneNormal to change.
+  const vpnBefore = await page.evaluate(() => {
+    const cam = window.__cbct.core.engine.getViewport('threeD').getCamera();
+    return [...cam.viewPlaneNormal];
+  });
+  await page.locator('.gizmo circle').first().click({ force: true });
+  let vpnChanged = false;
+  for (let i = 0; i < 15; i++) {
+    await page.waitForTimeout(100);
+    const vpnAfter = await page.evaluate(() => {
+      const cam = window.__cbct.core.engine.getViewport('threeD').getCamera();
+      return [...cam.viewPlaneNormal];
+    });
+    if (vpnAfter.some((v, j) => Math.abs(v - vpnBefore[j]) > 0.01)) {
+      vpnChanged = true;
+      break;
+    }
+  }
+  check('gizmo circle click changes viewPlaneNormal within 1.5 s', vpnChanged);
+
   // Status readout
   const ax = await page.locator('.vp[data-id=axial]').boundingBox();
   await page.mouse.move(ax.x + ax.width * 0.4, ax.y + ax.height * 0.45);

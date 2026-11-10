@@ -14,10 +14,12 @@ export const state = {
   panelOpen: true,
   helpOpen: false,
   overlays: true,
-  tool: 'crosshair', // crosshair pan zoom wl length angle ellipse
+  tool: 'crosshair', // crosshair pan zoom wl length angle ellipse nerve
+  // Implant plan (planning.js): nerve canal points per side and implants, world mm.
+  plan: { nerves: { right: [], left: [] }, side: 'right', implants: [], selected: -1, follow: true },
   contrast: { preset: 'bone', low: -600, high: 3000, invert: false },
   slab: { mode: 'thin', thickness: 0 }, // thin mip mean minip
-  view3d: { preset: 'bone', threshold: 0, opacity: 100, cut: 'off', cutFlip: false },
+  view3d: { preset: 'bone', threshold: 0, opacity: 100, soft: 40, cut: 'off', cutFlip: false }, // soft: 0 crisp .. 100 smooth
   hovered: null,
   active: 'axial',
   status: null, // { viewport, x, y, z, value }

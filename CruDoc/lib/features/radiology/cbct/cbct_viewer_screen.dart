@@ -187,8 +187,9 @@ class _CbctViewerScreenState extends ConsumerState<CbctViewerScreen> {
     final fov = [
       for (var i = 0; i < 3; i++) (dims[i] * sp[i]).round(),
     ].join(' × ');
+    final kind = meta['kind'] as String? ?? 'dental';
     return [
-      'CBCT',
+      if (kind == 'dental') 'CBCT' else '3D viewer',
       if (maker.isNotEmpty) maker,
       RadFormat.date(study.studyDate),
       '$fov mm',
@@ -433,13 +434,36 @@ class _CbctViewerScreenState extends ConsumerState<CbctViewerScreen> {
 
 /// A CBCT volume: several slices, or one multi-frame file. Compressed files
 /// count when they are JPEG 2000 / HTJ2K and this build can decode those.
+///
+/// Also accepts any CT or MR DICOM series with at least 30 slices (frames)
+/// of equal pixel dimensions.
 bool radIsVolume(RadStudy s) {
-  if (!s.modality.isVolume) return false;
-  final readable = s.images
-      .where((i) => !i.compressed || _decodableCompressed(i))
-      .toList();
-  return readable.length > 1 ||
-      (readable.length == 1 && readable.first.frames > 1);
+  // --- existing CBCT path ---
+  if (s.modality.isVolume) {
+    final readable = s.images
+        .where((i) => !i.compressed || _decodableCompressed(i))
+        .toList();
+    return readable.length > 1 ||
+        (readable.length == 1 && readable.first.frames > 1);
+  }
+
+  // --- CT / MR path: any DICOM series whose per-image modality tag is CT or MR ---
+  final dicom = s.images.where((i) => i.kind == RadFileKind.dicom).toList();
+  final ctOrMr = dicom.where((i) => i.dicomModality == 'CT' || i.dicomModality == 'MR');
+  if (ctOrMr.isEmpty) return false;
+
+  // Count total frames.
+  final totalFrames = dicom.fold<int>(0, (n, i) => n + (i.frames < 1 ? 1 : i.frames));
+  if (totalFrames < 30) return false;
+
+  // All images with a known size must share the same dimensions.
+  final sized = dicom.where((i) => i.width > 0 && i.height > 0).toList();
+  if (sized.length > 1) {
+    final w0 = sized.first.width, h0 = sized.first.height;
+    if (sized.any((i) => i.width != w0 || i.height != h0)) return false;
+  }
+
+  return true;
 }
 
 bool _decodableCompressed(RadImageRef i) {

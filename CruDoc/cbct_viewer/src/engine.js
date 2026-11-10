@@ -20,7 +20,8 @@ import {
 import { core, IDS, MPR, ENGINE_ID, vp, axes, dot, mul, add, sub, centre, worldToIndex, planeExtents } from './core.js';
 import { state, set, subscribe, bus, matchPreset } from './state.js';
 import { fitCamera } from './fit.js';
-import { aim3d } from './view3d.js';
+import { flyHome } from './view3d.js';
+import { validPreset } from './presets3d.js';
 
 const MB = ToolsEnums.MouseBindings;
 const KB = ToolsEnums.KeyboardBindings;
@@ -94,15 +95,16 @@ export async function initEngine(hosts) {
 
 // ───────────────────────── Volumes ─────────────────────────
 
-// Puts a volume on all four viewports; the previous one (if any) is freed.
-// Cameras are reset by Cornerstone: the caller restores or refits them.
-// Volume ids on screen: the slice views and the 3D view may hold different
-// copies (the 3D ray caster is the expensive part, so it draws a smaller one).
-const held = { mpr: null, threeD: null };
+// Volumes on screen. The slice views hold one (`mpr`). The 3D view holds a light
+// copy that is always there (`fast`, drawn while the picture moves) and, when
+// the zoom calls for it, a sharper one (`fine`, drawn when the picture is still).
+// `fine` may be the slice views' own volume: the GPU texture is shared, so it
+// costs no extra memory.
+const held = { mpr: null, fast: null, fine: null };
+export const FINE_UID = 'cbctFine';
 
-// `views` lists the viewports that get this volume (all four by default).
-export async function showVolume(voxels, geo, valueOffset, views = IDS) {
-  const [nx, ny, nz] = geo.dims;
+async function makeVolume(voxels, geo) {
+  const [nx, ny] = geo.dims;
   const id = `cbctVol${++volCounter}`;
   await volumeLoader.createLocalVolume(id, {
     scalarData: voxels,
@@ -125,9 +127,25 @@ export async function showVolume(voxels, geo, valueOffset, views = IDS) {
       PixelSpacing: [geo.spacing[1], geo.spacing[0]],
     },
   });
-  await setVolumesForViewports(core.engine, [{ volumeId: id }], views);
-  const old = new Set([held.mpr, held.threeD]);
+  return id;
+}
+
+// Frees every volume no view holds any more.
+function sweep(before) {
+  const keep = new Set([held.mpr, held.fast, held.fine]);
+  for (const id of before) if (id && !keep.has(id)) removeVolume(id);
+}
+
+// Puts a volume on the listed viewports (all four by default). In the 3D view
+// it becomes the light copy and any sharper one is dropped.
+// Cameras are reset by Cornerstone: the caller restores or refits them.
+export async function showVolume(voxels, geo, valueOffset, views = IDS) {
+  const before = [held.mpr, held.fast, held.fine];
   const slices = views.includes('axial');
+  // A sharper 3D copy that borrows the slice views' volume goes with it.
+  if (slices && held.fine && held.fine === held.mpr && !views.includes('threeD')) dropFine();
+  const id = await makeVolume(voxels, geo);
+  await setVolumesForViewports(core.engine, [{ volumeId: id }], views);
   if (slices) {
     held.mpr = id;
     core.volumeId = id;
@@ -136,10 +154,39 @@ export async function showVolume(voxels, geo, valueOffset, views = IDS) {
     core.valueOffset = valueOffset;
     appliedContrast = '';
   }
-  if (views.includes('threeD')) held.threeD = id;
-  for (const prev of old) if (prev && prev !== held.mpr && prev !== held.threeD) removeVolume(prev);
+  if (views.includes('threeD')) {
+    held.fast = id;
+    held.fine = null;
+  }
+  sweep(before);
   if (!core.tgMpr && slices) setupTools();
   logVolumeMemory(`volume shown on [${views.join(',')}]`);
+}
+
+function dropFine() {
+  const v = vp('threeD');
+  if (v && v.getActor(FINE_UID)) v.removeVolumeActors([FINE_UID]);
+  held.fine = null;
+}
+
+// Gives the 3D view its sharper copy, hidden until view3d.js shows it.
+// `level` is { data, geo } for a copy of its own, 'slices' to borrow the slice
+// views' volume, or null for none. The camera is left exactly as it was.
+export async function setFine3d(level) {
+  const v = vp('threeD');
+  if (!v) return;
+  const before = [held.mpr, held.fast, held.fine];
+  const c = v.getCamera();
+  const cam = { viewUp: c.viewUp, viewPlaneNormal: c.viewPlaneNormal, position: c.position, focalPoint: c.focalPoint, parallelScale: c.parallelScale };
+  dropFine();
+  if (level) {
+    const id = level === 'slices' ? held.mpr : await makeVolume(level.data, level.geo);
+    await v.addVolumes([{ volumeId: id, actorUID: FINE_UID, visibility: false }], false, true);
+    held.fine = id;
+    v.setCamera(cam);
+  }
+  sweep(before);
+  logVolumeMemory(`3D sharp copy: ${level ? (level === 'slices' ? 'slice volume' : level.geo.dims.join('x')) : 'none'}`);
 }
 
 export function logVolumeMemory(label = '') {
@@ -150,10 +197,11 @@ export function logVolumeMemory(label = '') {
       const v = cache.getVolume(held.mpr);
       if (v) vols.push(`mpr ${held.mpr} (${v.dimensions.join('x')}: ${v.dimensions.reduce((a, b) => a * b, 1) * 2} B)`);
     }
-    if (held.threeD) {
-      const v = cache.getVolume(held.threeD);
-      if (v) vols.push(`3D ${held.threeD} (${v.dimensions.join('x')}: ${v.dimensions.reduce((a, b) => a * b, 1) * 2} B)`);
+    for (const k of ['fast', 'fine']) {
+      const v = held[k] && held[k] !== held.mpr && cache.getVolume(held[k]);
+      if (v) vols.push(`3D ${k} ${held[k]} (${v.dimensions.join('x')}: ${v.dimensions.reduce((a, b) => a * b, 1) * 2} B)`);
     }
+    if (held.fine && held.fine === held.mpr) vols.push('3D fine = mpr (shared)');
     console.log(`[cbct memory] ${label ? label + ': ' : ''}cacheSize: ${cacheSize} bytes | ${vols.join(', ')}`);
   } catch (err) {
     console.warn('[cbct memory]', err);
@@ -179,9 +227,10 @@ function removeVolume(id) {
 }
 
 export function freeEverything() {
-  for (const id of new Set([held.mpr, held.threeD])) if (id) removeVolume(id);
+  for (const id of new Set([held.mpr, held.fast, held.fine])) if (id) removeVolume(id);
   held.mpr = null;
-  held.threeD = null;
+  held.fast = null;
+  held.fine = null;
   core.volumeId = null;
   core.voxels = null;
 }
@@ -202,10 +251,10 @@ function setupTools() {
 
   const g3 = ToolGroupManager.createToolGroup('cbct3d') || ToolGroupManager.getToolGroup('cbct3d');
   g3.addViewport('threeD', ENGINE_ID);
-  // The rotate tool keeps its default: it doubles the ray sample distance while
-  // dragging, on top of view3d.js halving the samples on pointer down (x4 in all).
-  // Measured best on Intel UHD: about twice the frames of either alone, p90 21-35 ms.
-  [TrackballRotateTool, ZoomTool, PanTool].forEach((t) => g3.addTool(t.toolName));
+  // view3d.js alone decides the quality while the picture moves, so the rotate
+  // tool's own "fewer samples while dragging" is switched off (factor 1).
+  g3.addTool(TrackballRotateTool.toolName, { rotateSampleDistanceFactor: 1 });
+  [ZoomTool, PanTool].forEach((t) => g3.addTool(t.toolName));
   g3.setToolActive(TrackballRotateTool.toolName, { bindings: [{ mouseButton: MB.Primary }] });
   g3.setToolActive(ZoomTool.toolName, { bindings: [{ mouseButton: MB.Wheel }] });
   g3.setToolActive(PanTool.toolName, { bindings: [{ mouseButton: MB.Secondary }, { mouseButton: MB.Auxiliary }] });
@@ -400,7 +449,7 @@ export function scrollView(id, delta) {
 
 export function resetView(id) {
   if (id === 'threeD') {
-    aim3d();
+    flyHome();
     return;
   }
   const v = vp(id);
@@ -417,13 +466,13 @@ export function resetView(id) {
 
 export function resetAll() {
   fitCameras(true);
-  aim3d();
+  flyHome();
   set({
     contrast: { ...(core.meta ? { low: core.meta.presets.bone.low, high: core.meta.presets.bone.high } : {}), preset: 'bone', invert: false },
     slab: { mode: 'thin', thickness: 0 },
-    view3d: { preset: 'bone', threshold: 0, opacity: 100, cut: 'off', cutFlip: false },
+    view3d: { preset: validPreset(core.meta, 'bone'), threshold: 0, opacity: 100, soft: 40, cut: 'off', cutFlip: false },
   });
-  core.engine.renderViewports(IDS);
+  core.engine.renderViewports(MPR);
 }
 
 export { eventTarget, Enums, ToolsEnums, annotation };

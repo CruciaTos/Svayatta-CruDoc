@@ -89,9 +89,15 @@ void main() {
     expect(again.meta['createdAt'], pack.meta['createdAt']);
   });
 
+  test('synthetic CBCT pack has kind == dental (no modality tag in synthetic slices)', () async {
+    final pack = await ensureCbctPack(study: synthetic(), studyDir: dir);
+    // Synthetic slices carry no Modality DICOM tag, so the packer falls back to dental.
+    expect(pack.meta['kind'], 'dental');
+  });
+
   test('writes a preview volume and four posters, axial with anterior on top', () async {
     final pack = await ensureCbctPack(study: synthetic(), studyDir: dir);
-    expect(cbctPackVersion, 3);
+    expect(cbctPackVersion, 4);
     final vols = pack.meta['volumes'] as Map<String, dynamic>;
     expect(vols['mid'], isNull); // 96 voxels: no mid volume
     final lods = vols['lods'] as List;

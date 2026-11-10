@@ -1,209 +1,119 @@
-// Level-of-detail (LOD) for the 3D viewport.
-// Coarse when zoomed out, finer only when zoomed in, and back to coarse when zoomed out.
+// Level of detail for the 3D view's STILL picture.
+// The view always holds a light copy of the scan (level 0), which is what moves.
+// When the picture is still it shows the coarsest level whose voxels are no
+// bigger than about one screen pixel: sharper levels are fetched only when the
+// zoom or the window size calls for them. The last level is the slice views'
+// own volume, borrowed (the GPU texture is shared, no second copy).
 import { Enums } from '@cornerstonejs/core';
 import { core, vp } from './core.js';
-import { showVolume, logVolumeMemory } from './engine.js';
-import { refresh3D, snapshot3dCanvas, fadeOutOverlay, is3dHidden } from './view3d.js';
+import { state, subscribe } from './state.js';
+import { setFine3d } from './engine.js';
+import { refresh3D, snapshot3dCanvas, fadeOutOverlay, is3dHidden, isMoving, stillMs, needsCalibration, isSurfaceMode } from './view3d.js';
 import { loadLevel } from './session.js';
 
-let lods = [];
-let currentLod = 0;
-let defaultParallelScale = null;
-let isSwapping = false;
-let zoomDebounceTimer = null;
-let coarserHoldTimer = null;
-let candidateCoarserLod = null;
-const cachedLevels = new Map(); // index -> { data, geo }
+const SHARP_PX = 1.3; // a voxel may be this many screen pixels before a finer level is wanted
+const WASTE_PX = 0.6; // go coarser only when the level on screen is this much finer than the screen
+const TOO_SLOW_MS = 700; // a still frame slower than this: stop using that level on this computer
 
-export function getCurrentLod() {
-  return currentLod;
+let levels = []; // coarse to fine
+let current = 0;
+let cap = Infinity; // finest level this computer may use
+let busy = false;
+let timer = null;
+let wired = false;
+const kept = new Map(); // level index -> { data, geo } fetched before
+
+export const getCurrentLod = () => current;
+
+function publish() {
+  if (window.__cbct) window.__cbct.lod = current;
 }
 
-export function initLod(coarseData, coarseGeo, meta) {
-  lods = (meta.volumes && meta.volumes.lods) || [];
-  if (!lods.length) {
-    if (meta.volumes && meta.volumes.preview) {
-      lods.push({
-        file: meta.volumes.preview.file,
-        factor: meta.volumes.preview.factor || 2,
-        dims: coarseGeo.dims,
-        spacing: coarseGeo.spacing,
-        origin: coarseGeo.origin,
-      });
-    }
-    if (meta.volumes && meta.volumes.full) {
-      lods.push({
-        file: meta.volumes.full.file,
-        factor: 1,
-        dims: meta.geometry.dims,
-        spacing: meta.geometry.spacing,
-        origin: meta.geometry.origin,
-      });
-    }
-  }
-
-  currentLod = 0;
-  window.__cbct = window.__cbct || {};
-  window.__cbct.lod = currentLod;
-
-  cachedLevels.clear();
-  cachedLevels.set(0, { data: coarseData, geo: coarseGeo });
-
-  // Record initial whole-scan parallel scale once camera is set
-  requestAnimationFrame(() => {
-    const v3 = vp('threeD');
-    if (v3) defaultParallelScale = v3.getCamera()?.parallelScale;
+export function initLod(meta) {
+  const vols = meta.volumes || {};
+  const lods = vols.lods && vols.lods.length ? vols.lods : [vols.preview, vols.full].filter(Boolean);
+  levels = lods.slice(0, -1).map((e) => ({ file: e.file, dims: e.dims, spacing: e.spacing, origin: e.origin }));
+  levels.push({ shared: true });
+  current = 0;
+  cap = Infinity;
+  kept.clear();
+  publish();
+  if (wired) return;
+  wired = true;
+  const soon = () => {
+    clearTimeout(timer);
+    timer = setTimeout(evaluateLod, 300);
+  };
+  core.hosts.threeD.addEventListener(Enums.Events.CAMERA_MODIFIED, soon);
+  subscribe((s, changed) => {
+    // view3d: a new look may be ray-cast again and want its sharper copy.
+    if (changed.has('layout') || changed.has('focus') || changed.has('panelOpen') || changed.has('phase') || changed.has('view3d')) soon();
   });
-
-  const host = core.hosts.threeD;
-  if (host) {
-    host.removeEventListener(Enums.Events.CAMERA_MODIFIED, onCameraModified);
-    host.addEventListener(Enums.Events.CAMERA_MODIFIED, onCameraModified);
-  }
+  window.addEventListener('resize', soon);
 }
 
-let lastParallelScale = null;
+const spacingOf = (lv) => (lv.shared ? core.geo.spacing : lv.spacing);
 
-function onCameraModified() {
-  if (is3dHidden() || lods.length <= 1) return;
-  const v3 = vp('threeD');
-  if (!v3) return;
-  const cam = v3.getCamera();
-  if (!cam) return;
-
-  if (lastParallelScale === null) {
-    lastParallelScale = cam.parallelScale;
-    if (defaultParallelScale === null) defaultParallelScale = cam.parallelScale;
+// `now`: called by session.js the moment the full volume is in (the phase is not 'full' yet).
+export async function evaluateLod(now = false) {
+  // Meshes are built from the slice views' volume (surface.js), not from these
+  // levels. The full volume just came in: rebuild them from it, without waiting.
+  if (isSurfaceMode()) {
+    if (now === true) refresh3D();
+    return;
+  }
+  if (busy || levels.length < 2 || (state.phase !== 'full' && now !== true) || is3dHidden() || !core.geo) return;
+  const v = vp('threeD');
+  const canvas = v && v.getCanvas();
+  const cam = v && v.getCamera();
+  if (!canvas || !canvas.height || !cam || !cam.parallelScale) return;
+  if (isMoving()) {
+    clearTimeout(timer);
+    timer = setTimeout(evaluateLod, 300);
+    return;
+  }
+  const pxPerMm = canvas.height / (2 * cam.parallelScale); // parallel projection
+  const voxelPx = (i) => Math.min(...spacingOf(levels[i])) * pxPerMm;
+  // This computer cannot draw the level on screen fast enough: never above the one below it.
+  if (current > 1 && stillMs() > TOO_SLOW_MS) cap = Math.min(cap, current - 1);
+  const top = Math.min(levels.length - 1, cap);
+  let want = top;
+  for (let i = 0; i <= top; i++) {
+    if (voxelPx(i) <= SHARP_PX) {
+      want = i;
+      break;
+    }
+  }
+  if (want < current && current <= top && voxelPx(current) > WASTE_PX) want = current;
+  if (want === current) {
+    // Same level, but the view changed size: measure again what this computer can move smoothly.
+    if (needsCalibration()) await refresh3D();
     return;
   }
 
-  if (Math.abs(cam.parallelScale - lastParallelScale) < 1e-4) return;
-  lastParallelScale = cam.parallelScale;
-
-  // Zooming occurred: evaluate only after zooming has stopped for 300 ms
-  clearTimeout(zoomDebounceTimer);
-  zoomDebounceTimer = setTimeout(() => {
-    evaluateLod();
-  }, 300);
-}
-
-function getVoxelPx(entry, pxPerMm) {
-  const minSpacing = Math.min(...entry.spacing);
-  return minSpacing * pxPerMm;
-}
-
-export async function evaluateLod() {
-  if (isSwapping || is3dHidden() || lods.length <= 1) return;
-  const v3 = vp('threeD');
-  if (!v3) return;
-  const canvas = v3.getCanvas();
-  if (!canvas || !canvas.height) return;
-  const cam = v3.getCamera();
-  if (!cam || !cam.parallelScale) return;
-
-  const canvasHeightPx = canvas.height;
-  const pxPerMm = canvasHeightPx / (2 * cam.parallelScale);
-
-  // At whole-scan view (zoomed out), always choose coarsest level (0) immediately
-  const isWholeScan = defaultParallelScale && cam.parallelScale >= defaultParallelScale * 0.95;
-
-  let targetLod = 0;
-  if (!isWholeScan) {
-    // Choose the coarsest L with voxelPx(L) >= 0.75; if none, the finest
-    let chosen = null;
-    for (let i = 0; i < lods.length; i++) {
-      const vPx = getVoxelPx(lods[i], pxPerMm);
-      if (vPx >= 0.75) {
-        chosen = i;
-        break;
-      }
-    }
-    targetLod = chosen !== null ? chosen : lods.length - 1;
-
-    // Hysteresis:
-    // Go finer when current level's voxelPx >= 1.4
-    const currVoxelPx = getVoxelPx(lods[currentLod], pxPerMm);
-    if (targetLod <= currentLod && currVoxelPx >= 1.4 && currentLod < lods.length - 1) {
-      targetLod = currentLod + 1;
-    }
-  }
-
-  if (targetLod === currentLod) {
-    candidateCoarserLod = null;
-    clearTimeout(coarserHoldTimer);
-    coarserHoldTimer = null;
-    return;
-  }
-
-  // Go finer immediately (or return to whole scan immediately)
-  if (targetLod > currentLod || isWholeScan) {
-    candidateCoarserLod = null;
-    clearTimeout(coarserHoldTimer);
-    coarserHoldTimer = null;
-    await swapToLod(targetLod);
-    return;
-  }
-
-  // Go coarser only when held for 600 ms
-  if (targetLod < currentLod) {
-    if (candidateCoarserLod === targetLod && coarserHoldTimer) {
-      // Timer already running
-      return;
-    }
-    candidateCoarserLod = targetLod;
-    clearTimeout(coarserHoldTimer);
-    coarserHoldTimer = setTimeout(async () => {
-      coarserHoldTimer = null;
-      if (candidateCoarserLod === targetLod && !isSwapping) {
-        await swapToLod(targetLod);
-      }
-    }, 600);
-  }
-}
-
-export async function swapToLod(targetLod) {
-  if (targetLod === currentLod || isSwapping) return;
-  const targetEntry = lods[targetLod];
-  if (!targetEntry) return;
-
-  isSwapping = true;
+  busy = true;
   try {
-    let levelData = cachedLevels.get(targetLod);
-    if (!levelData) {
-      levelData = await loadLevel(targetEntry);
-      cachedLevels.set(targetLod, levelData);
-      // Keep at most 2 levels in memory: level 0 + active level
-      for (const k of cachedLevels.keys()) {
-        if (k !== 0 && k !== targetLod) cachedLevels.delete(k);
+    let level = null;
+    if (want > 0) {
+      const lv = levels[want];
+      if (lv.shared) level = 'slices';
+      else {
+        level = kept.get(want) || (await loadLevel(lv));
+        kept.set(want, level);
       }
     }
-
+    if (isMoving()) return; // try again once the picture is still (the finally block reschedules)
     const overlay = snapshot3dCanvas();
-    const cam = vp('threeD').getCamera();
-    await showVolume(levelData.data, levelData.geo, core.valueOffset, ['threeD']);
-    vp('threeD').setCamera({
-      viewUp: cam.viewUp,
-      viewPlaneNormal: cam.viewPlaneNormal,
-      position: cam.position,
-      focalPoint: cam.focalPoint,
-      parallelScale: cam.parallelScale,
-    });
-    refresh3D();
-    currentLod = targetLod;
-    window.__cbct = window.__cbct || {};
-    window.__cbct.lod = currentLod;
-    logVolumeMemory(`LOD swapped to ${currentLod}`);
-    await fadeOutOverlay(overlay, 350);
+    await setFine3d(level);
+    current = want;
+    publish();
+    await refresh3D({ cover: false });
+    fadeOutOverlay(overlay, 350);
   } catch (err) {
-    console.warn('CBCT viewer: LOD swap error', err);
+    console.warn('CBCT viewer: 3D detail level', err);
   } finally {
-    isSwapping = false;
-    // If scale changed during swap, re-evaluate
-    const v3 = vp('threeD');
-    const cam = v3?.getCamera();
-    if (cam && Math.abs(cam.parallelScale - lastParallelScale) > 1e-4) {
-      setTimeout(evaluateLod, 50);
-    }
+    busy = false;
+    clearTimeout(timer);
+    timer = setTimeout(evaluateLod, 400);
   }
 }
-

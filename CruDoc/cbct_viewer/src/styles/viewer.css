@@ -226,6 +226,10 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); ou
 
 .hint { position: absolute; z-index: 3; right: 12px; bottom: 10px; color: var(--text2); font-size: var(--fs-hint); pointer-events: none; }
 .gizmo { position: absolute; z-index: 3; left: 12px; bottom: 12px; pointer-events: none; }
+.gizmo circle { pointer-events: auto; cursor: pointer; }
+.gizmo circle:hover { stroke: #fff; stroke-width: 1.5; }
+.gizmo text { pointer-events: none; }
+.overlay-3d-fade { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; opacity: 1; }
 
 .no-overlay .pill, .no-overlay .hint, .no-overlay .vpbtns, .no-overlay .letters, .no-overlay .vpinfo,
 .no-overlay .scale, .no-overlay .sb, .no-overlay .gizmo, .no-overlay .ov, .no-overlay .svg-layer { display: none; }
@@ -321,3 +325,9 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); ou
 }
 .msg.hidden { opacity: 0; pointer-events: none; }
 .msg.error { color: var(--text); }
+
+/* Implant plan (planning.js) */
+.pnote { margin: 6px 0 10px; color: var(--text2); font-size: 12px; line-height: 1.45; }
+.pnote b { font-weight: 600; }
+.psec .chips + .pnote, .psec .chips + .prow { margin-top: 8px; }
+.plan-implant { margin-top: 10px; display: grid; gap: 8px; }

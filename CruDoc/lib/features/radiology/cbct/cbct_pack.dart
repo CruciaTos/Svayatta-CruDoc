@@ -15,7 +15,7 @@ import 'package:doctor_management_app/features/radiology/dicom/dicom_file.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
 
 /// Bump to force every scan to be packed again.
-const cbctPackVersion = 3;
+const cbctPackVersion = 4;
 
 /// The most voxels along one axis the viewer loads; bigger scans are
 /// averaged down by a whole factor (the DICOM files are never touched).
@@ -459,18 +459,42 @@ Map<String, dynamic> _build(_Job job, _Report report) {
     lodLast,
   ];
 
-  String? manufacturer, model;
+  String? manufacturer, model, dicomModality, bodyPart;
   try {
     final d = DicomFile.parse(File(slices.first.path).readAsBytesSync());
     manufacturer = d.string(DicomTag.manufacturer);
     model = d.string(DicomTag.modelName);
+    dicomModality = d.string(DicomTag.modality)?.toUpperCase();
+    bodyPart = d.string(DicomTag.bodyPart)?.toUpperCase();
   } on Object {
     // Optional.
+  }
+
+  // Compute meta.kind from modality, FOV, spacing ratio, and body-part examined.
+  final fovMm = [
+    for (var i = 0; i < 3; i++) fullDims[i] * spacing[i],
+  ].reduce(math.max);
+  final spacingValues = [...spacing]..sort();
+  final ratio = spacingValues.last / math.max(1e-9, spacingValues.first);
+  const ctBodyParts = {
+    'CHEST', 'ABDOMEN', 'PELVIS', 'SPINE', 'LSPINE', 'TSPINE', 'CSPINE',
+    'EXTREMITY', 'KNEE', 'SHOULDER', 'HIP', 'HEART',
+  };
+  final String kind;
+  if (dicomModality == 'MR') {
+    kind = 'mr';
+  } else if (dicomModality == 'CT' &&
+      (fovMm > 260 || ratio > 1.6 || (bodyPart != null && ctBodyParts.contains(bodyPart)))) {
+    kind = 'ct';
+  } else {
+    kind = 'dental';
   }
 
   final meta = <String, dynamic>{
     'packVersion': cbctPackVersion,
     'seriesKey': job.seriesKey,
+    'kind': kind,
+    'modality': dicomModality ?? '',
     'source': {'fingerprint': job.fingerprint},
     'geometry': {
       'dims': fullDims,

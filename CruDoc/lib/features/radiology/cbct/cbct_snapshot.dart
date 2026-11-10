@@ -54,7 +54,7 @@ Future<void> saveCbctSnapshot({
     await ctl.saveStudy(
       latest.copyWith(keyImages: [...latest.keyImages, key]),
       auditAction: 'Marked key image',
-      detail: 'CBCT $safeView',
+      detail: '${study.modality == RadModality.cbct ? "CBCT" : "3D"} $safeView',
     );
     if (context.mounted) radToast(context, 'Saved key image');
   } on Object catch (e) {

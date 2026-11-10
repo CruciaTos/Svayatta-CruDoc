@@ -95,7 +95,7 @@ async function runSession(browser, dsf = 1.0) {
     const rotDeltas = await page.evaluate(() => window.__stopPerf());
     await page.mouse.up();
     await page.waitForTimeout(350); // allow sharpen
-    const lod1 = await page.evaluate(() => window.__cbct?.lod);
+    const lod1 = await page.evaluate(() => `${window.__cbct?.lod} plan=${window.__cbct?.tuning?.plan}`);
     const s1 = stats(rotDeltas, lod1);
     console.log(`1. Zoomed-out rotation: ${s1.over50}/${s1.total} (${s1.pct50.toFixed(1)}%) > 50ms | p90=${s1.p90.toFixed(1)}ms | max=${s1.max.toFixed(1)}ms | lod=${s1.lod}`);
 
@@ -105,8 +105,9 @@ async function runSession(browser, dsf = 1.0) {
       await page.mouse.wheel(0, -120);
       await page.waitForTimeout(60);
     }
-    await page.waitForTimeout(1000);
-    const lod2 = await page.evaluate(() => window.__cbct?.lod);
+    await page.waitForTimeout(2000);
+    // Surface looks draw meshes built from the full scan: always sharp, no levels.
+    const lod2 = await page.evaluate(() => (window.__cbct?.debug3d?.().mesh ? 'mesh' : window.__cbct?.lod));
 
     await page.mouse.down();
     await page.evaluate(() => window.__startPerf());
@@ -129,7 +130,8 @@ async function runSession(browser, dsf = 1.0) {
     }
     await page.waitForTimeout(1500);
     const lod3 = await page.evaluate(() => window.__cbct?.lod);
-    console.log(`3. Zoomed-out return: lod=${lod3}`);
+    const still = await page.evaluate(() => window.__cbct?.stillMs?.());
+    console.log(`3. Zoomed-out return: lod=${lod3} | last sharp frame ${Math.round(still)} ms`);
 
     return { s1, s2, lod3 };
   }
@@ -168,16 +170,19 @@ async function runSession(browser, dsf = 1.0) {
   const t1 = r2.s1.pct50 < 2.0;
   console.log(`- Zoomed-out rotation < 2% over 50ms: ${r2.s1.pct50.toFixed(1)}% -> ${t1 ? 'PASS' : 'FAIL'}`);
 
-  const t2 = r2.s2.lod > 0;
-  console.log(`- Finer level appeared when zoomed in: lod=${r2.s2.lod} -> ${t2 ? 'PASS' : 'FAIL'}`);
+  const t2 = r2.s2.lod === 'mesh' || r2.s2.lod > 0;
+  console.log(`- A sharp picture (full-scan mesh or a sharper level) when zoomed in: ${r2.s2.lod} -> ${t2 ? 'PASS' : 'FAIL'}`);
 
-  const t3 = r2.lod3 === 0;
-  console.log(`- Zooming out returned to coarse level (lod=0): lod=${r2.lod3} -> ${t3 ? 'PASS' : 'FAIL'}`);
+  const t3 = r2.s2.pct50 < 5.0;
+  console.log(`- Zoomed-in rotation < 5% over 50ms: ${r2.s2.pct50.toFixed(1)}% -> ${t3 ? 'PASS' : 'FAIL'}`);
+
+  const t4 = highDpi.r2.s2.pct50 < 5.0;
+  console.log(`- High-DPI (1.5x) zoomed-in rotation < 5% over 50ms: ${highDpi.r2.s2.pct50.toFixed(1)}% -> ${t4 ? 'PASS' : 'FAIL'}`);
 
   const hdOk = highDpi.r2.s1.pct50 < 5.0;
   console.log(`- High-DPI (1.5x) coarse rotation: ${highDpi.r2.s1.pct50.toFixed(1)}% > 50ms -> ${hdOk ? 'SMOOTH' : 'EVALUATE'}`);
 
-  const allPass = t1 && t2 && t3;
+  const allPass = t1 && t2 && t3 && t4;
   console.log(allPass ? 'PERF: ALL PASS' : 'PERF: PARTIAL/CHECK');
   process.exit(allPass ? 0 : 1);
 })().catch(async (e) => {

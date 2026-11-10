@@ -130,6 +130,15 @@ const staticServer = createServer({ root: ROOT, phantom: PHANTOM });
   // Evaluate pixel differences in the page
   const openDiffs = await page.evaluate((frames) => window.__diffFrames(frames), openFrames);
   const sharpenDiffs = await page.evaluate((frames) => window.__diffFrames(frames), sharpenFrames);
+  // DUMP=1: print the opening diffs and save the frames around the biggest jump.
+  if (process.env.DUMP) {
+    const { writeFileSync, mkdirSync } = await import('node:fs');
+    console.log('open diffs:', openDiffs.map((d) => d.toFixed(2)).join(' '));
+    const at = openDiffs.indexOf(Math.max(...openDiffs));
+    mkdirSync('tests/out', { recursive: true });
+    for (const k of [at - 1, at, at + 1, at + 2]) if (openFrames[k]) writeFileSync(`tests/out/open-${k}.png`, Buffer.from(openFrames[k], 'base64'));
+    console.log('biggest jump between frames', at, 'and', at + 1);
+  }
 
   function analyze(diffs, name) {
     // Filter out initial static/blank frames until first image appears

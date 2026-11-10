@@ -147,6 +147,7 @@ Saved automatically via debounced autosave (2 s after state change) and upon vie
     "preset": "bone",
     "threshold": 0,
     "opacity": 100,
+    "soft": 40,
     "cut": "off",
     "cutFlip": false
   },
@@ -216,3 +217,54 @@ Cornerstone3D cameras use `parallelScale` (half visible height in mm). The rende
    - $\text{pxPerMm} = 500 / 40 = 12.5$
    - $\text{rectW} = 40 \times 12.5 = 500$, $\text{rectH} = 20 \times 12.5 = 250$
    - Result: $\text{parallelScale} = 20$, $\text{pxPerMm} = 12.5$, $\text{rectW} = 500$, $\text{rectH} = 250$.
+
+
+---
+
+## 7. Pack Format Version 4 (2026-11-10)
+
+`cbctPackVersion` bumped from 3 to 4. Packs with an older `packVersion` are rebuilt on the next open.
+
+### New top-level `meta.json` fields
+
+| Field | Type | Description |
+|---|---|---|
+| `kind` | `'dental'` \| `'ct'` \| `'mr'` | Scan category used by `presets3d.js` to pick the right transfer-function family. Computed from DICOM Modality (0008,0060) and Body Part Examined (0018,0015) tags, FOV size and anisotropy ratio. Dental (CBCT of jaws) is the fallback when no Modality tag is present. |
+| `modality` | string | Raw DICOM Modality tag value (e.g. `'CT'`, `'MR'`, `''` when absent). |
+
+### Kind decision rule (Dart packer)
+
+```
+fovMm   = max(dims[i] * spacing[i])            // largest physical extent, mm
+ratio   = max(spacing) / min(spacing)
+bodyPart = DICOM 0018,0015 (upper-cased)
+
+if modality == 'MR'                             → kind = 'mr'
+else if modality == 'CT' and (
+    fovMm > 260 or ratio > 1.6
+    or bodyPart in {CHEST,ABDOMEN,PELVIS,SPINE,
+                    LSPINE,TSPINE,CSPINE,
+                    EXTREMITY,KNEE,SHOULDER,HIP,HEART})
+                                                → kind = 'ct'
+else                                            → kind = 'dental'
+```
+
+---
+
+## 8. `state.json` — `view3d.soft` field (2026-11-10)
+
+`view3d.soft` (integer 0–100, default 40) controls the vtkMapper sample distance:
+0 = crisp (more samples), 100 = smooth (fewer samples, faster). Saved and restored in `state.json` as part of `view3d`.
+
+---
+
+## 9. `?debug` hooks (2026-11-10)
+
+When the page URL contains `?debug`, `window.__cbct` exposes:
+
+| Expression | Type | Description |
+|---|---|---|
+| `window.__cbct.tuning.plan` | number 0–4 | Active quality plan (0 = cheapest). Set by calibration at load. |
+| `window.__cbct.debug3d()` | function | Logs the current 3D viewport state to the console. |
+| `window.__cbct.lod` | number | Level of the STILL picture (0 = preview only, last = full shared volume). |
+| `window.__cbct.stillMs()` | function | Returns the render time of the last still (sharp) frame in milliseconds. |

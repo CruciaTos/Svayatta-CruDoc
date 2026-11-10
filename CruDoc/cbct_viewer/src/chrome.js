@@ -4,6 +4,7 @@ import { icon } from './icons.js';
 import { state, set, subscribe, bus, presetWindow, matchPreset } from './state.js';
 import { IDS, MPR, COLORS } from './core.js';
 import { fitCamera } from './fit.js';
+import { presetsFor, presetLabel } from './presets3d.js';
 
 const VIEW_NAMES = { axial: 'Axial', threeD: '3D', coronal: 'Coronal', sagittal: 'Sagittal' };
 const CONTRAST_CHIPS = [
@@ -12,13 +13,6 @@ const CONTRAST_CHIPS = [
   ['soft', 'Soft tissue'],
   ['fineBone', 'Fine bone'],
   ['full', 'Full range'],
-];
-const VIEW3D_CHIPS = [
-  ['bone', 'Bone'],
-  ['teeth', 'Teeth'],
-  ['skinBone', 'Skin + bone'],
-  ['xray', 'X-ray'],
-  ['mip', 'MIP'],
 ];
 const SLAB_MODES = [
   ['thin', 'Thin'],
@@ -54,6 +48,7 @@ const SHORTCUTS = [
   ['?', 'This sheet'],
   ['Esc', 'Close this sheet, then leave the maximised view'],
   ['Left-drag', 'The active tool (3D: rotate)'],
+  ['Click L R A P S I', '3D: turn to look from that side'],
   ['Right-drag', 'Window and level'],
   ['Middle-drag', 'Pan'],
   ['Wheel  ·  Shift + wheel', 'Scroll slices  ·  10 slices (3D: zoom)'],
@@ -112,7 +107,7 @@ function createFrame(id) {
   const scale = h('div', { class: 'scale' }, scaleLbl, scaleBar);
   const thumb = h('i', { class: 'thumb', style: `--c:${COLORS[id]}` });
   const sb = h('div', { class: 'sb' }, h('i', { class: 'track' }), thumb);
-  const hint = h('div', { class: 'hint', text: 'Drag to rotate · scroll to zoom · click to place crosshair' });
+  const hint = h('div', { class: 'hint', text: 'Drag to rotate · scroll to zoom · click to place crosshair · click a letter to turn' });
   const gizmoSvg = svgEl('svg', { class: 'gizmo', width: 60, height: 60, viewBox: '0 0 60 60' });
 
   const root = h('section', { class: 'vp', 'data-id': id }, host, poster, svg, h('div', { class: 'letters' }, Object.values(letters)), pill, buttons, info, id === 'threeD' ? hint : scale, id === 'threeD' ? gizmoSvg : sb);
@@ -266,18 +261,28 @@ export function setLayoutMode(mode) {
 
 // ───────────────────────── Controls ─────────────────────────
 
-function chipRow(items, onPick, { digits = false } = {}) {
+export function chipRow(items, onPick, { digits = false } = {}) {
   const wrap = h('div', { class: 'chips' });
-  const buttons = {};
-  items.forEach(([key, label], i) => {
-    const b = h('button', { class: 'chip', type: 'button', onclick: () => onPick(key) }, label, digits ? h('kbd', { text: String(i + 1) }) : null);
-    buttons[key] = b;
-    wrap.append(b);
-  });
-  return { el: wrap, mark: (active) => Object.entries(buttons).forEach(([k, b]) => b.classList.toggle('on', k === active)) };
+  let buttons = {};
+  let shown = null;
+  // The list can change with the scan (the 3D looks depend on the kind of scan).
+  const setItems = (list) => {
+    const sig = list.map(([k]) => k).join('|');
+    if (sig === shown) return;
+    shown = sig;
+    buttons = {};
+    wrap.replaceChildren();
+    list.forEach(([key, label], i) => {
+      const b = h('button', { class: 'chip', type: 'button', onclick: () => onPick(key) }, label, digits ? h('kbd', { text: String(i + 1) }) : null);
+      buttons[key] = b;
+      wrap.append(b);
+    });
+  };
+  setItems(items);
+  return { el: wrap, setItems, mark: (active) => Object.entries(buttons).forEach(([k, b]) => b.classList.toggle('on', k === active)) };
 }
 
-function segmented(items, onPick) {
+export function segmented(items, onPick) {
   const wrap = h('div', { class: 'seg' });
   const buttons = {};
   for (const [key, label] of items) {
@@ -288,7 +293,7 @@ function segmented(items, onPick) {
   return { el: wrap, mark: (active) => Object.entries(buttons).forEach(([k, b]) => b.classList.toggle('on', k === active)) };
 }
 
-function slider(min, max, step, onInput) {
+export function slider(min, max, step, onInput) {
   const input = h('input', { class: 'range', type: 'range', min, max, step });
   const paint = () => input.style.setProperty('--p', `${((Number(input.value) - Number(input.min)) / (Number(input.max) - Number(input.min) || 1)) * 100}%`);
   input.addEventListener('input', () => {
@@ -329,8 +334,8 @@ function numInput(onCommit, { min, step = 1, suffix } = {}) {
   };
 }
 
-const row = (label, ...ctl) => h('div', { class: 'prow' }, h('label', { text: label }), ...ctl);
-const section = (title, ...kids) => h('section', { class: 'psec' }, h('h3', { text: title }), ...kids);
+export const row = (label, ...ctl) => h('div', { class: 'prow' }, h('label', { text: label }), ...ctl);
+export const section = (title, ...kids) => h('section', { class: 'psec' }, h('h3', { text: title }), ...kids);
 
 // ───────────────────────── Mount ─────────────────────────
 
@@ -441,11 +446,13 @@ export function mountChrome(root) {
   const thickNum = numInput(applyThickness, { min: 0, step: 0.1, suffix: 'mm' });
   const thickSlider = slider(0, 20, 0.1, applyThickness);
 
-  const view3dChips = chipRow(VIEW3D_CHIPS, (preset) => set({ view3d: { preset } }));
+  const view3dChips = chipRow(presetsFor(null), (preset) => set({ view3d: { preset } }));
   const thresholdVal = h('span', { class: 'val' });
   const thresholdSlider = slider(-300, 500, 1, (v) => set({ view3d: { threshold: v } }));
   const opacityVal = h('span', { class: 'val' });
   const opacitySlider = slider(0, 260, 1, (v) => set({ view3d: { opacity: v } }));
+  const softVal = h('span', { class: 'val' });
+  const softSlider = slider(0, 100, 1, (v) => set({ view3d: { soft: v } }));
   const cutSeg = segmented(CUT_MODES, (cut) => set({ view3d: { cut } }));
   const flipBtn = h('button', { class: 'iconbtn', type: 'button', title: 'Flip the kept side', 'aria-label': 'Flip the kept side', onclick: () => set({ view3d: { cutFlip: !state.view3d.cutFlip } }) }, icon('flip', 14));
 
@@ -457,7 +464,7 @@ export function mountChrome(root) {
       { class: 'pin' },
       section('Contrast', contrastChips.el, hist, histLabels, row('Level', levelNum.el, levelSlider.el), row('Width', widthNum.el, widthSlider.el), h('div', { class: 'prow' }, h('label', { text: 'Invert' }), invert)),
       section('Slab', slabSeg.el, row('Thickness', thickNum.el, thickSlider.el)),
-      section('3D view', view3dChips.el, row('Threshold', thresholdSlider.el, thresholdVal), row('Opacity', opacitySlider.el, opacityVal), h('div', { class: 'prow cutrow' }, h('label', { text: 'Cut at crosshair' }), flipBtn), cutSeg.el),
+      section('3D view', view3dChips.el, row('Threshold', thresholdSlider.el, thresholdVal), row('Opacity', opacitySlider.el, opacityVal), row('Smooth', softSlider.el, softVal), h('div', { class: 'prow cutrow' }, h('label', { text: 'Cut at crosshair' }), flipBtn), cutSeg.el),
     ),
   );
   const main = h('div', { class: 'main' }, grid, panel);
@@ -615,16 +622,20 @@ export function mountChrome(root) {
       thickNum.set(s.slab.thickness);
       thickSlider.set(s.slab.thickness);
     }
-    if (has('view3d')) {
+    if (has('view3d') || has('meta')) {
       const v = s.view3d;
+      view3dChips.setItems(presetsFor(s.meta));
       view3dChips.mark(v.preset);
+      softSlider.set(v.soft);
+      softVal.textContent = Math.round(v.soft);
       thresholdSlider.set(v.threshold);
       thresholdVal.textContent = v.threshold;
       opacitySlider.set(v.opacity);
       opacityVal.textContent = `${Math.round(v.opacity)}%`;
       cutSeg.mark(v.cut);
       flipBtn.classList.toggle('on', v.cutFlip);
-      ui.frames.threeD.setLabel({ sub: v.cut === 'off' ? presetName(v.preset) : `${presetName(v.preset)} · cut ${v.cut}` });
+      const name = presetLabel(s.meta, v.preset);
+      ui.frames.threeD.setLabel({ sub: v.cut === 'off' ? name : `${name} · cut ${v.cut}` });
     }
     if (has('histogram')) drawHistogram();
     if (has('meta')) drawLabels();
@@ -653,14 +664,10 @@ export function mountChrome(root) {
   return ui;
 }
 
-function presetName(p) {
-  return { bone: 'Bone', teeth: 'Teeth', skinBone: 'Skin + bone', xray: 'X-ray', mip: 'MIP' }[p] || '';
-}
-
 // ───────────────────────── Keyboard ─────────────────────────
 
 export function installKeys() {
-  const TOOL_KEYS = { c: 'crosshair', p: 'pan', z: 'zoom', w: 'wl', l: 'length', a: 'angle', e: 'ellipse' };
+  const TOOL_KEYS = { c: 'crosshair', p: 'pan', z: 'zoom', w: 'wl', l: 'length', a: 'angle', e: 'ellipse', n: 'nerve' };
   window.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof HTMLInputElement && e.key !== 'Escape') return;

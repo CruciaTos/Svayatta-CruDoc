@@ -28,14 +28,17 @@ Or, from the project root: `powershell -File tool\build_cbct_viewer.ps1` (runs `
 - `chrome.js`: All the HTML: top bar, viewport frames, right panel, status bar, help sheet. Reads and writes the store only; engine and overlays fill the frames.
 - `core.js`: Shared engine-side singleton plus the geometry helpers every module needs. Written by engine.js; read by overlays, 3D, session.
 - `core.test.js`: Unit tests for geometry helpers, coordinate conversions, bounding box corners, and voxel lookups.
-- `engine.js`: Cornerstone3D: rendering engine, the four viewports, the volume on screen, tools, and applying the store's contrast / slab / tool to the images.
+- `engine.js`: Cornerstone3D: rendering engine, the four viewports, the volume on screen, tools, and applying the store's contrast / slab / tool to the images. Also exposes `setFine3d` for the two-copy (moving / still) render pipeline.
 - `fit.js`: The one fit rule, shared with Dart (`lib/features/radiology/cbct/cbct_fit.dart`). A viewport of W x H px showing a plane of u x v mm: the whole plane fits, centred; parallelScale is half the visible height in mm (Cornerstone's unit).
 - `fit.test.js`: Unit tests for camera fitting.
 - `icons.js`: Stroke icons from Lucide (ISC licence).
+- `lod.js`: Level-of-detail manager. `window.__cbct.lod` is the level of the STILL picture: 0 = only the light preview copy, last = the slice views' own full volume (shared, no second copy).
 - `main.js`: Viewer entry point: mounts chrome, boots Cornerstone3D engine, bridges messages to Flutter, and handles URL query parameters.
+- `motion.js`: Camera animation helpers — `flyTo()` turns/zooms the camera along the shortest arc (used by gizmo letters and Reset), `smoothZoom()` replaces wheel notch-zoom with a glide that keeps the cursor point in place. Exports `slerp`, `basisOf`, `cameraQuat` for unit tests.
 - `orientation.js`: Orientation letters for a view's four edges (guide A3.8). World axes are DICOM LPS: +x Left, +y Posterior, +z Superior.
 - `orientation.test.js`: Unit tests for orientation letters.
 - `overlays.js`: The numbers and letters around the slice views: orientation letters, slice / window / zoom lines, scale bar, slice scrollbar, and the status-bar readout.
+- `presets3d.js`: Transfer-function "looks" for the 3D viewport, one family per scan kind (`dental`, `ct`, `mr`). Pure data functions — `buildLook`, `presetsFor`, `validPreset`, `presetLabel`, `scanKind` — no GPU needed; tested without a browser.
 - `session.js`: How a scan gets on screen without the doctor ever seeing a blank panel: poster pictures first, a small preview volume next, the full volume last, each swap hidden behind a snapshot that fades; also saved view state, loopback server calls, and snapshots.
 - `shims/events.js`: Tiny stand-in for the Node module `events`, which vtk.js needs at load.
 - `shims/url.js`: Tiny stand-in for the Node module `url`, which vtk.js needs at load.
@@ -43,7 +46,7 @@ Or, from the project root: `powershell -File tool\build_cbct_viewer.ps1` (runs `
 - `state.test.js`: Unit tests for store mutations, subscriptions, window presets, and preset matching.
 - `styles/tokens.css`: Design tokens (colors, typography, spacing).
 - `styles/viewer.css`: All page styling for the viewer layout, chrome, viewports, panels, and overlays.
-- `view3d.js`: The 3D viewport: transfer-function presets, cut at crosshair, the orientation gizmo, the three plane outlines and click-to-place.
+- `view3d.js`: The 3D viewport: transfer-function presets (from `presets3d.js`), the two-copy moving/still pipeline (light copy while moving, sharp copy on still with fade-in), cut at crosshair, the orientation gizmo, the three plane outlines and click-to-place.
 
 ## Pack Format
 

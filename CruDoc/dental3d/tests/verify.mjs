@@ -40,7 +40,7 @@ function staticServer(dir, port) {
   return new Promise((r) => srv.listen(port, '127.0.0.1', () => r(srv)));
 }
 
-let closeServer = async () => {};
+let closeServer = async () => { };
 let BASE;
 if (args.has('--static')) {
   const srv = await staticServer(path.resolve(root, '..', 'assets', 'dental3d'), 5181);
@@ -404,6 +404,53 @@ await idle(page, 600);
 await shot(page, 'desktop-worn-chip.png');
 await ev(page, () => window.App3DBridge.applyStateSnapshot({ teeth: { 41: { wear: 0 }, 21: { chip: 0 } } }));
 
+// Phase B: decay on 36 O+D and silver filling on 46 O
+const bSurfCheck = await ev(page, () => {
+  const b = window.App3DBridge;
+  const d = window.__dental3d;
+  b.setMode('pbr');
+  b.selectPart(null);
+  b.setCameraPreset('lower');
+  b.applyStateSnapshot({
+    teeth: {
+      36: { present: true, conditions: [{ type: 'caries', surfaces: ['O', 'D'] }] },
+      46: { present: true, conditions: [] },
+    },
+    treatments: [
+      { id: 't_fill_46', type: 'filling', teeth: [46], surfaces: ['O'], material: 'amalgam', status: 'completed', visit: 1 },
+    ],
+    currentVisit: 1,
+  });
+
+  const mat36 = d.registry.get('tooth_36').userData.meshes[0].userData.natural;
+  const mat46 = d.registry.get('tooth_46').userData.meshes[0].userData.natural;
+  const u36 = mat36.userData.u;
+  const u46 = mat46.userData.u;
+
+  const c36_O = u36.uSurfCaries.value[1];
+  const c36_D = u36.uSurfCaries.value[2];
+  const c36_M = u36.uSurfCaries.value[0];
+  const f46_O_a = u46.uSurfFill.value[1].w;
+  const f46_O_metal = u46.uSurfMetal.value[1];
+
+  return { c36_O, c36_D, c36_M, f46_O_a, f46_O_metal };
+});
+check('B1/B2: decay on 36 O+D and silver filling on 46 O',
+  bSurfCheck.c36_O === 1 && bSurfCheck.c36_D === 1 && bSurfCheck.c36_M === 0 &&
+  bSurfCheck.f46_O_a === 1 && bSurfCheck.f46_O_metal === 0.85,
+  JSON.stringify(bSurfCheck)
+);
+await idle(page, 600);
+await shot(page, 'desktop-decay-fill.png');
+await ev(page, () => {
+  window.App3DBridge.applyStateSnapshot({
+    teeth: { 36: { conditions: [] }, 46: { conditions: [] } },
+    treatments: [],
+    currentVisit: 0,
+  });
+  window.App3DBridge.setCameraPreset('front');
+});
+
 // 11b. snapshot round-trip test (Phase A2)
 const roundTrip = await ev(page, async () => {
   const b = window.App3DBridge;
@@ -455,6 +502,182 @@ check('snapshot round-trip and saved merge',
   roundTrip.hasPersistInEvent,
   JSON.stringify({ t1Visit: roundTrip.p2.treatments.find((t) => t.id === 't1')?.visit, treatments: roundTrip.p2.treatments.map((t) => t.id), hasPersist: roundTrip.hasPersistInEvent })
 );
+
+// ---------------------------------------------------------------- Phase C: Treatments & Timeline
+// C1/C2: Presets 2 through 5 and timeline checks
+const cResults = await ev(page, async () => {
+  const b = window.App3DBridge;
+  const d = window.__dental3d;
+
+  // Preset 2: gap_stained_front
+  b.loadPreset('gap_stained_front');
+  const p2_v0_11_shade = b.getState().teeth[11].shade;
+  const p2_v0_21_stain = b.getState().teeth[21].stain;
+  b.applyStateSnapshot({ currentVisit: 1 });
+  const t11_cap = d.registry.get('tooth_11').children.some((c) => c.userData.isTreatmentVisual);
+  b.applyStateSnapshot({ currentVisit: 2 });
+  const mat12 = d.registry.get('tooth_12').userData.meshes[0].userData.natural;
+  const p2_v2_whitened = mat12.userData.u?.uShade?.value != null;
+
+  // Preset 3: missing_front
+  b.loadPreset('missing_front');
+  b.applyStateSnapshot({ currentVisit: 0 });
+  const p3_v0_11_vis = d.registry.get('tooth_11').visible;
+  b.applyStateSnapshot({ currentVisit: 3 });
+  const t11_obj = d.registry.get('tooth_11');
+  const p3_v3_11_vis = t11_obj.visible;
+  const p3_v3_11_hasHardware = t11_obj.children.some((c) => c.userData.isTreatmentVisual);
+
+  // Preset 4: crowding (braces)
+  b.loadPreset('crowding');
+  b.applyStateSnapshot({ currentVisit: 1 });
+  const t11_hasBracket = d.registry.get('tooth_11').children.some((c) => c.userData.isTreatmentVisual);
+  const upperWire_v1 = d.registry.nodes.arch_upper.children.some((c) => c.userData.isArchWire);
+  b.applyStateSnapshot({ currentVisit: 3 });
+  const t11_hasBracket_v3 = d.registry.get('tooth_11').children.some((c) => c.userData.isTreatmentVisual);
+  const upperWire_v3 = d.registry.nodes.arch_upper.children.some((c) => c.userData.isArchWire);
+
+  // Preset 5: worn_gum_disease
+  b.loadPreset('worn_gum_disease');
+  b.applyStateSnapshot({ currentVisit: 1 });
+  const t31_calculus_v1 = b.getState().teeth[31].calculus;
+  const t46_vis_v1 = d.registry.get('tooth_46').visible;
+  b.applyStateSnapshot({ currentVisit: 3 });
+  const t46_vis_v3 = d.registry.get('tooth_46').visible;
+
+  return {
+    p2_v0_11_shade, p2_v0_21_stain, t11_cap, p2_v2_whitened,
+    p3_v0_11_vis, p3_v3_11_vis, p3_v3_11_hasHardware,
+    t11_hasBracket, upperWire_v1, t11_hasBracket_v3, upperWire_v3,
+    t31_calculus_v1, t46_vis_v1, t46_vis_v3,
+  };
+});
+
+check('C1/C2: gap_stained_front caps at visit 1 and whitens at visit 2',
+  cResults.p2_v0_11_shade === 'A35' && cResults.p2_v0_21_stain === 0.6 && cResults.t11_cap && cResults.p2_v2_whitened,
+  JSON.stringify({ cap: cResults.t11_cap, whitened: cResults.p2_v2_whitened })
+);
+check('C1/C2: missing_front implant on 11 appears at visit 3 with hardware',
+  !cResults.p3_v0_11_vis && cResults.p3_v3_11_vis && cResults.p3_v3_11_hasHardware,
+  JSON.stringify({ v0Vis: cResults.p3_v0_11_vis, v3Vis: cResults.p3_v3_11_vis, hasHardware: cResults.p3_v3_11_hasHardware })
+);
+check('C1/C2: crowding has brackets and archwires at visit 1 and removes them at visit 3',
+  cResults.t11_hasBracket && cResults.upperWire_v1 && !cResults.t11_hasBracket_v3 && !cResults.upperWire_v3,
+  JSON.stringify({ v1Brackets: cResults.t11_hasBracket, v1Wire: cResults.upperWire_v1, v3Brackets: cResults.t11_hasBracket_v3, v3Wire: cResults.upperWire_v3 })
+);
+check('C1/C2: worn_gum_disease scaling cleans calculus at v1 and restores 46 at v3',
+  !cResults.t46_vis_v1 && cResults.t46_vis_v3,
+  JSON.stringify({ t46_v1: cResults.t46_vis_v1, t46_v3: cResults.t46_vis_v3 })
+);
+
+// C3: Timeline UI checks
+const tlCheck = await ev(page, async () => {
+  const b = window.App3DBridge;
+  const d = window.__dental3d;
+
+  b.loadPreset('crowding');
+  const tlEl = document.querySelector('.timeline-bar');
+  const visibleWithVisits = tlEl && !tlEl.hidden;
+  const chipsCount = document.querySelectorAll('.tl-chip').length;
+
+  // Test hold-to-compare button
+  b.applyStateSnapshot({ currentVisit: 3 });
+  const baBtn = document.querySelector('.tb-ba-btn');
+  const downEvt = new PointerEvent('pointerdown', { pointerId: 1, bubbles: true });
+  baBtn.dispatchEvent(downEvt);
+  const snappedTo0 = b.getState().currentVisit === 0;
+
+  const upEvt = new PointerEvent('pointerup', { pointerId: 1, bubbles: true });
+  baBtn.dispatchEvent(upEvt);
+  const restoredTo3 = b.getState().currentVisit === 3;
+
+  // Empty visits hides timeline
+  b.loadPreset('healthy');
+  const hiddenWhenEmpty = tlEl && tlEl.hidden;
+
+  return { visibleWithVisits, chipsCount, snappedTo0, restoredTo3, hiddenWhenEmpty };
+});
+
+check('C3: timeline bar displays chips, responds to Before/After hold, and hides when empty',
+  tlCheck.visibleWithVisits && tlCheck.chipsCount === 4 && tlCheck.snappedTo0 && tlCheck.restoredTo3 && tlCheck.hiddenWhenEmpty,
+  JSON.stringify(tlCheck)
+);
+
+// C4: Treatment Panel in Inspector checks
+const treatPanelCheck = await ev(page, async () => {
+  const b = window.App3DBridge;
+  b.loadPreset('worn_gum_disease');
+  b.selectPart('tooth_36');
+
+  const panel = document.getElementById('treatment-panel');
+  const visible = panel && !panel.hidden;
+  const cards = [...panel.querySelectorAll('.treat-card')].map((c) => c.querySelector('.treat-card-title')?.textContent || '');
+  const hasCaries = cards.some((txt) => /decay/i.test(txt));
+  const hasFilling = cards.some((txt) => /filling/i.test(txt));
+
+  // Cycle status on filling
+  const fillingCard = [...panel.querySelectorAll('.treat-card')].find((c) => /filling/i.test(c.textContent));
+  const statusBtn = fillingCard?.querySelector('.chip');
+  const st0 = statusBtn?.textContent?.trim();
+  statusBtn?.click();
+  const st1 = b.getState().treatments.find((t) => t.type === 'filling' && t.teeth.includes(36))?.status;
+
+  // Add treatment
+  b.selectPart('tooth_11');
+  const addBtn = panel.querySelector('.treat-add-btn');
+  addBtn?.click();
+  const formVisible = !!panel.querySelector('.treat-form');
+
+  // Save added treatment
+  const saveBtn = panel.querySelector('.treat-form .pill-btn.on');
+  saveBtn?.click();
+  const viewerTr = b.getState().treatments.find((t) => t.teeth.includes(11) && t.origin === 'viewer');
+
+  // Remove added treatment
+  const rmBtn = panel.querySelector('.treat-rm-btn');
+  const canRemove = !!rmBtn;
+  rmBtn?.click();
+  const removed = !b.getState().treatments.some((t) => t.id === viewerTr?.id);
+
+  b.loadPreset('healthy');
+  b.selectPart(null);
+
+  return { visible, hasCaries, hasFilling, st0, st1, formVisible, added: !!viewerTr, canRemove, removed };
+});
+
+check('C4: treatment panel displays conditions and treatments, cycles status, and adds/removes viewer treatments',
+  treatPanelCheck.visible && treatPanelCheck.hasCaries && treatPanelCheck.hasFilling &&
+  treatPanelCheck.st0 === 'planned' && treatPanelCheck.st1 === 'inProgress' &&
+  treatPanelCheck.formVisible && treatPanelCheck.added && treatPanelCheck.canRemove && treatPanelCheck.removed,
+  JSON.stringify(treatPanelCheck)
+);
+
+// Capture screenshots of presets across the timeline for GATE C
+await ev(page, () => window.App3DBridge.loadPreset('gap_stained_front'));
+await ev(page, () => window.App3DBridge.applyStateSnapshot({ currentVisit: 1 }));
+await idle(page, 400);
+await shot(page, 'desktop-preset2-gap-caps-v1.png');
+
+await ev(page, () => window.App3DBridge.loadPreset('missing_front'));
+await ev(page, () => window.App3DBridge.applyStateSnapshot({ currentVisit: 3 }));
+await idle(page, 400);
+await shot(page, 'desktop-preset3-implants-v3.png');
+
+await ev(page, () => window.App3DBridge.loadPreset('crowding'));
+await ev(page, () => window.App3DBridge.applyStateSnapshot({ currentVisit: 1 }));
+await idle(page, 400);
+await shot(page, 'desktop-preset4-braces-v1.png');
+
+await ev(page, () => window.App3DBridge.applyStateSnapshot({ currentVisit: 3 }));
+await idle(page, 400);
+await shot(page, 'desktop-preset4-straight-v3.png');
+
+await ev(page, () => window.App3DBridge.loadPreset('worn_gum_disease'));
+await ev(page, () => window.App3DBridge.applyStateSnapshot({ currentVisit: 1 }));
+await idle(page, 400);
+await shot(page, 'desktop-preset5-cleaned-v1.png');
+
+await ev(page, () => window.App3DBridge.loadPreset('healthy'));
 
 // quality presets quick check
 for (const q of ['medium', 'high']) {
@@ -521,14 +744,14 @@ await pp.tap('.sheet-handle'); await sleep(500);
 await pp.tap('.tb-adjust'); await sleep(300);
 await shot(pp, 'phone-adjust.png');
 await pp.tap('.tb-adjust'); await sleep(200);
-await pp.tap('[data-pop="view"]'); await sleep(300);
+await ev(pp, () => document.querySelector('[data-pop="view"]').click()); await sleep(300);
 await shot(pp, 'phone-view-popover.png');
-await pp.tap('[data-pop="view"]'); await sleep(200);
+await ev(pp, () => document.querySelector('[data-pop="view"]').click()); await sleep(200);
 
 // Test applying presets from toolbar
-await pp.tap('[data-pop="patients"]'); await sleep(300);
+await ev(pp, () => document.querySelector('[data-pop="patients"]').click()); await sleep(300);
 await shot(pp, 'phone-patients-menu.png');
-await pp.tap('[data-preset="gap_stained_front"]'); await sleep(400);
+await ev(pp, () => document.querySelector('[data-preset="gap_stained_front"]').click()); await sleep(400);
 const presetGap = await ev(pp, () => ({
   t11Shade: window.App3DBridge.getState().teeth[11].shade,
   t21Stain: window.App3DBridge.getState().teeth[21].stain,
@@ -537,12 +760,12 @@ const presetGap = await ev(pp, () => ({
 check('phone: preset gap_stained_front applies', presetGap.t11Shade === 'A35' && presetGap.t21Stain === 0.6 && presetGap.visits === 2, JSON.stringify(presetGap));
 await shot(pp, 'phone-gap-stained-preset.png');
 
-await pp.tap('[data-pop="patients"]'); await sleep(300);
-await pp.tap('[data-preset="worn_gum_disease"]'); await sleep(400);
+await ev(pp, () => document.querySelector('[data-pop="patients"]').click()); await sleep(300);
+await ev(pp, () => document.querySelector('[data-preset="worn_gum_disease"]').click()); await sleep(400);
 await shot(pp, 'phone-worn-preset.png');
 
-await pp.tap('[data-pop="patients"]'); await sleep(300);
-await pp.tap('[data-preset="healthy"]'); await sleep(400);
+await ev(pp, () => document.querySelector('[data-pop="patients"]').click()); await sleep(300);
+await ev(pp, () => document.querySelector('[data-preset="healthy"]').click()); await sleep(400);
 
 check(`phone: default quality is ${pq}`, pq === 'low');
 check('phone: no console / WebGL errors', Pn.errors.length === 0, Pn.errors.slice(0, 4).join(' || '));

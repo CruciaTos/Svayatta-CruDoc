@@ -1,6 +1,7 @@
 import { h, icon } from './dom.js';
 import { STATUS_COLORS } from '../data/treatments.js';
 import { createMatchPanel } from './matchPanel.js';
+import { createTreatmentPanel } from './treatmentPanel.js';
 
 const STATUS_CHIPS = [['normal', 'Normal'], ['flagged', 'Flagged'], ['planned', 'Planned'], ['inProgress', 'In progress'], ['completed', 'Completed']];
 const GROUPS = [
@@ -68,9 +69,9 @@ export function createInspector({ store, actions, registry }) {
   const hint = h('div', { class: 'card-hint' }, 'Tap a tooth in the 3D view or pick one from the list.');
   const card = h('section', { class: 'card' }, cardName, cardMeta, cardId, chipRow, hint);
   const matchPanel = createMatchPanel({ store, actions, registry });
-  const treatment = h('div', { id: 'treatment-panel', class: 'treatment-panel' });
+  const treatmentPanel = createTreatmentPanel({ store, actions, registry });
 
-  const body = h('div', { class: 'insp-body' }, searchWrap, tree, card, matchPanel.el, treatment);
+  const body = h('div', { class: 'insp-body' }, searchWrap, tree, card, matchPanel.el, treatmentPanel.el);
   const handle = h('div', { class: 'sheet-handle', role: 'button', 'aria-label': 'Expand inspector', tabindex: 0 }, h('span', { class: 'grip' }));
   const peek = h('div', { class: 'sheet-peek' }, h('span', { class: 'peek-name' }, 'Tap a tooth'));
   const el = h('aside', { class: 'inspector', 'aria-label': 'Inspector' }, handle, peek, body);
@@ -96,6 +97,7 @@ export function createInspector({ store, actions, registry }) {
     chips.forEach((c) => c.classList.toggle('on', c.dataset.status === st));
     peek.firstChild.textContent = part ? (part.fdi ? `${part.fdi} · ${part.displayName}` : part.displayName) : 'Tap a tooth';
     matchPanel.sync(s);
+    treatmentPanel.sync(s);
   }
   let lastSel = null;
   store.subscribe((s, changed) => {

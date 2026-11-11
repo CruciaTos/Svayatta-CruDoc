@@ -17,6 +17,7 @@ export function createStage(container) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping ?? THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
+  renderer.localClippingEnabled = true;
   renderer.setClearColor(BG, 1);
 
   const scene = new THREE.Scene();

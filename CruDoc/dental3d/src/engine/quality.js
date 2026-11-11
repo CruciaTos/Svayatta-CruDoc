@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { BG } from './stage.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 
@@ -67,7 +68,19 @@ export function createQuality(stage) {
       bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.55, 1.7);
       composer.addPass(bloom);
     }
+    // Soft-edged (alpha) surfaces leave premultiplied colour in the transparent target: undo it
+    // for tone mapping / sRGB, then redo it so the page colour shows through without a bright halo.
+    const alphaPass = (mul) => new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main() { vec4 c = texture2D(tDiffuse, vUv);
+          ${mul ? 'c.rgb *= c.a;' : 'c.rgb = c.a > 0.002 ? c.rgb / c.a : vec3(0.0);'}
+          gl_FragColor = c; }`,
+    });
+    composer.addPass(alphaPass(false));
     composer.addPass(new OutputPass());
+    composer.addPass(alphaPass(true));
     composer.addPass(new SMAAPass());
   }
 

@@ -1,7 +1,11 @@
 """Build the whole dentition + hardware templates from scene_manifest.json,
 save tmp/subject.blend and export public/models/subject.glb.
 
-  blender -b --python blender/build.py -- [--no-export] [--no-cache]
+  blender -b --python blender/build.py -- [--no-export] [--no-cache] [--formula]
+
+Tooth source: real library crowns (blender/libcrowns.py, raw data in tmp/library) joined to the
+generated roots when tmp/library exists; the analytic formula teeth otherwise.  Force the formula
+teeth with --formula or CRUDOC_TEETH=formula.
 """
 import sys, os, json, hashlib, pickle, time
 import numpy as np
@@ -15,6 +19,7 @@ import toothlib as tl
 import shapes
 import hardware
 import blib
+import libcrowns
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 os.makedirs(os.path.join(D, 'tmp', 'cache'), exist_ok=True)
@@ -22,9 +27,38 @@ os.makedirs(os.path.join(D, 'public', 'models'), exist_ok=True)
 
 man = json.load(open(os.path.join(D, 'scene_manifest.json'), encoding='utf-8'))
 LIBSRC = open(os.path.join(HERE, 'toothlib.py'), encoding='utf-8').read()
+LCSRC = open(os.path.join(HERE, 'libcrowns.py'), encoding='utf-8').read()
+USE_LIB = (libcrowns.library_present() and '--formula' not in ARGS
+           and os.environ.get('CRUDOC_TEETH', '').lower() != 'formula')
+TYPE_DIMS = {p['typeId']: p['dims'] for p in man['parts'] if p['kind'] == 'tooth'}
+print('tooth source:', 'LIBRARY crowns + generated roots' if USE_LIB else 'formula teeth')
 
 
 def build_type(tid):
+    if USE_LIB:
+        return build_type_lib(tid)
+    return build_type_formula(tid)
+
+
+def build_type_lib(tid):
+    spec = shapes.SPECS[tid]
+    d = TYPE_DIMS[tid]
+    ep = libcrowns.eoff_path(tid)
+    src = (LIBSRC + LCSRC + repr(sorted(spec.items(), key=lambda kv: kv[0])) + repr((os.path.getsize(ep), int(os.path.getmtime(ep))))
+           + repr((d['cervMd'], d['cervBl'])))
+    key = hashlib.md5(src.encode()).hexdigest()[:12]
+    cp = os.path.join(D, 'tmp', 'cache', 'LIB_%s_%s.pkl' % (tid, key))
+    if os.path.exists(cp) and '--no-cache' not in ARGS:
+        return pickle.load(open(cp, 'rb'))
+    t0 = time.time()
+    out = libcrowns.build_lib_type(tid, spec, build_type_formula(tid), (d['cervMd'], d['cervBl']))
+    pickle.dump(out, open(cp, 'wb'))
+    print('built LIB type %s: %d tris, pulp %d tris, %.1fs  %s' % (tid, len(out['T']), len(out['PT']), time.time() - t0,
+          {k: round(v, 2) for k, v in out['info'].items() if k in ('md', 'bl', 'H', 'cerv_md', 'cerv_bl', 'pulp_clr')}))
+    return out
+
+
+def build_type_formula(tid):
     spec = shapes.SPECS[tid]
     key = hashlib.md5((LIBSRC + repr(sorted(spec.items(), key=lambda kv: kv[0]))).encode()).hexdigest()[:12]
     cp = os.path.join(D, 'tmp', 'cache', '%s_%s.pkl' % (tid, key))

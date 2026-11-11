@@ -3,6 +3,7 @@ import { QUALITY_LEVELS } from './quality.js';
 import { PRESET_NAMES } from './camera.js';
 import { FDI_LIST } from '../state/store.js';
 import { TREATMENTS } from '../data/treatments.js';
+import { PRESETS } from '../data/presets.js';
 
 export const STATUSES = ['normal', 'flagged', 'planned', 'inProgress', 'completed'];
 const VALID_TREATMENT_TYPES = new Set(TREATMENTS.map((t) => t.id));
@@ -85,10 +86,15 @@ export function createActions({ store, registry, cameraRig }) {
     setJawOpen: (f) => store.set({ jawOpen: clamp01(f) }),
     setMode(m) { if (MODES.includes(m)) store.set({ mode: m }); },
     setLayer(name, on) { if (name in store.get().layers) store.set({ layers: { [name]: !!on } }); },
+    setGumStyle(name) { if (name === 'solid' || name === 'glass') store.set({ gumStyle: name }); },
     setQuality(q) { if (QUALITY_LEVELS.includes(q)) store.set({ quality: q }); },
     resetCamera: () => cameraRig.reset(),
     setCameraPreset(name) { if (PRESET_NAMES.includes(name)) cameraRig.preset(name); },
     flyTo: (id) => cameraRig.flyTo(id),
+    loadPreset(name) {
+      const p = PRESETS[name];
+      if (p) actions.applyStateSnapshot(JSON.parse(JSON.stringify(p)));
+    },
     getPersist() {
       const s = store.get();
       return {
@@ -98,6 +104,7 @@ export function createActions({ store, registry, cameraRig }) {
         treatments: JSON.parse(JSON.stringify(s.treatments)),
         visits: JSON.parse(JSON.stringify(s.visits)),
         currentVisit: s.currentVisit,
+        gumStyle: s.gumStyle,
       };
     },
     applyStateSnapshot(snap) {
@@ -140,6 +147,7 @@ export function createActions({ store, registry, cameraRig }) {
       if ('explode' in snap) patch.explode = clamp01(snap.explode);
       if ('jawOpen' in snap) patch.jawOpen = clamp01(snap.jawOpen);
       if (QUALITY_LEVELS.includes(snap.quality)) patch.quality = snap.quality;
+      if (snap.gumStyle === 'solid' || snap.gumStyle === 'glass') patch.gumStyle = snap.gumStyle;
       if ('selectedId' in snap && (snap.selectedId === null || exists(snap.selectedId))) patch.selectedId = snap.selectedId;
       if (snap.layers && typeof snap.layers === 'object') {
         patch.layers = {};

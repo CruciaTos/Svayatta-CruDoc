@@ -4,7 +4,8 @@ import { PRESET_LIST } from '../data/presets.js';
 
 const MODE_LABEL = { pbr: 'Natural', xray: 'X-ray', heatmap: 'Status' };
 const VIEWS = [['front', 'Front'], ['upper', 'Upper'], ['lower', 'Lower'], ['left', 'Left'], ['right', 'Right']];
-const LAYERS = [['gums', 'Gums'], ['bone', 'Bone'], ['upper', 'Upper arch'], ['lower', 'Lower arch']];
+const LAYERS = [['bone', 'Bone'], ['upper', 'Upper arch'], ['lower', 'Lower arch']];
+const GUM_STYLES = [['solid', 'Solid'], ['glass', 'Glass'], ['off', 'Off']];
 
 export function createToolbar({ store, actions }) {
   const pops = [];
@@ -49,7 +50,16 @@ export function createToolbar({ store, actions }) {
     layerChecks[k] = cb;
     return h('label', { class: 'pop-row' }, cb, h('span', null, label));
   }));
-  const layers = popBtn('layers', 'Layers', [h('div', { class: 'pop-title' }, 'Layers'), layerList]);
+  // gums: Solid / Glass / Off
+  const gumSeg = h('div', { class: 'seg gum-seg', role: 'group', 'aria-label': 'Gums' });
+  const gumBtns = GUM_STYLES.map(([k, label]) => {
+    const b = h('button', {
+      type: 'button', 'data-gum': k,
+      onclick: () => { if (k === 'off') actions.setLayer('gums', false); else { actions.setGumStyle(k); actions.setLayer('gums', true); } },
+    }, label);
+    gumSeg.append(b); return b;
+  });
+  const layers = popBtn('layers', 'Layers', [h('div', { class: 'pop-title' }, 'Gums'), gumSeg, h('div', { class: 'pop-title gum-gap' }, 'Layers'), layerList]);
 
   // views
   const views = popBtn('view', 'View', [
@@ -85,6 +95,8 @@ export function createToolbar({ store, actions }) {
     if (document.activeElement !== ex.input) ex.input.value = Math.round(s.explode * 100);
     if (document.activeElement !== jaw.input) jaw.input.value = Math.round(s.jawOpen * 100);
     for (const [k, cb] of Object.entries(layerChecks)) cb.checked = s.layers[k];
+    const gumNow = s.layers.gums ? (s.gumStyle || 'solid') : 'off';
+    gumBtns.forEach((b) => b.classList.toggle('on', b.dataset.gum === gumNow));
     qBtns.forEach((b) => b.classList.toggle('on', b.dataset.quality === s.quality));
     quality.btn.title = `Quality: ${s.quality}`;
   }

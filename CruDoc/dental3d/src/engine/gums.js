@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { sampleArch, buildGeometry } from './gumGeometry.js';
 import { createGumMaterial, createBoneMaterial } from './materials.js';
+import { effectiveTooth } from '../treatments/effective.js';
+
+const _ax = new THREE.Vector3();
 
 export const ARCH_ORDER = {
   upper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
@@ -28,14 +31,16 @@ export function createGums(registry, store, onChange) {
   const timings = { upper: 0, lower: 0 };
 
   function toothData(arch) {
-    const st = store.get().teeth;
+    const st = store.get();
     return ARCH_ORDER[arch].map((fdi) => {
       const obj = registry.teeth.get(fdi);
       const part = obj.userData.part;
-      const s = st[fdi];
+      const s = effectiveTooth(st, fdi);
+      _ax.set(0, 1, 0).applyQuaternion(obj.userData.rest.q);
       return {
         fdi, C: obj.userData.rest.p, cervBl: part.dims.cervBl, md: part.dims.md, cls: part.toothClass,
         present: s.present, rec: s.recession, infl: s.inflammation, bl: s.boneLoss,
+        ax: _ax.x, ay: _ax.y, az: _ax.z, rl: (part.dims.rootLength || 12) * (obj.scale?.y || 1),
       };
     });
   }

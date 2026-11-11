@@ -105,11 +105,11 @@ for p in teeth:
     ptris, _, _ = prim_info(byname['pulp_%d' % p['fdi']])
     ptot += ptris
     assert ptris <= 600
-cls_budget = {'incisor': 3500, 'canine': 3500, 'premolar': 5000, 'molar': 7500}
+cls_budget = {'incisor': 5000, 'canine': 5000, 'premolar': 6000, 'molar': 9000}  # library crowns (formula teeth were 3500/3500/5000/7500)
 for p in teeth:
     tris, _, _ = prim_info(byname['tooth_%d' % p['fdi']])
     assert tris <= cls_budget[p['toothClass']], ('budget', p['fdi'], tris)
-assert tot <= 170000, tot
+assert tot <= 220000, tot
 for t in man['templates']:
     tris, _, _ = prim_info(byname[t['nodeId']])
     lim = 8000 if t['nodeId'] == 'tpl_implant_fixture' else 4000
@@ -118,7 +118,7 @@ for t in man['templates']:
 
 assert 'cameras' not in g and 'animations' not in g, 'cameras/animations present'
 assert 'KHR_draco_mesh_compression' in g.get('extensionsUsed', [])
-print('tooth triangle total   :', tot, '(budget 170000)')
+print('tooth triangle total   :', tot, '(budget 220000)')
 print('per-type max triangles :', dict(sorted(maxby.items())))
 print('pulp triangle total    :', ptot)
 print('worst translation err  : %.5f mm   worst quaternion err: %.2e' % (worst_t, worst_q))

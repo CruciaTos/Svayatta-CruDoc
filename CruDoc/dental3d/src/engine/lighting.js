@@ -10,21 +10,21 @@ export function setupLighting(stage) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environment = env;
-  scene.environmentIntensity = 0.45;
+  scene.environmentIntensity = 0.75;
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight('#FFFFFF', '#C9CFD8', 0.75));
+  scene.add(new THREE.HemisphereLight('#FFFFFF', '#C9CFD8', 0.8));
 
   const rig = new THREE.Group();
   scene.add(rig);
   const aim = new THREE.Object3D();
   rig.add(aim);
 
-  const key = new THREE.DirectionalLight('#FFF0DC', 2.3); // warm, ~45 deg up-right
+  const key = new THREE.DirectionalLight('#FFF2E2', 1.55); // warm, ~45 deg up-right
   key.position.set(70, 75, 100);
-  const fill = new THREE.DirectionalLight('#DDE8FF', 0.7); // soft, from the left
+  const fill = new THREE.DirectionalLight('#E4ECFF', 0.55); // soft, from the left
   fill.position.set(-100, 5, 80);
-  const rim = new THREE.DirectionalLight('#BFD8FF', 1.5); // cool, from behind
+  const rim = new THREE.DirectionalLight('#C8DCFF', 0.9); // cool, from behind
   rim.position.set(-20, 55, -130);
   for (const l of [key, fill, rim]) { l.target = aim; rig.add(l); }
 

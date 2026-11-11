@@ -20,6 +20,7 @@ export function createStore() {
     explode: 0,
     jawOpen: 0,
     layers: { gums: true, bone: true, upper: true, lower: true },
+    gumStyle: 'solid',
     quality: 'medium',
     selectedId: null,
     hoveredId: null,

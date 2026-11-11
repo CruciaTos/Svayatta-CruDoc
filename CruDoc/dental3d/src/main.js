@@ -10,6 +10,8 @@ import { createGums } from './engine/gums.js';
 import { createAppearance } from './engine/modes.js';
 import { createExplode } from './engine/explode.js';
 import { applyShape } from './engine/shape.js';
+import { createVisuals } from './treatments/visuals.js';
+import { createTimeline } from './ui/timeline.js';
 import { createCameraRig } from './engine/camera.js';
 import { createPicking } from './engine/picking.js';
 import { createActions } from './engine/actions.js';
@@ -51,15 +53,27 @@ async function boot() {
   const appearance = createAppearance(registry, store, stage, gums);
   const explode = createExplode(registry, store, stage);
   applyShape(registry, store, explode, gums);
+  const visuals = createVisuals(registry, store, stage);
+  visuals.rebuild();
   const cameraRig = createCameraRig(stage, registry, store);
   const actions = createActions({ store, registry, cameraRig });
   createPicking(stage, registry, { select: (id) => actions.select(id), hover: (id) => actions.hover(id) });
 
+  const timeline = createTimeline({ store, actions, registry, stage, gums, explode, visuals, applyShape });
+  stageEl.append(timeline.el);
+  timeline.sync(store.get());
+
   store.subscribe((s, changed, changedTeeth) => {
-    if (changed.has('teeth') || changed.has('profile')) {
-      applyShape(registry, store, explode, gums, changed.has('profile') ? null : changedTeeth);
+    if (changed.has('teeth') || changed.has('profile') || changed.has('treatments') || (changed.has('currentVisit') && !timeline.isAnimating)) {
+      applyShape(registry, store, explode, gums, changed.has('teeth') && !changed.has('profile') && !changed.has('treatments') && !changed.has('currentVisit') ? changedTeeth : null);
+    }
+    if (changed.has('treatments') || (changed.has('currentVisit') && !timeline.isAnimating) || changed.has('teeth') || changed.has('profile')) {
+      visuals.rebuild();
     }
     if (changed.has('quality')) quality.apply(s.quality);
+    if (changed.has('visits') || changed.has('currentVisit')) {
+      timeline.sync(s);
+    }
     appearance.refresh();
     stage.invalidate();
   });
@@ -74,6 +88,8 @@ async function boot() {
     stats: () => stage.stats(),
     store, registry, stage, gums, explode, cameraRig, actions, quality, appearance,
     placeholder,
+    visuals,
+    timeline,
     snap: () => { explode.snap(); },
     flyDone: () => !cameraRig.flying,
   };

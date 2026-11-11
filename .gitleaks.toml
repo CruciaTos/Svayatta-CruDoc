@@ -19,6 +19,9 @@ paths = [
   '''^CruDoc/assets/cbct_viewer/a/''',
   # Minified dental 3D viewer bundle: same false positives as above.
   '''^CruDoc/assets/dental3d/assets/''',
+  # Draco mesh decoder (from three.js): its base64 alphabet string trips generic-api-key.
+  '''^CruDoc/assets/dental3d/draco/''',
+  '''^CruDoc/dental3d/public/draco/''',
 ]
 regexes = [
   '''AIzaSy[0-9A-Za-z\-_]{33}[X_]{2}''',

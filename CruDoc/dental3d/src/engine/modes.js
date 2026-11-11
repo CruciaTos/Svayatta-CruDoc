@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { STATUS_COLORS } from '../data/treatments.js';
+import { STATUS_COLORS, MATERIALS } from '../data/treatments.js';
 import { createToothMaterial, setTint, NEUTRAL_LIGHT } from './toothMaterial.js';
 import { createGhostMaterial, createPulpMaterial } from './materials.js';
+import { effectiveTooth } from '../treatments/effective.js';
 
 const SELECT = '#3B82F6';
 const HOVER = '#93C5FD';
@@ -14,6 +15,10 @@ export function createAppearance(registry, store, stage, gums) {
   const pulpMat = createPulpMaterial();
   const pulpSel = createPulpMaterial();
   pulpSel.color.set('#FF5A4F'); pulpSel.emissiveIntensity = 0.9;
+  const pulpRct = createPulpMaterial();
+  pulpRct.color.set(MATERIALS.guttaPercha.color);
+  pulpRct.emissive.set(MATERIALS.guttaPercha.color);
+  pulpRct.emissiveIntensity = 0.5;
   const white = new THREE.Color();
 
   const toothMats = new Map();
@@ -47,7 +52,7 @@ export function createAppearance(registry, store, stage, gums) {
     const xray = s.mode === 'xray';
 
     for (const [fdi, obj] of registry.teeth) {
-      const t = s.teeth[fdi];
+      const t = effectiveTooth(s, fdi) || s.teeth[fdi];
       const id = obj.name;
       const sel = s.selectedId === id;
       const hov = s.hoveredId === id && !sel;
@@ -74,7 +79,8 @@ export function createAppearance(registry, store, stage, gums) {
       if (useGhost) ghostActive = true;
       if (pulp) {
         pulp.visible = xray && t.present;
-        for (const m of pulp.userData.meshes) m.material = sel ? pulpSel : pulpMat;
+        const targetPulpMat = sel ? pulpSel : (t.rctDone ? pulpRct : pulpMat);
+        for (const m of pulp.userData.meshes) m.material = targetPulpMat;
       }
     }
 

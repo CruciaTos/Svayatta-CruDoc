@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { updateToothMaterial } from './toothMaterial.js';
+import { effectiveTooth } from '../treatments/effective.js';
 
 const _qZ = new THREE.Quaternion();
 const _qX = new THREE.Quaternion();
@@ -16,7 +17,7 @@ export function applyShape(registry, store, explode, gums, changedFdis = null) {
 
   for (const [fdi, obj] of registry.teeth) {
     const part = obj.userData.part;
-    const t = state.teeth[fdi];
+    const t = effectiveTooth(state, fdi);
     if (!t) continue;
 
     const shift = t.shift || { md: 0, bl: 0, v: 0 };

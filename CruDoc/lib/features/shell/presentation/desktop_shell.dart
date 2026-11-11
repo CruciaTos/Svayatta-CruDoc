@@ -52,6 +52,7 @@ import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
 import 'package:doctor_management_app/features/files/presentation/files_screen.dart';
+import 'package:doctor_management_app/features/tasks/presentation/all_tasks_screen.dart';
 import 'package:doctor_management_app/features/todos/presentation/todos_screen.dart';
 import 'package:doctor_management_app/features/settings/presentation/documents/documents_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
@@ -214,6 +215,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Files',
     'Documents',
     'Charting',
+    'To-do',
+    'All tasks',
   ];
 
   static const List<IconData> _icons = [
@@ -251,6 +254,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.folder_outlined,
     Icons.description_outlined,
     Icons.grid_view_outlined,
+    Icons.check_circle_outline_rounded,
+    Icons.checklist_rounded,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -283,7 +288,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     DesktopTab.reports ||
     DesktopTab.treatmentPlans ||
     DesktopTab.labCases ||
-    DesktopTab.todos => DesktopTab.worklist,
+    DesktopTab.todos ||
+    DesktopTab.allTasks => DesktopTab.worklist,
     DesktopTab.referrers => DesktopTab.dentalReferrals,
     _ => tab,
   };
@@ -321,8 +327,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const AppointmentsScreen();
       case DesktopTab.settings:
         return const DesktopSettingsScreen();
-      // Worklist, reports, treatment plans, lab cases and to-dos are one
+      // All, worklist, reports, treatment plans, lab cases and to-dos are one
       // Tasks page.
+      case DesktopTab.allTasks:
       case DesktopTab.worklist:
       case DesktopTab.reports:
       case DesktopTab.treatmentPlans:
@@ -332,6 +339,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           title: 'Tasks',
           current: index,
           pages: const [
+            (DesktopTab.allTasks, 'All'),
             (DesktopTab.worklist, 'Worklist'),
             (DesktopTab.reports, 'Reports'),
             (DesktopTab.treatmentPlans, 'Treatment plans'),
@@ -339,6 +347,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             (DesktopTab.todos, 'To-do'),
           ],
           builder: (tab) => switch (tab) {
+            DesktopTab.allTasks => const AllTasksScreen(),
             DesktopTab.worklist => const RadWorklistScreen(),
             DesktopTab.reports => const RadReportsScreen(),
             DesktopTab.labCases => const LabCasesScreen(),
@@ -535,6 +544,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.files ||
             shown == DesktopTab.documents ||
             shown == DesktopTab.todos ||
+            shown == DesktopTab.allTasks ||
             DesktopTab.isDental(shown) ||
             DesktopTab.isRadiology(shown) ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey) ||
@@ -553,6 +563,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.files ||
             shown == DesktopTab.documents ||
             shown == DesktopTab.todos ||
+            shown == DesktopTab.allTasks ||
             shown == DesktopTab.scribe ||
             shown == DesktopTab.campaigns ||
             DesktopTab.isDental(shown) ||

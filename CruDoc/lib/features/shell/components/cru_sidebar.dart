@@ -58,6 +58,7 @@ List<_NavItem> specialtyNav(DentalFeature f) => switch (f) {
 };
 
 const _tasksTabs = {
+  DesktopTab.allTasks,
   DesktopTab.worklist,
   DesktopTab.reports,
   DesktopTab.treatmentPlans,
@@ -151,12 +152,22 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
     for (final f in DentalFeature.values)
       if (dental.contains(f)) ...specialtyNav(f),
   ];
+  // Scans and reports, treatment plans, or lab cases.
+  final hasClinicalTasks =
+      dental.contains(DentalFeature.radiology) ||
+      dental.contains(DentalFeature.chairside) ||
+      dental.contains(DentalFeature.prostho);
 
   return [
-    const _NavGroup('Today', [
-      _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
+    _NavGroup('Today', [
+      const _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
       // Live queue + calendar in one place (the queue tab opens its Live view).
-      _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
+      const _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
+      // Drawn inside Tasks as its first (All) tab. First among the task
+      // items so Tasks opens on it; only with a clinical source, else it
+      // would just repeat the To-do list.
+      if (hasClinicalTasks)
+        const _NavItem(DesktopTab.allTasks, 'All tasks', RadIcons.worklist),
     ]),
     if (dental.contains(DentalFeature.radiology))
       const _NavGroup('Radiology', [

@@ -122,6 +122,11 @@ const check = (name, ok, detail = '') => results.push({ name, ok: !!ok, detail }
   const smoothRow = await page.locator('.prow:has(label:text-is("Smooth"))').count();
   check('Smooth slider row exists', smoothRow > 0);
 
+  const implantPlanSec = await page.locator('.psec h3', { hasText: 'Implant plan' }).count();
+  check('panel section "Implant plan" exists', implantPlanSec > 0);
+  const foundAutoSec = await page.locator('.psec h3', { hasText: 'Found automatically' }).count();
+  check('panel section "Found automatically" exists', foundAutoSec > 0);
+
   // Click a gizmo circle (force: true because it may be small / covered) and wait
   // up to 1500 ms for viewPlaneNormal to change.
   const vpnBefore = await page.evaluate(() => {

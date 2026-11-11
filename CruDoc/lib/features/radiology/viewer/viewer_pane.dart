@@ -67,42 +67,153 @@ int _sliceOrder(RadImageRef a, RadImageRef b) {
 typedef RadPixelLoader =
     Future<RadPixels> Function(String studyId, String imageId, int frame);
 
-/// Keeps the last few decoded images so switching panes, frames and
+/// Decoded images, kept so paging back and switching panes, frames and
 /// layouts doesn't decode the same file again.
+///
+/// Loads run a few at a time. What the doctor asked to see ([get]) always
+/// goes first, newest first (so the slice a fast scroll stops on is next);
+/// [prefetch] fills the queue behind it with slices they may page to.
 class RadPixelCache {
-  RadPixelCache(this._load, {this.capacity = 6});
+  RadPixelCache(
+    this._load, {
+    this.capacity = 6,
+    this.maxBytes = 0,
+    this.maxLoads = 2,
+  });
 
   final RadPixelLoader _load;
-  final int capacity;
+
+  /// Most images kept.
+  int capacity;
+
+  /// Most decoded bytes kept (0 = no limit).
+  int maxBytes;
+
+  /// Decodes running at once.
+  final int maxLoads;
+
+  /// Oldest first; includes images still loading.
   final _entries = <String, Future<RadPixels>>{};
+  final _bytes = <String, int>{};
+  int _totalBytes = 0;
+  final _queue = <_RadPixelJob>[];
+  int _running = 0;
+
+  static String _key(String studyId, String imageId, int frame) =>
+      '$studyId/$imageId#$frame';
+
+  bool has(String studyId, String imageId, int frame) =>
+      _entries.containsKey(_key(studyId, imageId, frame));
 
   Future<RadPixels> get(String studyId, String imageId, int frame) {
-    final key = '$studyId/$imageId#$frame';
+    final key = _key(studyId, imageId, frame);
     final hit = _entries.remove(key);
     if (hit != null) {
       _entries[key] = hit;
+      // Still waiting in the queue: it is wanted now, so it goes first.
+      final i = _queue.indexWhere((j) => j.key == key);
+      if (i >= 0) {
+        final job = _queue.removeAt(i)..background = false;
+        _queue.insert(0, job);
+      }
       return hit;
     }
-    final f = _load(studyId, imageId, frame);
-    _entries[key] = f;
-    // A failed decode isn't kept: the next try reads the file again.
-    unawaited(
-      f.then<void>(
-        (_) {},
-        onError: (Object e) {
-          if (identical(_entries[key], f)) _entries.remove(key);
-        },
-      ),
-    );
-    while (_entries.length > capacity) {
-      _entries.remove(_entries.keys.first);
-    }
-    return f;
+    final job = _RadPixelJob(key, studyId, imageId, frame, background: false);
+    _queue.insert(0, job);
+    _entries[key] = job.done.future;
+    _pump();
+    return job.done.future;
+  }
+
+  /// Loads an image in the background unless it is kept or on its way.
+  void prefetch(String studyId, String imageId, int frame) {
+    final key = _key(studyId, imageId, frame);
+    if (_entries.containsKey(key)) return;
+    final job = _RadPixelJob(key, studyId, imageId, frame, background: true);
+    _queue.add(job);
+    _entries[key] = job.done.future;
+    _pump();
+  }
+
+  /// Drops background loads that haven't started (the doctor moved on).
+  void cancelPrefetch() {
+    _queue.removeWhere((j) {
+      if (!j.background) return false;
+      _entries.remove(j.key);
+      return true;
+    });
   }
 
   void evict(String imageId) {
-    _entries.removeWhere((key, _) => key.contains('/$imageId#'));
+    final gone = _entries.keys.where((k) => k.contains('/$imageId#')).toList();
+    for (final k in gone) {
+      _entries.remove(k);
+      _totalBytes -= _bytes.remove(k) ?? 0;
+    }
+    _queue.removeWhere((j) => j.background && gone.contains(j.key));
   }
+
+  void _pump() {
+    while (_running < maxLoads && _queue.isNotEmpty) {
+      final job = _queue.removeAt(0);
+      _running++;
+      _load(job.studyId, job.imageId, job.frame).then(
+        (px) {
+          final f = _entries[job.key];
+          if (f != null && identical(f, job.done.future)) {
+            final b = px.values.lengthInBytes + (px.rgba?.lengthInBytes ?? 0);
+            _bytes[job.key] = b;
+            _totalBytes += b;
+          }
+          job.done.complete(px);
+        },
+        onError: (Object e, StackTrace st) {
+          // A failed decode isn't kept: the next try reads the file again.
+          if (identical(_entries[job.key], job.done.future)) {
+            _entries.remove(job.key);
+          }
+          job.done.completeError(e, st);
+          // Nobody may be waiting (a background load): don't report it.
+          job.done.future.ignore();
+        },
+      ).whenComplete(() {
+        _running--;
+        _trim();
+        _pump();
+      });
+    }
+    _trim();
+  }
+
+  /// Forgets the oldest loaded images over the limits (loads in flight
+  /// stay until they finish).
+  void _trim() {
+    bool over() =>
+        _entries.length > capacity || (maxBytes > 0 && _totalBytes > maxBytes);
+    if (!over()) return;
+    for (final k in _entries.keys.toList()) {
+      if (!over()) break;
+      final b = _bytes.remove(k);
+      if (b == null) continue;
+      _entries.remove(k);
+      _totalBytes -= b;
+    }
+  }
+}
+
+class _RadPixelJob {
+  _RadPixelJob(
+    this.key,
+    this.studyId,
+    this.imageId,
+    this.frame, {
+    required this.background,
+  });
+
+  final String key, studyId, imageId;
+  final int frame;
+  bool background;
+  final done = Completer<RadPixels>();
 }
 
 /// One viewport's image and how it is shown: window, filters, zoom, pan,

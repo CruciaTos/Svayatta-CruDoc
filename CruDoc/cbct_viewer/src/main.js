@@ -2,7 +2,7 @@ import './styles/tokens.css';
 import './styles/viewer.css';
 import { version } from '../package.json';
 import { mountChrome, installKeys } from './chrome.js';
-import { bus, state } from './state.js';
+import { bus, state, set } from './state.js';
 import { core } from './core.js';
 import { initEngine, annotation } from './engine.js';
 import { init3d, tuning, stillMs, debug3d } from './view3d.js';
@@ -10,6 +10,7 @@ import { meshStats } from './surface.js';
 import { initOverlays } from './overlays.js';
 import { initPlanning } from './planning.js';
 import { initFindings, foundBoxes } from './findings.js';
+import { initPano, panoState, panoSelect, panoLocate } from './pano.js';
 import { installSession, fail } from './session.js';
 
 console.log('CBCT viewer booted');
@@ -49,13 +50,14 @@ const engineStarted = initEngine(ui.hosts).then(() => {
   initOverlays(ui);
   initPlanning(ui);
   initFindings(ui);
+  initPano(ui);
 });
 engineStarted.catch(fail);
 installSession(ui, post, engineStarted);
 
 // Flutter opens the page with the scan in the query string (or calls CbctViewer.open itself).
 const params = new URLSearchParams(location.search);
-if (params.has('debug')) window.__cbct = { core, state, annotation, tuning, stillMs, debug3d, meshStats, foundBoxes };
+if (params.has('debug')) window.__cbct = { core, state, annotation, tuning, stillMs, debug3d, meshStats, foundBoxes, panoState, panoSelect, panoLocate, set };
 window.CbctViewer.open({
   base: params.get('base') || '/dev/phantom/',
   title: params.get('title') || 'CBCT',

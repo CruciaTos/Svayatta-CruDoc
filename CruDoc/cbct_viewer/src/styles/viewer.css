@@ -231,10 +231,34 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); ou
 .gizmo text { pointer-events: none; }
 .overlay-3d-fade { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; opacity: 1; }
 
+/* Panoramic view in the Coronal slot (pano.js): a layer above the slice view, which keeps rendering underneath. */
+.vpbtn.on { color: var(--text); }
+.pano {
+  position: absolute; inset: 0; z-index: 2; display: none; box-sizing: border-box;
+  padding: 48px 14px 30px; background: var(--mpr-bg); touch-action: none; user-select: none;
+}
+.vp.pano-on > .pano { display: flex; }
+.vp.pano-on > .letters, .vp.pano-on > .vpinfo, .vp.pano-on > .scale, .vp.pano-on > .sb { display: none; }
+.pano-cells { display: flex; flex: 1; gap: 14px; min-width: 0; min-height: 0; }
+.pcell { position: relative; flex: 1 1 0; min-width: 0; min-height: 0; }
+.pcell.pick { cursor: crosshair; }
+.pcell canvas, .pcell svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pcell canvas { object-fit: contain; }
+.pcell svg { overflow: hidden; pointer-events: none; }
+.pano-msg { margin: auto; max-width: 320px; text-align: center; color: var(--text2); font-size: var(--fs-hint); line-height: 1.5; }
+.pano .lt.left, .pano .lt.right { top: 50%; }
+.pano .lt.right { right: 14px; }
+.pano .lt.left { left: 4px; }
+
 .no-overlay .pill, .no-overlay .hint, .no-overlay .vpbtns, .no-overlay .letters, .no-overlay .vpinfo,
 .no-overlay .scale, .no-overlay .sb, .no-overlay .gizmo, .no-overlay .ov, .no-overlay .svg-layer { display: none; }
 
 /* ---- Right panel ---- */
+.sumbox {
+  width: 100%; margin-top: 8px; box-sizing: border-box; resize: vertical; padding: 8px;
+  border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--panel); color: var(--text);
+  font-family: var(--font-mono); font-size: var(--fs-mono); line-height: 1.45;
+}
 .panel {
   flex: none; width: 272px; overflow-x: hidden; overflow-y: auto;
   background: var(--panel); border-left: 1px solid var(--line);

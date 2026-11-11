@@ -36,10 +36,12 @@ const TOOLS = [
   { group: 'measure', id: 'ellipse', ico: 'ellipse', title: 'Ellipse ROI (E)' },
 ];
 const SHORTCUTS = [
-  ['C P Z W', 'Crosshair, pan, zoom, window / level'],
+  ['C P Z W N', 'Crosshair, pan, zoom, window / level, trace nerve'],
+  ['Backspace', 'While tracing: remove the last nerve point'],
   ['L A E', 'Length, angle, ellipse measurement'],
   ['1 – 5', 'Contrast presets'],
   ['↑ ↓  PgUp PgDn', 'Slice ±1 / ±10 in the hovered view'],
+  ['← → ↑ ↓', 'Panoramic view: step 1 mm along the arch'],
   ['H', 'Hide or show lines, labels and measurements'],
   ['R', 'Reset views, window, slab, cut and invert'],
   ['S', 'Save the active view as a key image'],

@@ -122,6 +122,22 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   late final RadiologyController _ctl;
   late final RadiologyRepository _repo;
   late final RadPixelCache _cache;
+
+  /// Starts background loading of nearby slices once paging pauses.
+  Timer? _prefetchTimer;
+
+  /// Decoded images kept in memory: the whole of most stacks on a computer,
+  /// a good stretch of one on a phone or tablet.
+  static int get _cacheBytes {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.windows:
+      case TargetPlatform.macOS:
+      case TargetPlatform.linux:
+        return 640 << 20;
+      default:
+        return 220 << 20;
+    }
+  }
   late final RadThumbCache _thumbs;
   final _roi = RadRoiCache();
   final _headers = RadHeaderCache();
@@ -201,7 +217,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     _ctl = ref.read(radiologyProvider);
     _repo = ref.read(radiologyRepositoryProvider);
     WidgetsBinding.instance.addObserver(this);
-    _cache = RadPixelCache(_loadPixels, capacity: 12);
+    _cache = RadPixelCache(
+      _loadPixels,
+      capacity: 600,
+      maxBytes: _cacheBytes,
+      maxLoads: kIsWeb ? 1 : 2,
+    );
     _thumbs = RadThumbCache(_ctl.thumbSourceOf);
     final init = widget.initialStudy;
     if (init != null) {
@@ -220,6 +241,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     WidgetsBinding.instance.removeObserver(this);
     _saveTimer?.cancel();
     _syncTimer?.cancel();
+    _prefetchTimer?.cancel();
     if (_dirty || _lookEdits.isNotEmpty) unawaited(_saveStudy((s) => s));
     _flushPrefs();
     for (final p in _panes) {
@@ -371,12 +393,17 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       _selectedId = null;
     }
     p.stack = _stackFor(studyId, imageId);
+    // Background loads that haven't started wait: this image goes first.
+    _cache.cancelPrefetch();
     final unsupported = img.compressed
         ? '${img.transferSyntax.isEmpty ? 'Compressed' : DicomSyntax.name(img.transferSyntax)} '
               'DICOM images are not supported yet'
         : null;
     final thumb = _thumbs.image(studyId, imageId);
-    if (thumb == null && !img.compressed) {
+    // Paging a stack keeps the last slice on screen until the next one is
+    // ready, so no preview is made for it (that decoded every slice twice).
+    final paging = keepView && p.stack != null && p.image != null;
+    if (thumb == null && !img.compressed && !paging) {
       _thumbs.request(s, img, priority: true);
     }
     await p.show(
@@ -421,6 +448,38 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       p.touch();
     }
     _checkZoomUpgrade();
+    _schedulePrefetch(p);
+  }
+
+  /// Loads the slices (or frames) around what [p] shows in the background,
+  /// nearest first, as many as fit in memory, so paging feels instant.
+  /// Paging cancels what hasn't started, so the slice asked for goes first.
+  void _schedulePrefetch(RadPane p) {
+    _cache.cancelPrefetch();
+    _prefetchTimer?.cancel();
+    final st = p.stack;
+    if ((st == null || st.length < 2) && p.frames < 2) return;
+    _prefetchTimer = Timer(const Duration(milliseconds: 150), () {
+      final px = p.px;
+      if (!mounted || px == null || !_panes.contains(p)) return;
+      final slice = px.values.lengthInBytes + (px.rgba?.lengthInBytes ?? 0);
+      final count = st?.length ?? p.frames;
+      final room = slice <= 0 ? 0 : _cache.maxBytes ~/ slice - 4;
+      final want = math.min(count - 1, room);
+      final at = p.sliceIndex;
+      var n = 0;
+      for (var d = 1; d < count && n < want; d++) {
+        for (final i in [at + d, at - d]) {
+          if (i < 0 || i >= count || n >= want) continue;
+          n++;
+          if (st != null) {
+            _cache.prefetch(p.studyId, st[i], 0);
+          } else {
+            _cache.prefetch(p.studyId, p.imageId, i);
+          }
+        }
+      }
+    });
   }
 
   /// Images of one slice stack share a look (by the stack's first slice).
@@ -1199,7 +1258,11 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       return;
     }
     if (index == pane.frame || index < 0 || index >= pane.frames) return;
-    pane.show(pane.studyId, pane.imageId, _cache, frame: index, keepView: true);
+    unawaited(
+      pane
+          .show(pane.studyId, pane.imageId, _cache, frame: index, keepView: true)
+          .then((_) => _schedulePrefetch(pane)),
+    );
   }
 
   void _stepImage(RadPane pane, int delta) {

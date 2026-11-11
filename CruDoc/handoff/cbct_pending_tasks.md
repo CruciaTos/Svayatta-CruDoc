@@ -25,46 +25,47 @@ look: `handoff/cbct_reference.png`; web/Flutter contract: `handoff/cbct_protocol
   saved view state and restore, first-open "solidify", reduced motion, offline CSP.
   Browser smoke test: 30 checks pass; re-open/restore test passes.
 
-## Done and tested (2026-11-10) — Antigravity round 3
+## Done and tested (2026-11-10) — Surfaces, implant plan & panoramic foundations
 
-- **Two-copy 3D render** (`view3d.js`, `engine.js`): a light preview copy drawn while
-  moving; a sharp copy drawn when still and faded in over the last moving frame.
-- **Calibration** (`view3d.js`): at load, hidden behind the poster, the viewer measures
-  which of five quality plans this machine can hold at full frame rate and uses that plan
-  while moving. Debug hooks via `?debug`: `window.__cbct.tuning.plan` (0 = cheapest),
-  `window.__cbct.debug3d()`, `window.__cbct.lod`, `window.__cbct.stillMs()`.
-- **`lod.js`** new meaning: `window.__cbct.lod` is the level of the STILL picture (0 =
-  preview only, last = full shared volume, no second copy).
-- **Camera motion** (`motion.js`): wheel zoom glides and keeps the point under the cursor;
-  Reset and gizmo letters (L R A P S I) turn the camera smoothly. Exports `slerp`,
-  `basisOf`, `cameraQuat` with unit tests in `motion.test.js`.
-- **Looks by scan kind** (`presets3d.js`): `meta.kind` = `dental` / `ct` / `mr`.
-  Dental: Bone, Teeth, Teeth in bone, Skin + bone, X-ray, MIP.
-  CT: Bone, Skin, Muscle + bone, Lungs, X-ray, MIP. MR: Tissue, MIP.
-  Unit tests in `presets3d.test.js` covering all looks for all kinds.
-- **"Smooth" slider** in 3D panel: `state.view3d.soft` (0–100, default 40), saved in
-  `state.json`.
-- **Packer** writes `meta.kind` and `meta.modality` (pack version 4): uses DICOM
-  Modality (0008,0060) and Body Part Examined (0018,0015) tags, FOV size and spacing
-  ratio. Dart tests updated.
-- **Gate** (`radIsVolume`): also accepts CT/MR DICOM series with ≥ 30 equal-size slices.
-  New gate tests added.
-- **Wording**: chip says "3D viewer" (not "CBCT") for non-dental scans.
-- **Shortcuts help sheet**: added "Click L R A P S I — 3D: turn to look from that side".
-- **Smoke test** (A6): checks for "Teeth in bone" chip, label, Smooth slider, and gizmo
-  letter click changes camera.
-- **Docs** updated: README module map, `cbct_protocol.md` (new sections 7–9), this file.
+- **Surface 3D** (`surface.js`, `mesher.js`, `mesher.worker.js`): Bone, Teeth, Teeth in bone,
+  Skin + bone (and CT Bone / Skin / Muscle, MR Tissue) are drawn as triangle meshes
+  built in a web worker using marching cubes; rotation costs ~7 ms per frame. X-ray,
+  MIP and CT Lungs remain ray-cast. Threshold and Smooth rebuild the mesh after the
+  slider rests (Smooth = 0..3 smoothing passes). With `?debug`, `window.__cbct.debug3d()`
+  returns `{ mesh: true, tris, meshMs, grid }`.
+- **Implant plan** (`plan.js` geometry, `planning.js` UI, dental scans only): Right panel
+  section "Implant plan": Nerve canal Right / Left, Trace (key N: clicks in slice view
+  add points; Backspace removes the last), Undo point, Clear; Implants: Add at crosshair,
+  chips "Implant 1..", Lower / Upper jaw, Diameter, Length, Tilt A–P, Tilt L–R, Move to
+  crosshair, Delete, and distance to canal (green ≥ 2 mm, amber 1–2 mm, red < 1 mm).
+  Drawn in slice views and 3D. Saved in `state.json` under `plan: { nerves: { right, left }, implants }`
+  (world mm, LPS). Tested via `npm run plan`.
+- **Automatic help** (`assist.js`, no AI): Trace Auto-follow follows the canal between
+  clicks; each implant shows bone width, height to canal/sinus and position against crest;
+  buttons "Suggest size" and "Seat at crest". Panel section "Found automatically" boxes
+  metal / very dense objects (M1, M2..) in slice views and 3D; with `?debug`,
+  `window.__cbct.foundBoxes()` returns them.
+- **Scan kind and 3D looks** (`presets3d.js`): `meta.kind` = `dental` (default), `ct`, `mr`.
+- **Camera motion** (`motion.js`): gizmo letters turn view smoothly, wheel zoom glides.
+- **Smooth slider**: `state.view3d.soft` (default 40).
+- **Packer** (Dart): writes `meta.kind` and `meta.modality`, pack version 4.
+- **Viewer gate**: accepts CT/MR DICOM series with ≥ 30 slices of equal size.
+- **Dental arch, panoramic and cross-sections** (`arch.js`, `panoramic.js`, pure functions):
+  tooth-band arch detection, curve fitting, linear voxel interpolation, arch polyline
+  resampling with outward normals, panoramic generation, curved cross-sections.
+- **Plan summary** (`summary.js`): plain text report with nerve canal status, implant
+  specifications, clearances, bone widths, and dense object detection.
 
 ## Open (Claude does next)
 
-1. **Surface mesh for the moving picture**: bone/teeth turned into triangles once at load
-   and drawn while moving; ray-cast only as the sharp still.
-2. **Faster opening**: calibration adds ~2 s before the live picture on the small test
-   scan (preview 2.5 s → 4.7 s). Measure fewer frames or remember the result.
-3. **Long frame** when a sharper LOD level first appears at 1.5× screen scaling.
-4. **Tablet check** on a real device; looking at the new looks on a real CBCT and CT.
-5. **Smart dental help** (tooth numbering, nerve canal, AI findings draft): design first;
-   needs a decision on where the AI runs and on patient-data rules.
+1. **Panoramic view on screen** (from B1–B3) and a "Copy summary" button (B4): a fifth view
+   or a layout mode, click on the panoramic to move the crosshair, cross-sections along the
+   arch, implants drawn on it.
+2. **Real CBCT check** of surface 3D (triangle count, noisy bone) and the implant plan.
+3. **Cut face in surface mode** is a hollow shell: cap it.
+4. **Automatic tooth boxing and numbering** along the arch (no AI), then AI help: decisions
+   in `handoff/cbct_ai_design.md` (where the model runs, which model, licence), then the
+   speed spike (M1).
 
 ## Not verified (needs the real app)
 

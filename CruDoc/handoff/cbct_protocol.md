@@ -151,6 +151,22 @@ Saved automatically via debounced autosave (2 s after state change) and upon vie
     "cut": "off",
     "cutFlip": false
   },
+  "plan": {
+    "nerves": {
+      "right": [[-12.0, -5.0, -14.0], [-8.0, 0.0, -13.5]],
+      "left": []
+    },
+    "implants": [
+      {
+        "top": [14.0, 5.0, 2.0],
+        "diameter": 4.0,
+        "length": 10.0,
+        "jaw": "lower",
+        "tiltAP": 5,
+        "tiltLR": 0
+      }
+    ]
+  },
   "cameras": {
     "axial": { "focalPoint": [0, 0, 0], "position": [0, 0, 100], "viewUp": [0, -1, 0], "parallelScale": 20 },
     "coronal": { "focalPoint": [0, 0, 0], "position": [0, -100, 0], "viewUp": [0, 0, 1], "parallelScale": 20 },
@@ -264,7 +280,9 @@ When the page URL contains `?debug`, `window.__cbct` exposes:
 
 | Expression | Type | Description |
 |---|---|---|
-| `window.__cbct.tuning.plan` | number 0–4 | Active quality plan (0 = cheapest). Set by calibration at load. |
-| `window.__cbct.debug3d()` | function | Logs the current 3D viewport state to the console. |
+| `window.__cbct.tuning` | object | Active quality plan (`tuning.plan`, 0–4 where 0 = cheapest) set by calibration at load, and timing metrics. |
+| `window.__cbct.debug3d()` | function | Returns/logs current 3D viewport state: in surface mode returns `{ mesh: true, tris, meshMs, grid }`. |
+| `window.__cbct.meshStats` | object | Last mesh build: `{ ms, triangles, grid }`. |
 | `window.__cbct.lod` | number | Level of the STILL picture (0 = preview only, last = full shared volume). |
 | `window.__cbct.stillMs()` | function | Returns the render time of the last still (sharp) frame in milliseconds. |
+| `window.__cbct.foundBoxes()` | function | Returns array of automatically detected metal / very dense object bounding boxes. |

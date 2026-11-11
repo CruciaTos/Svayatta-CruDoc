@@ -179,10 +179,66 @@ section 1 = decisions for the user before any AI model).
 Antigravity brief rewritten: `handoff/antigravity_3d_viewer_v2.md` (A3-A7, then Part B:
 arch.js + panoramic.js pure functions, one GATE). Not given to Antigravity yet.
 
+## Panoramic view, cross-sections, Copy summary (DONE, 2026-11-10, third session, uncommitted)
+
+Wired Antigravity's pure functions into the UI. New: `src/pano.js`, `src/steps.js`,
+`tests/panoramic.mjs` (`npm run pano`). Changed: `arch.js`, `panoramic.js`, `planning.js`,
+`chrome.js` (one shortcut row), `icons.js` (`panoramic`), `main.js`, `styles/viewer.css`.
+
+- `findArch` now fits on coordinates centred on the mean x and scaled by half the arch
+  width, then converts the coefficients back (new test: 700 voxels wide, sync and sliced).
+  It is a generator (`steps.js`): `findArch` runs it at once, `findArchAsync` in ~10 ms
+  slices. `panoramic` / `panoramicAsync` work the same way (one yield per picture row).
+  `getVolumeMin` is cached per voxel array (it scanned the whole volume on every arrow key).
+- `pano.js`: a button (icon `panoramic`) in the Coronal slot's top-right corner switches the
+  slot to a layer above the slice view (which keeps rendering below; class `pano-on` on the
+  `.vp`). Dental scans only. After phase `full` (+600 ms, after the findings scan) it runs
+  `findArchAsync` (threshold `landmarks.teeth - valueOffset`) -> `archPath` -> `panoramicAsync`
+  at 0.25 mm (coarser if the picture would pass 600 000 px), thickness 10 mm. Null arch ->
+  plain message in the slot. Window / level = `state.contrast` (repainted on change).
+  Layout: panoramic + cross-section (30 mm wide) side by side, sized by millimetres.
+  Click or drag on the panoramic = marker + crosshair to that arch point at that height;
+  arrow keys (hovered or active view = Coronal, pano on) step 1 mm and move the crosshair.
+  Marker = solid vertical line (arch position) + dashed horizontal line (height) on both pictures.
+  Letters R / L from the arch ends (LPS: +x is Left; right on the left, like a radiograph).
+- Copy summary: button + read-only fallback textarea at the end of "Implant plan".
+  `planSummary(plan, measures, foundBoxes())`, measures only where `siteMeasure` found a crest.
+- Debug: `__cbct.panoState()`, `__cbct.panoSelect(col, rowMm)`.
+- Measured: the phantom_big "arch" is only 15 mm long (60 x 160 picture) and builds in 0.8 s
+  with worst frame gap 42-49 ms. A synthetic 500^3 volume at 0.3 mm with a 90 mm arch:
+  `findArchAsync` 265 ms, picture 361 x 600 in 2.4 s total, in 10 ms slices (node timing).
+- Checks: `npm test` 137 pass, smoke ALL PASS, `npm run plan` ALL PASS, `npm run pano`
+  ALL PASS, `tests/look.mjs` first drag 0 slow frames.
+
+Follow-up (2026-11-11): the plan is drawn on the panoramic and the cross-section, the marker
+follows the crosshair, and Reset on the slot is its own.
+- Plan on the pictures (`pano.js` `drawPlan`; colours `NERVE` / `SAFETY` now exported from
+  `planning.js`). Panoramic: the canal is projected onto the arch (`locate`: nearest arch column
+  ignoring height, side offset, off if > 3 mm past an end), solid inside the 10 mm the picture
+  looks through, faint outside; implants as rectangles in their safety colour (filled when the
+  slab cuts them), numbered. Cross-section: circles where the canal crosses the plane, implants
+  as in the slice views. Redrawn on `plan` changes.
+- Marker follows the crosshair: listens to `CROSSHAIR_TOOL_CENTER_CHANGED` (NOT the camera
+  events: `setToolCenter` fires only this one). Ignored for 500 ms after the panoramic's own
+  move (the events carry stale positions), and when the crosshair is more than 15 mm from the
+  arch or past its ends. Turning the panoramic on also syncs once.
+- Reset on the slot (capture handler on `.vpbtns`) returns the marker and crosshair to the
+  middle of the arch; the hidden coronal view is left alone. The toolbar Reset / R still reset
+  everything; the marker then follows the centred crosshair if it is near the arch.
+- Debug adds `__cbct.set`, `panoLocate`. `npm run pano` checks all three (24+ checks).
+- Checks after this: `npm test` 137, smoke, `npm run plan`, `npm run pano` ALL PASS, look.mjs 0 slow frames.
+
+NOT verified: a real CBCT (does the tooth-band mask find a sensible arch with noise, a
+skull base or a spine in the band? the parabola is one fit for the whole mask), the Windows
+app, a tablet, the clipboard inside the real WebView (only the fallback was tested by
+forcing a refusal), touch dragging on the panoramic, a real mouse drag of the crosshair in
+the slice views moving the marker (the same event, but only `setToolCenter` was tested), the
+look of the plan on a real jaw (only the synthetic phantom). Not built: a curved or
+thicker panoramic setting, implants dragged on the panoramic.
+
 ## Next after surfaces
 
-1. Review Antigravity's GATE report, then put the panoramic view on screen (B1-B3 give
-   the functions): click to move the crosshair, cross-sections, implants drawn on it.
+1. Panoramic is on screen (see above). Still open: real CBCT check.
 2. Real CBCT check (user): triangle count, build time, noisy bone at Smooth 40; implant
    plan on a real jaw.
 3. Cut face is a hollow shell (no cap). Ask the user if it matters.

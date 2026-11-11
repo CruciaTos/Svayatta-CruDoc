@@ -108,6 +108,10 @@ abstract final class DesktopTab {
   /// To-dos and reminders (bills, renewals, jobs for colleagues).
   static const todos = 34;
 
+  /// Desktop Tasks, first tab: every scan, report, plan and lab case in one
+  /// list. Desktop only; the phone's Tasks tab already combines them.
+  static const allTasks = 35;
+
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
   static const reports = 13;
@@ -152,6 +156,7 @@ abstract final class DesktopTab {
     documents => 'Documents',
     charting => 'Charting',
     todos => 'To-do',
+    allTasks => 'All tasks',
     _ => 'Back',
   };
 }

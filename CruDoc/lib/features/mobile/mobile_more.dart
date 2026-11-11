@@ -174,6 +174,8 @@ class MobileMoreScreen extends ConsumerWidget {
     DesktopTab.charting,
     // To-dos are a source on the Tasks tab.
     DesktopTab.todos,
+    // The phone's Tasks tab is already the combined list.
+    DesktopTab.allTasks,
   };
 
   void _open(BuildContext context, int tab) =>

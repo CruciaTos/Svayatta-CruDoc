@@ -16,6 +16,16 @@ bool clinicAllowsDesktopTab(ClinicAccess? access, int tab) {
       tab == DesktopTab.todos) {
     return true;
   }
+  // All tasks lists the clinical sources below, so it opens for anyone who
+  // can open one of them.
+  if (tab == DesktopTab.allTasks) {
+    return const [
+      DesktopTab.worklist,
+      DesktopTab.reports,
+      DesktopTab.treatmentPlans,
+      DesktopTab.labCases,
+    ].any((t) => clinicAllowsDesktopTab(access, t));
+  }
   // Dental and radiology pages read clinical records, except the
   // sterilization log (stock) and the procedure list (clinic settings).
   if (tab == DesktopTab.sterilization) {

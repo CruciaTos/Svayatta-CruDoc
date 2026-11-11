@@ -14,9 +14,11 @@ import { scanKind } from './presets3d.js';
 import { is3dHidden } from './view3d.js';
 import { smoothPath, implantAxis, clearance, safety, tubeMesh, cylinderMesh, planeDistance, NERVE_RADIUS } from './plan.js';
 import { traceCanal, siteMeasure, suggestSize } from './assist.js';
+import { planSummary } from './summary.js';
+import { foundBoxes } from './findings.js';
 
-const NERVE = '#F2C14E';
-const SAFETY = { safe: '#4FB47E', close: '#E8A33D', danger: '#E8674F', unknown: '#9AA4B2' };
+export const NERVE = '#F2C14E';
+export const SAFETY = { safe: '#4FB47E', close: '#E8A33D', danger: '#E8674F', unknown: '#9AA4B2' };
 const SAFETY_TEXT = { safe: 'safe', close: 'close: keep 2 mm', danger: 'too close', unknown: '' };
 const SIDES = [['right', 'Right'], ['left', 'Left']];
 
@@ -297,6 +299,42 @@ function buildPanel() {
     h('div', { class: 'chips' }, suggestBtn, seatBtn, moveBtn, delBtn),
   );
 
+  // Copy summary: the plan as plain text for the patient record. A WebView may refuse the
+  // clipboard: then the text is shown in a box, already selected, to copy by hand.
+  const copyBtn = h('button', { class: 'chip', type: 'button', text: 'Copy summary', title: 'Copy the plan as text for the patient record', onclick: () => copySummary() });
+  const sumBox = h('textarea', { class: 'sumbox', readonly: '', rows: '7', 'aria-label': 'Plan summary' });
+  sumBox.style.display = 'none';
+  sumBox.addEventListener('keydown', (e) => e.stopPropagation());
+  let copiedTimer = 0;
+  const copySummary = async () => {
+    const measures = plan().implants.map((im) => {
+      const m = measureOf(im);
+      return m && m.crest ? m : null;
+    });
+    const text = planSummary(plan(), measures, foundBoxes());
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      sumBox.value = text;
+      sumBox.style.display = '';
+      sumBox.focus();
+      sumBox.select();
+      try {
+        ok = document.execCommand('copy');
+      } catch {
+        ok = false;
+      }
+    }
+    clearTimeout(copiedTimer);
+    if (ok) {
+      sumBox.style.display = 'none';
+      copyBtn.textContent = 'Copied';
+    } else copyBtn.textContent = 'Select and copy below';
+    copiedTimer = setTimeout(() => (copyBtn.textContent = 'Copy summary'), 1600);
+  };
+
   const el = section(
     'Implant plan',
     h('div', { class: 'prow' }, h('label', { text: 'Nerve canal' }), sideSeg.el),
@@ -305,6 +343,8 @@ function buildPanel() {
     h('div', { class: 'prow' }, h('label', { text: 'Implants' }), addBtn),
     implantChips.el,
     detail,
+    h('div', { class: 'chips' }, copyBtn),
+    sumBox,
   );
 
   const render = () => {

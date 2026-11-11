@@ -132,7 +132,7 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
                                   for (var i = 0; i < e.value.length; i++) ...[
                                     if (i > 0)
                                       const CruSeparator(indent: 12 + 24 + 12),
-                                    _TodoRow(
+                                    TodoRow(
                                       todo: e.value[i],
                                       uid: uid,
                                       now: now,
@@ -176,8 +176,14 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
   };
 }
 
-class _TodoRow extends ConsumerWidget {
-  const _TodoRow({required this.todo, required this.uid, required this.now});
+/// One to-do line: tick, title, due and who it is from or for.
+class TodoRow extends ConsumerWidget {
+  const TodoRow({
+    super.key,
+    required this.todo,
+    required this.uid,
+    required this.now,
+  });
 
   final Todo todo;
   final String uid;

@@ -13,6 +13,9 @@ npm run phantom   # generate the synthetic jaw phantom in dev/phantom/
 npm run dev       # dev server; open http://localhost:5173/?base=/dev/phantom/&debug=1
 npm test          # runs node --test "src/*.test.js"
 npm run smoke     # run the Playwright smoke test against the built assets
+npm run plan      # browser check of the implant plan, automatic help and Copy summary
+npm run pano      # browser check of the panoramic view and cross-sections
+node tests/look.mjs # benchmark 3D looks render time
 npm run shot -- 0 # capture a screenshot of the viewer
 npm run responsive # run layout checks across desktop, laptop, and tablet viewports
 ```
@@ -25,19 +28,27 @@ Or, from the project root: `powershell -File tool\build_cbct_viewer.ps1` (runs `
 
 ## Module Map (`cbct_viewer/src/`)
 
+- `arch.js`: Dental arch detection and least-squares curve fitting from tooth-band voxel counts (fit on centred, scaled coordinates; `findArch` runs all at once, `findArchAsync` in slices).
+- `assist.js`: Automatic measurements without AI: canal auto-follow, bone crest/width/height site measurements, implant sizing, dense object detection.
 - `chrome.js`: All the HTML: top bar, viewport frames, right panel, status bar, help sheet. Reads and writes the store only; engine and overlays fill the frames.
 - `core.js`: Shared engine-side singleton plus the geometry helpers every module needs. Written by engine.js; read by overlays, 3D, session.
 - `core.test.js`: Unit tests for geometry helpers, coordinate conversions, bounding box corners, and voxel lookups.
 - `engine.js`: Cornerstone3D: rendering engine, the four viewports, the volume on screen, tools, and applying the store's contrast / slab / tool to the images. Also exposes `setFine3d` for the two-copy (moving / still) render pipeline.
+- `findings.js`: UI section for automatically detected dense objects (metal implants, crowns, fillings) with bounding boxes on slice views and 3D.
 - `fit.js`: The one fit rule, shared with Dart (`lib/features/radiology/cbct/cbct_fit.dart`). A viewport of W x H px showing a plane of u x v mm: the whole plane fits, centred; parallelScale is half the visible height in mm (Cornerstone's unit).
 - `fit.test.js`: Unit tests for camera fitting.
 - `icons.js`: Stroke icons from Lucide (ISC licence).
-- `lod.js`: Level-of-detail manager. `window.__cbct.lod` is the level of the STILL picture: 0 = only the light preview copy, last = the slice views' own full volume (shared, no second copy).
+- `lod.js`: Level of the ray-cast still picture; unused in surface mode.
 - `main.js`: Viewer entry point: mounts chrome, boots Cornerstone3D engine, bridges messages to Flutter, and handles URL query parameters.
+- `mesher.js` (+ `mesher.worker.js`): Surface mesh extraction via marching cubes on a background web worker.
 - `motion.js`: Camera animation helpers — `flyTo()` turns/zooms the camera along the shortest arc (used by gizmo letters and Reset), `smoothZoom()` replaces wheel notch-zoom with a glide that keeps the cursor point in place. Exports `slerp`, `basisOf`, `cameraQuat` for unit tests.
 - `orientation.js`: Orientation letters for a view's four edges (guide A3.8). World axes are DICOM LPS: +x Left, +y Posterior, +z Superior.
 - `orientation.test.js`: Unit tests for orientation letters.
 - `overlays.js`: The numbers and letters around the slice views: orientation letters, slice / window / zoom lines, scale bar, slice scrollbar, and the status-bar readout.
+- `pano.js`: The panoramic view in the Coronal slot: builds it after the full scan arrives (in slices, no freeze), shows it with the cross-section beside it, click / drag / arrow keys move the marker and the crosshair, and the marker follows the crosshair; the nerve canal and implants are drawn on both pictures. Its button sits in the slot's top-right corner.
+- `panoramic.js`: Trilinear voxel sampling, resampled dental arch path with normals, and panoramic / cross-section reconstruction images (`panoramicAsync` builds in slices).
+- `plan.js`: Implant planning geometry: nerve canal spline smoothing, implant axis calculation, clearance distance, safety evaluation, tube/cylinder mesh generation.
+- `planning.js`: Implant planning UI panel: nerve tracing, implant placement/adjustment, distance readout, crest alignment.
 - `presets3d.js`: Transfer-function "looks" for the 3D viewport, one family per scan kind (`dental`, `ct`, `mr`). Pure data functions — `buildLook`, `presetsFor`, `validPreset`, `presetLabel`, `scanKind` — no GPU needed; tested without a browser.
 - `session.js`: How a scan gets on screen without the doctor ever seeing a blank panel: poster pictures first, a small preview volume next, the full volume last, each swap hidden behind a snapshot that fades; also saved view state, loopback server calls, and snapshots.
 - `shims/events.js`: Tiny stand-in for the Node module `events`, which vtk.js needs at load.
@@ -46,7 +57,10 @@ Or, from the project root: `powershell -File tool\build_cbct_viewer.ps1` (runs `
 - `state.test.js`: Unit tests for store mutations, subscriptions, window presets, and preset matching.
 - `styles/tokens.css`: Design tokens (colors, typography, spacing).
 - `styles/viewer.css`: All page styling for the viewer layout, chrome, viewports, panels, and overlays.
-- `view3d.js`: The 3D viewport: transfer-function presets (from `presets3d.js`), the two-copy moving/still pipeline (light copy while moving, sharp copy on still with fade-in), cut at crosshair, the orientation gizmo, the three plane outlines and click-to-place.
+- `steps.js`: `runSync` / `runAsync` drive a generator that yields now and then: the same code runs all at once (tests) or in ~10 ms slices (page).
+- `summary.js`: Plain-text clinical plan summary formatter for patient records (the Copy summary button in `planning.js` uses it).
+- `surface.js`: Surface mesh manager for triangle-mesh 3D rendering of bone, teeth, skin, and tissue presets.
+- `view3d.js`: The 3D viewport: surface mesh rendering or ray-cast transfer-function presets, cut at crosshair, orientation gizmo, plane outlines, and click-to-place.
 
 ## Pack Format
 

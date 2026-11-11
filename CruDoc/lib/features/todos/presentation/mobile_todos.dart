@@ -166,8 +166,9 @@ class _MobileTodoPageState extends ConsumerState<MobileTodoPage> {
   }
 }
 
-/// On the All page: your pinned, overdue and today's to-dos, above the
-/// clinical tasks. Nothing due: nothing shown.
+/// On the All page: the first five open to-dos you made or were given
+/// (pinned, overdue, today, upcoming, no date), above the clinical tasks.
+/// None open: nothing shown.
 class MobileTodoDueGroup extends ConsumerWidget {
   const MobileTodoDueGroup({super.key, required this.onSeeAll});
 
@@ -179,11 +180,13 @@ class MobileTodoDueGroup extends ConsumerWidget {
     final all = ref.watch(myTodosProvider).value ?? const <Todo>[];
     final now = DateTime.now();
     final g = groupTodos(
-      all.where((t) => !t.done && t.assignedTo == uid).toList(),
+      all
+          .where((t) => !t.done && (t.assignedTo == uid || t.createdBy == uid))
+          .toList(),
       uid,
       now,
     );
-    final due = [...g['Pinned']!, ...g['Overdue']!, ...g['Today']!];
+    final due = [for (final l in g.values) ...l];
     if (due.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: CruSpace.s16),

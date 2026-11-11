@@ -60,6 +60,8 @@ void main() {
     expect(study.images.length, 40);
 
     final pack = await ensureCbctPack(study: study, studyDir: dir);
+    expect(pack.meta['kind'], 'dental');
+    expect(pack.meta['modality'], 'CT');
     final g = pack.meta['geometry'] as Map<String, dynamic>;
     expect(g['dims'], [96, 96, 40]);
     expect(

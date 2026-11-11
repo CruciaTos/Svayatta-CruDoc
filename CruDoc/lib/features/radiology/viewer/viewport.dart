@@ -611,13 +611,47 @@ class _RadViewportState extends State<RadViewport>
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     return DragTarget<RadImageDrag>(
       onAcceptWithDetails: (d) => widget.host.dropImage(pane, d.data),
       builder: (context, candidates, _) => LayoutBuilder(
         builder: (context, box) {
           pane.viewport = box.biggest;
-          return MouseRegion(
+          // The frame slider is a sibling of the pointer Listener, not inside it:
+          // the Listener sees every pointer in its subtree and would pan / window
+          // the image while the slider is dragged.
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              _imageArea(candidates),
+              ListenableBuilder(
+                listenable: pane,
+                builder: (context, _) {
+                  if (pane.imageId.isEmpty ||
+                      pane.error != null ||
+                      pane.px == null ||
+                      pane.sliceCount <= 1) {
+                    return const SizedBox.shrink();
+                  }
+                  return Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: CruSpace.s10,
+                    child: Center(
+                      child: _FrameSlider(pane: pane, host: widget.host),
+                    ),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _imageArea(List<RadImageDrag?> candidates) {
+    final c = context.cru;
+    return MouseRegion(
             cursor: _cursor,
             onExit: (_) {
               pane.cursor = null;
@@ -691,9 +725,6 @@ class _RadViewportState extends State<RadViewport>
               ),
             ),
           );
-        },
-      ),
-    );
   }
 }
 
@@ -1146,15 +1177,6 @@ class _Corners extends StatelessWidget {
                 ],
               ),
             ),
-            if (pane.sliceCount > 1)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: CruSpace.s10,
-                child: Center(
-                  child: _FrameSlider(pane: pane, host: host),
-                ),
-              ),
           ],
         );
       },

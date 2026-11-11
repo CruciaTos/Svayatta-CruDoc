@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/explain3d/dental3d_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/chart_legend.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_3d.dart';
@@ -16,6 +17,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/tooth
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_view.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Opens the patient's Charting on its Teeth tab.
@@ -250,6 +252,22 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
           segments: const [CruSegment(false, 'Chart'), CruSegment(true, '3D')],
           selected: _threeD,
           onChanged: (v) => setState(() => _threeD = v),
+        ),
+        CruButton(
+          label: 'Show patient',
+          icon: RadIcons.cube,
+          kind: CruButtonKind.secondary,
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => Theme(
+                data: Theme.of(context),
+                child: Dental3dScreen(
+                  patientId: p.id,
+                  patientName: p.fullName,
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );

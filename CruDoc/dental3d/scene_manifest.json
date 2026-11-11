@@ -1,0 +1,5260 @@
+{
+ "version": 1,
+ "subject": "Human permanent dentition - 32 FDI teeth, pulp, gums, jaw bone",
+ "units": "mm",
+ "axes": {
+  "x": "patient left (+)",
+  "y": "up (+)",
+  "z": "anterior (+)",
+  "occlusalPlane": "y = 0"
+ },
+ "pivotRule": "Every tooth node origin is the cervical centre: the point on the long axis at the cemento-enamel junction (CEJ). The root goes to local -Y, the crown to local +Y.",
+ "localFrame": {
+  "viewer": "+Y = coronal (root -> crown), +Z = facial (lip/cheek side), +X = mesial when mesialSign = +1, distal when -1",
+  "blender": "+Z = coronal, -Y = facial, +X = mesial when mesialSign = +1, distal when -1 (glTF export with +Y up converts this to the viewer frame)",
+  "crownRegion": "local y in [0, dims.crownHeight]; root region local y in [-dims.rootLength, 0]"
+ },
+ "archFormula": {
+  "form": "x = a*sin(u)^(2/p); z = zFront - b*(1 - cos(u)^(2/p)); u in [0, pi/2]; straight tail after the widest point",
+  "passesThrough": "crown centre at 0.6 of crown height",
+  "placement": "tooth i sits at arc length sum(md of teeth before it) + md/2 from the midline; right side is the mirror (x -> -x)",
+  "upper": {
+   "a": 25.4,
+   "b": 53,
+   "p": 2.3,
+   "zFront": 28
+  },
+  "lower": {
+   "a": 23.4,
+   "b": 51,
+   "p": 2.25,
+   "zFront": 24.6
+  }
+ },
+ "jawHinge": {
+  "appliesTo": "arch_lower",
+  "point": [
+   0,
+   32,
+   -62
+  ],
+  "axis": [
+   1,
+   0,
+   0
+  ],
+  "maxOpenDeg": 26
+ },
+ "hierarchy": {
+  "subject": {
+   "arch_upper": [
+    "gum_upper",
+    "bone_upper",
+    "tooth_11",
+    "tooth_12",
+    "tooth_13",
+    "tooth_14",
+    "tooth_15",
+    "tooth_16",
+    "tooth_17",
+    "tooth_18",
+    "tooth_21",
+    "tooth_22",
+    "tooth_23",
+    "tooth_24",
+    "tooth_25",
+    "tooth_26",
+    "tooth_27",
+    "tooth_28"
+   ],
+   "jaw_hinge": {
+    "arch_lower": [
+     "gum_lower",
+     "bone_lower",
+     "tooth_31",
+     "tooth_32",
+     "tooth_33",
+     "tooth_34",
+     "tooth_35",
+     "tooth_36",
+     "tooth_37",
+     "tooth_38",
+     "tooth_41",
+     "tooth_42",
+     "tooth_43",
+     "tooth_44",
+     "tooth_45",
+     "tooth_46",
+     "tooth_47",
+     "tooth_48"
+    ]
+   },
+   "templates": [
+    "tpl_implant_fixture",
+    "tpl_implant_abutment",
+    "tpl_healing_cap",
+    "tpl_bracket",
+    "tpl_post"
+   ]
+  }
+ },
+ "toothTypes": {
+  "U1": {
+   "name": "Central Incisor",
+   "cls": "incisor",
+   "crownHeight": 10.5,
+   "rootLength": 13,
+   "md": 8.5,
+   "bl": 7,
+   "cervMd": 7,
+   "cervBl": 6,
+   "roots": 1,
+   "cusps": 0
+  },
+  "U2": {
+   "name": "Lateral Incisor",
+   "cls": "incisor",
+   "crownHeight": 9,
+   "rootLength": 13,
+   "md": 6.5,
+   "bl": 6,
+   "cervMd": 5,
+   "cervBl": 5,
+   "roots": 1,
+   "cusps": 0
+  },
+  "U3": {
+   "name": "Canine",
+   "cls": "canine",
+   "crownHeight": 10,
+   "rootLength": 17,
+   "md": 7.5,
+   "bl": 8,
+   "cervMd": 5.5,
+   "cervBl": 7,
+   "roots": 1,
+   "cusps": 1
+  },
+  "U4": {
+   "name": "First Premolar",
+   "cls": "premolar",
+   "crownHeight": 8.5,
+   "rootLength": 14,
+   "md": 7,
+   "bl": 9,
+   "cervMd": 5,
+   "cervBl": 8,
+   "roots": 2,
+   "cusps": 2
+  },
+  "U5": {
+   "name": "Second Premolar",
+   "cls": "premolar",
+   "crownHeight": 8.5,
+   "rootLength": 14,
+   "md": 7,
+   "bl": 9,
+   "cervMd": 5,
+   "cervBl": 8,
+   "roots": 1,
+   "cusps": 2
+  },
+  "U6": {
+   "name": "First Molar",
+   "cls": "molar",
+   "crownHeight": 7.5,
+   "rootLength": 12.5,
+   "md": 10,
+   "bl": 11,
+   "cervMd": 8,
+   "cervBl": 10,
+   "roots": 3,
+   "cusps": 4
+  },
+  "U7": {
+   "name": "Second Molar",
+   "cls": "molar",
+   "crownHeight": 7,
+   "rootLength": 11.5,
+   "md": 9,
+   "bl": 11,
+   "cervMd": 7,
+   "cervBl": 10,
+   "roots": 3,
+   "cusps": 4
+  },
+  "U8": {
+   "name": "Third Molar",
+   "cls": "molar",
+   "crownHeight": 6.5,
+   "rootLength": 11,
+   "md": 8.5,
+   "bl": 10,
+   "cervMd": 6.5,
+   "cervBl": 9.5,
+   "roots": 3,
+   "cusps": 3
+  },
+  "L1": {
+   "name": "Central Incisor",
+   "cls": "incisor",
+   "crownHeight": 9,
+   "rootLength": 12.5,
+   "md": 5,
+   "bl": 6,
+   "cervMd": 3.5,
+   "cervBl": 5.3,
+   "roots": 1,
+   "cusps": 0
+  },
+  "L2": {
+   "name": "Lateral Incisor",
+   "cls": "incisor",
+   "crownHeight": 9.5,
+   "rootLength": 14,
+   "md": 5.5,
+   "bl": 6.5,
+   "cervMd": 4,
+   "cervBl": 5.8,
+   "roots": 1,
+   "cusps": 0
+  },
+  "L3": {
+   "name": "Canine",
+   "cls": "canine",
+   "crownHeight": 11,
+   "rootLength": 16,
+   "md": 7,
+   "bl": 7.5,
+   "cervMd": 5.5,
+   "cervBl": 7,
+   "roots": 1,
+   "cusps": 1
+  },
+  "L4": {
+   "name": "First Premolar",
+   "cls": "premolar",
+   "crownHeight": 8.5,
+   "rootLength": 14,
+   "md": 7,
+   "bl": 7.5,
+   "cervMd": 5,
+   "cervBl": 6.5,
+   "roots": 1,
+   "cusps": 2
+  },
+  "L5": {
+   "name": "Second Premolar",
+   "cls": "premolar",
+   "crownHeight": 8,
+   "rootLength": 14.5,
+   "md": 7,
+   "bl": 8,
+   "cervMd": 5,
+   "cervBl": 7,
+   "roots": 1,
+   "cusps": 3
+  },
+  "L6": {
+   "name": "First Molar",
+   "cls": "molar",
+   "crownHeight": 7.5,
+   "rootLength": 14,
+   "md": 11,
+   "bl": 10.5,
+   "cervMd": 9,
+   "cervBl": 9,
+   "roots": 2,
+   "cusps": 5
+  },
+  "L7": {
+   "name": "Second Molar",
+   "cls": "molar",
+   "crownHeight": 7,
+   "rootLength": 13,
+   "md": 10.5,
+   "bl": 10,
+   "cervMd": 8,
+   "cervBl": 9,
+   "roots": 2,
+   "cusps": 4
+  },
+  "L8": {
+   "name": "Third Molar",
+   "cls": "molar",
+   "crownHeight": 7,
+   "rootLength": 11,
+   "md": 10,
+   "bl": 9.5,
+   "cervMd": 7.5,
+   "cervBl": 9,
+   "roots": 2,
+   "cusps": 4
+  }
+ },
+ "templates": [
+  {
+   "nodeId": "tpl_implant_fixture",
+   "displayName": "Implant fixture",
+   "note": "Threaded titanium screw. Origin at the platform centre (top), body along -Y (viewer) / -Z (Blender). Length 11.5, platform diameter 4.1."
+  },
+  {
+   "nodeId": "tpl_implant_abutment",
+   "displayName": "Implant abutment",
+   "note": "Tapered titanium post. Origin at its base centre, rises along +Y (viewer). Height 5.5, base diameter 4.1, top diameter 2.8, small collar."
+  },
+  {
+   "nodeId": "tpl_healing_cap",
+   "displayName": "Healing cap",
+   "note": "Short dome cap. Origin at base centre, height 3, diameter 4.6."
+  },
+  {
+   "nodeId": "tpl_bracket",
+   "displayName": "Orthodontic bracket",
+   "note": "Twin bracket with base pad, four tie wings and a horizontal archwire slot. Origin at the centre of the pad back face; pad lies in the local XY plane (viewer), bracket projects to +Z by 1.9. Pad 3.2 wide (X) by 2.8 tall (Y). Slot runs along X."
+  },
+  {
+   "nodeId": "tpl_post",
+   "displayName": "Root canal post",
+   "note": "Tapered fibre post. Origin at the top centre, runs along -Y (viewer). Length 9, top diameter 1.5, tip diameter 0.9."
+  }
+ ],
+ "parts": [
+  {
+   "nodeId": "tooth_11",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 11,
+   "quadrant": 1,
+   "index": 1,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U1",
+   "toothClass": "incisor",
+   "displayName": "Upper Right Central Incisor",
+   "category": "incisor",
+   "position": [
+    -4.097,
+    8.653,
+    25.453
+   ],
+   "quaternion": [
+    -0.103715,
+    0.175303,
+    0.979002,
+    -0.008158
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.98,
+     0,
+     -0.2
+    ],
+    "facial": [
+     -0.2,
+     0,
+     0.98
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.02,
+     -0.938,
+     0.345
+    ]
+   },
+   "dims": {
+    "crownHeight": 10.5,
+    "rootLength": 13,
+    "md": 8.5,
+    "bl": 7,
+    "cervMd": 7,
+    "cervBl": 6,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 20,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     -0.978,
+     0.206,
+     -0.02,
+     -4.097
+    ],
+    [
+     0.2,
+     0.917,
+     -0.345,
+     -25.453
+    ],
+    [
+     -0.052,
+     -0.342,
+     -0.938,
+     8.653
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -1.604,
+    10,
+    7.838
+   ],
+   "cameraFocusOffset": [
+    -8.822,
+    -9,
+    43.107
+   ],
+   "children": [
+    "pulp_11"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_11",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_11",
+   "fdi": 11,
+   "displayName": "Upper Right Central Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -8.822,
+    -9,
+    43.107
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_12",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 12,
+   "quadrant": 1,
+   "index": 2,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U2",
+   "toothClass": "incisor",
+   "displayName": "Upper Right Lateral Incisor",
+   "category": "incisor",
+   "position": [
+    -10.386,
+    7.913,
+    22.856
+   ],
+   "quaternion": [
+    -0.324339,
+    0.164546,
+    0.931519,
+    0.001186
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.794,
+     0,
+     -0.608
+    ],
+    "facial": [
+     -0.608,
+     0,
+     0.794
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.109,
+     -0.946,
+     0.306
+    ]
+   },
+   "dims": {
+    "crownHeight": 9,
+    "rootLength": 13,
+    "md": 6.5,
+    "bl": 6,
+    "cervMd": 5,
+    "cervBl": 5,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 18,
+    "tipDeg": 6
+   },
+   "blenderMatrix": [
+    [
+     -0.79,
+     0.604,
+     -0.109,
+     -10.386
+    ],
+    [
+     0.605,
+     0.735,
+     -0.306,
+     -22.856
+    ],
+    [
+     -0.105,
+     -0.307,
+     -0.946,
+     7.913
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -4.864,
+    10,
+    6.352
+   ],
+   "cameraFocusOffset": [
+    -26.751,
+    -9,
+    34.934
+   ],
+   "children": [
+    "pulp_12"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_12",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_12",
+   "fdi": 12,
+   "displayName": "Upper Right Lateral Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -26.751,
+    -9,
+    34.934
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_13",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 13,
+   "quadrant": 1,
+   "index": 3,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U3",
+   "toothClass": "canine",
+   "displayName": "Upper Right Canine",
+   "category": "canine",
+   "position": [
+    -15.152,
+    8.709,
+    18.126
+   ],
+   "quaternion": [
+    -0.461449,
+    0.120562,
+    0.878916,
+    -0.006032
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.578,
+     0,
+     -0.816
+    ],
+    "facial": [
+     -0.816,
+     0,
+     0.578
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.101,
+     -0.971,
+     0.217
+    ]
+   },
+   "dims": {
+    "crownHeight": 10,
+    "rootLength": 17,
+    "md": 7.5,
+    "bl": 8,
+    "cervMd": 5.5,
+    "cervBl": 7,
+    "roots": 1,
+    "cusps": 1
+   },
+   "inclination": {
+    "torqueDeg": 12,
+    "tipDeg": 7
+   },
+   "blenderMatrix": [
+    [
+     -0.574,
+     0.813,
+     -0.101,
+     -15.152
+    ],
+    [
+     0.81,
+     0.545,
+     -0.217,
+     -18.126
+    ],
+    [
+     -0.122,
+     -0.206,
+     -0.971,
+     8.709
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -6.526,
+    10,
+    4.627
+   ],
+   "cameraFocusOffset": [
+    -35.894,
+    -9,
+    25.448
+   ],
+   "children": [
+    "pulp_13"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_13",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_13",
+   "fdi": 13,
+   "displayName": "Upper Right Canine - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -35.894,
+    -9,
+    25.448
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_14",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 14,
+   "quadrant": 1,
+   "index": 4,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U4",
+   "toothClass": "premolar",
+   "displayName": "Upper Right First Premolar",
+   "category": "premolar",
+   "position": [
+    -19.044,
+    7.674,
+    12.81
+   ],
+   "quaternion": [
+    -0.544351,
+    0.038766,
+    0.83795,
+    0.004359
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.408,
+     0,
+     -0.913
+    ],
+    "facial": [
+     -0.913,
+     0,
+     0.408
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.05,
+     -0.997,
+     0.06
+    ]
+   },
+   "dims": {
+    "crownHeight": 8.5,
+    "rootLength": 14,
+    "md": 7,
+    "bl": 9,
+    "cervMd": 5,
+    "cervBl": 8,
+    "roots": 2,
+    "cusps": 2
+   },
+   "inclination": {
+    "torqueDeg": 4,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     -0.407,
+     0.912,
+     -0.05,
+     -19.044
+    ],
+    [
+     0.913,
+     0.404,
+     -0.06,
+     -12.81
+    ],
+    [
+     -0.035,
+     -0.07,
+     -0.997,
+     7.674
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.305,
+    10,
+    3.261
+   ],
+   "cameraFocusOffset": [
+    -40.18,
+    -9,
+    17.933
+   ],
+   "children": [
+    "pulp_14"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_14",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_14",
+   "fdi": 14,
+   "displayName": "Upper Right First Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -40.18,
+    -9,
+    17.933
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_15",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 15,
+   "quadrant": 1,
+   "index": 5,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U5",
+   "toothClass": "premolar",
+   "displayName": "Upper Right Second Premolar",
+   "category": "premolar",
+   "position": [
+    -21.502,
+    7.683,
+    6.303
+   ],
+   "quaternion": [
+    -0.597174,
+    0.031412,
+    0.801494,
+    0.001633
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.287,
+     0,
+     -0.958
+    ],
+    "facial": [
+     -0.958,
+     0,
+     0.287
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.04,
+     -0.998,
+     0.048
+    ]
+   },
+   "dims": {
+    "crownHeight": 8.5,
+    "rootLength": 14,
+    "md": 7,
+    "bl": 9,
+    "cervMd": 5,
+    "cervBl": 8,
+    "roots": 1,
+    "cusps": 2
+   },
+   "inclination": {
+    "torqueDeg": 3,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     -0.287,
+     0.957,
+     -0.04,
+     -21.502
+    ],
+    [
+     0.957,
+     0.285,
+     -0.048,
+     -6.303
+    ],
+    [
+     -0.035,
+     -0.052,
+     -0.998,
+     7.683
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.664,
+    10,
+    2.295
+   ],
+   "cameraFocusOffset": [
+    -42.15,
+    -9,
+    12.625
+   ],
+   "children": [
+    "pulp_15"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_15",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_15",
+   "fdi": 15,
+   "displayName": "Upper Right Second Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -42.15,
+    -9,
+    12.625
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_16",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 16,
+   "quadrant": 1,
+   "index": 6,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U6",
+   "toothClass": "molar",
+   "displayName": "Upper Right First Molar",
+   "category": "molar",
+   "position": [
+    -23.391,
+    6.671,
+    -2.005
+   ],
+   "quaternion": [
+    -0.641362,
+    0.043546,
+    0.765998,
+    0.002299
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.178,
+     0,
+     -0.984
+    ],
+    "facial": [
+     -0.984,
+     0,
+     0.178
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.059,
+     -0.996,
+     0.064
+    ]
+   },
+   "dims": {
+    "crownHeight": 7.5,
+    "rootLength": 12.5,
+    "md": 10,
+    "bl": 11,
+    "cervMd": 8,
+    "cervBl": 10,
+    "roots": 3,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": 4,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     -0.177,
+     0.982,
+     -0.059,
+     -23.391
+    ],
+    [
+     0.983,
+     0.174,
+     -0.064,
+     2.005
+    ],
+    [
+     -0.052,
+     -0.07,
+     -0.996,
+     6.671
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.873,
+    10,
+    1.42
+   ],
+   "cameraFocusOffset": [
+    -43.301,
+    -9,
+    7.812
+   ],
+   "children": [
+    "pulp_16"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_16",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_16",
+   "fdi": 16,
+   "displayName": "Upper Right First Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -43.301,
+    -9,
+    7.812
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_17",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 17,
+   "quadrant": 1,
+   "index": 7,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U7",
+   "toothClass": "molar",
+   "displayName": "Upper Right Second Molar",
+   "category": "molar",
+   "position": [
+    -24.615,
+    6.373,
+    -11.379
+   ],
+   "quaternion": [
+    -0.676126,
+    0.043393,
+    0.735495,
+    0.004312
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.086,
+     0,
+     -0.996
+    ],
+    "facial": [
+     -0.996,
+     0,
+     0.086
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.065,
+     -0.996,
+     0.058
+    ]
+   },
+   "dims": {
+    "crownHeight": 7,
+    "rootLength": 11.5,
+    "md": 9,
+    "bl": 11,
+    "cervMd": 7,
+    "cervBl": 10,
+    "roots": 3,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": 4,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     -0.086,
+     0.994,
+     -0.065,
+     -24.615
+    ],
+    [
+     0.995,
+     0.082,
+     -0.058,
+     11.379
+    ],
+    [
+     -0.052,
+     -0.07,
+     -0.996,
+     6.373
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.971,
+    10,
+    0.686
+   ],
+   "cameraFocusOffset": [
+    -43.838,
+    -9,
+    3.775
+   ],
+   "children": [
+    "pulp_17"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_17",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_17",
+   "fdi": 17,
+   "displayName": "Upper Right Second Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -43.838,
+    -9,
+    3.775
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_18",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 18,
+   "quadrant": 1,
+   "index": 8,
+   "arch": "upper",
+   "side": "right",
+   "typeId": "U8",
+   "toothClass": "molar",
+   "displayName": "Upper Right Third Molar",
+   "category": "molar",
+   "position": [
+    -24.944,
+    6.26,
+    -20.016
+   ],
+   "quaternion": [
+    -0.698489,
+    0.049607,
+    0.713492,
+    0.024107
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     -0.023,
+     0,
+     -1
+    ],
+    "facial": [
+     -1,
+     0,
+     0.023
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     -0.104,
+     -0.994,
+     0.037
+    ]
+   },
+   "dims": {
+    "crownHeight": 6.5,
+    "rootLength": 11,
+    "md": 8.5,
+    "bl": 10,
+    "cervMd": 6.5,
+    "cervBl": 9.5,
+    "roots": 3,
+    "cusps": 3
+   },
+   "inclination": {
+    "torqueDeg": 6,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     -0.023,
+     0.994,
+     -0.104,
+     -24.944
+    ],
+    [
+     0.999,
+     0.019,
+     -0.037,
+     20.016
+    ],
+    [
+     -0.035,
+     -0.104,
+     -0.994,
+     6.26
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.998,
+    10,
+    0.185
+   ],
+   "cameraFocusOffset": [
+    -43.988,
+    -9,
+    1.015
+   ],
+   "children": [
+    "pulp_18"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_18",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_18",
+   "fdi": 18,
+   "displayName": "Upper Right Third Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -43.988,
+    -9,
+    1.015
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_21",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 21,
+   "quadrant": 2,
+   "index": 1,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U1",
+   "toothClass": "incisor",
+   "displayName": "Upper Left Central Incisor",
+   "category": "incisor",
+   "position": [
+    4.097,
+    8.653,
+    25.453
+   ],
+   "quaternion": [
+    0.103715,
+    0.175303,
+    0.979002,
+    0.008158
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.98,
+     0,
+     -0.2
+    ],
+    "facial": [
+     0.2,
+     0,
+     0.98
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.02,
+     -0.938,
+     0.345
+    ]
+   },
+   "dims": {
+    "crownHeight": 10.5,
+    "rootLength": 13,
+    "md": 8.5,
+    "bl": 7,
+    "cervMd": 7,
+    "cervBl": 6,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 20,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     -0.978,
+     -0.206,
+     0.02,
+     4.097
+    ],
+    [
+     -0.2,
+     0.917,
+     -0.345,
+     -25.453
+    ],
+    [
+     0.052,
+     -0.342,
+     -0.938,
+     8.653
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    1.604,
+    10,
+    7.838
+   ],
+   "cameraFocusOffset": [
+    8.822,
+    -9,
+    43.107
+   ],
+   "children": [
+    "pulp_21"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_21",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_21",
+   "fdi": 21,
+   "displayName": "Upper Left Central Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    8.822,
+    -9,
+    43.107
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_22",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 22,
+   "quadrant": 2,
+   "index": 2,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U2",
+   "toothClass": "incisor",
+   "displayName": "Upper Left Lateral Incisor",
+   "category": "incisor",
+   "position": [
+    10.386,
+    7.913,
+    22.856
+   ],
+   "quaternion": [
+    0.324339,
+    0.164546,
+    0.931519,
+    -0.001186
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.794,
+     0,
+     -0.608
+    ],
+    "facial": [
+     0.608,
+     0,
+     0.794
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.109,
+     -0.946,
+     0.306
+    ]
+   },
+   "dims": {
+    "crownHeight": 9,
+    "rootLength": 13,
+    "md": 6.5,
+    "bl": 6,
+    "cervMd": 5,
+    "cervBl": 5,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 18,
+    "tipDeg": 6
+   },
+   "blenderMatrix": [
+    [
+     -0.79,
+     -0.604,
+     0.109,
+     10.386
+    ],
+    [
+     -0.605,
+     0.735,
+     -0.306,
+     -22.856
+    ],
+    [
+     0.105,
+     -0.307,
+     -0.946,
+     7.913
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    4.864,
+    10,
+    6.352
+   ],
+   "cameraFocusOffset": [
+    26.751,
+    -9,
+    34.934
+   ],
+   "children": [
+    "pulp_22"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_22",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_22",
+   "fdi": 22,
+   "displayName": "Upper Left Lateral Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    26.751,
+    -9,
+    34.934
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_23",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 23,
+   "quadrant": 2,
+   "index": 3,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U3",
+   "toothClass": "canine",
+   "displayName": "Upper Left Canine",
+   "category": "canine",
+   "position": [
+    15.152,
+    8.709,
+    18.126
+   ],
+   "quaternion": [
+    0.461449,
+    0.120562,
+    0.878916,
+    0.006032
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.578,
+     0,
+     -0.816
+    ],
+    "facial": [
+     0.816,
+     0,
+     0.578
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.101,
+     -0.971,
+     0.217
+    ]
+   },
+   "dims": {
+    "crownHeight": 10,
+    "rootLength": 17,
+    "md": 7.5,
+    "bl": 8,
+    "cervMd": 5.5,
+    "cervBl": 7,
+    "roots": 1,
+    "cusps": 1
+   },
+   "inclination": {
+    "torqueDeg": 12,
+    "tipDeg": 7
+   },
+   "blenderMatrix": [
+    [
+     -0.574,
+     -0.813,
+     0.101,
+     15.152
+    ],
+    [
+     -0.81,
+     0.545,
+     -0.217,
+     -18.126
+    ],
+    [
+     0.122,
+     -0.206,
+     -0.971,
+     8.709
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    6.526,
+    10,
+    4.627
+   ],
+   "cameraFocusOffset": [
+    35.894,
+    -9,
+    25.448
+   ],
+   "children": [
+    "pulp_23"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_23",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_23",
+   "fdi": 23,
+   "displayName": "Upper Left Canine - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    35.894,
+    -9,
+    25.448
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_24",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 24,
+   "quadrant": 2,
+   "index": 4,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U4",
+   "toothClass": "premolar",
+   "displayName": "Upper Left First Premolar",
+   "category": "premolar",
+   "position": [
+    19.044,
+    7.674,
+    12.81
+   ],
+   "quaternion": [
+    0.544351,
+    0.038766,
+    0.83795,
+    -0.004359
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.408,
+     0,
+     -0.913
+    ],
+    "facial": [
+     0.913,
+     0,
+     0.408
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.05,
+     -0.997,
+     0.06
+    ]
+   },
+   "dims": {
+    "crownHeight": 8.5,
+    "rootLength": 14,
+    "md": 7,
+    "bl": 9,
+    "cervMd": 5,
+    "cervBl": 8,
+    "roots": 2,
+    "cusps": 2
+   },
+   "inclination": {
+    "torqueDeg": 4,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     -0.407,
+     -0.912,
+     0.05,
+     19.044
+    ],
+    [
+     -0.913,
+     0.404,
+     -0.06,
+     -12.81
+    ],
+    [
+     0.035,
+     -0.07,
+     -0.997,
+     7.674
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.305,
+    10,
+    3.261
+   ],
+   "cameraFocusOffset": [
+    40.18,
+    -9,
+    17.933
+   ],
+   "children": [
+    "pulp_24"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_24",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_24",
+   "fdi": 24,
+   "displayName": "Upper Left First Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    40.18,
+    -9,
+    17.933
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_25",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 25,
+   "quadrant": 2,
+   "index": 5,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U5",
+   "toothClass": "premolar",
+   "displayName": "Upper Left Second Premolar",
+   "category": "premolar",
+   "position": [
+    21.502,
+    7.683,
+    6.303
+   ],
+   "quaternion": [
+    0.597174,
+    0.031412,
+    0.801494,
+    -0.001633
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.287,
+     0,
+     -0.958
+    ],
+    "facial": [
+     0.958,
+     0,
+     0.287
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.04,
+     -0.998,
+     0.048
+    ]
+   },
+   "dims": {
+    "crownHeight": 8.5,
+    "rootLength": 14,
+    "md": 7,
+    "bl": 9,
+    "cervMd": 5,
+    "cervBl": 8,
+    "roots": 1,
+    "cusps": 2
+   },
+   "inclination": {
+    "torqueDeg": 3,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     -0.287,
+     -0.957,
+     0.04,
+     21.502
+    ],
+    [
+     -0.957,
+     0.285,
+     -0.048,
+     -6.303
+    ],
+    [
+     0.035,
+     -0.052,
+     -0.998,
+     7.683
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.664,
+    10,
+    2.295
+   ],
+   "cameraFocusOffset": [
+    42.15,
+    -9,
+    12.625
+   ],
+   "children": [
+    "pulp_25"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_25",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_25",
+   "fdi": 25,
+   "displayName": "Upper Left Second Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    42.15,
+    -9,
+    12.625
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_26",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 26,
+   "quadrant": 2,
+   "index": 6,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U6",
+   "toothClass": "molar",
+   "displayName": "Upper Left First Molar",
+   "category": "molar",
+   "position": [
+    23.391,
+    6.671,
+    -2.005
+   ],
+   "quaternion": [
+    0.641362,
+    0.043546,
+    0.765998,
+    -0.002299
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.178,
+     0,
+     -0.984
+    ],
+    "facial": [
+     0.984,
+     0,
+     0.178
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.059,
+     -0.996,
+     0.064
+    ]
+   },
+   "dims": {
+    "crownHeight": 7.5,
+    "rootLength": 12.5,
+    "md": 10,
+    "bl": 11,
+    "cervMd": 8,
+    "cervBl": 10,
+    "roots": 3,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": 4,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     -0.177,
+     -0.982,
+     0.059,
+     23.391
+    ],
+    [
+     -0.983,
+     0.174,
+     -0.064,
+     2.005
+    ],
+    [
+     0.052,
+     -0.07,
+     -0.996,
+     6.671
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.873,
+    10,
+    1.42
+   ],
+   "cameraFocusOffset": [
+    43.301,
+    -9,
+    7.812
+   ],
+   "children": [
+    "pulp_26"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_26",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_26",
+   "fdi": 26,
+   "displayName": "Upper Left First Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    43.301,
+    -9,
+    7.812
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_27",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 27,
+   "quadrant": 2,
+   "index": 7,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U7",
+   "toothClass": "molar",
+   "displayName": "Upper Left Second Molar",
+   "category": "molar",
+   "position": [
+    24.615,
+    6.373,
+    -11.379
+   ],
+   "quaternion": [
+    0.676126,
+    0.043393,
+    0.735495,
+    -0.004312
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.086,
+     0,
+     -0.996
+    ],
+    "facial": [
+     0.996,
+     0,
+     0.086
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.065,
+     -0.996,
+     0.058
+    ]
+   },
+   "dims": {
+    "crownHeight": 7,
+    "rootLength": 11.5,
+    "md": 9,
+    "bl": 11,
+    "cervMd": 7,
+    "cervBl": 10,
+    "roots": 3,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": 4,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     -0.086,
+     -0.994,
+     0.065,
+     24.615
+    ],
+    [
+     -0.995,
+     0.082,
+     -0.058,
+     11.379
+    ],
+    [
+     0.052,
+     -0.07,
+     -0.996,
+     6.373
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.971,
+    10,
+    0.686
+   ],
+   "cameraFocusOffset": [
+    43.838,
+    -9,
+    3.775
+   ],
+   "children": [
+    "pulp_27"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_27",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_27",
+   "fdi": 27,
+   "displayName": "Upper Left Second Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    43.838,
+    -9,
+    3.775
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_28",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_upper",
+   "fdi": 28,
+   "quadrant": 2,
+   "index": 8,
+   "arch": "upper",
+   "side": "left",
+   "typeId": "U8",
+   "toothClass": "molar",
+   "displayName": "Upper Left Third Molar",
+   "category": "molar",
+   "position": [
+    24.944,
+    6.26,
+    -20.016
+   ],
+   "quaternion": [
+    0.698489,
+    0.049607,
+    0.713492,
+    -0.024107
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     0.023,
+     0,
+     -1
+    ],
+    "facial": [
+     1,
+     0,
+     0.023
+    ],
+    "coronal": [
+     0,
+     -1,
+     0
+    ],
+    "longAxis": [
+     0.104,
+     -0.994,
+     0.037
+    ]
+   },
+   "dims": {
+    "crownHeight": 6.5,
+    "rootLength": 11,
+    "md": 8.5,
+    "bl": 10,
+    "cervMd": 6.5,
+    "cervBl": 9.5,
+    "roots": 3,
+    "cusps": 3
+   },
+   "inclination": {
+    "torqueDeg": 6,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     -0.023,
+     -0.994,
+     0.104,
+     24.944
+    ],
+    [
+     -0.999,
+     0.019,
+     -0.037,
+     20.016
+    ],
+    [
+     0.035,
+     -0.104,
+     -0.994,
+     6.26
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.998,
+    10,
+    0.185
+   ],
+   "cameraFocusOffset": [
+    43.988,
+    -9,
+    1.015
+   ],
+   "children": [
+    "pulp_28"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_28",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_28",
+   "fdi": 28,
+   "displayName": "Upper Left Third Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    43.988,
+    -9,
+    1.015
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_31",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 31,
+   "quadrant": 3,
+   "index": 1,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L1",
+   "toothClass": "incisor",
+   "displayName": "Lower Left Central Incisor",
+   "category": "incisor",
+   "position": [
+    2.387,
+    -7.85,
+    22.965
+   ],
+   "quaternion": [
+    0.139435,
+    0.066792,
+    -0.000594,
+    0.987976
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.991,
+     0,
+     -0.132
+    ],
+    "facial": [
+     0.132,
+     0,
+     0.991
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.02,
+     0.961,
+     0.275
+    ]
+   },
+   "dims": {
+    "crownHeight": 9,
+    "rootLength": 12.5,
+    "md": 5,
+    "bl": 6,
+    "cervMd": 3.5,
+    "cervBl": 5.3,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 16,
+    "tipDeg": 1
+   },
+   "blenderMatrix": [
+    [
+     0.991,
+     -0.132,
+     0.02,
+     2.387
+    ],
+    [
+     0.132,
+     0.952,
+     -0.275,
+     -22.965
+    ],
+    [
+     0.017,
+     0.276,
+     0.961,
+     -7.85
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    1.057,
+    -10,
+    7.93
+   ],
+   "cameraFocusOffset": [
+    5.815,
+    9,
+    43.614
+   ],
+   "children": [
+    "pulp_31"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_31",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_31",
+   "fdi": 31,
+   "displayName": "Lower Left Central Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    5.815,
+    9,
+    43.614
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_32",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 32,
+   "quadrant": 3,
+   "index": 2,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L2",
+   "toothClass": "incisor",
+   "displayName": "Lower Left Lateral Incisor",
+   "category": "incisor",
+   "position": [
+    6.919,
+    -8.371,
+    21.446
+   ],
+   "quaternion": [
+    0.130737,
+    0.247037,
+    -0.015465,
+    0.960022
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.878,
+     0,
+     -0.479
+    ],
+    "facial": [
+     0.479,
+     0,
+     0.878
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.094,
+     0.965,
+     0.243
+    ]
+   },
+   "dims": {
+    "crownHeight": 9.5,
+    "rootLength": 14,
+    "md": 5.5,
+    "bl": 6.5,
+    "cervMd": 4,
+    "cervBl": 5.8,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 15,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.877,
+     -0.47,
+     0.094,
+     6.919
+    ],
+    [
+     0.478,
+     0.844,
+     -0.243,
+     -21.446
+    ],
+    [
+     0.035,
+     0.259,
+     0.965,
+     -8.371
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    3.829,
+    -10,
+    7.024
+   ],
+   "cameraFocusOffset": [
+    21.061,
+    9,
+    38.632
+   ],
+   "children": [
+    "pulp_32"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_32",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_32",
+   "fdi": 32,
+   "displayName": "Lower Left Lateral Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    21.061,
+    9,
+    38.632
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_33",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 33,
+   "quadrant": 3,
+   "index": 3,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L3",
+   "toothClass": "canine",
+   "displayName": "Lower Left Canine",
+   "category": "canine",
+   "position": [
+    11.802,
+    -9.938,
+    17.874
+   ],
+   "quaternion": [
+    0.085782,
+    0.411228,
+    -0.000438,
+    0.907487
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.663,
+     0,
+     -0.748
+    ],
+    "facial": [
+     0.748,
+     0,
+     0.663
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.071,
+     0.985,
+     0.155
+    ]
+   },
+   "dims": {
+    "crownHeight": 11,
+    "rootLength": 16,
+    "md": 7,
+    "bl": 7.5,
+    "cervMd": 5.5,
+    "cervBl": 7,
+    "roots": 1,
+    "cusps": 1
+   },
+   "inclination": {
+    "torqueDeg": 9,
+    "tipDeg": 4
+   },
+   "blenderMatrix": [
+    [
+     0.662,
+     -0.746,
+     0.071,
+     11.802
+    ],
+    [
+     0.746,
+     0.647,
+     -0.155,
+     -17.874
+    ],
+    [
+     0.07,
+     0.156,
+     0.985,
+     -9.938
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    5.986,
+    -10,
+    5.307
+   ],
+   "cameraFocusOffset": [
+    32.924,
+    9,
+    29.19
+   ],
+   "children": [
+    "pulp_33"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_33",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_33",
+   "fdi": 33,
+   "displayName": "Lower Left Canine - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    32.924,
+    9,
+    29.19
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_34",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 34,
+   "quadrant": 3,
+   "index": 4,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L4",
+   "toothClass": "premolar",
+   "displayName": "Lower Left First Premolar",
+   "category": "premolar",
+   "position": [
+    16.117,
+    -7.89,
+    12.878
+   ],
+   "quaternion": [
+    0.023952,
+    0.516168,
+    0.005941,
+    0.856132
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.467,
+     0,
+     -0.884
+    ],
+    "facial": [
+     0.884,
+     0,
+     0.467
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.015,
+     0.999,
+     0.047
+    ]
+   },
+   "dims": {
+    "crownHeight": 8.5,
+    "rootLength": 14,
+    "md": 7,
+    "bl": 7.5,
+    "cervMd": 5,
+    "cervBl": 6.5,
+    "roots": 1,
+    "cusps": 2
+   },
+   "inclination": {
+    "torqueDeg": 2,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.467,
+     -0.884,
+     0.015,
+     16.117
+    ],
+    [
+     0.884,
+     0.466,
+     -0.047,
+     -12.878
+    ],
+    [
+     0.035,
+     0.035,
+     0.999,
+     -7.89
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.073,
+    -10,
+    3.739
+   ],
+   "cameraFocusOffset": [
+    38.899,
+    9,
+    20.564
+   ],
+   "children": [
+    "pulp_34"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_34",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_34",
+   "fdi": 34,
+   "displayName": "Lower Left First Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    38.899,
+    9,
+    20.564
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_35",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 35,
+   "quadrant": 3,
+   "index": 5,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L5",
+   "toothClass": "premolar",
+   "displayName": "Lower Left Second Premolar",
+   "category": "premolar",
+   "position": [
+    19.163,
+    -7.39,
+    6.589
+   ],
+   "quaternion": [
+    -0.004111,
+    0.578996,
+    0.024333,
+    0.814957
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.329,
+     0,
+     -0.944
+    ],
+    "facial": [
+     0.944,
+     0,
+     0.329
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.044,
+     0.999,
+     0.021
+    ]
+   },
+   "dims": {
+    "crownHeight": 8,
+    "rootLength": 14.5,
+    "md": 7,
+    "bl": 8,
+    "cervMd": 5,
+    "cervBl": 7,
+    "roots": 1,
+    "cusps": 3
+   },
+   "inclination": {
+    "torqueDeg": -2,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.328,
+     -0.944,
+     -0.044,
+     19.163
+    ],
+    [
+     0.944,
+     0.329,
+     -0.021,
+     -6.589
+    ],
+    [
+     0.035,
+     -0.035,
+     0.999,
+     -7.39
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.556,
+    -10,
+    2.628
+   ],
+   "cameraFocusOffset": [
+    41.558,
+    9,
+    14.456
+   ],
+   "children": [
+    "pulp_35"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_35",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_35",
+   "fdi": 35,
+   "displayName": "Lower Left Second Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    41.558,
+    9,
+    14.456
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_36",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 36,
+   "quadrant": 3,
+   "index": 6,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L6",
+   "toothClass": "molar",
+   "displayName": "Lower Left First Molar",
+   "category": "molar",
+   "position": [
+    21.946,
+    -6.822,
+    -2.014
+   ],
+   "quaternion": [
+    -0.043051,
+    0.62938,
+    0.057569,
+    0.773765
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.201,
+     0,
+     -0.98
+    ],
+    "facial": [
+     0.98,
+     0,
+     0.201
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.143,
+     0.99,
+     0.006
+    ]
+   },
+   "dims": {
+    "crownHeight": 7.5,
+    "rootLength": 14,
+    "md": 11,
+    "bl": 10.5,
+    "cervMd": 9,
+    "cervBl": 9,
+    "roots": 2,
+    "cusps": 5
+   },
+   "inclination": {
+    "torqueDeg": -8,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.201,
+     -0.969,
+     -0.143,
+     21.946
+    ],
+    [
+     0.979,
+     0.204,
+     -0.006,
+     2.014
+    ],
+    [
+     0.035,
+     -0.139,
+     0.99,
+     -6.822
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.836,
+    -10,
+    1.61
+   ],
+   "cameraFocusOffset": [
+    43.1,
+    9,
+    8.855
+   ],
+   "children": [
+    "pulp_36"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_36",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_36",
+   "fdi": 36,
+   "displayName": "Lower Left First Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    43.1,
+    9,
+    8.855
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_37",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 37,
+   "quadrant": 3,
+   "index": 7,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L7",
+   "toothClass": "molar",
+   "displayName": "Lower Left Second Molar",
+   "category": "molar",
+   "position": [
+    23.591,
+    -6.384,
+    -12.77
+   ],
+   "quaternion": [
+    -0.046797,
+    0.669421,
+    0.077981,
+    0.737296
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.092,
+     0,
+     -0.996
+    ],
+    "facial": [
+     0.996,
+     0,
+     0.092
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.178,
+     0.983,
+     0.035
+    ]
+   },
+   "dims": {
+    "crownHeight": 7,
+    "rootLength": 13,
+    "md": 10.5,
+    "bl": 10,
+    "cervMd": 8,
+    "cervBl": 9,
+    "roots": 2,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": -10,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     0.092,
+     -0.98,
+     -0.178,
+     23.591
+    ],
+    [
+     0.994,
+     0.099,
+     -0.035,
+     12.77
+    ],
+    [
+     0.052,
+     -0.173,
+     0.983,
+     -6.384
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.966,
+    -10,
+    0.734
+   ],
+   "cameraFocusOffset": [
+    43.815,
+    9,
+    4.035
+   ],
+   "children": [
+    "pulp_37"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_37",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_37",
+   "fdi": 37,
+   "displayName": "Lower Left Second Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    43.815,
+    9,
+    4.035
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_38",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 38,
+   "quadrant": 3,
+   "index": 8,
+   "arch": "lower",
+   "side": "left",
+   "typeId": "L8",
+   "toothClass": "molar",
+   "displayName": "Lower Left Third Molar",
+   "category": "molar",
+   "position": [
+    24.252,
+    -6.53,
+    -23.127
+   ],
+   "quaternion": [
+    -0.050131,
+    0.694415,
+    0.098002,
+    0.711105
+   ],
+   "mesialSign": -1,
+   "frame": {
+    "tangentDistal": [
+     0.016,
+     0,
+     -1
+    ],
+    "facial": [
+     1,
+     0,
+     0.016
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.209,
+     0.976,
+     0.065
+    ]
+   },
+   "dims": {
+    "crownHeight": 7,
+    "rootLength": 11,
+    "md": 10,
+    "bl": 9.5,
+    "cervMd": 7.5,
+    "cervBl": 9,
+    "roots": 2,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": -12,
+    "tipDeg": 4
+   },
+   "blenderMatrix": [
+    [
+     0.016,
+     -0.978,
+     -0.209,
+     24.252
+    ],
+    [
+     0.997,
+     0.031,
+     -0.065,
+     23.127
+    ],
+    [
+     0.07,
+     -0.207,
+     0.976,
+     -6.53
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    7.999,
+    -10,
+    0.131
+   ],
+   "cameraFocusOffset": [
+    43.994,
+    9,
+    0.722
+   ],
+   "children": [
+    "pulp_38"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_38",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_38",
+   "fdi": 38,
+   "displayName": "Lower Left Third Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    43.994,
+    9,
+    0.722
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_41",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 41,
+   "quadrant": 4,
+   "index": 1,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L1",
+   "toothClass": "incisor",
+   "displayName": "Lower Right Central Incisor",
+   "category": "incisor",
+   "position": [
+    -2.387,
+    -7.85,
+    22.965
+   ],
+   "quaternion": [
+    0.139435,
+    -0.066792,
+    0.000594,
+    0.987976
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.991,
+     0,
+     -0.132
+    ],
+    "facial": [
+     -0.132,
+     0,
+     0.991
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.02,
+     0.961,
+     0.275
+    ]
+   },
+   "dims": {
+    "crownHeight": 9,
+    "rootLength": 12.5,
+    "md": 5,
+    "bl": 6,
+    "cervMd": 3.5,
+    "cervBl": 5.3,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 16,
+    "tipDeg": 1
+   },
+   "blenderMatrix": [
+    [
+     0.991,
+     0.132,
+     -0.02,
+     -2.387
+    ],
+    [
+     -0.132,
+     0.952,
+     -0.275,
+     -22.965
+    ],
+    [
+     -0.017,
+     0.276,
+     0.961,
+     -7.85
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -1.057,
+    -10,
+    7.93
+   ],
+   "cameraFocusOffset": [
+    -5.815,
+    9,
+    43.614
+   ],
+   "children": [
+    "pulp_41"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_41",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_41",
+   "fdi": 41,
+   "displayName": "Lower Right Central Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -5.815,
+    9,
+    43.614
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_42",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 42,
+   "quadrant": 4,
+   "index": 2,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L2",
+   "toothClass": "incisor",
+   "displayName": "Lower Right Lateral Incisor",
+   "category": "incisor",
+   "position": [
+    -6.919,
+    -8.371,
+    21.446
+   ],
+   "quaternion": [
+    0.130737,
+    -0.247037,
+    0.015465,
+    0.960022
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.878,
+     0,
+     -0.479
+    ],
+    "facial": [
+     -0.479,
+     0,
+     0.878
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.094,
+     0.965,
+     0.243
+    ]
+   },
+   "dims": {
+    "crownHeight": 9.5,
+    "rootLength": 14,
+    "md": 5.5,
+    "bl": 6.5,
+    "cervMd": 4,
+    "cervBl": 5.8,
+    "roots": 1,
+    "cusps": 0
+   },
+   "inclination": {
+    "torqueDeg": 15,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.877,
+     0.47,
+     -0.094,
+     -6.919
+    ],
+    [
+     -0.478,
+     0.844,
+     -0.243,
+     -21.446
+    ],
+    [
+     -0.035,
+     0.259,
+     0.965,
+     -8.371
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -3.829,
+    -10,
+    7.024
+   ],
+   "cameraFocusOffset": [
+    -21.061,
+    9,
+    38.632
+   ],
+   "children": [
+    "pulp_42"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_42",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_42",
+   "fdi": 42,
+   "displayName": "Lower Right Lateral Incisor - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -21.061,
+    9,
+    38.632
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_43",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 43,
+   "quadrant": 4,
+   "index": 3,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L3",
+   "toothClass": "canine",
+   "displayName": "Lower Right Canine",
+   "category": "canine",
+   "position": [
+    -11.802,
+    -9.938,
+    17.874
+   ],
+   "quaternion": [
+    0.085782,
+    -0.411228,
+    0.000438,
+    0.907487
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.663,
+     0,
+     -0.748
+    ],
+    "facial": [
+     -0.748,
+     0,
+     0.663
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.071,
+     0.985,
+     0.155
+    ]
+   },
+   "dims": {
+    "crownHeight": 11,
+    "rootLength": 16,
+    "md": 7,
+    "bl": 7.5,
+    "cervMd": 5.5,
+    "cervBl": 7,
+    "roots": 1,
+    "cusps": 1
+   },
+   "inclination": {
+    "torqueDeg": 9,
+    "tipDeg": 4
+   },
+   "blenderMatrix": [
+    [
+     0.662,
+     0.746,
+     -0.071,
+     -11.802
+    ],
+    [
+     -0.746,
+     0.647,
+     -0.155,
+     -17.874
+    ],
+    [
+     -0.07,
+     0.156,
+     0.985,
+     -9.938
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -5.986,
+    -10,
+    5.307
+   ],
+   "cameraFocusOffset": [
+    -32.924,
+    9,
+    29.19
+   ],
+   "children": [
+    "pulp_43"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "bonding",
+    "veneer",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_43",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_43",
+   "fdi": 43,
+   "displayName": "Lower Right Canine - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -32.924,
+    9,
+    29.19
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_44",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 44,
+   "quadrant": 4,
+   "index": 4,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L4",
+   "toothClass": "premolar",
+   "displayName": "Lower Right First Premolar",
+   "category": "premolar",
+   "position": [
+    -16.117,
+    -7.89,
+    12.878
+   ],
+   "quaternion": [
+    0.023952,
+    -0.516168,
+    -0.005941,
+    0.856132
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.467,
+     0,
+     -0.884
+    ],
+    "facial": [
+     -0.884,
+     0,
+     0.467
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     -0.015,
+     0.999,
+     0.047
+    ]
+   },
+   "dims": {
+    "crownHeight": 8.5,
+    "rootLength": 14,
+    "md": 7,
+    "bl": 7.5,
+    "cervMd": 5,
+    "cervBl": 6.5,
+    "roots": 1,
+    "cusps": 2
+   },
+   "inclination": {
+    "torqueDeg": 2,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.467,
+     0.884,
+     -0.015,
+     -16.117
+    ],
+    [
+     -0.884,
+     0.466,
+     -0.047,
+     -12.878
+    ],
+    [
+     -0.035,
+     0.035,
+     0.999,
+     -7.89
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.073,
+    -10,
+    3.739
+   ],
+   "cameraFocusOffset": [
+    -38.899,
+    9,
+    20.564
+   ],
+   "children": [
+    "pulp_44"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_44",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_44",
+   "fdi": 44,
+   "displayName": "Lower Right First Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -38.899,
+    9,
+    20.564
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_45",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 45,
+   "quadrant": 4,
+   "index": 5,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L5",
+   "toothClass": "premolar",
+   "displayName": "Lower Right Second Premolar",
+   "category": "premolar",
+   "position": [
+    -19.163,
+    -7.39,
+    6.589
+   ],
+   "quaternion": [
+    -0.004111,
+    -0.578996,
+    -0.024333,
+    0.814957
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.329,
+     0,
+     -0.944
+    ],
+    "facial": [
+     -0.944,
+     0,
+     0.329
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.044,
+     0.999,
+     0.021
+    ]
+   },
+   "dims": {
+    "crownHeight": 8,
+    "rootLength": 14.5,
+    "md": 7,
+    "bl": 8,
+    "cervMd": 5,
+    "cervBl": 7,
+    "roots": 1,
+    "cusps": 3
+   },
+   "inclination": {
+    "torqueDeg": -2,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.328,
+     0.944,
+     0.044,
+     -19.163
+    ],
+    [
+     -0.944,
+     0.329,
+     -0.021,
+     -6.589
+    ],
+    [
+     -0.035,
+     -0.035,
+     0.999,
+     -7.39
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.556,
+    -10,
+    2.628
+   ],
+   "cameraFocusOffset": [
+    -41.558,
+    9,
+    14.456
+   ],
+   "children": [
+    "pulp_45"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge",
+    "whitening"
+   ]
+  },
+  {
+   "nodeId": "pulp_45",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_45",
+   "fdi": 45,
+   "displayName": "Lower Right Second Premolar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -41.558,
+    9,
+    14.456
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_46",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 46,
+   "quadrant": 4,
+   "index": 6,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L6",
+   "toothClass": "molar",
+   "displayName": "Lower Right First Molar",
+   "category": "molar",
+   "position": [
+    -21.946,
+    -6.822,
+    -2.014
+   ],
+   "quaternion": [
+    -0.043051,
+    -0.62938,
+    -0.057569,
+    0.773765
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.201,
+     0,
+     -0.98
+    ],
+    "facial": [
+     -0.98,
+     0,
+     0.201
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.143,
+     0.99,
+     0.006
+    ]
+   },
+   "dims": {
+    "crownHeight": 7.5,
+    "rootLength": 14,
+    "md": 11,
+    "bl": 10.5,
+    "cervMd": 9,
+    "cervBl": 9,
+    "roots": 2,
+    "cusps": 5
+   },
+   "inclination": {
+    "torqueDeg": -8,
+    "tipDeg": 2
+   },
+   "blenderMatrix": [
+    [
+     0.201,
+     0.969,
+     0.143,
+     -21.946
+    ],
+    [
+     -0.979,
+     0.204,
+     -0.006,
+     2.014
+    ],
+    [
+     -0.035,
+     -0.139,
+     0.99,
+     -6.822
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.836,
+    -10,
+    1.61
+   ],
+   "cameraFocusOffset": [
+    -43.1,
+    9,
+    8.855
+   ],
+   "children": [
+    "pulp_46"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_46",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_46",
+   "fdi": 46,
+   "displayName": "Lower Right First Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -43.1,
+    9,
+    8.855
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_47",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 47,
+   "quadrant": 4,
+   "index": 7,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L7",
+   "toothClass": "molar",
+   "displayName": "Lower Right Second Molar",
+   "category": "molar",
+   "position": [
+    -23.591,
+    -6.384,
+    -12.77
+   ],
+   "quaternion": [
+    -0.046797,
+    -0.669421,
+    -0.077981,
+    0.737296
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.092,
+     0,
+     -0.996
+    ],
+    "facial": [
+     -0.996,
+     0,
+     0.092
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.178,
+     0.983,
+     0.035
+    ]
+   },
+   "dims": {
+    "crownHeight": 7,
+    "rootLength": 13,
+    "md": 10.5,
+    "bl": 10,
+    "cervMd": 8,
+    "cervBl": 9,
+    "roots": 2,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": -10,
+    "tipDeg": 3
+   },
+   "blenderMatrix": [
+    [
+     0.092,
+     0.98,
+     0.178,
+     -23.591
+    ],
+    [
+     -0.994,
+     0.099,
+     -0.035,
+     12.77
+    ],
+    [
+     -0.052,
+     -0.173,
+     0.983,
+     -6.384
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.966,
+    -10,
+    0.734
+   ],
+   "cameraFocusOffset": [
+    -43.815,
+    9,
+    4.035
+   ],
+   "children": [
+    "pulp_47"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_47",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_47",
+   "fdi": 47,
+   "displayName": "Lower Right Second Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -43.815,
+    9,
+    4.035
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "tooth_48",
+   "kind": "tooth",
+   "source": "glb",
+   "parent": "arch_lower",
+   "fdi": 48,
+   "quadrant": 4,
+   "index": 8,
+   "arch": "lower",
+   "side": "right",
+   "typeId": "L8",
+   "toothClass": "molar",
+   "displayName": "Lower Right Third Molar",
+   "category": "molar",
+   "position": [
+    -24.252,
+    -6.53,
+    -23.127
+   ],
+   "quaternion": [
+    -0.050131,
+    -0.694415,
+    -0.098002,
+    0.711105
+   ],
+   "mesialSign": 1,
+   "frame": {
+    "tangentDistal": [
+     -0.016,
+     0,
+     -1
+    ],
+    "facial": [
+     -1,
+     0,
+     0.016
+    ],
+    "coronal": [
+     0,
+     1,
+     0
+    ],
+    "longAxis": [
+     0.209,
+     0.976,
+     0.065
+    ]
+   },
+   "dims": {
+    "crownHeight": 7,
+    "rootLength": 11,
+    "md": 10,
+    "bl": 9.5,
+    "cervMd": 7.5,
+    "cervBl": 9,
+    "roots": 2,
+    "cusps": 4
+   },
+   "inclination": {
+    "torqueDeg": -12,
+    "tipDeg": 4
+   },
+   "blenderMatrix": [
+    [
+     0.016,
+     0.978,
+     0.209,
+     -24.252
+    ],
+    [
+     -0.997,
+     0.031,
+     -0.065,
+     23.127
+    ],
+    [
+     -0.07,
+     -0.207,
+     0.976,
+     -6.53
+    ],
+    [
+     0,
+     0,
+     0,
+     1
+    ]
+   ],
+   "explodeVector": [
+    -7.999,
+    -10,
+    0.131
+   ],
+   "cameraFocusOffset": [
+    -43.994,
+    9,
+    0.722
+   ],
+   "children": [
+    "pulp_48"
+   ],
+   "statusFlags": {
+    "status": "normal",
+    "present": true
+   },
+   "interactiveActions": [
+    "filling",
+    "sealant",
+    "crown",
+    "rct",
+    "extraction",
+    "implant",
+    "bridge"
+   ]
+  },
+  {
+   "nodeId": "pulp_48",
+   "kind": "pulp",
+   "source": "glb",
+   "parent": "tooth_48",
+   "fdi": 48,
+   "displayName": "Lower Right Third Molar - pulp & canals",
+   "category": "pulp",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    0,
+    0
+   ],
+   "cameraFocusOffset": [
+    -43.994,
+    9,
+    0.722
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "gum_upper",
+   "kind": "gum",
+   "source": "runtime",
+   "parent": "arch_upper",
+   "arch": "upper",
+   "displayName": "Upper Gum",
+   "category": "gum",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    22,
+    0
+   ],
+   "cameraFocusOffset": [
+    0,
+    -18,
+    95
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "gum_lower",
+   "kind": "gum",
+   "source": "runtime",
+   "parent": "arch_lower",
+   "arch": "lower",
+   "displayName": "Lower Gum",
+   "category": "gum",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    -22,
+    0
+   ],
+   "cameraFocusOffset": [
+    0,
+    18,
+    95
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "bone_upper",
+   "kind": "bone",
+   "source": "runtime",
+   "parent": "arch_upper",
+   "arch": "upper",
+   "displayName": "Upper Jaw Bone",
+   "category": "bone",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    31.9,
+    0
+   ],
+   "cameraFocusOffset": [
+    0,
+    -18,
+    95
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  },
+  {
+   "nodeId": "bone_lower",
+   "kind": "bone",
+   "source": "runtime",
+   "parent": "arch_lower",
+   "arch": "lower",
+   "displayName": "Lower Jaw Bone",
+   "category": "bone",
+   "position": [
+    0,
+    0,
+    0
+   ],
+   "quaternion": [
+    0,
+    0,
+    0,
+    1
+   ],
+   "explodeVector": [
+    0,
+    -31.9,
+    0
+   ],
+   "cameraFocusOffset": [
+    0,
+    18,
+    95
+   ],
+   "statusFlags": {
+    "status": "normal"
+   },
+   "interactiveActions": []
+  }
+ ]
+}

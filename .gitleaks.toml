@@ -17,6 +17,8 @@ paths = [
   '''README\.md$''',
   # Minified CBCT viewer bundle: `{key:...,value:function}` class code, not secrets.
   '''^CruDoc/assets/cbct_viewer/a/''',
+  # Minified dental 3D viewer bundle: same false positives as above.
+  '''^CruDoc/assets/dental3d/assets/''',
 ]
 regexes = [
   '''AIzaSy[0-9A-Za-z\-_]{33}[X_]{2}''',

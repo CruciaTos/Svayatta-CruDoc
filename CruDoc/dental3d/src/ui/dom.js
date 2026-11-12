@@ -19,6 +19,7 @@ const P = {
   chevron: '<path d="m6 9 6 6 6-6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   patients: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  close: '<path d="m18 6-12 12M6 6l12 12"/>',
 };
 export function icon(name, size = 20) {
   const s = document.createElement('span');

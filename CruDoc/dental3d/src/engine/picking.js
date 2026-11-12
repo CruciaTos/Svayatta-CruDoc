@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { isVisibleDeep } from './registry.js';
 
 const DRAG_PX = 5;
+const DRAG_PX_TOUCH = 10; // fingers wobble more than a mouse
+const DOUBLE_TAP_MS = 350;
 
 // Click selects (only if the pointer moved < 5 px); hover raycasts at most once
 // per animation frame, never while a button is down and never for touch.
@@ -14,6 +16,7 @@ export function createPicking(stage, registry, handlers) {
   let hoverQueued = false;
   let lastEv = null;
   let enabled = true;
+  let lastTap = null;
 
   function targets() {
     const out = [];
@@ -37,11 +40,11 @@ export function createPicking(stage, registry, handlers) {
   canvas.addEventListener('pointerdown', (e) => {
     if (down) { down.multi = true; return; } // second finger: pinch/pan, never a tap
     if (e.button !== 0 && e.pointerType === 'mouse') return;
-    down = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: false, multi: false };
+    down = { x: e.clientX, y: e.clientY, id: e.pointerId, moved: false, multi: false, lim: e.pointerType === 'mouse' ? DRAG_PX : DRAG_PX_TOUCH };
   });
   canvas.addEventListener('pointermove', (e) => {
     if (down) {
-      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) >= DRAG_PX) down.moved = true;
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) >= down.lim) down.moved = true;
       return;
     }
     if (e.pointerType !== 'mouse' || !enabled) return;
@@ -58,8 +61,13 @@ export function createPicking(stage, registry, handlers) {
   const end = (e) => {
     const d = down; down = null;
     if (!d || e.type === 'pointercancel') return;
-    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_PX && !d.multi) {
-      handlers.select(pickAt(e.clientX, e.clientY));
+    if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < d.lim && !d.multi) {
+      const id = pickAt(e.clientX, e.clientY);
+      handlers.select(id);
+      // double click / double tap on a tooth brings it close
+      const now = performance.now();
+      if (id && lastTap && lastTap.id === id && now - lastTap.t < DOUBLE_TAP_MS) { handlers.fly?.(id); lastTap = null; }
+      else lastTap = id ? { id, t: now } : null;
     }
   };
   canvas.addEventListener('pointerup', end);

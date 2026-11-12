@@ -11,6 +11,7 @@ import { createAppearance } from './engine/modes.js';
 import { createExplode } from './engine/explode.js';
 import { applyShape } from './engine/shape.js';
 import { createVisuals } from './treatments/visuals.js';
+import { createPlayer } from './treatments/player.js';
 import { createTimeline } from './ui/timeline.js';
 import { createCameraRig } from './engine/camera.js';
 import { createPicking } from './engine/picking.js';
@@ -21,6 +22,12 @@ import { createInspector } from './ui/inspector.js';
 import { h } from './ui/dom.js';
 
 const app = document.getElementById('app');
+const urlParams = new URLSearchParams(window.location.search);
+const isCompact = urlParams.get('compact') === '1';
+if (isCompact) {
+  document.documentElement.classList.add('compact');
+  app.classList.add('compact');
+}
 const stageEl = h('div', { class: 'stage' });
 const bar = h('i');
 const msg = h('div', { class: 'msg' }, 'Loading 3D model');
@@ -57,17 +64,20 @@ async function boot() {
   visuals.rebuild();
   const cameraRig = createCameraRig(stage, registry, store);
   const actions = createActions({ store, registry, cameraRig });
-  createPicking(stage, registry, { select: (id) => actions.select(id), hover: (id) => actions.hover(id) });
+  createPicking(stage, registry, { select: (id) => actions.select(id), hover: (id) => actions.hover(id), fly: (id) => actions.flyTo(id) });
+
+  const player = createPlayer({ store, actions, registry, stage, cameraRig, gums, explode, visuals, appearance });
+  actions.playExplainer = (id) => player.play(id);
+  actions.closeExplainer = () => player.close();
 
   const timeline = createTimeline({ store, actions, registry, stage, gums, explode, visuals, applyShape });
-  stageEl.append(timeline.el);
   timeline.sync(store.get());
 
   store.subscribe((s, changed, changedTeeth) => {
-    if (changed.has('teeth') || changed.has('profile') || changed.has('treatments') || (changed.has('currentVisit') && !timeline.isAnimating)) {
-      applyShape(registry, store, explode, gums, changed.has('teeth') && !changed.has('profile') && !changed.has('treatments') && !changed.has('currentVisit') ? changedTeeth : null);
+    if (changed.has('teeth') || changed.has('profile') || changed.has('treatments') || changed.has('preview') || (changed.has('currentVisit') && !timeline.isAnimating)) {
+      applyShape(registry, store, explode, gums, changed.has('teeth') && !changed.has('profile') && !changed.has('treatments') && !changed.has('currentVisit') && !changed.has('preview') ? changedTeeth : null);
     }
-    if (changed.has('treatments') || (changed.has('currentVisit') && !timeline.isAnimating) || changed.has('teeth') || changed.has('profile')) {
+    if (changed.has('treatments') || (changed.has('currentVisit') && !timeline.isAnimating) || changed.has('teeth') || changed.has('profile') || (changed.has('preview') && !s.preview?.quick)) {
       visuals.rebuild();
     }
     if (changed.has('quality')) quality.apply(s.quality);
@@ -79,8 +89,9 @@ async function boot() {
   });
 
   const toolbar = createToolbar({ store, actions });
-  const inspector = createInspector({ store, actions, registry });
-  stageEl.append(toolbar.el);
+  const inspector = createInspector({ store, actions, registry, player });
+  // Bottom stack (first child = lowest): toolbar, timeline, explainer.
+  stageEl.append(h('div', { class: 'dock' }, toolbar.el, timeline.el, player.el));
   app.append(inspector.el);
 
   const { bridge, markReady } = createBridge({ store, actions, registry });
@@ -90,6 +101,7 @@ async function boot() {
     placeholder,
     visuals,
     timeline,
+    player,
     snap: () => { explode.snap(); },
     flyDone: () => !cameraRig.flying,
   };

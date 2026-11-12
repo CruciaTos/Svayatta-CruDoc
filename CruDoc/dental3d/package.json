@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5175",
-    "test": "node tests/verify.mjs"
+    "test": "node tests/verify.mjs && node tests/responsive.mjs && node tests/player.mjs"
   },
   "dependencies": {
     "three": "^0.187.0",

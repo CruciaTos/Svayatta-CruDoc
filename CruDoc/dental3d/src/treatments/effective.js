@@ -51,19 +51,26 @@ export function effectiveTooth(state, fdi) {
   t.brackets = false;
 
   const treatments = Array.isArray(state.treatments) ? state.treatments : [];
+  // The explainer shows one treatment before / after its result: `preview` overrides when it counts.
+  const pv = state.preview || null;
+  const inEffectOf = (tr) => (pv && pv.id === tr.id
+    ? !!pv.on
+    : tr.status === 'completed' || (tr.visit != null && tr.visit <= currentVisit));
 
   // Pass 1: Orthodontic alignment (braces)
   for (const tr of treatments) {
     if (!tr) continue;
-    const inEffect = tr.status === 'completed' || (tr.visit != null && tr.visit <= currentVisit);
-    if (!inEffect) continue;
+    if (!inEffectOf(tr)) continue;
 
     const includesArch = Array.isArray(tr.arches) ? tr.arches.includes(arch) : (!tr.teeth || !tr.teeth.length);
     if (tr.type === 'braces' && includesArch) {
       const visit = tr.visit ?? 1;
       const endVisit = tr.options?.endVisit ?? (visit + 2);
       const span = endVisit - visit + 1;
-      const progress = clamp((currentVisit - visit + 1) / (span || 1), 0, 1);
+      const previewing = pv && pv.id === tr.id;
+      const progress = previewing
+        ? clamp(pv.progress ?? 0, 0, 1)
+        : clamp((currentVisit - visit + 1) / (span || 1), 0, 1);
       const factor = 1 - progress;
 
       t.shift.md *= factor;
@@ -73,7 +80,7 @@ export function effectiveTooth(state, fdi) {
       t.rotate.torque *= factor;
       t.rotate.spin *= factor;
 
-      if (visit <= currentVisit && currentVisit < endVisit) {
+      if (previewing ? pv.brackets !== false : (visit <= currentVisit && currentVisit < endVisit)) {
         t.brackets = true;
       }
     }
@@ -82,8 +89,7 @@ export function effectiveTooth(state, fdi) {
   // Pass 2: Tooth-specific & arch treatments
   for (const tr of treatments) {
     if (!tr) continue;
-    const inEffect = tr.status === 'completed' || (tr.visit != null && tr.visit <= currentVisit);
-    if (!inEffect) continue;
+    if (!inEffectOf(tr)) continue;
 
     const includesTooth = Array.isArray(tr.teeth) && tr.teeth.map(Number).includes(fdi);
     const includesArch = Array.isArray(tr.arches) ? tr.arches.includes(arch) : (!tr.teeth || !tr.teeth.length);

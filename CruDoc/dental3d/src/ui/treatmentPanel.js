@@ -2,7 +2,7 @@ import { h } from './dom.js';
 import { CONDITIONS, TREATMENTS, MATERIALS, STATUS_COLORS, SURFACES } from '../data/treatments.js';
 import { archOfFdi, effectiveTooth } from '../treatments/effective.js';
 
-export function createTreatmentPanel({ store, actions, registry }) {
+export function createTreatmentPanel({ store, actions, registry, player }) {
   const el = h('div', { id: 'treatment-panel', class: 'treatment-panel' });
   let isAdding = false;
 
@@ -128,6 +128,16 @@ export function createTreatmentPanel({ store, actions, registry }) {
           },
         }, h('span', { class: 'dot', style: `background:${statusColor}` }), tr.status || 'planned');
 
+        const showBtn = h('button', {
+          type: 'button',
+          class: 'pill-btn treat-show-btn',
+          title: 'Step-by-step explainer',
+          onclick: () => {
+            if (player) player.play(tr.id);
+            else actions.playExplainer?.(tr.id);
+          },
+        }, 'Show me how');
+
         const rmBtn = tr.origin === 'viewer' ? h('button', {
           type: 'button',
           class: 'treat-rm-btn',
@@ -145,7 +155,7 @@ export function createTreatmentPanel({ store, actions, registry }) {
           ),
           h('div', { class: 'treat-meta-row' },
             h('span', { class: 'treat-meta' }, [mat, visitTxt].filter(Boolean).join(' · ')),
-            rmBtn
+            h('div', { class: 'treat-actions-row' }, showBtn, rmBtn)
           )
         );
         el.append(card);

@@ -89,12 +89,15 @@ export function createActions({ store, registry, cameraRig }) {
     setGumStyle(name) { if (name === 'solid' || name === 'glass') store.set({ gumStyle: name }); },
     setQuality(q) { if (QUALITY_LEVELS.includes(q)) store.set({ quality: q }); },
     resetCamera: () => cameraRig.reset(),
+    zoom: (factor) => cameraRig.zoomBy(factor),
     setCameraPreset(name) { if (PRESET_NAMES.includes(name)) cameraRig.preset(name); },
     flyTo: (id) => cameraRig.flyTo(id),
     loadPreset(name) {
       const p = PRESETS[name];
       if (p) actions.applyStateSnapshot(JSON.parse(JSON.stringify(p)));
     },
+    playExplainer: () => false,
+    closeExplainer: () => false,
     getPersist() {
       const s = store.get();
       return {

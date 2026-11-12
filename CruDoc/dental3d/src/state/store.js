@@ -24,6 +24,7 @@ export function createStore() {
     quality: 'medium',
     selectedId: null,
     hoveredId: null,
+    preview: null, // explainer only: { id, on, progress?, brackets?, quick? }
     profile: def.profile,
     treatments: def.treatments,
     visits: def.visits,

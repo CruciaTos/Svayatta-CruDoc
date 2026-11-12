@@ -78,6 +78,16 @@ export function createCameraRig(stage, registry, store) {
     set timeScale(v) { timeScale = v; },
     presets: PRESETS,
     get flying() { return !!flight; },
+    cancelFlight() { flight = null; },
+    // factor < 1 moves closer, > 1 further away (zoom buttons and +/- keys)
+    zoomBy(factor) {
+      flight = null;
+      const off = camera.position.clone().sub(controls.target);
+      const d = THREE.MathUtils.clamp(off.length() * factor, controls.minDistance, controls.maxDistance);
+      camera.position.copy(controls.target).add(off.setLength(d));
+      controls.update();
+      stage.invalidate();
+    },
     flyTo(nodeId, ms = 650) {
       const obj = registry.get(nodeId);
       if (!obj) return false;

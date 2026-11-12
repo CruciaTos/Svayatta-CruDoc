@@ -79,7 +79,7 @@ export function createAppearance(registry, store, stage, gums) {
       if (useGhost) ghostActive = true;
       if (pulp) {
         pulp.visible = xray && t.present;
-        const targetPulpMat = sel ? pulpSel : (t.rctDone ? pulpRct : pulpMat);
+        const targetPulpMat = pulp.userData.matOverride || (sel ? pulpSel : (t.rctDone ? pulpRct : pulpMat));
         for (const m of pulp.userData.meshes) m.material = targetPulpMat;
       }
     }

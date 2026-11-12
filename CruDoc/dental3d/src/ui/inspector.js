@@ -10,7 +10,7 @@ const GROUPS = [
 ];
 const dotColor = (st) => STATUS_COLORS[st] || '#CBD5E1';
 
-export function createInspector({ store, actions, registry }) {
+export function createInspector({ store, actions, registry, player }) {
   const rows = []; // {el, text, id, fdi, dot}
   const mkRow = (id, label, fdi) => {
     const dot = h('span', { class: 'dot' });
@@ -69,7 +69,7 @@ export function createInspector({ store, actions, registry }) {
   const hint = h('div', { class: 'card-hint' }, 'Tap a tooth in the 3D view or pick one from the list.');
   const card = h('section', { class: 'card' }, cardName, cardMeta, cardId, chipRow, hint);
   const matchPanel = createMatchPanel({ store, actions, registry });
-  const treatmentPanel = createTreatmentPanel({ store, actions, registry });
+  const treatmentPanel = createTreatmentPanel({ store, actions, registry, player });
 
   const body = h('div', { class: 'insp-body' }, searchWrap, tree, card, matchPanel.el, treatmentPanel.el);
   const handle = h('div', { class: 'sheet-handle', role: 'button', 'aria-label': 'Expand inspector', tabindex: 0 }, h('span', { class: 'grip' }));

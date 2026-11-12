@@ -15,49 +15,119 @@ import 'package:doctor_management_app/features/dental/explain3d/dental3d_snapsho
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// "Show the patient": the patient's teeth as an interactive 3D model (the
-/// web page in `assets/dental3d/`) in a full-screen WebView, served over
-/// loopback. The page starts from the chart and hands back its view state,
-/// which is kept on this device per patient.
-class Dental3dScreen extends ConsumerStatefulWidget {
-  const Dental3dScreen({super.key, required this.patientId, this.patientName});
+/// Interactive 3D dental view (the web app in `assets/dental3d/`).
+/// Embedded directly in cards or used inside [Dental3dScreen].
+class Dental3dView extends ConsumerStatefulWidget {
+  const Dental3dView({
+    super.key,
+    required this.patientId,
+    this.patientName,
+    this.showPlan = true,
+    this.onToothSelected,
+    this.compact = false,
+    this.selectedFdi,
+  });
 
   final String patientId;
   final String? patientName;
+  final bool showPlan;
+  final ValueChanged<int?>? onToothSelected;
+  final bool compact;
+  final int? selectedFdi;
 
   @override
-  ConsumerState<Dental3dScreen> createState() => _Dental3dScreenState();
+  ConsumerState<Dental3dView> createState() => _Dental3dViewState();
 }
 
-class _Dental3dScreenState extends ConsumerState<Dental3dScreen> {
+class _Dental3dViewState extends ConsumerState<Dental3dView> {
   Uri? _url;
   String? _token;
   String? _error;
   bool _started = false;
+  bool _ready = false;
   InAppWebViewController? _web;
   Map<String, dynamic>? _snapshot;
   Timer? _saveTimer;
+  Timer? _refreshTimer;
   Object? _pendingPersist;
+  // The saved view state as last read or written, so a refresh does not wait
+  // for the debounced write to reach disk.
+  String? _savedJson;
+  // The tooth the page currently has selected (what it told us last, or what
+  // we told it), so our own selection is not echoed back and flown to again.
+  int? _webFdi;
 
-  String get _key => 'dental3d.saved.${widget.patientId}';
+  String _key(String patientId) => 'dental3d.saved.$patientId';
 
   @override
   void dispose() {
     _saveTimer?.cancel();
-    if (_pendingPersist != null) unawaited(_flush());
+    _refreshTimer?.cancel();
+    if (_pendingPersist != null) unawaited(_flush(widget.patientId));
     final token = _token;
     if (token != null) Dental3dServer.instance.revoke(token);
+    _web = null;
     super.dispose();
   }
 
-  Future<void> _load() async {
+  @override
+  void didUpdateWidget(Dental3dView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.patientId != oldWidget.patientId) {
+      _restart(oldWidget.patientId);
+      return;
+    }
+    if (widget.showPlan != oldWidget.showPlan) {
+      unawaited(_updateSnapshot());
+    }
+    if (widget.selectedFdi != oldWidget.selectedFdi) {
+      _selectToothInWeb(widget.selectedFdi);
+    }
+  }
+
+  /// Another patient: save the old one's view, drop the page and start over.
+  void _restart(String oldPatientId) {
+    _saveTimer?.cancel();
+    _refreshTimer?.cancel();
+    if (_pendingPersist != null) unawaited(_flush(oldPatientId));
+    final token = _token;
+    if (token != null) Dental3dServer.instance.revoke(token);
+    setState(() {
+      _token = null;
+      _url = null;
+      _error = null;
+      _web = null;
+      _ready = false;
+      _snapshot = null;
+      _savedJson = null;
+      _webFdi = null;
+      _started = false;
+    });
+  }
+
+  void _selectToothInWeb(int? fdi) {
+    if (!_ready || fdi == _webFdi) return;
+    _webFdi = fdi;
+    final id = fdi == null ? null : 'tooth_$fdi';
+    unawaited(_callWeb('window.App3DBridge.selectPart(id);', {'id': id}));
+  }
+
+  Future<void> _callWeb(String body, Map<String, dynamic> args) async {
     try {
-      // The page is bundled by the build; without it there is nothing to show.
-      await rootBundle.load('assets/dental3d/index.html');
-      final entries = await ref.read(
-        patientToothChartProvider(widget.patientId).future,
-      );
-      var plan = const <TreatmentPlanLineItemModel>[];
+      await _web?.callAsyncJavaScript(functionBody: body, arguments: args);
+    } on Object catch (e) {
+      // The view may have been closed while the call was in flight.
+      debugPrint('[dental3d] web call failed: $e');
+    }
+  }
+
+  /// The chart (and plan, when shown) as the page's snapshot, plus the saved view.
+  Future<Map<String, dynamic>> _buildSnapshot() async {
+    final entries = await ref.read(
+      patientToothChartProvider(widget.patientId).future,
+    );
+    var plan = const <TreatmentPlanLineItemModel>[];
+    if (widget.showPlan) {
       try {
         plan = await ref.read(
           patientTreatmentPlanProvider(widget.patientId).future,
@@ -65,66 +135,127 @@ class _Dental3dScreenState extends ConsumerState<Dental3dScreen> {
       } on Object {
         // The chart alone is still worth showing.
       }
-      String? saved;
+    }
+    var saved = _pendingPersist != null
+        ? jsonEncode(_pendingPersist)
+        : _savedJson;
+    if (saved == null) {
       try {
-        saved = (await SharedPreferences.getInstance()).getString(_key);
+        saved = (await SharedPreferences.getInstance()).getString(
+          _key(widget.patientId),
+        );
       } on Object {
         saved = null;
       }
-      _snapshot = buildDental3dSnapshot(entries, plan: plan, savedJson: saved);
+    }
+    _savedJson = saved;
+    return buildDental3dSnapshot(entries, plan: plan, savedJson: saved);
+  }
+
+  /// Chart or plan changed (layer switch, a finding added): feed the page the
+  /// new snapshot without reloading it.
+  Future<void> _updateSnapshot() async {
+    final patientId = widget.patientId;
+    try {
+      final snapshot = await _buildSnapshot();
+      if (!mounted || patientId != widget.patientId) return;
+      _snapshot = snapshot;
+      if (_ready) {
+        await _callWeb('window.App3DBridge.applyStateSnapshot(snapshot);', {
+          'snapshot': snapshot,
+        });
+      }
+    } on Object catch (e) {
+      debugPrint('[dental3d] update snapshot failed: $e');
+    }
+  }
+
+  void _scheduleRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(
+      const Duration(milliseconds: 300),
+      () => unawaited(_updateSnapshot()),
+    );
+  }
+
+  Future<void> _load() async {
+    final patientId = widget.patientId;
+    try {
+      // The page is bundled by the build; without it there is nothing to show.
+      await rootBundle.load('assets/dental3d/index.html');
+      final snapshot = await _buildSnapshot();
       final opened = await Dental3dServer.instance.open();
-      if (!mounted) {
+      if (!mounted || patientId != widget.patientId) {
         Dental3dServer.instance.revoke(opened.token);
         return;
       }
+      _snapshot = snapshot;
+      final uri = widget.compact
+          ? opened.page.replace(queryParameters: {'compact': '1'})
+          : opened.page;
       setState(() {
         _token = opened.token;
-        _url = opened.page;
+        _url = uri;
       });
     } on Object catch (e) {
       debugPrint('[dental3d] open failed: $e');
-      if (mounted) {
+      if (mounted && patientId == widget.patientId) {
         setState(() => _error = 'The 3D view could not be opened.');
       }
     }
   }
 
-  Future<void> _flush() async {
+  Future<void> _flush(String patientId) async {
     final persist = _pendingPersist;
     _pendingPersist = null;
     if (persist == null) return;
+    final json = jsonEncode(persist);
+    _savedJson = json;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_key, jsonEncode(persist));
+      await prefs.setString(_key(patientId), json);
     } on Object catch (e) {
       debugPrint('[dental3d] save failed: $e');
     }
   }
 
   void _onMessage(List<dynamic> args) {
+    if (!mounted) return;
     final msg = args.isNotEmpty && args.first is Map
         ? args.first as Map
         : const {};
     switch (msg['type']) {
       case 'READY':
+        _ready = true;
         final snapshot = _snapshot;
         if (snapshot != null) {
           unawaited(
-            _web?.callAsyncJavaScript(
-              functionBody:
-                  'window.App3DBridge.applyStateSnapshot(snapshot);',
-              arguments: {'snapshot': snapshot},
-            ),
+            _callWeb('window.App3DBridge.applyStateSnapshot(snapshot);', {
+              'snapshot': snapshot,
+            }),
           );
         }
+        if (widget.selectedFdi != null) {
+          _selectToothInWeb(widget.selectedFdi);
+        }
+      case 'PART_SELECTED':
+        final payload = msg['payload'];
+        final nodeId = payload is Map ? payload['nodeId']?.toString() : null;
+        final fdi = payload is Map ? (payload['fdi'] as num?)?.toInt() : null;
+        final tooth = nodeId != null && nodeId.startsWith('tooth_')
+            ? fdi
+            : null;
+        _webFdi = tooth;
+        widget.onToothSelected?.call(tooth);
       case 'STATE_UPDATED':
         final payload = msg['payload'];
         if (payload is Map && payload['persist'] != null) {
           _pendingPersist = payload['persist'];
           _saveTimer?.cancel();
+          final patientId = widget.patientId;
           _saveTimer = Timer(
             const Duration(milliseconds: 800),
-            () => unawaited(_flush()),
+            () => unawaited(_flush(patientId)),
           );
         }
     }
@@ -137,16 +268,26 @@ class _Dental3dScreenState extends ConsumerState<Dental3dScreen> {
       _started = true;
       unawaited(_load());
     }
-    final name = widget.patientName?.trim() ?? '';
+    // A finding added or a plan item changed elsewhere: update the page in place.
+    ref.listen(
+      patientToothChartProvider(widget.patientId),
+      (previous, next) => _scheduleRefresh(),
+    );
+    if (widget.showPlan) {
+      ref.listen(
+        patientTreatmentPlanProvider(widget.patientId),
+        (previous, next) => _scheduleRefresh(),
+      );
+    }
     final error = _error;
     final url = _url;
-    final Widget body;
     if (error != null) {
-      body = Center(
+      return Center(
         child: Text(error, style: CruType.callout.tint(c.label2)),
       );
-    } else if (url == null) {
-      body = Center(
+    }
+    if (url == null) {
+      return Center(
         child: SizedBox(
           width: 240,
           child: Column(
@@ -164,30 +305,67 @@ class _Dental3dScreenState extends ConsumerState<Dental3dScreen> {
           ),
         ),
       );
-    } else {
-      body = InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri.uri(url)),
-        initialSettings: InAppWebViewSettings(
-          disableContextMenu: true,
-          isInspectable: kDebugMode,
-          supportZoom: false,
-        ),
-        // Keep drags and the wheel inside the viewer instead of scrolling.
-        gestureRecognizers: {
-          Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
-        },
-        onWebViewCreated: (controller) {
-          _web = controller;
-          controller.addJavaScriptHandler(
-            handlerName: 'dental3d',
-            callback: _onMessage,
-          );
-        },
-        onConsoleMessage: kDebugMode
-            ? (_, m) => debugPrint('[dental3d web] ${m.message}')
-            : null,
-      );
     }
+    return InAppWebView(
+      initialUrlRequest: URLRequest(url: WebUri.uri(url)),
+      initialSettings: InAppWebViewSettings(
+        disableContextMenu: true,
+        isInspectable: kDebugMode,
+        supportZoom: false,
+        // The page owns every drag: no rubber-banding or scrolling around it.
+        disallowOverScroll: true,
+        overScrollMode: OverScrollMode.NEVER,
+        disableVerticalScroll: true,
+        disableHorizontalScroll: true,
+      ),
+      // A phone can drop the page's process under memory pressure (216k
+      // triangles): reload, and the READY packet feeds it the snapshot again.
+      onWebContentProcessDidTerminate: (controller) {
+        _ready = false;
+        controller.reload();
+      },
+      onRenderProcessGone: (controller, detail) {
+        _ready = false;
+        controller.reload();
+      },
+      // Keep drags and the wheel inside the viewer instead of scrolling.
+      gestureRecognizers: {
+        Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+      },
+      onWebViewCreated: (controller) {
+        _web = controller;
+        _ready = false;
+        controller.addJavaScriptHandler(
+          handlerName: 'dental3d',
+          callback: _onMessage,
+        );
+      },
+      onConsoleMessage: kDebugMode
+          ? (_, m) => debugPrint('[dental3d web] ${m.message}')
+          : null,
+    );
+  }
+}
+
+/// "Show the patient": the patient's teeth as an interactive 3D model (the
+/// web page in `assets/dental3d/`) in a full-screen WebView, served over
+/// loopback.
+class Dental3dScreen extends StatelessWidget {
+  const Dental3dScreen({
+    super.key,
+    required this.patientId,
+    this.patientName,
+    this.showPlan = true,
+  });
+
+  final String patientId;
+  final String? patientName;
+  final bool showPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final name = patientName?.trim() ?? '';
     return Scaffold(
       backgroundColor: c.canvas,
       body: SafeArea(
@@ -221,7 +399,14 @@ class _Dental3dScreenState extends ConsumerState<Dental3dScreen> {
                 ],
               ),
             ),
-            Expanded(child: body),
+            Expanded(
+              child: Dental3dView(
+                patientId: patientId,
+                patientName: patientName,
+                showPlan: showPlan,
+                compact: false,
+              ),
+            ),
           ],
         ),
       ),

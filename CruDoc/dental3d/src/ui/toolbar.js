@@ -67,6 +67,9 @@ export function createToolbar({ store, actions }) {
     h('div', { class: 'pop-grid' }, VIEWS.map(([k, label]) => h('button', {
       type: 'button', class: 'pill-btn', 'data-view': k, onclick: () => { actions.setCameraPreset(k); closeAll(); },
     }, label))),
+    h('div', { class: 'pop-grid' },
+      h('button', { type: 'button', class: 'pill-btn', 'data-zoom': 'in', 'aria-label': 'Zoom in', onclick: () => actions.zoom(0.8) }, 'Zoom in'),
+      h('button', { type: 'button', class: 'pill-btn', 'data-zoom': 'out', 'aria-label': 'Zoom out', onclick: () => actions.zoom(1.25) }, 'Zoom out')),
     h('button', { type: 'button', class: 'pill-btn wide', onclick: () => { actions.resetCamera(); closeAll(); } }, 'Reset view'),
   ]);
 
@@ -87,6 +90,13 @@ export function createToolbar({ store, actions }) {
   const el = h('div', { class: 'toolbar', role: 'toolbar', 'aria-label': 'Viewer controls' },
     seg, h('div', { class: 'tb-sep' }), h('div', { class: 'pop-wrap' }, adjustBtn, sliders), wrap(patients), wrap(layers), wrap(views), wrap(quality));
   document.addEventListener('click', (e) => { if (!el.contains(e.target)) closeAll(); });
+  // keyboard: + / - zoom, 0 resets the view (not while typing)
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) return;
+    if (e.key === '+' || e.key === '=') actions.zoom(0.85);
+    else if (e.key === '-' || e.key === '_') actions.zoom(1 / 0.85);
+    else if (e.key === '0') actions.resetCamera();
+  });
   el.addEventListener('click', (e) => { if (e.target.closest('.popover, .tb-sliders')) e.stopPropagation(); });
   el.addEventListener('pointerdown', (e) => e.stopPropagation());
 

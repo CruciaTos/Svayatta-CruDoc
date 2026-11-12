@@ -143,11 +143,8 @@ button {
 
 /* ---- toolbar --------------------------------------------------------- */
 .toolbar {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
-  z-index: 12;
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -336,6 +333,14 @@ button {
 }
 
 /* ---- inspector ------------------------------------------------------- */
+.compact .stage {
+  right: 0 !important;
+}
+
+.compact .inspector {
+  display: none !important;
+}
+
 .inspector {
   position: absolute;
   right: 0;
@@ -876,11 +881,7 @@ button {
 
 /* ---- timeline bar ---------------------------------------------------- */
 .timeline-bar {
-  position: absolute;
-  left: 50%;
-  bottom: 72px;
-  transform: translateX(-50%);
-  z-index: 12;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -920,17 +921,6 @@ button {
   font-size: 12.5px;
   white-space: nowrap;
   user-select: none;
-}
-
-@media (max-width: 899px) {
-  .timeline-bar {
-    bottom: calc(var(--peek) + 68px);
-    transition: bottom 0.25s ease;
-  }
-
-  .sheet-open .timeline-bar {
-    bottom: calc(55dvh + 68px);
-  }
 }
 
 /* ---- narrow screens: bottom sheet ----------------------------------- */
@@ -1009,15 +999,6 @@ button {
     flex: none;
     max-height: 240px;
     min-height: 120px;
-  }
-
-  .toolbar {
-    bottom: calc(var(--peek) + 12px);
-    transition: bottom 0.25s ease;
-  }
-
-  .sheet-open .toolbar {
-    bottom: calc(55dvh + 12px);
   }
 
   .tb-adjust {
@@ -1115,5 +1096,219 @@ button {
   * {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* ---- treatment explainer player -------------------------------------- */
+.explainer-card {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: explainerPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.explainer-card[hidden] {
+  display: none !important;
+}
+@keyframes explainerPop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.explainer-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.explainer-hdr-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.explainer-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+.explainer-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.explainer-close {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.explainer-close:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.explainer-text {
+  margin: 2px 0 6px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.explainer-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+.explainer-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.explainer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #CBD5E1;
+  transition: all 0.2s ease;
+}
+.explainer-dot.on {
+  width: 20px;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.explainer-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.explainer-btn {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 12.5px;
+}
+.treat-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.treat-show-btn {
+  background: var(--accent-soft);
+  color: #1D4ED8;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  min-height: 32px;
+  min-width: 40px;
+  cursor: pointer;
+}
+.treat-show-btn:hover {
+  background: #DBEAFE;
+  border-color: var(--accent);
+}
+/* ---- dock: toolbar, timeline and explainer stacked, never overlapping ---- */
+.dock {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 16px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+.dock > * {
+  pointer-events: auto;
+  max-width: 100%;
+}
+@media (max-width: 899px) {
+  .dock {
+    bottom: calc(var(--peek) + 12px);
+    transition: bottom 0.25s ease;
+  }
+  .sheet-open .dock {
+    bottom: calc(55dvh + 12px);
+  }
+}
+/* phone landscape: the explainer card floats top-left so the 3D keeps its height */
+@media (max-width: 899px) and (max-height: 520px) {
+  .sheet-open .dock {
+    bottom: calc(70dvh + 12px);
+  }
+  .explainer-card {
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    width: min(320px, 44vw);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+  }
+}
+/* narrow phones: mode switch on its own row, the icon buttons evenly on the next */
+@media (max-width: 520px) {
+  .toolbar {
+    border-radius: 24px;
+    justify-content: space-around;
+  }
+  .toolbar .seg {
+    flex: 1 1 100%;
+  }
+  .toolbar .seg button {
+    flex: 1;
+  }
+  .toolbar .pop-wrap {
+    flex: 1 1 0;
+    display: flex;
+    justify-content: center;
+  }
+}
+/* touch: every control at least 40 px */
+@media (pointer: coarse), (max-width: 899px) {
+  .chip,
+  .pill-btn,
+  .tl-chip,
+  .tb-ba-btn,
+  .explainer-btn,
+  .treat-show-btn,
+  .treat-rm-btn {
+    min-height: 40px;
+  }
+  .explainer-close,
+  .treat-show-btn,
+  .treat-rm-btn {
+    min-width: 40px;
+  }
+  .explainer-close {
+    min-height: 40px;
+    width: 40px;
+    height: 40px;
   }
 }

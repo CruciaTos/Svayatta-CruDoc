@@ -5,9 +5,10 @@ import 'package:crudoc_shared/widgets/cru/cru_card.dart';
 import 'package:crudoc_shared/widgets/cru/cru_pressable.dart';
 
 class CruSegment<T> {
-  const CruSegment(this.value, this.label);
+  const CruSegment(this.value, this.label, {this.enabled = true});
   final T value;
   final String label;
+  final bool enabled;
 }
 
 /// 36 px segmented control: inset track (radius 11), raised selected
@@ -55,6 +56,7 @@ class CruSegmentedControl<T> extends StatelessWidget {
                       child: _Segment(
                         label: segments[i].label,
                         selected: segments[i].value == selected,
+                        enabled: segments[i].enabled,
                         onTap: () => onChanged(segments[i].value),
                         fill: true,
                       ),
@@ -73,6 +75,7 @@ class CruSegmentedControl<T> extends StatelessWidget {
                       _Segment(
                         label: segments[i].label,
                         selected: segments[i].value == selected,
+                        enabled: segments[i].enabled,
                         onTap: () => onChanged(segments[i].value),
                       ),
                     ],
@@ -90,6 +93,7 @@ class _Segment extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.fill = false,
+    this.enabled = true,
   });
 
   final String label;
@@ -98,14 +102,16 @@ class _Segment extends StatelessWidget {
 
   /// Stretches to the width it is given (labels shrink to fit).
   final bool fill;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     return Semantics(
       selected: selected,
+      enabled: enabled,
       child: CruPressable(
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         semanticLabel: label,
         scaleOnPress: false,
         builder: (context, hovered) => AnimatedContainer(
@@ -129,7 +135,10 @@ class _Segment extends StatelessWidget {
             switchOutCurve: CruMotion.curve,
             transitionBuilder: (child, animation) =>
                 FadeTransition(opacity: animation, child: child),
-            child: _label(c, hovered),
+            child: Opacity(
+              opacity: enabled ? 1.0 : 0.45,
+              child: _label(c, enabled && hovered),
+            ),
           ),
         ),
       ),

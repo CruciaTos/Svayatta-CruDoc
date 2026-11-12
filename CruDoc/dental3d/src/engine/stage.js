@@ -52,6 +52,7 @@ export function createStage(container) {
     flags: { ghost: false },
     setRenderFn(fn) { renderFn = fn; invalidate(); },
     addTicker(fn) { tickers.add(fn); return () => tickers.delete(fn); },
+    removeTicker(fn) { tickers.delete(fn); },
     onResize: new Set(),
     beforeRender: new Set(),
     pixelRatioCap: 1.5,

@@ -54,7 +54,8 @@ uniform float uCrownH;
 uniform float uWear;
 uniform float uChip;
 uniform float uMd;
-uniform float uMesialSign;`)
+uniform float uMesialSign;
+uniform float uPrep;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
       if (uWear > 0.0) {
         transformed.y = min(transformed.y, uCrownH - uWear);
@@ -67,6 +68,11 @@ uniform float uMesialSign;`)
         if (chipDist < chipRadius) {
           transformed = chipCentre + (chipDist > 0.0001 ? (chipDir / chipDist) : vec3(0.0, -1.0, 0.0)) * chipRadius;
         }
+      }
+      if (uPrep > 0.0 && transformed.y > 0.6) {
+        transformed.x *= (1.0 - 0.18 * uPrep);
+        transformed.z *= (1.0 - 0.18 * uPrep);
+        transformed.y -= 0.12 * uCrownH * uPrep;
       }
       vLocalPos = transformed;`);
     shader.fragmentShader = shader.fragmentShader
@@ -149,7 +155,7 @@ void calcSurfaceWeights(in vec3 pos, in float signM, in float md, in float bl, i
         metalnessFactor = mix(metalnessFactor, 0.85, gFillMetal);
       }`);
   };
-  mat.customProgramCacheKey = () => 'tooth-enamel-v4';
+  mat.customProgramCacheKey = () => 'tooth-enamel-v5';
   return mat;
 }
 
@@ -163,6 +169,7 @@ export function updateToothMaterial(mat, t, profile) {
   u.uCalculus.value = Math.min(1, Math.max(0, Number(t.calculus) || 0));
   u.uWear.value = Math.min(4, Math.max(0, Number(t.wear) || 0));
   u.uChip.value = Math.min(1, Math.max(0, Number(t.chip) || 0));
+  u.uPrep.value = 0;
 
   if (t.surfCaries) {
     for (let i = 0; i < 5; i++) {

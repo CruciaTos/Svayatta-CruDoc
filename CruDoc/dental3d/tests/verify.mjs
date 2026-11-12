@@ -50,7 +50,14 @@ if (args.has('--static')) {
   BASE = 'http://127.0.0.1:5174/';
   if (!(await up(BASE))) {
     const { createServer } = await import('vite');
-    const server = await createServer({ root, logLevel: 'error' });
+    const server = await createServer({
+      root,
+      logLevel: 'error',
+      server: {
+        hmr: false,
+        watch: null,
+      },
+    });
     await server.listen();
     closeServer = () => server.close();
   }
@@ -308,6 +315,20 @@ await page.$eval('.search', (e) => { e.value = ''; e.dispatchEvent(new Event('in
 check('#treatment-panel container exists', !!(await page.$('#treatment-panel')));
 const wide = await ev(page, () => { const r = document.querySelector('.inspector').getBoundingClientRect(); return { w: r.width, right: r.right, vw: innerWidth }; });
 check('wide layout: 300 px inspector docked right', Math.abs(wide.w - 300) < 1 && Math.abs(wide.right - wide.vw) < 1, JSON.stringify(wide));
+const compactCheck = await ev(page, () => {
+  document.documentElement.classList.add('compact');
+  document.getElementById('app').classList.add('compact');
+  const insp = document.querySelector('.inspector');
+  const stage = document.querySelector('.stage');
+  const inspStyle = window.getComputedStyle(insp);
+  const stageStyle = window.getComputedStyle(stage);
+  const hidden = inspStyle.display === 'none';
+  const fullWidth = stageStyle.right === '0px';
+  document.documentElement.classList.remove('compact');
+  document.getElementById('app').classList.remove('compact');
+  return { hidden, fullWidth };
+});
+check('compact mode: hides inspector and stage expands to right: 0', compactCheck.hidden && compactCheck.fullWidth, JSON.stringify(compactCheck));
 // layers
 await ev(page, () => { window.App3DBridge.setLayer('gums', false); window.App3DBridge.setLayer('upper', false); });
 const lay = await ev(page, () => ({ gum: window.__dental3d.registry.get('gum_lower').visible, up: window.__dental3d.registry.nodes.arch_upper.visible }));
@@ -678,6 +699,245 @@ await idle(page, 400);
 await shot(page, 'desktop-preset5-cleaned-v1.png');
 
 await ev(page, () => window.App3DBridge.loadPreset('healthy'));
+
+// ---------------------------------------------------------------- Phase D: Explainer Player & Animations
+console.log('\n-- Phase D: Explainer Player & Animations --');
+
+// D1: Explainer UI, "Show me how" button, step navigation, and clean closure
+await ev(page, () => {
+  window.App3DBridge.loadPreset('worn_gum_disease');
+  window.App3DBridge.selectPart('tooth_36');
+});
+await idle(page, 500);
+
+const explainerCheck = await ev(page, async () => {
+  const panel = document.getElementById('treatment-panel');
+  const cards = panel.querySelectorAll('.treat-card');
+  const fillingCard = [...cards].find((c) => /filling/i.test(c.textContent));
+  const showBtn = fillingCard?.querySelector('.treat-show-btn');
+  const hasShowBtn = !!showBtn;
+
+  // Click "Show me how"
+  showBtn?.click();
+  await new Promise((r) => setTimeout(r, 200));
+
+  const card = document.querySelector('.explainer-card');
+  const isCardVisible = !!card && !card.hidden;
+  const badgeText = card?.querySelector('.explainer-badge')?.textContent;
+  const titleText = card?.querySelector('.explainer-title')?.textContent;
+  const dots = card?.querySelectorAll('.explainer-dot') || [];
+  const dotsCount = dots.length;
+  const firstDotOn = dots[0]?.classList.contains('on');
+
+  const btns = card?.querySelectorAll('.explainer-btn') || [];
+  const prevBtn = btns[0];
+  const nextBtn = btns[1];
+  const prevDisabled = !!prevBtn?.disabled;
+  const nextText1 = nextBtn?.textContent;
+
+  // Step 2
+  nextBtn?.click();
+  await new Promise((r) => setTimeout(r, 200));
+  const badgeStep2 = card?.querySelector('.explainer-badge')?.textContent;
+  const secondDotOn = card?.querySelectorAll('.explainer-dot')[1]?.classList.contains('on');
+
+  // Step 3
+  nextBtn?.click();
+  await new Promise((r) => setTimeout(r, 200));
+  const badgeStep3 = card?.querySelector('.explainer-badge')?.textContent;
+
+  // Step 4 (last step)
+  nextBtn?.click();
+  await new Promise((r) => setTimeout(r, 200));
+  const badgeStep4 = card?.querySelector('.explainer-badge')?.textContent;
+  const nextTextLast = nextBtn?.textContent; // 'Done'
+
+  // Step back to 3
+  prevBtn?.click();
+  await new Promise((r) => setTimeout(r, 200));
+  const badgeStepBack = card?.querySelector('.explainer-badge')?.textContent;
+
+  // Close explainer
+  const closeBtn = card?.querySelector('.explainer-close');
+  closeBtn?.click();
+  await new Promise((r) => setTimeout(r, 100));
+  const isClosed = card.hidden;
+  const isPlayingAfterClose = window.__dental3d.player.isPlaying;
+
+  return {
+    hasShowBtn,
+    isCardVisible,
+    badgeText,
+    titleText,
+    dotsCount,
+    firstDotOn,
+    prevDisabled,
+    nextText1,
+    badgeStep2,
+    secondDotOn,
+    badgeStep3,
+    badgeStep4,
+    nextTextLast,
+    badgeStepBack,
+    isClosed,
+    isPlayingAfterClose,
+  };
+});
+
+check('D1: explainer card launches via "Show me how", steps forward and back, and closes cleanly',
+  explainerCheck.hasShowBtn &&
+  explainerCheck.isCardVisible &&
+  explainerCheck.badgeText === 'Step 1 of 4' &&
+  explainerCheck.titleText === 'The cavity' &&
+  explainerCheck.dotsCount === 4 &&
+  explainerCheck.firstDotOn &&
+  explainerCheck.prevDisabled &&
+  explainerCheck.nextText1 === 'Next' &&
+  explainerCheck.badgeStep2 === 'Step 2 of 4' &&
+  explainerCheck.secondDotOn &&
+  explainerCheck.badgeStep4 === 'Step 4 of 4' &&
+  explainerCheck.nextTextLast === 'Done' &&
+  explainerCheck.badgeStepBack === 'Step 3 of 4' &&
+  explainerCheck.isClosed &&
+  !explainerCheck.isPlayingAfterClose,
+  JSON.stringify(explainerCheck)
+);
+
+// D2: Test animations across RCT, crown, implant, and braces with temporary mode switching
+const animChecks = await ev(page, async () => {
+  const b = window.App3DBridge;
+  const player = window.__dental3d.player;
+
+  // 1. RCT Explainer (switches mode to xray temporarily)
+  const prevMode = b.getState().mode;
+  b.applyStateSnapshot({
+    teeth: { 11: { present: true } },
+    treatments: [{ id: 't_rct_11', type: 'rct', teeth: [11], visit: 1, status: 'planned' }],
+  });
+  b.playExplainer('t_rct_11');
+  await new Promise((r) => setTimeout(r, 150));
+  const rctStep1Mode = b.getState().mode;
+  const rctStep1Badge = document.querySelector('.explainer-badge')?.textContent;
+
+  // Advance RCT through steps
+  player.next(); // access_opening
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // clean_canals
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // fill_canals
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // close_access
+  await new Promise((r) => setTimeout(r, 150));
+  const rctLastStep = player.currentStep;
+
+  // Close RCT and verify mode reverted
+  b.closeExplainer();
+  await new Promise((r) => setTimeout(r, 100));
+  const rctRevertedMode = b.getState().mode;
+
+  // 2. Crown Explainer
+  b.applyStateSnapshot({
+    treatments: [{ id: 't_crown_11', type: 'crown', teeth: [11], material: 'zirconia', visit: 1, status: 'planned' }],
+  });
+  b.playExplainer('t_crown_11');
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // scan_flash
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // seat_crown
+  await new Promise((r) => setTimeout(r, 150));
+  const crownPlaying = player.isPlaying;
+  b.closeExplainer();
+
+  // 3. Implant Explainer
+  b.applyStateSnapshot({
+    teeth: { 46: { present: false } },
+    treatments: [{ id: 't_imp_46', type: 'implant', teeth: [46], material: 'titanium', visit: 1, status: 'planned' }],
+  });
+  b.playExplainer('t_imp_46');
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // place_fixture
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // osseointegrate
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // place_abutment
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // seat_crown
+  await new Promise((r) => setTimeout(r, 150));
+  const impPlaying = player.isPlaying;
+  b.closeExplainer();
+
+  // 4. Braces Explainer
+  b.applyStateSnapshot({
+    treatments: [{ id: 't_braces_all', type: 'braces', arches: ['upper', 'lower'], visit: 1, status: 'planned' }],
+  });
+  b.playExplainer('t_braces_all');
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // place_braces
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // align_teeth
+  await new Promise((r) => setTimeout(r, 150));
+  player.next(); // remove_braces
+  await new Promise((r) => setTimeout(r, 150));
+  const bracesPlaying = player.isPlaying;
+  b.closeExplainer();
+
+  b.loadPreset('healthy');
+  b.selectPart(null);
+
+  return {
+    prevMode,
+    rctStep1Mode,
+    rctStep1Badge,
+    rctLastStep,
+    rctRevertedMode,
+    crownPlaying,
+    impPlaying,
+    bracesPlaying,
+  };
+});
+
+check('D2: treatment animations execute across RCT (with temporary xray mode restore), Crown, Implant, and Braces',
+  animChecks.rctStep1Mode === 'xray' &&
+  animChecks.rctStep1Badge === 'Step 1 of 5' &&
+  animChecks.rctLastStep === 4 &&
+  animChecks.rctRevertedMode === animChecks.prevMode &&
+  animChecks.crownPlaying &&
+  animChecks.impPlaying &&
+  animChecks.bracesPlaying,
+  JSON.stringify(animChecks)
+);
+
+// Screenshots of explainer steps for GATE D
+await ev(page, () => {
+  window.App3DBridge.loadPreset('worn_gum_disease');
+  window.App3DBridge.selectPart('tooth_36');
+  window.App3DBridge.playExplainer('t_filling_36');
+});
+await idle(page, 400);
+await shot(page, 'desktop-explainer-filling-step1.png');
+
+await ev(page, () => {
+  window.__dental3d.player.next();
+  window.__dental3d.player.next();
+});
+await idle(page, 400);
+await shot(page, 'desktop-explainer-filling-step3.png');
+
+await ev(page, () => {
+  window.App3DBridge.closeExplainer();
+  window.App3DBridge.applyStateSnapshot({
+    treatments: [{ id: 't_rct_11', type: 'rct', teeth: [11], visit: 1, status: 'planned' }],
+  });
+  window.App3DBridge.playExplainer('t_rct_11');
+});
+await idle(page, 400);
+await shot(page, 'desktop-explainer-rct-step1.png');
+
+await ev(page, () => {
+  window.App3DBridge.closeExplainer();
+  window.App3DBridge.loadPreset('healthy');
+  window.App3DBridge.selectPart(null);
+});
 
 // quality presets quick check
 for (const q of ['medium', 'high']) {

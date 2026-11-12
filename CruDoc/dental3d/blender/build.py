@@ -30,6 +30,8 @@ LIBSRC = open(os.path.join(HERE, 'toothlib.py'), encoding='utf-8').read()
 LCSRC = open(os.path.join(HERE, 'libcrowns.py'), encoding='utf-8').read()
 USE_LIB = (libcrowns.library_present() and '--formula' not in ARGS
            and os.environ.get('CRUDOC_TEETH', '').lower() != 'formula')
+CS_PATH = os.path.join(HERE, 'contact_scale.json')
+CONTACT_SCALE = json.load(open(CS_PATH)) if os.path.exists(CS_PATH) and '--no-contact' not in ARGS else {}
 TYPE_DIMS = {p['typeId']: p['dims'] for p in man['parts'] if p['kind'] == 'tooth'}
 print('tooth source:', 'LIBRARY crowns + generated roots' if USE_LIB else 'formula teeth')
 
@@ -126,6 +128,17 @@ for part in man['parts']:
         if abs(dims[k_m] - spec[k_s]) > 1e-6:
             print('WARNING: %s %s manifest %s vs spec %s' % (tid, k_m, dims[k_m], spec[k_s]))
     V, T, N, PV, PT, PN = c['V'].copy(), c['T'].copy(), c['N'].copy(), c['PV'].copy(), c['PT'].copy(), c['PN'].copy()
+    cs_ = CONTACT_SCALE.get(str(part['fdi']))   # mesio-distal contact correction, see contact_scale.json / solve_contacts.py
+    if cs_:
+        # canonical frame: +X mesial.  The crown's mesial edge moves out by em, the distal edge by ed (mm)
+        crn = V[V[:, 2] > 0.6]
+        x0, x1 = crn[:, 0].min(), crn[:, 0].max()
+        em, ed = cs_['em'], cs_['ed']
+        fx = 1.0 + (em + ed) / (x1 - x0)
+        for A_, B_ in ((V, N), (PV, PN)):
+            A_[:, 0] = (x0 - ed) + (A_[:, 0] - x0) * fx
+            B_[:, 0] = B_[:, 0] / fx                          # normals: inverse transpose
+            B_ /= np.maximum(np.linalg.norm(B_, axis=1, keepdims=True), 1e-9)
     if part['mesialSign'] == -1:
         V[:, 0] *= -1
         N[:, 0] *= -1

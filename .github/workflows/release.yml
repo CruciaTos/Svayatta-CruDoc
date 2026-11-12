@@ -280,23 +280,29 @@ jobs:
 
       - run: flutter pub get
 
-      - name: Build APK
+      # One APK per processor type, so each phone downloads only its own
+      # code. x86_64 is left out: only emulators use it (use flutter run).
+      # Flutter numbers them abi*1000 + build number (arm 1xxx, arm64 2xxx).
+      - name: Build APKs
         env:
           RUN_NUMBER: ${{ github.run_number }}
           MAPS_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           ORG_GRADLE_PROJECT_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: >
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
+          --target-platform android-arm,android-arm64
           --build-name="$VERSION" --build-number="$RUN_NUMBER"
           --dart-define=GOOGLE_MAPS_API_KEY="$MAPS_KEY"
 
-      - name: Name the APK
-        run: cp build/app/outputs/flutter-apk/app-release.apk "CruDoc-android-$VERSION.apk"
+      - name: Name the APKs
+        run: |
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "CruDoc-android-arm64-$VERSION.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "CruDoc-android-arm-$VERSION.apk"
 
       - uses: actions/upload-artifact@v4
         with:
           name: android
-          path: CruDoc/CruDoc-android-${{ env.VERSION }}.apk
+          path: CruDoc/CruDoc-android-*-${{ env.VERSION }}.apk
           if-no-files-found: error
 
   publish:
@@ -338,7 +344,10 @@ jobs:
               "changelog": (os.environ.get("NOTES") or "").strip(),
               "platforms": {
                   "windows": entry(f"CruDoc-windows-{version}.exe"),
-                  "android": entry(f"CruDoc-android-{version}.apk"),
+                  # Apps before 1.0.8 read only "android": give them 64-bit.
+                  "android": entry(f"CruDoc-android-arm64-{version}.apk"),
+                  "android-arm64": entry(f"CruDoc-android-arm64-{version}.apk"),
+                  "android-arm": entry(f"CruDoc-android-arm-{version}.apk"),
               },
           }
           with open("dist/update.json", "w") as f:

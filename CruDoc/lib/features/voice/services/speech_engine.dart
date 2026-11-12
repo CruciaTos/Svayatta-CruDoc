@@ -381,6 +381,11 @@ class SpeechEngine {
   }
 
   Future<void> _spawnWorker() async {
+    // The Android build leaves the offline engine's libraries out
+    // (android/app/build.gradle.kts), so it must never start on a phone.
+    if (onPhone) {
+      throw UnsupportedError('The offline speech engine is desktop-only.');
+    }
     final fromWorker = ReceivePort();
     final ready = Completer<SendPort>();
     fromWorker.listen((msg) {

@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:doctor_management_app/core/update/models/app_release.dart';
+import 'package:doctor_management_app/core/update/models/update_manifest.dart';
 import 'package:doctor_management_app/core/update/models/update_progress.dart';
 import 'package:doctor_management_app/core/update/platform/update_installer.dart';
 import 'package:doctor_management_app/core/update/update_exceptions.dart';
@@ -32,7 +33,18 @@ class AndroidUpdateInstaller implements UpdateInstaller {
   AndroidUpdateInstaller({http.Client? client})
     : _client = client ?? http.Client();
 
+  /// Fallback `update.json` key, and the only one releases before 1.0.8
+  /// read. It points at the 64-bit APK.
   static const String _platformKey = 'android';
+
+  /// Releases ship one APK per processor type. Android ABI name →
+  /// `update.json` key.
+  static const Map<String, String> _abiKeys = {
+    'arm64-v8a': 'android-arm64',
+    'armeabi-v7a': 'android-arm',
+    'x86_64': 'android-x86_64',
+  };
+
   static const MethodChannel _installChannel = MethodChannel(
     'crudoc/update_installer',
   );
@@ -50,7 +62,7 @@ class AndroidUpdateInstaller implements UpdateInstaller {
     AppRelease release,
     void Function(UpdateProgress progress) onProgress,
   ) async {
-    final platformInfo = release.manifest?.platformFor(_platformKey);
+    final platformInfo = await _platformInfoFor(release);
     final assetName = platformInfo?.asset;
     if (assetName == null || assetName.isEmpty) {
       throw const UpdateDownloadException(
@@ -123,5 +135,28 @@ class AndroidUpdateInstaller implements UpdateInstaller {
         'The system installer could not be launched: ${e.message}',
       );
     }
+  }
+
+  /// The `update.json` entry for this phone's processor: the first of its
+  /// ABIs (best first) that the release has an APK for, else `android`.
+  Future<UpdateManifestPlatform?> _platformInfoFor(AppRelease release) async {
+    final manifest = release.manifest;
+    if (manifest == null) return null;
+    List<String> abis = const [];
+    try {
+      abis =
+          await _installChannel.invokeListMethod<String>('supportedAbis') ??
+          const [];
+    } on PlatformException {
+      // Fall back to the default entry below.
+    } on MissingPluginException {
+      // Same.
+    }
+    for (final abi in abis) {
+      final key = _abiKeys[abi];
+      final info = key == null ? null : manifest.platformFor(key);
+      if (info?.asset?.isNotEmpty ?? false) return info;
+    }
+    return manifest.platformFor(_platformKey);
   }
 }

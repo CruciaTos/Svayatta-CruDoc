@@ -56,6 +56,19 @@ android {
         }
     }
 
+    // The offline speech engine (sherpa_onnx) is a desktop fallback only:
+    // on phones SpeechEngine always uses the phone's own recognizer and
+    // never loads it. Leaving its libraries out saves ~25 MB per phone.
+    packaging {
+        jniLibs {
+            excludes += setOf(
+                "**/libonnxruntime.so",
+                "**/libsherpa-onnx-c-api.so",
+                "**/libsherpa-onnx-cxx-api.so",
+            )
+        }
+    }
+
     buildTypes {
         release {
             // Every release must carry the same signature or phones refuse

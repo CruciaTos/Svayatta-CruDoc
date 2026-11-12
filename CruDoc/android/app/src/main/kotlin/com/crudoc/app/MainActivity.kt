@@ -31,6 +31,9 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "installApk" -> installApk(call.argument<String>("path") ?: "", result)
+                    // Processor types this phone runs, best first, so the
+                    // matching per-ABI APK is downloaded.
+                    "supportedAbis" -> result.success(Build.SUPPORTED_ABIS.toList())
                     else -> result.notImplemented()
                 }
             }

@@ -158,6 +158,11 @@ flutter:
     - assets/cbct_viewer/
     - assets/cbct_viewer/a/
     - assets/cbct_viewer/fonts/
+    # Patient-facing 3D dental viewer (web bundle built separately).
+    - assets/dental3d/
+    - assets/dental3d/assets/
+    - assets/dental3d/models/
+    - assets/dental3d/draco/
     # Offline speech model for the voice demo (lib/features/voice).
     # - assets/voice/parakeet/
     # - assets/voice/whisper/   # uncomment for on-device Whisper (see tool/voice_server/README.md)

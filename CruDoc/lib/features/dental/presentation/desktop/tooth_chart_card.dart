@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/explain3d/dental3d_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/chart_legend.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_3d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
@@ -16,6 +18,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/tooth
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_view.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Opens the patient's Charting on its Teeth tab.
@@ -58,6 +61,28 @@ class ToothChartPreviewCard extends ConsumerWidget {
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final counts = toothChartCounts(data);
+    // Phones: 3D opens on its own screen (a page that scrolls cannot give a
+    // WebView its drags), tablets and desktops embed it in the card.
+    final phone = MediaQuery.sizeOf(context).width < 600;
+
+    // One 3D page at a time: the card's own view is closed while the full
+    // screen is open and comes back (with the new state) afterwards.
+    Future<void> openFullScreen() async {
+      final was = _threeD;
+      setState(() => _threeD = false);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: Theme.of(context),
+            child: Dental3dScreen(
+              patientId: p.id,
+              patientName: p.fullName,
+            ),
+          ),
+        ),
+      );
+      if (mounted && was) setState(() => _threeD = true);
+    }
     void open([ChartingTab tab = ChartingTab.teeth]) =>
         openCharting(context, patient, tab: tab);
     final exam = data.perioExam;
@@ -247,9 +272,25 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ),
         CruSegmentedControl<bool>(
           semanticLabel: 'View',
-          segments: const [CruSegment(false, 'Chart'), CruSegment(true, '3D')],
+          segments: [
+            const CruSegment(false, 'Chart'),
+            CruSegment(true, '3D', enabled: !child),
+          ],
           selected: _threeD,
-          onChanged: (v) => setState(() => _threeD = v),
+          onChanged: (v) {
+            if (child && v) return;
+            if (v && phone) {
+              unawaited(openFullScreen());
+              return;
+            }
+            setState(() => _threeD = v);
+          },
+        ),
+        CruButton(
+          label: 'Show patient',
+          icon: RadIcons.cube,
+          kind: CruButtonKind.secondary,
+          onPressed: () => unawaited(openFullScreen()),
         ),
       ],
     );
@@ -258,7 +299,6 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         : 'Perio exam ${DentalFormat.date(data.perioExam!.recordedAt)}';
 
     // Phones: thinner sides so the teeth get the width.
-    final phone = MediaQuery.sizeOf(context).width < 600;
     final teeth = CruSegmentedControl<bool>(
       semanticLabel: 'Teeth',
       segments: const [
@@ -269,6 +309,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
       onChanged: (v) => setState(() {
         _child = v;
         _selected = null;
+        if (v) _threeD = false;
       }),
     );
     final legend = _threeD
@@ -309,19 +350,27 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                 switchInCurve: CruMotion.curve,
                 switchOutCurve: CruMotion.curve,
                 child: _threeD
-                    ? ToothChart3D(
+                    ? SizedBox(
                         key: const ValueKey('3d'),
-                        data: data,
-                        child: child,
-                        mode: layer.mode,
-                        selected: _selected,
-                        onSelect: (t) => setState(() => _selected = t),
-                        onOpen: _open,
                         height: (constraints.maxWidth * 0.62).clamp(
                           380.0,
                           widget.fullScreen ? 760.0 : 540.0,
                         ),
-                        numbering: numbering,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(CruRadius.panel),
+                          child: Dental3dView(
+                            patientId: p.id,
+                            patientName: p.fullName,
+                            showPlan: layer == ChartLayer.plan,
+                            compact: true,
+                            selectedFdi: _selected != null
+                                ? int.tryParse(_selected!)
+                                : null,
+                            onToothSelected: (fdi) => setState(
+                              () => _selected = fdi?.toString(),
+                            ),
+                          ),
+                        ),
                       )
                     : ToothChart2D(
                         key: const ValueKey('2d'),

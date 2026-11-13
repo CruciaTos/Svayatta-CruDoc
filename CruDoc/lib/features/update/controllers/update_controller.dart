@@ -57,11 +57,14 @@ import 'package:doctor_management_app/features/update/providers/update_providers
 //   }
 // ---------------------------------------------------------------------
 
-/// How often an unattended startup check is allowed to hit the GitHub
-/// API — design principle #6 ("no nagging"). A manual "Check for
-/// updates" tap always bypasses this via [UpdateController.checkForUpdate]'s
-/// `force` flag.
-const Duration _kUpdateCheckThrottle = Duration(hours: 6);
+/// Shortest gap between two unattended checks in one run of the app, so
+/// a burst of resumes can't burn GitHub's 60-requests-an-hour limit. It
+/// lives in memory only: every fresh launch checks straight away. (It
+/// used to be a 6-hour gap saved on the device, which meant reopening
+/// the app within 6 hours of any earlier check, even a failed offline
+/// one, never looked for the new build.) A manual "Check for updates"
+/// tap bypasses it via [UpdateController.checkForUpdate]'s `force` flag.
+const Duration _kUpdateCheckThrottle = Duration(seconds: 30);
 
 /// UI-facing state for the update feature. `UpdateAvailableDialog` /
 /// `UpdateBanner` watch [checkResult]; `UpdateProgressSheet` watches
@@ -123,21 +126,39 @@ class UpdateController extends Notifier<UpdateControllerState> {
 
   /// Asks [UpdateService] whether a newer release exists.
   ///
-  /// Respects [_kUpdateCheckThrottle] via [UpdatePreferences] unless
-  /// [force] is true. Resets [UpdateControllerState.dismissedForSession]
+  /// Respects the in-memory [_kUpdateCheckThrottle] unless [force] is
+  /// true. Resets [UpdateControllerState.dismissedForSession]
   /// on every call so a newly-available release is shown again even if
   /// a previous one was dismissed.
   Future<void> checkForUpdate({bool force = false}) async {
     final prefs = ref.read(updatePreferencesProvider);
 
+    // One check at a time; a manual tap during an automatic check just
+    // waits for that check's result.
+    final running = _inFlight;
+    if (running != null) return running;
+
     if (!force) {
-      final lastCheckedAt = await prefs.getLastCheckedAt();
-      if (lastCheckedAt != null &&
-          DateTime.now().difference(lastCheckedAt) < _kUpdateCheckThrottle) {
+      final last = _lastCheckedThisRun;
+      if (last != null &&
+          DateTime.now().difference(last) < _kUpdateCheckThrottle) {
         return;
       }
     }
 
+    final future = _runCheck(prefs);
+    _inFlight = future;
+    try {
+      await future;
+    } finally {
+      _inFlight = null;
+    }
+  }
+
+  Future<void>? _inFlight;
+  DateTime? _lastCheckedThisRun;
+
+  Future<void> _runCheck(UpdatePreferences prefs) async {
     state = state.copyWith(
       isChecking: true,
       dismissedForSession: false,
@@ -147,7 +168,12 @@ class UpdateController extends Notifier<UpdateControllerState> {
     try {
       final service = ref.read(updateServiceProvider);
       final result = await service.checkForUpdate();
-      await prefs.setLastCheckedAt(DateTime.now());
+      // A failed (offline) check doesn't count, so the next resume tries
+      // again rather than waiting out the gap.
+      if (result is! CheckFailed) {
+        _lastCheckedThisRun = DateTime.now();
+        await prefs.setLastCheckedAt(DateTime.now());
+      }
 
       final resolved = await _applySkipPreference(result, prefs);
       state = state.copyWith(isChecking: false, checkResult: resolved);

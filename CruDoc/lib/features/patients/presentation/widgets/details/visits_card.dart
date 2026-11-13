@@ -5,10 +5,13 @@ import 'package:intl/intl.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/patients/data/providers/session_files_provider.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/identity_header.dart';
 import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
@@ -32,6 +35,7 @@ class VisitsCard extends ConsumerWidget {
     required this.onOpen,
     required this.onSeeAll,
     this.showClinical = true,
+    this.isDentist = false,
   });
 
   final PatientSummary summary;
@@ -42,9 +46,27 @@ class VisitsCard extends ConsumerWidget {
   /// Note previews, Scribe marks and file counts (clinical roles only).
   final bool showClinical;
 
+  /// Whether the active doctor is a dentist (shows the recall row on phone).
+  final bool isDentist;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
+    final phone =
+        MediaQuery.sizeOf(context).width < PatientDetailsHeader.phoneBelow;
+    final recall = (phone && isDentist)
+        ? patientRecallInfo(
+            ref
+                .watch(
+                  patientRecordsProvider((
+                    patientId: summary.id,
+                    kind: RecKind.recall,
+                  )),
+                )
+                .value,
+            now: now,
+          )
+        : null;
     final upcoming = summary.upcoming(now);
     final past = summary.past(now);
     final next = upcoming.firstOrNull;
@@ -82,6 +104,44 @@ class VisitsCard extends ConsumerWidget {
               morphId: 'title',
             ),
           ),
+          if (recall != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+              child: CruPressable(
+                onTap: () => showSetRecallDialog(
+                  context,
+                  patient: summary.patient,
+                  existing: recall.existing,
+                ),
+                semanticLabel: recall.due == null
+                    ? 'Set recall'
+                    : '${recall.label}, change it',
+                builder: (context, hovered) => Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        recall.label,
+                        style: CruType.text.w500.tabular.tint(
+                          recall.overdue
+                              ? c.amberText
+                              : (hovered ? c.accentText : c.label),
+                        ),
+                      ),
+                    ),
+                    CruIcon(
+                      CruIcons.chevronRight,
+                      size: 16,
+                      color: hovered ? c.accentText : c.label3,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: CruSeparator(),
+            ),
+          ],
           if (total == 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),

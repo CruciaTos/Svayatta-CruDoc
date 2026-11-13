@@ -71,6 +71,27 @@ enum RecallStatus {
 RecallStatus recallStatusOf(DentalRecord r) =>
     RecallStatus.fromName(r.str('status'));
 
+/// The next open recall among [records], sorted by due date.
+DentalRecord? nextOpenRecall(List<DentalRecord>? records) {
+  final open = (records ?? const <DentalRecord>[])
+      .where((r) => recallStatusOf(r).isOpen)
+      .toList()
+    ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+  return open.firstOrNull;
+}
+
+/// Next open recall summary for patient details.
+({DentalRecord? existing, DateTime? due, bool overdue, String label})
+patientRecallInfo(List<DentalRecord>? records, {DateTime? now}) {
+  final next = nextOpenRecall(records);
+  final due = next?.recordedAt;
+  final overdue = due != null && due.isBefore(now ?? DateTime.now());
+  final label = due == null
+      ? 'Set recall'
+      : '${overdue ? 'Recall overdue' : 'Recall'} · ${DentalFormat.shortDate(due)}';
+  return (existing: next, due: due, overdue: overdue, label: label);
+}
+
 /// A recall rule: which treatments it follows and after how long.
 class RecallRule {
   RecallRule(this.record);

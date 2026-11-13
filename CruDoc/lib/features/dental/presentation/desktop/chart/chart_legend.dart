@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_art.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -51,27 +52,70 @@ enum ChartMark {
       obturated,
     ],
   };
+
+  /// Whether this mark appears on [data]'s teeth.
+  bool appearsIn(ToothChartData data) => switch (this) {
+    ChartMark.decay => data.teeth.any((t) => t.decay),
+    ChartMark.filling => data.teeth.any((t) => t.filled),
+    ChartMark.crown => data.teeth.any(
+        (t) =>
+            t.treatment == ToothTreatment.crown ||
+            t.treatment == ToothTreatment.bridge,
+      ),
+    ChartMark.canal => data.teeth.any((t) => t.rootCanal),
+    ChartMark.implant => data.teeth.any((t) => t.implant),
+    ChartMark.missing => data.teeth.any((t) => t.missing),
+    ChartMark.planned => data.teeth.any((t) => t.isPlanned),
+    ChartMark.extraction => data.teeth.any(
+        (t) => t.planned.any((p) => p.toLowerCase().contains('extract')),
+      ),
+    ChartMark.gum => data.perioExam != null && data.teeth.any((t) => t.charted),
+    ChartMark.pocket => data.teeth.any(
+        (t) => t.perio?.pd.whereType<int>().any((d) => d >= 4) ?? false,
+      ),
+    ChartMark.bleeding => data.teeth.any(
+        (t) => t.perio?.bop.any((b) => b) ?? false,
+      ),
+    ChartMark.pulp => data.teeth.any((t) => t.endo?.inflamed ?? false),
+    ChartMark.obturated => data.teeth.any((t) => t.endo?.obturated ?? false),
+    ChartMark.inProgress => data.teeth.any(
+        (t) => t.endo != null && !t.endo!.obturated,
+      ),
+    ChartMark.lesion => data.teeth.any((t) => t.endo?.lesion ?? false),
+  };
 }
 
 /// The marks used in [layer], each with a small swatch drawn like the
 /// chart draws it.
 class ChartLegend extends StatelessWidget {
-  const ChartLegend({super.key, required this.layer, this.trailing});
+  const ChartLegend({
+    super.key,
+    required this.layer,
+    this.trailing,
+    this.data,
+  });
 
   final ChartLayer layer;
 
   /// A last quiet note ("Exam 12 Sep 2026").
   final String? trailing;
 
+  /// When provided (e.g. phone), only marks this patient has are shown.
+  final ToothChartData? data;
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final all = ChartMark.of(layer);
+    final marks = data == null
+        ? all
+        : all.where((m) => m.appearsIn(data!)).toList();
     return Wrap(
       spacing: CruSpace.s14,
       runSpacing: CruSpace.s8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        for (final m in ChartMark.of(layer))
+        for (final m in marks)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [

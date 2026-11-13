@@ -93,7 +93,6 @@ List<RecordCluster> chartRecords(
       const <String, List<DentalRecord>>{};
   List<DentalRecord> of(String kind) => byKind[kind] ?? const [];
   String plural(int n, String word) => '$n $word${n == 1 ? '' : 's'}';
-  final now = DateTime.now();
   final child = p.age < 16;
 
   final perio = of(RecKind.perio);
@@ -131,10 +130,6 @@ List<RecordCluster> chartRecords(
         (r) => r.str('status') != 'completed' && r.str('status') != 'declined',
       )
       .length;
-  final recalls =
-      of(RecKind.recall).where((r) => recallStatusOf(r).isOpen).toList()
-        ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-  final nextRecall = recalls.firstOrNull;
   final forms = of(RecKind.formResponse);
 
   void dialog(Widget child) =>
@@ -308,20 +303,6 @@ List<RecordCluster> chartRecords(
           tone: openReferrals > 0 ? RecordTone.warn : RecordTone.plain,
           onOpen: () => dialog(PatientReferralsDialog(patient: p)),
         ),
-        ChartRecord(
-          id: 'recall',
-          label: 'Recall',
-          icon: RecIcons.recall,
-          detail: 'When the patient should come back, and why.',
-          status: nextRecall == null
-              ? null
-              : DentalFormat.shortDate(nextRecall.recordedAt),
-          tone: nextRecall != null && nextRecall.recordedAt.isBefore(now)
-              ? RecordTone.warn
-              : RecordTone.plain,
-          onOpen: () =>
-              showSetRecallDialog(context, patient: p, existing: nextRecall),
-        ),
       ],
     ),
     (
@@ -353,6 +334,38 @@ List<RecordCluster> chartRecords(
       ],
     ),
   ];
+}
+
+/// The recall record tile for [p] (Wrap-up tab).
+ChartRecord chartRecallRecord(
+  BuildContext context,
+  WidgetRef ref,
+  Patient p,
+) {
+  final byKind =
+      ref.watch(patientRecordsByKindProvider(p.id)).value ??
+      const <String, List<DentalRecord>>{};
+  final recalls =
+      (byKind[RecKind.recall] ?? const [])
+          .where((r) => recallStatusOf(r).isOpen)
+          .toList()
+        ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+  final nextRecall = recalls.firstOrNull;
+  final now = DateTime.now();
+  return ChartRecord(
+    id: 'recall',
+    label: 'Recall',
+    icon: RecIcons.recall,
+    detail: 'When the patient should come back, and why.',
+    status: nextRecall == null
+        ? null
+        : DentalFormat.shortDate(nextRecall.recordedAt),
+    tone: nextRecall != null && nextRecall.recordedAt.isBefore(now)
+        ? RecordTone.warn
+        : RecordTone.plain,
+    onOpen: () =>
+        showSetRecallDialog(context, patient: p, existing: nextRecall),
+  );
 }
 
 /// The record with [id], if the patient has it.
@@ -677,6 +690,29 @@ class RecordGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Phones: one card per group with compact rows, so a whole group fits
+    // on screen. Wider screens keep the card grid.
+    if (MediaQuery.sizeOf(context).width < 600) {
+      return CruCard(
+        semanticLabel: 'Records',
+        padding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < records.length; i++) ...[
+              if (i > 0)
+                const Padding(
+                  padding: EdgeInsets.only(
+                    left: CruSpace.s16 + CruSize.iconTile + CruSpace.s12,
+                  ),
+                  child: CruSeparator(),
+                ),
+              _RecordRow(record: records[i]),
+            ],
+          ],
+        ),
+      );
+    }
     return LayoutBuilder(
       builder: (context, box) {
         final columns = (box.maxWidth / 300).floor().clamp(1, 3);
@@ -694,6 +730,77 @@ class RecordGrid extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// Phone row inside a group card: icon tile, name, status, chevron.
+class _RecordRow extends StatelessWidget {
+  const _RecordRow({required this.record});
+
+  final ChartRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final r = record;
+    return CruPressable(
+      onTap: r.onOpen,
+      scaleOnPress: false,
+      semanticLabel: '${r.label}. ${r.status ?? 'Nothing recorded yet'}',
+      builder: (context, hovered) => Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s16,
+          vertical: CruSpace.s12,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: CruSize.iconTile,
+              height: CruSize.iconTile,
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                color: c.inset,
+                shape: cruShape(CruRadius.iconTile),
+              ),
+              child: CruIcon(r.icon, size: 18, strokeWidth: 1.8, color: c.label),
+            ),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    r.title ?? r.label,
+                    style: CruType.callout.w600.tint(
+                      hovered ? c.accentText : c.label,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (!r.action)
+                    Text(
+                      r.status ?? 'Nothing recorded yet',
+                      style: CruType.subhead.tabular.tint(
+                        r.status == null ? c.label3 : _toneColor(c, r.tone),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  else
+                    Text(
+                      r.detail,
+                      style: CruType.subhead.tint(c.label3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+          ],
+        ),
+      ),
     );
   }
 }

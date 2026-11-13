@@ -29,7 +29,6 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
-import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
@@ -328,6 +327,15 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
         showDesktopCreateInvoiceDialog(context, initialPatient: p);
     void openVisit(Visit v) =>
         showVisitSessionDialog(context, visit: v, patient: p);
+    void openChart() {
+      final goToTab = ref.read(shellNavigatorProvider);
+      if (goToTab == null) {
+        openCharting(context, p);
+        return;
+      }
+      ref.read(chartingPatientIdProvider.notifier).state = p.id;
+      goToTab(DesktopTab.charting);
+    }
 
     DoctorLetterheadConfig letterhead() =>
         DoctorLetterheadConfig.fromProfileData(
@@ -410,6 +418,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
         summary: s,
         now: now,
         showClinical: clinical,
+        isDentist: isDentist,
         onOpen: openVisit,
         onSeeAll: () => _openSub(_Sub.visits),
       ),
@@ -441,6 +450,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
         builder: (context, constraints) {
           final phone = constraints.maxWidth < _phoneWidth;
           final padding = phone ? _phonePadding : _padding;
+          final showBottomBar = phone && open == null && (isDentist || canBook);
           final wide =
               constraints.maxWidth - padding.horizontal >=
               CruBreakpoint.detailsTwoColumn;
@@ -555,7 +565,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
             ),
           );
 
-          return Column(
+          final body = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
@@ -623,7 +633,17 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                               key: PageStorageKey<String>(
                                 'patient-${s.id}-${t.name}',
                               ),
-                              padding: padding.copyWith(top: 0),
+                              padding: padding.copyWith(
+                                top: 0,
+                                // bar: large button + 2 x 12 padding, plus
+                                // the phone's gesture/nav bar inset
+                                bottom: showBottomBar
+                                    ? CruSpace.s32 * 3 +
+                                          MediaQuery.viewPaddingOf(
+                                            context,
+                                          ).bottom
+                                    : padding.bottom,
+                              ),
                               child: t == _Tab.overview
                                   ? overview
                                   : clinicalScreen(),
@@ -689,6 +709,25 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
               ),
             ],
           );
+
+          if (!showBottomBar) return body;
+
+          return Stack(
+            children: [
+              body,
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _PatientDetailsBottomBar(
+                  isDentist: isDentist,
+                  canBook: canBook,
+                  onNewVisit: newVisit,
+                  onOpenChart: openChart,
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -747,26 +786,19 @@ class _RecallButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final open =
-        (ref
-                    .watch(
-                      patientRecordsProvider((
-                        patientId: patient.id,
-                        kind: RecKind.recall,
-                      )),
-                    )
-                    .value ??
-                const <DentalRecord>[])
-            .where((r) => recallStatusOf(r).isOpen)
-            .toList()
-          ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-    final next = open.firstOrNull;
-    final due = next?.recordedAt;
-    final overdue = due != null && due.isBefore(DateTime.now());
-    final label = due == null
-        ? 'Recall'
-        : '${overdue ? 'Recall overdue' : 'Recall'} · '
-              '${DentalFormat.shortDate(due)}';
+    final recall = patientRecallInfo(
+      ref
+          .watch(
+            patientRecordsProvider((
+              patientId: patient.id,
+              kind: RecKind.recall,
+            )),
+          )
+          .value,
+    );
+    final next = recall.existing;
+    final due = recall.due;
+    final label = due == null ? 'Recall' : recall.label;
     void edit() =>
         showSetRecallDialog(context, patient: patient, existing: next);
     if (compact) {
@@ -784,6 +816,91 @@ class _RecallButton extends ConsumerWidget {
       height: CruSize.control,
       semanticLabel: due == null ? 'Set a recall' : '$label, change it',
       onPressed: edit,
+    );
+  }
+}
+
+/// Sticky bottom bar on phone: New visit and/or Open chart.
+class _PatientDetailsBottomBar extends StatelessWidget {
+  const _PatientDetailsBottomBar({
+    required this.isDentist,
+    required this.canBook,
+    required this.onNewVisit,
+    required this.onOpenChart,
+  });
+
+  final bool isDentist;
+  final bool canBook;
+  final VoidCallback onNewVisit;
+  final VoidCallback onOpenChart;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final Widget content;
+    if (isDentist) {
+      if (canBook) {
+        content = Row(
+          children: [
+            Expanded(
+              child: CruButton(
+                label: 'New visit',
+                kind: CruButtonKind.inset,
+                icon: CruIcons.plus,
+                large: true,
+                expand: true,
+                onPressed: onNewVisit,
+              ),
+            ),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: CruButton(
+                label: 'Open chart',
+                kind: CruButtonKind.primary,
+                icon: DentalIcons.tooth,
+                large: true,
+                expand: true,
+                onPressed: onOpenChart,
+              ),
+            ),
+          ],
+        );
+      } else {
+        content = CruButton(
+          label: 'Open chart',
+          kind: CruButtonKind.primary,
+          icon: DentalIcons.tooth,
+          large: true,
+          expand: true,
+          onPressed: onOpenChart,
+        );
+      }
+    } else {
+      content = CruButton(
+        label: 'New visit',
+        kind: CruButtonKind.primary,
+        icon: CruIcons.plus,
+        large: true,
+        expand: true,
+        onPressed: onNewVisit,
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(top: BorderSide(color: c.cardBorder, width: 1)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s16,
+            vertical: CruSpace.s12,
+          ),
+          child: content,
+        ),
+      ),
     );
   }
 }
@@ -822,36 +939,43 @@ class _DetailsSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final phone = MediaQuery.sizeOf(context).width < _phoneWidth;
+    final padding = phone ? _phonePadding : _padding;
+    final textWidth = phone ? 160.0 : 220.0;
+    final metaWidth = phone ? 180.0 : 280.0;
     return SingleChildScrollView(
-      padding: _padding,
+      padding: padding,
       physics: const NeverScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(children: [DetailsBackLink(onBack: onBack)]),
           const SizedBox(height: CruSpace.s12),
-          const Row(
+          Row(
             children: [
               SkeletonBox(
-                width: CruSize.monogramPreview,
-                height: CruSize.monogramPreview,
+                width: phone ? 44 : CruSize.monogramPreview,
+                height: phone ? 44 : CruSize.monogramPreview,
                 circle: true,
               ),
-              SizedBox(width: CruSpace.s16),
+              const SizedBox(width: CruSpace.s16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SkeletonBox(width: 220, height: 24),
-                  SizedBox(height: CruSpace.s8),
-                  SkeletonBox(width: 280, height: 14),
+                  SkeletonBox(width: textWidth, height: 24),
+                  const SizedBox(height: CruSpace.s8),
+                  SkeletonBox(width: metaWidth, height: 14),
                 ],
               ),
             ],
           ),
           const SizedBox(height: CruSpace.s16),
-          const Align(
+          Align(
             alignment: Alignment.centerLeft,
-            child: SkeletonBox(width: 380, height: CruSize.segmentHeight),
+            child: SkeletonBox(
+              width: phone ? 220 : 380,
+              height: CruSize.segmentHeight,
+            ),
           ),
           const SizedBox(height: CruSpace.s16),
           const SkeletonCard(rows: 3),

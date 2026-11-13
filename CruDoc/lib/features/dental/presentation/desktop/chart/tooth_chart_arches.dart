@@ -15,6 +15,7 @@ class ToothChartArches extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     this.onOpen,
+    this.onDeselect,
     this.layer = ChartLayer.dental,
     this.numbering = ToothNumbering.fdi,
   });
@@ -24,6 +25,7 @@ class ToothChartArches extends StatelessWidget {
   final String? selected;
   final ValueChanged<String> onSelect;
   final ValueChanged<String>? onOpen;
+  final VoidCallback? onDeselect;
   final ChartLayer layer;
   final ToothNumbering numbering;
 
@@ -35,6 +37,7 @@ class ToothChartArches extends StatelessWidget {
     selected: selected,
     onSelect: onSelect,
     onOpen: onOpen,
+    onDeselect: onDeselect,
     layer: layer,
     numbering: numbering,
   );

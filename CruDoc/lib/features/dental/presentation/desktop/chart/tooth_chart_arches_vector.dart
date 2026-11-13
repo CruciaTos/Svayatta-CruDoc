@@ -31,8 +31,10 @@ class ToothChartArchesVector extends StatefulWidget {
     required this.selected,
     required this.onSelect,
     this.onOpen,
+    this.onDeselect,
     this.layer = ChartLayer.dental,
     this.numbering = ToothNumbering.fdi,
+    this.showBar = false,
   });
 
   final ToothChartData data;
@@ -40,8 +42,10 @@ class ToothChartArchesVector extends StatefulWidget {
   final String? selected;
   final ValueChanged<String> onSelect;
   final ValueChanged<String>? onOpen;
+  final VoidCallback? onDeselect;
   final ChartLayer layer;
   final ToothNumbering numbering;
+  final bool showBar;
 
   @override
   State<ToothChartArchesVector> createState() => _ToothChartArchesVectorState();
@@ -84,6 +88,8 @@ class _ToothChartArchesVectorState extends State<ToothChartArchesVector> {
                   final hit = layout.hitTest(d.localPosition);
                   if (hit != null) {
                     widget.onSelect(hit);
+                  } else {
+                    widget.onDeselect?.call();
                   }
                 },
                 child: CustomPaint(
@@ -99,7 +105,7 @@ class _ToothChartArchesVectorState extends State<ToothChartArchesVector> {
                 ),
               ),
             ),
-            if (selTooth != null && selVisual != null) ...[
+            if (widget.showBar && selTooth != null && selVisual != null) ...[
               const SizedBox(height: CruSpace.s12),
               ArchSelectedToothBar(
                 fdi: selTooth,

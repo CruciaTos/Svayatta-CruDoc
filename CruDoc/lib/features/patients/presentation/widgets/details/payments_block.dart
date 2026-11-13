@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/revenue/domain/revenue_builder.da
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/pending_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
 
 /// The package panel (inset, radius 12): balance, what is due, and
 /// Record payment. The amount paid and the package total are GAPs, so
@@ -126,9 +127,51 @@ class PaymentsSummaryCard extends ConsumerWidget {
           billing.openBillsTotal,
         ),
     ];
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    if (phone && lines.isEmpty) {
+      return CruCard(
+        semanticLabel: 'Payments',
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: CruPressable(
+          onTap: onSeeAll,
+          scaleOnPress: false,
+          semanticLabel: 'Payments: No dues. Open payments.',
+          builder: (context, hovered) => Row(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MorphTag.text(
+                      id: 'title',
+                      text: 'Payments',
+                      style: CruType.headline.tint(
+                        hovered ? c.accentText : c.label,
+                      ),
+                    ),
+                    Text(
+                      ' · No dues',
+                      style: CruType.headline.tint(c.label2),
+                    ),
+                  ],
+                ),
+              ),
+              CruIcon(
+                CruIcons.chevronRight,
+                size: 16,
+                color: hovered ? c.accentText : c.label3,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return CruCard(
       semanticLabel: 'Payments',
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+      padding: phone
+          ? const EdgeInsets.fromLTRB(16, 16, 16, 14)
+          : const EdgeInsets.fromLTRB(24, 20, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -138,7 +181,7 @@ class PaymentsSummaryCard extends ConsumerWidget {
             morphId: 'title',
             trailing: summary.hasBalance
                 ? CruCapsuleButton(
-                    label: 'Record payment',
+                    label: phone ? 'Record' : 'Record payment',
                     semanticLabel: 'Record a payment from ${summary.name}',
                     onPressed: onRecordPayment,
                   )

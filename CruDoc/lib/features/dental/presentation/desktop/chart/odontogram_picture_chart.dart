@@ -73,8 +73,10 @@ class OdontogramPictureChart extends StatefulWidget {
     required this.selected,
     required this.onSelect,
     this.onOpen,
+    this.onDeselect,
     this.layer = ChartLayer.dental,
     this.numbering = ToothNumbering.fdi,
+    this.showBar = false,
   });
 
   final OdontogramArt art;
@@ -83,8 +85,10 @@ class OdontogramPictureChart extends StatefulWidget {
   final String? selected;
   final ValueChanged<String> onSelect;
   final ValueChanged<String>? onOpen;
+  final VoidCallback? onDeselect;
   final ChartLayer layer;
   final ToothNumbering numbering;
+  final bool showBar;
 
   @override
   State<OdontogramPictureChart> createState() => _OdontogramPictureChartState();
@@ -112,6 +116,7 @@ class _OdontogramPictureChartState extends State<OdontogramPictureChart> {
         selected: widget.selected,
         onSelect: widget.onSelect,
         onOpen: widget.onOpen,
+        onDeselect: widget.onDeselect,
         layer: widget.layer,
         numbering: widget.numbering,
       );
@@ -123,12 +128,14 @@ class _OdontogramPictureChartState extends State<OdontogramPictureChart> {
         selected: widget.selected,
         onSelect: widget.onSelect,
         onOpen: widget.onOpen,
+        onDeselect: widget.onDeselect,
         layer: widget.layer,
         numbering: widget.numbering,
       );
     }
 
     final c = context.cru;
+    final paper = chartPaper(widget.layer, c);
     final selTooth = widget.selected;
     final selVisual = selTooth != null ? widget.data.of(selTooth) : null;
 
@@ -145,7 +152,11 @@ class _OdontogramPictureChartState extends State<OdontogramPictureChart> {
                 behavior: HitTestBehavior.opaque,
                 onTapUp: (d) {
                   final hit = layout.hitTest(d.localPosition);
-                  if (hit != null) widget.onSelect(hit);
+                  if (hit != null) {
+                    widget.onSelect(hit);
+                  } else {
+                    widget.onDeselect?.call();
+                  }
                 },
                 child: ListenableBuilder(
                   listenable: _Pictures.instance,
@@ -160,12 +171,13 @@ class _OdontogramPictureChartState extends State<OdontogramPictureChart> {
                       selected: widget.selected,
                       numbering: widget.numbering,
                       colors: c,
+                      paper: paper,
                     ),
                   ),
                 ),
               ),
             ),
-            if (selTooth != null && selVisual != null) ...[
+            if (widget.showBar && selTooth != null && selVisual != null) ...[
               const SizedBox(height: CruSpace.s12),
               ArchSelectedToothBar(
                 fdi: selTooth,
@@ -317,6 +329,7 @@ class _PicturePainter extends CustomPainter {
     required this.selected,
     required this.numbering,
     required this.colors,
+    required this.paper,
   });
 
   final OdontogramArt art;
@@ -327,8 +340,7 @@ class _PicturePainter extends CustomPainter {
   final String? selected;
   final ToothNumbering numbering;
   final CruColors colors;
-
-  static const _paper = Color(0xFFFFFFFF);
+  final Color paper;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -340,7 +352,7 @@ class _PicturePainter extends CustomPainter {
       layout.panel,
       const Radius.circular(CruRadius.panel),
     );
-    canvas.drawRRect(panel, Paint()..color = _paper);
+    canvas.drawRRect(panel, Paint()..color = paper);
     if (!c.isEvening) {
       canvas.drawRRect(
         panel.deflate(0.5),
@@ -377,7 +389,7 @@ class _PicturePainter extends CustomPainter {
       final look = data.of(t.number).look(layer);
       if (look.missing) {
         // Paper over the tooth, then a dashed outline only.
-        canvas.drawPath(t.outline, Paint()..color = _paper);
+        canvas.drawPath(t.outline, Paint()..color = paper);
         canvas.drawPath(
           t.outline,
           Paint()
@@ -385,7 +397,7 @@ class _PicturePainter extends CustomPainter {
             ..strokeWidth = 2.4
             ..strokeJoin = StrokeJoin.round
             ..isAntiAlias = true
-            ..color = _paper,
+            ..color = paper,
         );
         dashPath(
           canvas,

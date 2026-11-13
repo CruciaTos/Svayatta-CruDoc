@@ -10,7 +10,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Past illnesses from the homeopathy case sheet when there is one; for
 /// dentists, a Dental history row that opens the oral medicine history.
 /// Tobacco and Last X-ray have no data (GAP) and are not shown.
-class MedicalHistoryCard extends StatelessWidget {
+class MedicalHistoryCard extends StatefulWidget {
   const MedicalHistoryCard({
     super.key,
     required this.summary,
@@ -31,11 +31,20 @@ class MedicalHistoryCard extends StatelessWidget {
   final ({String line, VoidCallback onOpen})? dental;
 
   @override
+  State<MedicalHistoryCard> createState() => _MedicalHistoryCardState();
+}
+
+class _MedicalHistoryCardState extends State<MedicalHistoryCard> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final summary = widget.summary;
+    final caseSheet = widget.caseSheet;
     final history = caseSheet?.medicalHistory;
-    final a = allergies;
-    final d = dental;
+    final a = widget.allergies;
+    final d = widget.dental;
     final rows = <_Row>[
       if (summary.condition != null)
         _Row('Condition', summary.condition!, emphasis: true),
@@ -51,6 +60,10 @@ class MedicalHistoryCard extends StatelessWidget {
     ];
     final updated = caseSheet?.updatedAt ?? summary.patient.updatedAt;
 
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final hasOverflow = phone && rows.length > 3;
+    final shown = hasOverflow && !_expanded ? rows.take(3).toList() : rows;
+
     return CruCard(
       semanticLabel: 'Medical history',
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
@@ -59,7 +72,7 @@ class MedicalHistoryCard extends StatelessWidget {
         children: [
           DetailsCardHeader(
             title: 'Medical history',
-            trailing: CruLink(label: 'Edit', onPressed: onEdit),
+            trailing: CruLink(label: 'Edit', onPressed: widget.onEdit),
           ),
           const SizedBox(height: CruSpace.s6),
           if (rows.isEmpty)
@@ -70,9 +83,23 @@ class MedicalHistoryCard extends StatelessWidget {
                 style: CruType.text.tint(c.label2),
               ),
             )
-          else
-            for (var i = 0; i < rows.length; i++)
-              _HistoryRow(row: rows[i], separator: i < rows.length - 1),
+          else ...[
+            for (var i = 0; i < shown.length; i++)
+              _HistoryRow(
+                row: shown[i],
+                separator: i < shown.length - 1 || (hasOverflow && !_expanded),
+              ),
+            if (hasOverflow && !_expanded) ...[
+              const SizedBox(height: CruSpace.s8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CruLink(
+                  label: 'Show all',
+                  onPressed: () => setState(() => _expanded = true),
+                ),
+              ),
+            ],
+          ],
           const SizedBox(height: CruSpace.s6),
           Text(
             'Updated ${PatientFormat.weekdayDate(updated)}',

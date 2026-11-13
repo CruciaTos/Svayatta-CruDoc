@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
@@ -5,6 +7,39 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/chart
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_art.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+/// Chart background paper colour according to the active [ChartLayer] mode.
+/// [base] is what gets tinted: white paper for the odontogram picture (white
+/// in both themes), the card surface for the row chart (dark in evening).
+Color chartPaper(ChartLayer layer, CruColors c, {Color? base}) {
+  final paper = base ?? const Color(0xFFFFFFFF);
+  final isEve = c.isEvening;
+  final amount = switch (layer) {
+    ChartLayer.dental => 0.0,
+    ChartLayer.plan => isEve ? 0.10 : 0.06,
+    ChartLayer.perio => isEve ? 0.10 : 0.06,
+    ChartLayer.endo => isEve ? 0.10 : 0.06,
+    ChartLayer.all => isEve ? 0.10 : 0.04,
+  };
+  if (amount == 0.0) return paper;
+
+  final rawTint = switch (layer) {
+    ChartLayer.dental => paper,
+    ChartLayer.plan => c.accent,
+    ChartLayer.perio => c.gumShade,
+    ChartLayer.endo => c.pulp,
+    ChartLayer.all => c.label2,
+  };
+
+  final tint = (rawTint == c.redText ||
+          rawTint == c.allergyChipText ||
+          rawTint == c.ai)
+      ? c.label2
+      : rawTint;
+
+  return Color.lerp(paper, tint, amount) ?? paper;
+}
 
 /// 3D view: teeth coloured by what was found, or planned work standing
 /// out.

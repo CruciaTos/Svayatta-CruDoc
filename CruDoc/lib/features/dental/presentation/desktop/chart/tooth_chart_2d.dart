@@ -39,6 +39,7 @@ class ToothChart2D extends StatefulWidget {
     this.rows = ChartRows.full,
     this.maxScale,
     this.numbering = ToothNumbering.fdi,
+    this.onDeselect,
   });
 
   final ToothChartData data;
@@ -49,6 +50,9 @@ class ToothChart2D extends StatefulWidget {
 
   /// Click on a tooth.
   final ValueChanged<String> onSelect;
+
+  /// Called when a tap lands outside any tooth.
+  final VoidCallback? onDeselect;
 
   /// Double-click or Enter on a tooth. Without it a click acts at once
   /// and Enter picks the tooth.
@@ -230,6 +234,8 @@ class _ToothChart2DState extends State<ToothChart2D> {
                           if (hit != null) {
                             _cursor = hit;
                             widget.onSelect(hit);
+                          } else {
+                            widget.onDeselect?.call();
                           }
                         },
                         onDoubleTapDown: open == null

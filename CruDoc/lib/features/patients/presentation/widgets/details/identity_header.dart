@@ -102,25 +102,20 @@ class PatientDetailsHeader extends StatelessWidget {
                 ),
               ),
             ),
-            for (final a in actions?.call(compact) ?? const <Widget>[]) ...[
-              a,
-              const SizedBox(width: CruSpace.s10),
+            if (!phone) ...[
+              for (final a in actions?.call(compact) ?? const <Widget>[]) ...[
+                a,
+                const SizedBox(width: CruSpace.s10),
+              ],
             ],
             menu,
-            if (onNewVisit != null) ...[
+            if (onNewVisit != null && !phone) ...[
               const SizedBox(width: CruSpace.s10),
-              phone
-                  ? CruSquareButton(
-                      icon: CruIcons.plus,
-                      tooltip: 'New visit',
-                      semanticLabel: 'New visit',
-                      onPressed: onNewVisit,
-                    )
-                  : CruButton(
-                      label: 'New visit',
-                      icon: CruIcons.plus,
-                      onPressed: onNewVisit,
-                    ),
+              CruButton(
+                label: 'New visit',
+                icon: CruIcons.plus,
+                onPressed: onNewVisit,
+              ),
             ],
           ],
         );
@@ -168,28 +163,8 @@ class PatientDetailsHeader extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         );
-        // Phones: icon buttons, so the name keeps its room.
         final contact = !hasPhone
             ? const <Widget>[]
-            : phone
-            ? [
-                const SizedBox(width: CruSpace.s12),
-                CruSquareButton(
-                  icon: CruIcons.phone,
-                  secondary: true,
-                  semanticLabel: 'Call ${p.fullName}',
-                  tooltip: 'Call',
-                  onPressed: onCall,
-                ),
-                const SizedBox(width: CruSpace.s8),
-                CruSquareButton(
-                  icon: CruIcons.whatsapp,
-                  secondary: true,
-                  semanticLabel: 'WhatsApp ${p.fullName}',
-                  tooltip: 'WhatsApp',
-                  onPressed: onWhatsApp,
-                ),
-              ]
             : [
                 const SizedBox(width: CruSpace.s16),
                 CruCapsuleButton(
@@ -212,6 +187,26 @@ class PatientDetailsHeader extends StatelessWidget {
                   onPressed: onWhatsApp,
                 ),
               ];
+        final phoneContact = !hasPhone
+            ? const <Widget>[]
+            : [
+                const SizedBox(width: CruSpace.s8),
+                CruSquareButton(
+                  icon: CruIcons.phone,
+                  secondary: true,
+                  semanticLabel: 'Call ${p.fullName}',
+                  tooltip: 'Call',
+                  onPressed: onCall,
+                ),
+                const SizedBox(width: CruSpace.s8),
+                CruSquareButton(
+                  icon: CruIcons.whatsapp,
+                  secondary: true,
+                  semanticLabel: 'WhatsApp ${p.fullName}',
+                  tooltip: 'WhatsApp',
+                  onPressed: onWhatsApp,
+                ),
+              ];
 
         if (phone) {
           return Column(
@@ -221,6 +216,7 @@ class PatientDetailsHeader extends StatelessWidget {
               topLine,
               const SizedBox(height: CruSpace.s8),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   CruMonogram(name: p.fullName, size: _phoneMonogram),
                   const SizedBox(width: CruSpace.s12),
@@ -228,10 +224,18 @@ class PatientDetailsHeader extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
-                      children: [nameRow, metaText],
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: nameRow),
+                            ...phoneContact,
+                          ],
+                        ),
+                        const SizedBox(height: CruSpace.s2),
+                        metaText,
+                      ],
                     ),
                   ),
-                  ...contact,
                 ],
               ),
               if (allergyPill != null) ...[

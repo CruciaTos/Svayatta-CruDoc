@@ -236,6 +236,8 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
       );
     }
 
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final showExtraActions = !phone || full;
     final card = CruCard(
       semanticLabel: 'Files',
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
@@ -261,7 +263,9 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
                         patientId: patient.id,
                       ),
                     ),
-                  if (canEdit && ScanCapture.hasCamera) ...[
+                  if (showExtraActions &&
+                      canEdit &&
+                      ScanCapture.hasCamera) ...[
                     const SizedBox(width: CruSpace.s8),
                     CruSquareButton(
                       icon: CruIcons.scan,
@@ -276,7 +280,7 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
                       ),
                     ),
                   ],
-                  if (hasDose) ...[
+                  if (showExtraActions && hasDose) ...[
                     if (canEdit) const SizedBox(width: CruSpace.s8),
                     CruSquareButton(
                       icon: RadIcons.dose,

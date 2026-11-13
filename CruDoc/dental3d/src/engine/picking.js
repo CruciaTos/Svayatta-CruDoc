@@ -65,14 +65,18 @@ export function createPicking(stage, registry, handlers) {
     if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < d.lim && !d.multi) {
       const id = pickAt(e.clientX, e.clientY);
       handlers.select(id);
-      // single tap only selects; double tap opens the tooth form in the app
-      // (outside the app it brings the tooth close)
+      // single tap selects and centres the tooth: the camera flies to it and
+      // the orbit pivot moves onto it, so dragging orbits around that tooth.
+      // Double tap opens the tooth form in the app.
       const now = performance.now();
       if (id && lastTap && lastTap.id === id && now - lastTap.t < DOUBLE_TAP_MS) {
-        if (IN_APP) handlers.tap?.(id); else handlers.fly?.(id);
+        if (IN_APP) handlers.tap?.(id);
         lastTap = null;
       }
-      else lastTap = id ? { id, t: now } : null;
+      else {
+        if (id) handlers.fly?.(id);
+        lastTap = id ? { id, t: now } : null;
+      }
     }
   };
   canvas.addEventListener('pointerup', end);

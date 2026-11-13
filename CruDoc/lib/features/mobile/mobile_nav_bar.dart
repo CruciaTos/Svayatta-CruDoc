@@ -29,7 +29,8 @@ class MobileNavBar extends StatefulWidget {
     required this.items,
     this.badges = const {},
   }) : selected = null,
-       onSelect = null;
+       onSelect = null,
+       showLabels = false;
 
   /// The same bar for pages that are not a [PageView] (Charting's
   /// workspaces): the lens slides to [selected]; a tap or a drag picks a
@@ -40,6 +41,7 @@ class MobileNavBar extends StatefulWidget {
     required ValueChanged<int> this.onSelect,
     required this.items,
     this.badges = const {},
+    this.showLabels = false,
   }) : controller = null;
 
   final PageController? controller;
@@ -50,6 +52,32 @@ class MobileNavBar extends StatefulWidget {
   /// Small amber counts on tabs (people waiting on Schedule).
   final Map<int, int> badges;
 
+  /// Each tab's name under its icon (Charting, where the icons are new).
+  final bool showLabels;
+
+  @override
+  State<MobileNavBar> createState() => _MobileNavBarState();
+}
+
+/// The bar's look, for anything that floats in the nav bar's place: the
+/// Up next card's ink-blue gradient with an embossed rim (light along the
+/// top, grey along the bottom), pressed-in edges and the lift shadow.
+/// [child] sits inside the blue.
+class MobileNavPill extends StatelessWidget {
+  const MobileNavPill({
+    super.key,
+    required this.child,
+    this.height = MobileMetrics.navHeight,
+  });
+
+  final Widget child;
+
+  /// Outer height, rim included.
+  final double height;
+
+  /// Width of the embossed rim around the bar.
+  static const double rim = 1.5;
+
   static const _gradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -58,15 +86,67 @@ class MobileNavBar extends StatefulWidget {
   );
 
   @override
-  State<MobileNavBar> createState() => _MobileNavBarState();
+  Widget build(BuildContext context) {
+    // The rim: a white-to-grey ring around the blue bar.
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(rim),
+      decoration: ShapeDecoration(
+        shape: const StadiumBorder(),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFFFFF), Color(0xFFE2E7EF), Color(0xFFA9B3C2)],
+          stops: [0, 0.5, 1],
+        ),
+        shadows: [
+          BoxShadow(
+            color: const Color(0xFF1E3A8A).withValues(alpha: 0.22),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.10),
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: DecoratedBox(
+        decoration: const ShapeDecoration(
+          shape: StadiumBorder(),
+          gradient: _gradient,
+        ),
+        // Pressed-in edges: a highlight inside the top, a shade inside the
+        // bottom.
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: ShapeDecoration(
+            shape: const StadiumBorder(),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: const [0, 0.22, 0.7, 1],
+              colors: [
+                Colors.white.withValues(alpha: 0.26),
+                Colors.white.withValues(alpha: 0),
+                Colors.black.withValues(alpha: 0),
+                Colors.black.withValues(alpha: 0.16),
+              ],
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
 }
 
 class _MobileNavBarState extends State<MobileNavBar> {
   bool _dragging = false;
   int _lastTick = -1;
 
-  /// Width of the embossed rim around the bar.
-  static const double _rim = 1.5;
+  static const double _rim = MobileNavPill.rim;
 
   int get _count => widget.items.length;
 
@@ -167,103 +247,48 @@ class _MobileNavBarState extends State<MobileNavBar> {
           onHorizontalDragUpdate: (d) => _dragTo(d.localPosition.dx, slot),
           onHorizontalDragEnd: (_) => _settle(),
           onHorizontalDragCancel: _settle,
-          // The rim: a white-to-grey ring around the blue bar.
-          child: Container(
-            height: MobileMetrics.navHeight,
-            padding: const EdgeInsets.all(_rim),
-            decoration: ShapeDecoration(
-              shape: const StadiumBorder(),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFFFFFFF),
-                  Color(0xFFE2E7EF),
-                  Color(0xFFA9B3C2),
-                ],
-                stops: [0, 0.5, 1],
-              ),
-              shadows: [
-                BoxShadow(
-                  color: const Color(0xFF1E3A8A).withValues(alpha: 0.22),
-                  blurRadius: 22,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.10),
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: DecoratedBox(
-              decoration: const ShapeDecoration(
-                shape: StadiumBorder(),
-                gradient: MobileNavBar._gradient,
-              ),
-              // Pressed-in edges: a highlight inside the top, a shade
-              // inside the bottom.
-              child: DecoratedBox(
-                position: DecorationPosition.foreground,
-                decoration: ShapeDecoration(
-                  shape: const StadiumBorder(),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    stops: const [0, 0.22, 0.7, 1],
-                    colors: [
-                      Colors.white.withValues(alpha: 0.26),
-                      Colors.white.withValues(alpha: 0),
-                      Colors.black.withValues(alpha: 0),
-                      Colors.black.withValues(alpha: 0.16),
-                    ],
-                  ),
-                ),
-                child: _PageSource(
-                  controller: widget.controller,
-                  page: () => _page,
-                  builder: (context, page) {
-                    final inner = MobileMetrics.navHeight - _rim * 2;
-                    return Stack(
+          child: MobileNavPill(
+            child: _PageSource(
+              controller: widget.controller,
+              page: () => _page,
+              builder: (context, page) {
+                final inner = MobileMetrics.navHeight - _rim * 2;
+                return Stack(
+                  children: [
+                    Positioned(
+                      left: page * slot + 4,
+                      top: 4,
+                      width: slot - 8,
+                      height: inner - 8,
+                      child: AnimatedScale(
+                        scale: _dragging ? 1.08 : 1,
+                        duration: CruMotion.fast,
+                        curve: CruMotion.curve,
+                        child: _Lens(lifted: _dragging),
+                      ),
+                    ),
+                    Row(
                       children: [
-                        Positioned(
-                          left: page * slot + 4,
-                          top: 4,
-                          width: slot - 8,
-                          height: inner - 8,
-                          child: AnimatedScale(
-                            scale: _dragging ? 1.08 : 1,
-                            duration: CruMotion.fast,
-                            curve: CruMotion.curve,
-                            child: _Lens(lifted: _dragging),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            for (var i = 0; i < _count; i++)
-                              SizedBox(
-                                width: slot,
-                                child: TutorialAnchor.maybe(
-                                  target: widget.items[i].tutorialTarget,
-                                  shape: TutorialShape.circle,
-                                  child: _Item(
-                                    item: widget.items[i],
-                                    // 1 on the tab, 0 one tab away or more.
-                                    focus: (1 - (page - i).abs()).clamp(
-                                      0.0,
-                                      1.0,
-                                    ),
-                                    badge: widget.badges[i] ?? 0,
-                                  ),
-                                ),
+                        for (var i = 0; i < _count; i++)
+                          SizedBox(
+                            width: slot,
+                            child: TutorialAnchor.maybe(
+                              target: widget.items[i].tutorialTarget,
+                              shape: TutorialShape.circle,
+                              child: _Item(
+                                item: widget.items[i],
+                                // 1 on the tab, 0 one tab away or more.
+                                focus: (1 - (page - i).abs()).clamp(0.0, 1.0),
+                                badge: widget.badges[i] ?? 0,
+                                showLabel: widget.showLabels,
                               ),
-                          ],
-                        ),
+                            ),
+                          ),
                       ],
-                    );
-                  },
-                ),
-              ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         );
@@ -323,11 +348,17 @@ class _Lens extends StatelessWidget {
 }
 
 class _Item extends StatelessWidget {
-  const _Item({required this.item, required this.focus, required this.badge});
+  const _Item({
+    required this.item,
+    required this.focus,
+    required this.badge,
+    this.showLabel = false,
+  });
 
   final MobileNavItem item;
   final double focus;
   final int badge;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -344,12 +375,38 @@ class _Item extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            CruIcon(
-              item.icon,
-              size: 24,
-              strokeWidth: 1.6 + 0.4 * focus,
-              color: color,
-            ),
+            if (showLabel)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CruIcon(
+                    item.icon,
+                    size: 20,
+                    strokeWidth: 1.6 + 0.4 * focus,
+                    color: color,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: MobileType.micro.copyWith(
+                      fontSize: 10.5,
+                      height: 1.1,
+                      fontWeight: focus > 0.5 ? FontWeight.w600 : FontWeight.w500,
+                      color: color,
+                    ),
+                  ),
+                ],
+              )
+            else
+              CruIcon(
+                item.icon,
+                size: 24,
+                strokeWidth: 1.6 + 0.4 * focus,
+                color: color,
+              ),
             if (badge > 0)
               Positioned(
                 right: -9,

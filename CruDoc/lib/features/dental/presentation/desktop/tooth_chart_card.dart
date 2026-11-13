@@ -213,6 +213,9 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     if (mounted && was) setState(() => _threeD = true);
   }
 
+  String? _lastTapTooth;
+  DateTime? _lastTapAt;
+
   Future<void> _open(String tooth) async {
     setState(() => _selected = tooth);
     await showToothDetail(context, patient: p, tooth: tooth);
@@ -329,21 +332,13 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ),
       );
 
-      final viewToggle = CruSegmentedControl<bool>(
-        semanticLabel: 'View',
-        segments: [
-          const CruSegment(false, '2D'),
-          CruSegment(true, '3D', enabled: !child),
-        ],
-        selected: _threeD,
-        onChanged: (v) {
-          if (child && v) return;
-          if (v && phone) {
-            unawaited(openFullScreen());
-            return;
-          }
-          setState(() => _threeD = v);
-        },
+      // One cube icon: 3D opens full screen (not for milk teeth).
+      final viewToggle = CruSquareButton(
+        icon: RadIcons.cube,
+        secondary: true,
+        semanticLabel: '3D view',
+        tooltip: '3D',
+        onPressed: child ? null : () => unawaited(openFullScreen()),
       );
 
       controls = Row(
@@ -423,12 +418,22 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
             data: phone ? data : null,
           );
     void onToothSelect(String tooth) {
-      // Phone: first tap shows the tooth's summary, a second tap on the same
-      // tooth opens its form (same as 3D: tap to look, tap again to chart).
-      if (phone && _selected != tooth) {
-        setState(() => _selected = tooth);
-      } else {
+      // Phone: a tap selects (shows the tooth's summary), a double tap on the
+      // same tooth (within 350 ms) opens its form. PC: a click opens it.
+      if (!phone) {
         _open(tooth);
+        return;
+      }
+      final now = DateTime.now();
+      final again = _lastTapTooth == tooth &&
+          _lastTapAt != null &&
+          now.difference(_lastTapAt!) < const Duration(milliseconds: 350);
+      _lastTapTooth = tooth;
+      _lastTapAt = again ? null : now;
+      if (again) {
+        _open(tooth);
+      } else if (_selected != tooth) {
+        setState(() => _selected = tooth);
       }
     }
 
@@ -640,43 +645,52 @@ class _Peek extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: CruSpace.s14,
-        vertical: CruSpace.s10,
-      ),
-      decoration: ShapeDecoration(
-        color: c.surface,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-      ),
-      child: Row(
-        children: [
-          ToothBadge(tooth: tooth, state: visual.state),
-          const SizedBox(width: CruSpace.s12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  DentalChart.name(tooth),
-                  style: CruType.callout.w600.tint(c.label),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  visual.detail(ChartLayer.all) ??
-                      DentalChart.stateLabel(visual.state),
-                  style: CruType.caption.tint(c.label2),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+    final line =
+        visual.detail(ChartLayer.all) ?? DentalChart.stateLabel(visual.state);
+    return CruPressable(
+      onTap: onOpen,
+      scaleOnPress: false,
+      semanticLabel: '${DentalChart.name(tooth)}: $line. Open',
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s14,
+          vertical: CruSpace.s10,
+        ),
+        decoration: ShapeDecoration(
+          color: hovered ? c.hoverFill : c.surface,
+          shape: cruShape(
+            CruRadius.control,
+            side: BorderSide(color: c.hairline),
           ),
-          const SizedBox(width: CruSpace.s12),
-          CruCapsuleButton(label: 'Open', onPressed: onOpen),
-        ],
+        ),
+        child: Row(
+          children: [
+            ToothBadge(tooth: tooth, state: visual.state),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    DentalChart.name(tooth),
+                    style: CruType.callout.w600.tint(c.label),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    line,
+                    style: CruType.caption.tint(c.label2),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: CruSpace.s12),
+            CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+          ],
+        ),
       ),
     );
   }

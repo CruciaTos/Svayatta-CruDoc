@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/dental/data/models/tooth_chart_en
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_exam_dock.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_records.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
@@ -30,7 +31,6 @@ import 'package:doctor_management_app/features/dental/records/perio_chart_screen
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
 import 'package:doctor_management_app/features/dental/specialties/publichealth/dmft.dart';
-import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
@@ -729,11 +729,90 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
       for (final id in ids) ?findRecord(records, id),
     ];
 
+    // Phone: the teeth that need care, one tap from the quiet pill.
+    void openNeedsCare() => showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          CruSpace.s16,
+          0,
+          CruSpace.s16,
+          CruSpace.s16 + MediaQuery.viewPaddingOf(sheetContext).bottom,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: _ToothListCard(
+              title: 'Needs care · $dmftLabel',
+              teeth: needsCare,
+              empty: 'Nothing waiting.',
+              line: (t) => t.detail(ChartLayer.dental) ?? 'Needs care',
+              onOpen: (t) {
+                Navigator.of(sheetContext).pop();
+                showToothDetail(context, patient: p, tooth: t.number);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
     final phoneBottomInset = phone ? MobileMetrics.bottom(context) : 0.0;
     Widget scroll(Widget child) => SingleChildScrollView(
       padding: EdgeInsets.only(bottom: phoneBottomInset),
       child: child,
     );
+
+    // Wrap-up's actions: icons on phone and tablet, cards on the PC.
+    Widget wrapTiles(bool studio) {
+      final tiles = [
+        if (canEdit)
+          ActionTile(
+            'Prescription',
+            CruIcons.fileText,
+            'Write and print a prescription.',
+            () => sheet(
+              PrescriptionGenerationSheet(
+                letterheadConfig: letterhead(),
+                initialPatient: p,
+              ),
+            ),
+          ).asRecord(),
+        if (canBill)
+          ActionTile(
+            'Bill',
+            CruIcons.rupee,
+            'Bill today\'s work.',
+            () => showDesktopCreateInvoiceDialog(context, initialPatient: p),
+          ).asRecord(),
+        if (canEdit) ...[
+          ActionTile(
+            'Certificate',
+            RecIcons.consent,
+            'Fitness or leave certificate.',
+            () => showCertificateDialog(context, patient: p),
+          ).asRecord(),
+          ActionTile(
+            'Report',
+            RecIcons.form,
+            'A report for the patient or another doctor.',
+            () => sheet(
+              MedicalReportGenerationSheet(
+                letterheadConfig: letterhead(),
+                initialPatient: p,
+              ),
+            ),
+          ).asRecord(),
+        ],
+      ];
+      return studio
+          ? RecordGrid(records: tiles)
+          : RecordIconGrid(records: tiles);
+    }
 
     final studio = LayoutBuilder(
       builder: (context, box) {
@@ -753,8 +832,23 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
                   onLatest: () =>
                       ref.read(chartSessionProvider(p.id).notifier).state = null,
                 ),
+              // The exams sit above the chart so they are always in view
+              // (the chart scrolls under the nav, the dock never does).
+              if (!studio)
+                ExamDock(
+                  records: pick(['perio', 'endo', 'pain', 'ortho', 'eruption']),
+                  perioKey: _perioTile,
+                ),
               ToothChartCard(patient: p, fullScreen: true),
-              if (!studio) needsCareCard,
+              if (phone && needsCare.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _NeedsCarePill(
+                    count: needsCare.length,
+                    onTap: openNeedsCare,
+                  ),
+                ),
+              if (!studio && !phone) needsCareCard,
             ]),
           ),
           ChartingTab.plan => scroll(
@@ -788,26 +882,21 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
           ),
           ChartingTab.records => scroll(
             studio
-                ? DetailsStack([
-                    PatientFilesCard(
-                      patient: p,
-                      showImaging: true,
-                      full: true,
-                      visits: summary?.visits ?? const [],
-                    ),
-                    RecordGrid(records: pick(['forms', 'scan'])),
-                  ])
+                ? RecordGrid(records: pick(['forms', 'scan']))
+                : phone
+                ? RecordIconGrid(
+                    records: pick([
+                      'la',
+                      'srp',
+                      'consent',
+                      'checklist',
+                      'sedation',
+                      'forms',
+                      'scan',
+                      'behaviour',
+                    ]),
+                  )
                 : DetailsStack([
-                    _RecordSection(
-                      title: 'Exam',
-                      records: pick([
-                        'perio',
-                        'endo',
-                        'pain',
-                        'ortho',
-                        'eruption',
-                      ]),
-                    ),
                     _RecordSection(
                       title: 'Treat',
                       records: pick([
@@ -820,78 +909,20 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
                       ]),
                     ),
                     _RecordSection(
-                      title: 'After',
-                      records: pick(['lab', 'referral']),
-                    ),
-                    _RecordSection(
                       title: 'Paper',
                       records: pick(['forms', 'scan']),
-                    ),
-                    PatientFilesCard(
-                      patient: p,
-                      showImaging: true,
-                      full: true,
-                      visits: summary?.visits ?? const [],
                     ),
                   ]),
           ),
           ChartingTab.wrapUp => scroll(
             DetailsStack([
               if (!studio) visitsCard,
-              RecordGrid(
-                records: [
-                  if (canEdit)
-                    ActionTile(
-                      'Prescription',
-                      CruIcons.fileText,
-                      'Write and print a prescription.',
-                      () => sheet(
-                        PrescriptionGenerationSheet(
-                          letterheadConfig: letterhead(),
-                          initialPatient: p,
-                        ),
-                      ),
-                    ).asRecord(),
-                  if (canBill)
-                    ActionTile(
-                      'Bill',
-                      CruIcons.rupee,
-                      'Bill today\'s work.',
-                      () => showDesktopCreateInvoiceDialog(
-                        context,
-                        initialPatient: p,
-                      ),
-                    ).asRecord(),
-                  if (canBook)
-                    ActionTile(
-                      'Book next visit',
-                      CruIcons.calendar,
-                      'The next sitting, or the plan\'s next step.',
-                      newVisit,
-                    ).asRecord(),
-                  chartRecallRecord(context, ref, p),
-                  ...pick(['referral', 'lab']),
-                  if (canEdit) ...[
-                    ActionTile(
-                      'Certificate',
-                      RecIcons.consent,
-                      'Fitness or leave certificate.',
-                      () => showCertificateDialog(context, patient: p),
-                    ).asRecord(),
-                    ActionTile(
-                      'Medical report',
-                      RecIcons.form,
-                      'A report for the patient or another doctor.',
-                      () => sheet(
-                        MedicalReportGenerationSheet(
-                          letterheadConfig: letterhead(),
-                          initialPatient: p,
-                        ),
-                      ),
-                    ).asRecord(),
-                  ],
-                ],
-              ),
+              wrapTiles(studio),
+              if (!studio)
+                _FollowUps(
+                  referral: findRecord(records, 'referral'),
+                  lab: findRecord(records, 'lab'),
+                ),
             ]),
           ),
         };
@@ -1638,6 +1669,7 @@ class _ChartingBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MobileNavBar.selection(
+    showLabels: true,
     items: _items,
     selected: tabs.indexOf(selected).clamp(0, tabs.length - 1),
     onSelect: (i) => onSelect(tabs[i]),
@@ -1713,6 +1745,175 @@ class _PhoneSessionBar extends StatelessWidget {
           const SizedBox(width: CruSpace.s8),
           CruLink(label: 'Latest', onPressed: onLatest),
         ],
+      ),
+    );
+  }
+}
+
+/// Phone Chart tab: how many teeth need care, in a quiet pill that opens
+/// the list.
+class _NeedsCarePill extends StatelessWidget {
+  const _NeedsCarePill({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruPressable(
+      onTap: onTap,
+      scaleOnPress: false,
+      semanticLabel: '$count need care. Show the list',
+      builder: (context, hovered) => Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+        decoration: ShapeDecoration(
+          color: hovered ? c.hoverFill : c.inset,
+          shape: const StadiumBorder(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CruIcon(DentalIcons.tooth, size: 14, color: c.label2),
+            const SizedBox(width: CruSpace.s6),
+            Text(
+              '$count need care',
+              style: CruType.callout.w600.tabular.tint(c.label),
+            ),
+            const SizedBox(width: CruSpace.s4),
+            CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Wrap-up on phone and tablet: the latest referral and lab case, each
+/// opening its list. Hidden when there are none.
+class _FollowUps extends StatelessWidget {
+  const _FollowUps({required this.referral, required this.lab});
+
+  final ChartRecord? referral;
+  final ChartRecord? lab;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(ChartRecord, CruIconData)>[
+      if (referral != null && referral!.status != null)
+        (referral!, CruIcons.arrowUpRight),
+      if (lab != null && lab!.status != null) (lab!, CruIcons.box),
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    final c = context.cru;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            CruSpace.s4,
+            CruSpace.s8,
+            CruSpace.s4,
+            CruSpace.s8,
+          ),
+          child: Text('Follow-ups', style: CruType.callout.w600.tint(c.label2)),
+        ),
+        CruCard(
+          semanticLabel: 'Follow-ups',
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0)
+                  const Padding(
+                    padding: EdgeInsets.only(
+                      left: CruSpace.s16 + 38 + CruSpace.s12,
+                    ),
+                    child: CruSeparator(),
+                  ),
+                _FollowUpRow(record: rows[i].$1, icon: rows[i].$2),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FollowUpRow extends StatelessWidget {
+  const _FollowUpRow({required this.record, required this.icon});
+
+  final ChartRecord record;
+  final CruIconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final r = record;
+    final ink = switch (r.tone) {
+      RecordTone.plain => c.label2,
+      RecordTone.warn => c.amberText,
+      RecordTone.done => c.greenText,
+    };
+    return CruPressable(
+      onTap: r.onOpen,
+      scaleOnPress: false,
+      semanticLabel: '${r.label}. ${r.recent ?? ''} ${r.status ?? ''}',
+      builder: (context, hovered) => ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s16,
+            vertical: CruSpace.s8,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: c.inset,
+                ),
+                child: CruIcon(icon, size: 18, strokeWidth: 1.8, color: c.label),
+              ),
+              const SizedBox(width: CruSpace.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      r.label,
+                      style: CruType.callout.w600.tint(c.label),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (r.recent != null)
+                      Text(
+                        r.recent!,
+                        style: CruType.subhead.tint(c.label3),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: CruSpace.s8),
+              Text(
+                r.status!,
+                style: CruType.subhead.tabular.tint(ink),
+                maxLines: 1,
+              ),
+              const SizedBox(width: CruSpace.s4),
+              CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+            ],
+          ),
+        ),
       ),
     );
   }

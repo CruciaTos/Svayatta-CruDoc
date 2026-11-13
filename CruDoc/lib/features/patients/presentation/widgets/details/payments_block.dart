@@ -92,6 +92,39 @@ class PackageBalancePanel extends StatelessWidget {
   }
 }
 
+/// What a patient owes, one line per kind: package balance, unpaid fees,
+/// open bills (billing roles only, [showBills]).
+List<(String, double)> _dueLines(
+  PatientSummary s,
+  PatientBilling b,
+  bool showBills,
+) {
+  final unpaid = b.unpaid ?? const <PendingPayment>[];
+  final open = showBills ? b.openBills : const <PatientBill>[];
+  return [
+    if (s.hasBalance) ('Package balance', s.balance),
+    if (unpaid.isNotEmpty)
+      (DashFormat.plural(unpaid.length, 'unpaid fee'), b.unpaidTotal),
+    if (open.isNotEmpty)
+      (
+        '${DashFormat.plural(open.length, 'bill')} not fully paid',
+        b.openBillsTotal,
+      ),
+  ];
+}
+
+/// The total of [_dueLines]: the one number the Payments card and the
+/// glance card's Due cell both show.
+double patientDueTotal(PatientSummary s, PatientBilling b, bool showBills) =>
+    _dueLines(s, b, showBills).fold(0.0, (sum, l) => sum + l.$2);
+
+/// How many things make up [patientDueTotal] (the package balance counts
+/// as one, then each unpaid fee and open bill).
+int patientDueCount(PatientSummary s, PatientBilling b, bool showBills) =>
+    (s.hasBalance ? 1 : 0) +
+    (b.unpaid?.length ?? 0) +
+    (showBills ? b.openBills.length : 0);
+
 /// Payments on the Overview: what is owed, one line per kind (package
 /// balance, unpaid fees, open bills), Record payment while the package
 /// has a balance, and the way to the Payments tab.
@@ -115,27 +148,20 @@ class PaymentsSummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final billing = ref.watch(patientBillingProvider(summary.id));
-    final unpaid = billing.unpaid ?? const [];
-    final open = showBills ? billing.openBills : const <PatientBill>[];
-    final lines = <(String, double)>[
-      if (summary.hasBalance) ('Package balance', summary.balance),
-      if (unpaid.isNotEmpty)
-        (DashFormat.plural(unpaid.length, 'unpaid fee'), billing.unpaidTotal),
-      if (open.isNotEmpty)
-        (
-          '${DashFormat.plural(open.length, 'bill')} not fully paid',
-          billing.openBillsTotal,
-        ),
-    ];
+    final lines = _dueLines(summary, billing, showBills);
     final phone = MediaQuery.sizeOf(context).width < 600;
-    if (phone && lines.isEmpty) {
+    if (phone) {
+      // One line: the glance card's Due cell is the quick action.
+      final total = patientDueTotal(summary, billing, showBills);
+      final owed = lines.isNotEmpty;
+      final detail = owed ? '${PatientFormat.rupees(total)} due' : 'No dues';
       return CruCard(
         semanticLabel: 'Payments',
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: CruPressable(
           onTap: onSeeAll,
           scaleOnPress: false,
-          semanticLabel: 'Payments: No dues. Open payments.',
+          semanticLabel: 'Payments: $detail. Open payments.',
           builder: (context, hovered) => Row(
             children: [
               Expanded(
@@ -149,9 +175,15 @@ class PaymentsSummaryCard extends ConsumerWidget {
                         hovered ? c.accentText : c.label,
                       ),
                     ),
-                    Text(
-                      ' · No dues',
-                      style: CruType.headline.tint(c.label2),
+                    Flexible(
+                      child: Text(
+                        ' · $detail',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.headline.tabular.tint(
+                          owed ? c.amberText : c.label2,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -169,9 +201,7 @@ class PaymentsSummaryCard extends ConsumerWidget {
 
     return CruCard(
       semanticLabel: 'Payments',
-      padding: phone
-          ? const EdgeInsets.fromLTRB(16, 16, 16, 14)
-          : const EdgeInsets.fromLTRB(24, 20, 24, 16),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -181,7 +211,7 @@ class PaymentsSummaryCard extends ConsumerWidget {
             morphId: 'title',
             trailing: summary.hasBalance
                 ? CruCapsuleButton(
-                    label: phone ? 'Record' : 'Record payment',
+                    label: 'Record payment',
                     semanticLabel: 'Record a payment from ${summary.name}',
                     onPressed: onRecordPayment,
                   )
@@ -404,7 +434,10 @@ class _BillsCard extends StatelessWidget {
           else
             for (var i = 0; i < bills.length; i++) ...[
               if (i > 0)
-                const CruSeparator(indent: CruSpace.s12, endIndent: CruSpace.s12),
+                const CruSeparator(
+                  indent: CruSpace.s12,
+                  endIndent: CruSpace.s12,
+                ),
               _BillRow(bill: bills[i]),
             ],
         ],
@@ -493,7 +526,10 @@ class _ReceivedCard extends StatelessWidget {
           else
             for (var i = 0; i < received.length; i++) ...[
               if (i > 0)
-                const CruSeparator(indent: CruSpace.s12, endIndent: CruSpace.s12),
+                const CruSeparator(
+                  indent: CruSpace.s12,
+                  endIndent: CruSpace.s12,
+                ),
               _MoneyRow(
                 title: received[i].description.trim().isEmpty
                     ? 'Payment'

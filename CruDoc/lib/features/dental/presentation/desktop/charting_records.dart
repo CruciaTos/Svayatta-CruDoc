@@ -7,15 +7,16 @@ import 'package:doctor_management_app/features/dental/records/clinical_forms.dar
 import 'package:doctor_management_app/features/dental/records/consent_dialog.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/endo_dialog.dart';
-import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
 import 'package:doctor_management_app/features/dental/specialties/anaesthesia/drug_log.dart';
 import 'package:doctor_management_app/features/dental/specialties/anaesthesia/preop_dialog.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/form_fill.dart';
 import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
 import 'package:doctor_management_app/features/scan/presentation/scan_flow.dart';
@@ -54,7 +55,16 @@ class ChartRecord {
     this.tone = RecordTone.plain,
     this.action = false,
     this.title,
+    this.dockLabel,
+    this.recent,
   });
+
+  /// The short name under the icon in the Chart tab's exam dock.
+  final String? dockLabel;
+
+  /// The newest item in one line ("Crown 46 · At lab  +1"), for the
+  /// Follow-ups glance on Wrap-up.
+  final String? recent;
 
   /// The full name on its workspace card, when the shelf's [label] is a
   /// short form.
@@ -132,6 +142,27 @@ List<RecordCluster> chartRecords(
       .length;
   final forms = of(RecKind.formResponse);
 
+  // The newest item of a follow-up record, plus "+n" for the rest.
+  String? recentLine(
+    List<DentalRecord> all,
+    String Function(DentalRecord) one,
+  ) {
+    if (all.isEmpty) return null;
+    final sorted = [...all]
+      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final line = one(sorted.first);
+    return all.length > 1 ? '$line  +${all.length - 1}' : line;
+  }
+
+  final labRecent = recentLine(labCases, (r) {
+    final lc = LabCase.fromRecord(r);
+    return '${lc.type} · ${lc.stage.label}';
+  });
+  final referralRecent = recentLine(referrals, (r) {
+    final reason = DentalReferral.fromRecord(r).reason;
+    return reason.isNotEmpty ? reason : DentalFormat.shortDate(r.recordedAt);
+  });
+
   void dialog(Widget child) =>
       showDialog<void>(context: context, builder: (_) => child);
 
@@ -141,6 +172,7 @@ List<RecordCluster> chartRecords(
       records: [
         ChartRecord(
           id: 'perio',
+          dockLabel: 'Perio',
           label: 'Perio',
           icon: RecIcons.perio,
           detail: 'Pockets, bleeding, plaque, stage and grade.',
@@ -151,6 +183,7 @@ List<RecordCluster> chartRecords(
         ),
         ChartRecord(
           id: 'endo',
+          dockLabel: 'Endo',
           label: 'Endo',
           icon: RecIcons.endo,
           detail: 'Root canals: diagnosis, canals, filling.',
@@ -164,6 +197,7 @@ List<RecordCluster> chartRecords(
         ),
         ChartRecord(
           id: 'pain',
+          dockLabel: 'Pain/TMD',
           label: 'Pain & TMD',
           title: 'Pain and TMD',
           icon: RecIcons.pain,
@@ -173,6 +207,7 @@ List<RecordCluster> chartRecords(
         ),
         ChartRecord(
           id: 'ortho',
+          dockLabel: 'Ortho',
           label: 'Photos',
           title: 'Ortho photos',
           icon: RecIcons.camera,
@@ -183,6 +218,7 @@ List<RecordCluster> chartRecords(
         if (child)
           ChartRecord(
             id: 'eruption',
+            dockLabel: 'Eruption',
             label: 'Eruption',
             icon: DentalIcons.tooth,
             detail: 'Which teeth are through, late or retained.',
@@ -279,6 +315,7 @@ List<RecordCluster> chartRecords(
       records: [
         ChartRecord(
           id: 'lab',
+          recent: labRecent,
           label: 'Lab cases',
           icon: CruIcons.box,
           detail: 'Crowns and dentures at the lab, by stage.',
@@ -292,6 +329,7 @@ List<RecordCluster> chartRecords(
         ),
         ChartRecord(
           id: 'referral',
+          recent: referralRecent,
           label: 'Referrals',
           icon: CruIcons.arrowUpRight,
           detail: 'Referrals sent to other doctors.',
@@ -334,38 +372,6 @@ List<RecordCluster> chartRecords(
       ],
     ),
   ];
-}
-
-/// The recall record tile for [p] (Wrap-up tab).
-ChartRecord chartRecallRecord(
-  BuildContext context,
-  WidgetRef ref,
-  Patient p,
-) {
-  final byKind =
-      ref.watch(patientRecordsByKindProvider(p.id)).value ??
-      const <String, List<DentalRecord>>{};
-  final recalls =
-      (byKind[RecKind.recall] ?? const [])
-          .where((r) => recallStatusOf(r).isOpen)
-          .toList()
-        ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
-  final nextRecall = recalls.firstOrNull;
-  final now = DateTime.now();
-  return ChartRecord(
-    id: 'recall',
-    label: 'Recall',
-    icon: RecIcons.recall,
-    detail: 'When the patient should come back, and why.',
-    status: nextRecall == null
-        ? null
-        : DentalFormat.shortDate(nextRecall.recordedAt),
-    tone: nextRecall != null && nextRecall.recordedAt.isBefore(now)
-        ? RecordTone.warn
-        : RecordTone.plain,
-    onOpen: () =>
-        showSetRecallDialog(context, patient: p, existing: nextRecall),
-  );
 }
 
 /// The record with [id], if the patient has it.
@@ -876,6 +882,150 @@ class _RecordCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One round-icon cell for phone and tablet: 44 px circle, name, status
+/// in tone, and an amber dot when the record is waiting. With [dock] the
+/// short [ChartRecord.dockLabel] is the name and an empty record reads
+/// "New".
+class RecordIconCell extends StatelessWidget {
+  const RecordIconCell({super.key, required this.record, this.dock = false});
+
+  final ChartRecord record;
+  final bool dock;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final r = record;
+    final name = dock ? (r.dockLabel ?? r.label) : r.label;
+    final lit = r.status != null || r.action;
+    final status = r.action
+        ? null
+        : r.status ?? (dock ? 'New' : null);
+    final statusInk = r.status == null ? c.label3 : _toneColor(c, r.tone);
+    return Tooltip(
+      message: r.detail,
+      waitDuration: const Duration(milliseconds: 600),
+      child: CruPressable(
+        onTap: r.onOpen,
+        scaleOnPress: false,
+        semanticLabel: '$name. ${r.status ?? 'Nothing recorded yet'}',
+        builder: (context, hovered) => ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: hovered ? c.hoverFill : c.inset,
+                          ),
+                          child: Center(
+                            child: CruIcon(
+                              r.icon,
+                              size: 20,
+                              strokeWidth: 1.8,
+                              color: lit ? c.label : c.label3,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (r.tone == RecordTone.warn && r.status != null)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: c.amberText,
+                              border: Border.all(color: c.surface, width: 1.5),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: CruSpace.s4),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CruType.caption.w500.tint(c.label),
+                ),
+                Text(
+                  status ?? ' ',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: CruType.micro.tabular.tint(statusInk),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Records as round icons in one card, for phone and tablet: four across
+/// on a phone, more when there is room. Always the order given.
+class RecordIconGrid extends StatelessWidget {
+  const RecordIconGrid({super.key, required this.records, this.perioKey});
+
+  final List<ChartRecord> records;
+
+  /// On the Perio cell, so Charting can grow the perio chart from it.
+  final GlobalKey? perioKey;
+
+  @override
+  Widget build(BuildContext context) {
+    if (records.isEmpty) return const SizedBox.shrink();
+    return CruCard(
+      semanticLabel: 'Records',
+      padding: const EdgeInsets.all(CruSpace.s12),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final phone = MediaQuery.sizeOf(context).width < 600;
+          final cols = phone ? 4 : (box.maxWidth / 96).floor().clamp(4, 6);
+          return Column(
+            children: [
+              for (var at = 0; at < records.length; at += cols) ...[
+                if (at > 0) const SizedBox(height: CruSpace.s8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var i = at; i < at + cols; i++)
+                      Expanded(
+                        child: i < records.length
+                            ? KeyedSubtree(
+                                key: records[i].id == 'perio' ? perioKey : null,
+                                child: RecordIconCell(record: records[i]),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

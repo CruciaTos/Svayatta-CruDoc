@@ -5,8 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
-import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
-import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/patients/data/providers/session_files_provider.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
@@ -26,7 +24,9 @@ String visitTitle(Visit visit) {
 
 /// Visits on the Overview: the next one ("Today" when it is today) and
 /// the last one. Each visit is its session and opens it ([onOpen]);
-/// "See all N visits" goes to the Visits tab ([onSeeAll]).
+/// "See all N visits" goes to the Visits tab ([onSeeAll]). On a phone it
+/// is one line, "Visits · N": the glance card carries the next and the
+/// last visit.
 class VisitsCard extends ConsumerWidget {
   const VisitsCard({
     super.key,
@@ -35,7 +35,6 @@ class VisitsCard extends ConsumerWidget {
     required this.onOpen,
     required this.onSeeAll,
     this.showClinical = true,
-    this.isDentist = false,
   });
 
   final PatientSummary summary;
@@ -46,32 +45,56 @@ class VisitsCard extends ConsumerWidget {
   /// Note previews, Scribe marks and file counts (clinical roles only).
   final bool showClinical;
 
-  /// Whether the active doctor is a dentist (shows the recall row on phone).
-  final bool isDentist;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final phone =
         MediaQuery.sizeOf(context).width < PatientDetailsHeader.phoneBelow;
-    final recall = (phone && isDentist)
-        ? patientRecallInfo(
-            ref
-                .watch(
-                  patientRecordsProvider((
-                    patientId: summary.id,
-                    kind: RecKind.recall,
-                  )),
-                )
-                .value,
-            now: now,
-          )
-        : null;
     final upcoming = summary.upcoming(now);
     final past = summary.past(now);
+    final total = upcoming.length + past.length;
+
+    if (phone) {
+      return CruCard(
+        semanticLabel: 'Visits',
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: CruPressable(
+          onTap: onSeeAll,
+          scaleOnPress: false,
+          semanticLabel: 'Visits: $total. Open visits.',
+          builder: (context, hovered) => Row(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MorphTag.text(
+                      id: 'title',
+                      text: 'Visits',
+                      style: CruType.headline.tint(
+                        hovered ? c.accentText : c.label,
+                      ),
+                    ),
+                    Text(
+                      ' · $total',
+                      style: CruType.headline.tabular.tint(c.label2),
+                    ),
+                  ],
+                ),
+              ),
+              CruIcon(
+                CruIcons.chevronRight,
+                size: 16,
+                color: hovered ? c.accentText : c.label3,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final next = upcoming.firstOrNull;
     final last = past.firstOrNull;
-    final total = upcoming.length + past.length;
     final shown = (next == null ? 0 : 1) + (last == null ? 0 : 1);
     final files = showClinical
         ? ref.watch(sessionFilesProvider(summary.id))
@@ -104,44 +127,6 @@ class VisitsCard extends ConsumerWidget {
               morphId: 'title',
             ),
           ),
-          if (recall != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-              child: CruPressable(
-                onTap: () => showSetRecallDialog(
-                  context,
-                  patient: summary.patient,
-                  existing: recall.existing,
-                ),
-                semanticLabel: recall.due == null
-                    ? 'Set recall'
-                    : '${recall.label}, change it',
-                builder: (context, hovered) => Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        recall.label,
-                        style: CruType.text.w500.tabular.tint(
-                          recall.overdue
-                              ? c.amberText
-                              : (hovered ? c.accentText : c.label),
-                        ),
-                      ),
-                    ),
-                    CruIcon(
-                      CruIcons.chevronRight,
-                      size: 16,
-                      color: hovered ? c.accentText : c.label3,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: CruSeparator(),
-            ),
-          ],
           if (total == 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),

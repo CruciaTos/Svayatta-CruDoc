@@ -227,8 +227,7 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
                       )
                     : CruLink(
                         label: _expanded ? 'Show less' : 'Show $hidden more',
-                        onPressed: () =>
-                            setState(() => _expanded = !_expanded),
+                        onPressed: () => setState(() => _expanded = !_expanded),
                       ),
               ),
             ),
@@ -237,6 +236,50 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
     }
 
     final phone = MediaQuery.sizeOf(context).width < 600;
+    final seeAll = widget.onSeeAll;
+    if (phone && !full && seeAll != null) {
+      // One line, "Files · N". Adding is inside the Files screen.
+      final count = files == null && studies.isEmpty ? null : '${items.length}';
+      return CruCard(
+        semanticLabel: 'Files',
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: CruPressable(
+          onTap: seeAll,
+          scaleOnPress: false,
+          semanticLabel: count == null
+              ? 'Files. Open files.'
+              : 'Files: $count. Open files.',
+          builder: (context, hovered) => Row(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MorphTag.text(
+                      id: 'title',
+                      text: 'Files',
+                      style: CruType.headline.tint(
+                        hovered ? c.accentText : c.label,
+                      ),
+                    ),
+                    if (count != null)
+                      Text(
+                        ' · $count',
+                        style: CruType.headline.tabular.tint(c.label2),
+                      ),
+                  ],
+                ),
+              ),
+              CruIcon(
+                CruIcons.chevronRight,
+                size: 16,
+                color: hovered ? c.accentText : c.label3,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final showExtraActions = !phone || full;
     final card = CruCard(
       semanticLabel: 'Files',
@@ -263,9 +306,7 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
                         patientId: patient.id,
                       ),
                     ),
-                  if (showExtraActions &&
-                      canEdit &&
-                      ScanCapture.hasCamera) ...[
+                  if (showExtraActions && canEdit && ScanCapture.hasCamera) ...[
                     const SizedBox(width: CruSpace.s8),
                     CruSquareButton(
                       icon: CruIcons.scan,

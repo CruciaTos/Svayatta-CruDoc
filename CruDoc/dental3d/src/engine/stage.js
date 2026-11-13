@@ -57,7 +57,7 @@ export function createStage(container) {
     onResize: new Set(),
     beforeRender: new Set(),
     afterRender: new Set(),
-    pixelRatioCap: 1.5,
+    pixelRatioCap: 3,
     size: { w: 1, h: 1 },
   };
 

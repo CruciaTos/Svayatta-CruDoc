@@ -9,9 +9,9 @@ import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 
 export const QUALITY_LEVELS = ['low', 'medium', 'high'];
 const PRESETS = {
-  low: { cap: 1, ao: false, bloom: false },
-  medium: { cap: 1.5, ao: true, bloom: false },
-  high: { cap: 2, ao: true, bloom: true },
+  low: { cap: 3, ao: false, bloom: false },
+  medium: { cap: 3, ao: true, bloom: false },
+  high: { cap: 3, ao: true, bloom: true },
 };
 
 export function defaultQuality() {
@@ -21,6 +21,7 @@ export function defaultQuality() {
   return touch ? 'low' : 'medium';
 }
 
+// Caps are the device pixel ratio ceiling (phones are ~2.6-3, so 3 keeps them native-sharp).
 // Low renders straight to the canvas (MSAA only). Medium/high go through an
 // EffectComposer: scene -> ambient occlusion (half resolution) -> [bloom] ->
 // tone map / sRGB -> SMAA. The bloom threshold sits above 1.0 (HDR), so only the

@@ -17,6 +17,14 @@ import 'package:doctor_management_app/features/patients/presentation/patient_act
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/identity_header.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/chart_dock.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/glance_row.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/patient_pinned_bar.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/poster_hero.dart';
+import 'package:doctor_management_app/features/patients/data/providers/patient_billing_provider.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_records.dart';
+import 'package:doctor_management_app/features/mobile/mobile_nav_bar.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/medical_history_card.dart';
 import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
@@ -185,6 +193,11 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
     for (final s in _Sub.values) s: GlobalKey(debugLabel: '${s.name} card'),
   };
 
+  /// Phone: the Overview page's scroll, and how much of the pinned bar's
+  /// mini identity shows (0 to 1) once the poster's name scrolls under it.
+  final ScrollController _overviewScroll = ScrollController();
+  final ValueNotifier<double> _identity = ValueNotifier<double>(0);
+
   _Tab _tab = _Tab.overview;
   _Sub? _open;
 
@@ -201,14 +214,24 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
   @override
   void initState() {
     super.initState();
+    _overviewScroll.addListener(_onOverviewScroll);
     // Open, settled, folding, closed: what is hidden and what flies.
     _morph.addStatusListener((_) {
       if (mounted) setState(() {});
     });
   }
 
+  void _onOverviewScroll() {
+    if (!_overviewScroll.hasClients) return;
+    final px = _overviewScroll.positions.last.pixels;
+    _identity.value = ((px - 80) / 40).clamp(0.0, 1.0);
+  }
+
   @override
   void dispose() {
+    _overviewScroll.removeListener(_onOverviewScroll);
+    _overviewScroll.dispose();
+    _identity.dispose();
     _t.dispose();
     _morph.dispose();
     super.dispose();
@@ -350,6 +373,22 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
       goToTab(DesktopTab.charting);
     }
 
+    // Phone glance card: what the patient owes (the same total as the
+    // Payments card) and, for dentists, the chart dock's records. Read
+    // here, not in the layout builder: ref.watch is for build only.
+    final billing = ref.watch(patientBillingProvider(s.id));
+    final due = patientDueTotal(s, billing, canBill);
+    final dueCount = patientDueCount(s, billing, canBill);
+    final dockClusters = isDentist
+        ? chartRecords(
+            context,
+            ref,
+            p,
+            go: (tab) => openCharting(context, p, tab: tab),
+            onPerio: () => openCharting(context, p, tab: ChartingTab.perio),
+          )
+        : null;
+
     DoctorLetterheadConfig letterhead() =>
         DoctorLetterheadConfig.fromProfileData(
           ref.read(doctorProfileProvider).value,
@@ -431,7 +470,6 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
         summary: s,
         now: now,
         showClinical: clinical,
-        isDentist: isDentist,
         onOpen: openVisit,
         onSeeAll: () => _openSub(_Sub.visits),
       ),
@@ -515,6 +553,56 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
             ],
           );
 
+          // Phone Overview: the poster, the glance card, the chart dock
+          // (dentists, once a record has data), medical history, then the
+          // three one-line cards that open Visits, Payments and Files.
+          final dock =
+              dockClusters != null && PatientChartDock.hasData(dockClusters)
+              ? PatientChartDock(clusters: dockClusters)
+              : null;
+          final links = <Widget?>[
+            card(_Sub.visits),
+            if (canBill) card(_Sub.payments),
+            card(_Sub.files),
+          ].whereType<Widget>().toList();
+          final phoneOverview = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PatientPosterHero(
+                summary: s,
+                allergies: allergies,
+                onEditPending: () => showEditPatientSheet(context, patient: p),
+              ),
+              PatientGlanceCard(
+                summary: s,
+                now: now,
+                due: due,
+                dueCount: dueCount,
+                isDentist: isDentist,
+                onOpenVisit: openVisit,
+                onNewVisit: canBook ? newVisit : null,
+                onRecordPayment: canBill ? recordPayment : null,
+                showDue: canBill,
+                showClinical: clinical,
+              ),
+              for (final w in <Widget?>[dock, history].whereType<Widget>()) ...[
+                const SizedBox(height: CruSpace.cardGap),
+                w,
+              ],
+              if (links.isNotEmpty) ...[
+                const SizedBox(height: CruSpace.cardGap),
+                for (var i = 0; i < links.length; i++) ...[
+                  if (i > 0) const SizedBox(height: CruSpace.s8),
+                  links[i],
+                ],
+              ],
+              if (assignedDoctors != null) ...[
+                const SizedBox(height: CruSpace.cardGap),
+                assignedDoctors,
+              ],
+            ],
+          );
+
           Widget clinicalScreen() {
             if (isPhysio) {
               return DetailsColumns(
@@ -578,40 +666,66 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
             ),
           );
 
+          final tabsControl = tabs.length < 2
+              ? null
+              : CruSegmentedControl<_Tab>(
+                  semanticLabel: 'Patient details',
+                  segments: [for (final t in tabs) CruSegment(t, t.label)],
+                  selected: tab,
+                  onChanged: _go,
+                );
+
           final body = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: padding.copyWith(
-                  bottom: phone ? CruSpace.s12 : CruSpace.s16,
-                ),
-                child: PatientDetailsHeader(
+              if (phone) ...[
+                // Phone: a pinned bar (back, mini identity, menu) over the
+                // Overview | Clinical switch; the poster scrolls below.
+                PatientPinnedBar(
                   summary: s,
-                  allergies: allergies,
+                  allergic: allergies != null && !allergies.none,
                   onBack: open == null ? widget.onBack : _close,
                   backLabel: open == null ? null : 'Overview',
-                  onCall: () => PatientActions.call(context, p),
-                  onWhatsApp: () => PatientActions.whatsApp(context, p),
                   menu: menu,
-                  onNewVisit: canBook ? newVisit : null,
-                  actions: (compact) => [
-                    if (isDentist) ...[
-                      _ChartingButton(patient: p, compact: compact),
-                      _RecallButton(patient: p, compact: compact),
-                    ],
-                  ],
-                  tabs: tabs.length < 2
-                      ? null
-                      : CruSegmentedControl<_Tab>(
-                          semanticLabel: 'Patient details',
-                          segments: [
-                            for (final t in tabs) CruSegment(t, t.label),
-                          ],
-                          selected: tab,
-                          onChanged: _go,
-                        ),
+                  identity: _identity,
+                  identityShown: _tab == _Tab.clinical || open != null,
                 ),
-              ),
+                if (tabsControl != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      MobileMetrics.gutter,
+                      0,
+                      MobileMetrics.gutter,
+                      CruSpace.s12,
+                    ),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: tabsControl,
+                      ),
+                    ),
+                  ),
+              ] else
+                Padding(
+                  padding: padding.copyWith(bottom: CruSpace.s16),
+                  child: PatientDetailsHeader(
+                    summary: s,
+                    allergies: allergies,
+                    onBack: open == null ? widget.onBack : _close,
+                    backLabel: open == null ? null : 'Overview',
+                    menu: menu,
+                    onNewVisit: canBook ? newVisit : null,
+                    actions: (compact) => [
+                      if (isDentist) ...[
+                        _ChartingButton(patient: p, compact: compact),
+                        _RecallButton(patient: p, compact: compact),
+                      ],
+                    ],
+                    tabs: tabsControl,
+                  ),
+                ),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, box) {
@@ -646,6 +760,11 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                               key: PageStorageKey<String>(
                                 'patient-${s.id}-${t.name}',
                               ),
+                              // Only the phone's Overview drives the pinned
+                              // bar's mini identity.
+                              controller: phone && t == _Tab.overview
+                                  ? _overviewScroll
+                                  : null,
                               padding: padding.copyWith(
                                 top: 0,
                                 // bar: large button + 2 x 12 padding, plus
@@ -657,7 +776,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                                     : padding.bottom,
                               ),
                               child: t == _Tab.overview
-                                  ? overview
+                                  ? (phone ? phoneOverview : overview)
                                   : clinicalScreen(),
                             ),
                           ),
@@ -833,7 +952,9 @@ class _RecallButton extends ConsumerWidget {
   }
 }
 
-/// Sticky bottom bar on phone: New visit and/or Open chart.
+/// Floating bar on phone, in the nav bar's place and look (the blue
+/// pill): dentists get a round New visit button and the one filled
+/// Open chart capsule; everyone else a single New visit capsule.
 class _PatientDetailsBottomBar extends StatelessWidget {
   const _PatientDetailsBottomBar({
     required this.isDentist,
@@ -847,77 +968,118 @@ class _PatientDetailsBottomBar extends StatelessWidget {
   final VoidCallback onNewVisit;
   final VoidCallback onOpenChart;
 
+  /// Height of the buttons inside the pill.
+  static const double _button = 40;
+
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final Widget content;
     if (isDentist) {
-      if (canBook) {
-        content = Row(
-          children: [
-            Expanded(
-              child: CruButton(
-                label: 'New visit',
-                kind: CruButtonKind.inset,
-                icon: CruIcons.plus,
-                large: true,
-                expand: true,
-                onPressed: onNewVisit,
-              ),
-            ),
-            const SizedBox(width: CruSpace.s12),
-            Expanded(
-              child: CruButton(
-                label: 'Open chart',
-                kind: CruButtonKind.primary,
-                icon: DentalIcons.tooth,
-                large: true,
-                expand: true,
-                onPressed: onOpenChart,
-              ),
-            ),
-          ],
-        );
-      } else {
-        content = CruButton(
-          label: 'Open chart',
-          kind: CruButtonKind.primary,
-          icon: DentalIcons.tooth,
-          large: true,
-          expand: true,
-          onPressed: onOpenChart,
-        );
-      }
+      final chart = _PillCapsule(
+        label: 'Open chart',
+        icon: DentalIcons.tooth,
+        onTap: onOpenChart,
+      );
+      content = canBook
+          ? Row(
+              children: [
+                _PillCircle(
+                  icon: CruIcons.plus,
+                  label: 'New visit',
+                  onTap: onNewVisit,
+                ),
+                const SizedBox(width: CruSpace.s8),
+                Expanded(child: chart),
+              ],
+            )
+          : chart;
     } else {
-      content = CruButton(
+      content = _PillCapsule(
         label: 'New visit',
-        kind: CruButtonKind.primary,
         icon: CruIcons.plus,
-        large: true,
-        expand: true,
-        onPressed: onNewVisit,
+        onTap: onNewVisit,
       );
     }
-
-    // A floating card in the nav bar's place: buttons radius 12, inset 8,
-    // so the card is 20 (inner radius = outer - inset).
-    return Container(
-      padding: const EdgeInsets.all(CruSpace.s8),
-      decoration: ShapeDecoration(
-        color: c.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(CruRadius.control + CruSpace.s8),
-          side: BorderSide(color: c.cardBorder),
-        ),
-        shadows: [
-          BoxShadow(
-            color: c.ink.withValues(alpha: 0.14),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
-          ),
-        ],
+    return MobileNavPill(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+        child: Center(child: content),
       ),
-      child: content,
+    );
+  }
+}
+
+/// The pill's secondary action: a translucent white circle, icon only.
+class _PillCircle extends StatelessWidget {
+  const _PillCircle({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final CruIconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return CruPressable(
+      onTap: () {
+        MobileHaptics.tap();
+        onTap();
+      },
+      semanticLabel: label,
+      tooltip: label,
+      builder: (context, hovered) => Container(
+        width: _PatientDetailsBottomBar._button,
+        height: _PatientDetailsBottomBar._button,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: hovered ? 0.3 : 0.2),
+        ),
+        child: CruIcon(icon, size: 20, strokeWidth: 2, color: Colors.white),
+      ),
+    );
+  }
+}
+
+/// The pill's one primary action: a white capsule, Neon Blue ink.
+class _PillCapsule extends StatelessWidget {
+  const _PillCapsule({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final CruIconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return CruPressable(
+      onTap: () {
+        MobileHaptics.tap();
+        onTap();
+      },
+      semanticLabel: label,
+      builder: (context, hovered) => Container(
+        height: _PatientDetailsBottomBar._button,
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          color: Colors.white.withValues(alpha: hovered ? 0.94 : 1),
+          shape: const StadiumBorder(),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CruIcon(icon, size: 18, strokeWidth: 2, color: MobileBlue.neon),
+            const SizedBox(width: CruSpace.s8),
+            Text(label, style: MobileType.button.tint(MobileBlue.neon)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -957,9 +1119,37 @@ class _DetailsSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final phone = MediaQuery.sizeOf(context).width < _phoneWidth;
-    final padding = phone ? _phonePadding : _padding;
-    final textWidth = phone ? 160.0 : 220.0;
-    final metaWidth = phone ? 180.0 : 280.0;
+    if (phone) {
+      // The poster's shape: a centred monogram, name and meta lines, the
+      // glance card, then the cards.
+      return SingleChildScrollView(
+        padding: _phonePadding,
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [DetailsBackLink(onBack: onBack)]),
+            const SizedBox(height: CruSpace.s12),
+            const Center(
+              child: SkeletonBox(width: 72, height: 72, circle: true),
+            ),
+            const SizedBox(height: CruSpace.s12),
+            const Center(child: SkeletonBox(width: 180, height: 28)),
+            const SizedBox(height: CruSpace.s8),
+            const Center(child: SkeletonBox(width: 120, height: 14)),
+            const SizedBox(height: CruSpace.s16),
+            const SkeletonCard(rows: 1),
+            const SizedBox(height: CruSpace.cardGap),
+            const SkeletonCard(rows: 3),
+            const SizedBox(height: CruSpace.cardGap),
+            const SkeletonCard(rows: 2),
+          ],
+        ),
+      );
+    }
+    final padding = _padding;
+    const textWidth = 220.0;
+    const metaWidth = 280.0;
     return SingleChildScrollView(
       padding: padding,
       physics: const NeverScrollableScrollPhysics(),
@@ -971,8 +1161,8 @@ class _DetailsSkeleton extends StatelessWidget {
           Row(
             children: [
               SkeletonBox(
-                width: phone ? 44 : CruSize.monogramPreview,
-                height: phone ? 44 : CruSize.monogramPreview,
+                width: CruSize.monogramPreview,
+                height: CruSize.monogramPreview,
                 circle: true,
               ),
               const SizedBox(width: CruSpace.s16),
@@ -989,10 +1179,7 @@ class _DetailsSkeleton extends StatelessWidget {
           const SizedBox(height: CruSpace.s16),
           Align(
             alignment: Alignment.centerLeft,
-            child: SkeletonBox(
-              width: phone ? 220 : 380,
-              height: CruSize.segmentHeight,
-            ),
+            child: SkeletonBox(width: 380, height: CruSize.segmentHeight),
           ),
           const SizedBox(height: CruSpace.s16),
           const SkeletonCard(rows: 3),

@@ -135,7 +135,8 @@ class _OdontogramPictureChartState extends State<OdontogramPictureChart> {
     }
 
     final c = context.cru;
-    final paper = chartPaper(widget.layer, c);
+    final paper =
+        chartPaper(widget.layer, c, base: c.isEvening ? c.surface : null);
     final selTooth = widget.selected;
     final selVisual = selTooth != null ? widget.data.of(selTooth) : null;
 
@@ -347,7 +348,7 @@ class _PicturePainter extends CustomPainter {
     final c = colors;
     final line = art == OdontogramArt.line2d;
 
-    // The picture lives on white paper in both themes.
+    // White paper by day, the card surface in evening.
     final panel = RRect.fromRectAndRadius(
       layout.panel,
       const Radius.circular(CruRadius.panel),
@@ -364,6 +365,17 @@ class _PicturePainter extends CustomPainter {
     }
     final img = image;
     if (img != null) {
+      // Evening: the picture's white paper must not show, so draw it only
+      // inside the tooth outlines. The teeth keep their natural look and the
+      // dark card shows around them.
+      if (c.isEvening) {
+        final teeth = Path();
+        for (final t in layout.teeth) {
+          teeth.addPath(t.outline, Offset.zero);
+        }
+        canvas.save();
+        canvas.clipPath(teeth, doAntiAlias: true);
+      }
       canvas.drawImageRect(
         img,
         Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
@@ -372,6 +384,7 @@ class _PicturePainter extends CustomPainter {
           ..isAntiAlias = true
           ..filterQuality = FilterQuality.high,
       );
+      if (c.isEvening) canvas.restore();
     }
 
     const grey = Color(0xFF8A8A8A);
@@ -382,7 +395,7 @@ class _PicturePainter extends CustomPainter {
     _label(canvas, 'R', Offset(layout.panel.left + 9, layout.gapY), side);
     _label(canvas, 'L', Offset(layout.panel.right - 9, layout.gapY), side);
 
-    // The paper is white in both themes, so the findings use the light palette.
+    // Findings keep the light palette (solid colours read on both papers).
     final f = CruColors.day;
     final texts = <(_Tooth, Color)>[];
     for (final t in layout.teeth) {

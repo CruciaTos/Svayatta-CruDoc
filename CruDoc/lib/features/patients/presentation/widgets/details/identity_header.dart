@@ -9,7 +9,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The pinned top of Patient details. First line: the way back, the •••
 /// menu and New visit. Then the patient: monogram, name, "age · sex ·
-/// phone · Patient since", the allergy pill, Call and WhatsApp. It stays
+/// phone · Patient since", the allergy pill. It stays
 /// put while Overview and its sub-screens open and close below it.
 class PatientDetailsHeader extends StatelessWidget {
   const PatientDetailsHeader({
@@ -17,8 +17,6 @@ class PatientDetailsHeader extends StatelessWidget {
     required this.summary,
     required this.allergies,
     required this.onBack,
-    required this.onCall,
-    required this.onWhatsApp,
     required this.menu,
     required this.onNewVisit,
     this.backLabel,
@@ -31,8 +29,6 @@ class PatientDetailsHeader extends StatelessWidget {
   /// Null when nothing is recorded (the pill is hidden).
   final KnownAllergies? allergies;
   final VoidCallback onBack;
-  final VoidCallback onCall;
-  final VoidCallback onWhatsApp;
 
   /// The ••• menu.
   final Widget menu;
@@ -134,25 +130,8 @@ class PatientDetailsHeader extends StatelessWidget {
             Flexible(child: name),
             if (patientDetailsPending(p)) ...[
               const SizedBox(width: CruSpace.s8),
-              CruPressable(
+              DetailsPendingPill(
                 onTap: () => showEditPatientSheet(context, patient: p),
-                semanticLabel: 'Details pending. Edit patient.',
-                builder: (context, hovered) => Container(
-                  height: CruSize.infoPill,
-                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
-                  decoration: ShapeDecoration(
-                    color: hovered
-                        ? cruHoverShade(c.amberTint, c)
-                        : c.amberTint,
-                    shape: const StadiumBorder(),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Details pending',
-                      style: CruType.caption.w600.tint(c.amberText),
-                    ),
-                  ),
-                ),
               ),
             ],
           ],
@@ -163,51 +142,6 @@ class PatientDetailsHeader extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         );
-        final contact = !hasPhone
-            ? const <Widget>[]
-            : [
-                const SizedBox(width: CruSpace.s16),
-                CruCapsuleButton(
-                  label: 'Call',
-                  icon: CruIcons.phone,
-                  kind: CruCapsuleKind.tinted,
-                  height: CruSize.profileCapsule,
-                  large: true,
-                  semanticLabel: 'Call ${p.fullName}',
-                  onPressed: onCall,
-                ),
-                const SizedBox(width: CruSpace.s8),
-                CruCapsuleButton(
-                  label: 'WhatsApp',
-                  icon: CruIcons.whatsapp,
-                  kind: CruCapsuleKind.tinted,
-                  height: CruSize.profileCapsule,
-                  large: true,
-                  semanticLabel: 'WhatsApp ${p.fullName}',
-                  onPressed: onWhatsApp,
-                ),
-              ];
-        final phoneContact = !hasPhone
-            ? const <Widget>[]
-            : [
-                const SizedBox(width: CruSpace.s8),
-                CruSquareButton(
-                  icon: CruIcons.phone,
-                  secondary: true,
-                  semanticLabel: 'Call ${p.fullName}',
-                  tooltip: 'Call',
-                  onPressed: onCall,
-                ),
-                const SizedBox(width: CruSpace.s8),
-                CruSquareButton(
-                  icon: CruIcons.whatsapp,
-                  secondary: true,
-                  semanticLabel: 'WhatsApp ${p.fullName}',
-                  tooltip: 'WhatsApp',
-                  onPressed: onWhatsApp,
-                ),
-              ];
-
         if (phone) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -225,12 +159,7 @@ class PatientDetailsHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(child: nameRow),
-                            ...phoneContact,
-                          ],
-                        ),
+                        Row(children: [Expanded(child: nameRow)]),
                         const SizedBox(height: CruSpace.s2),
                         metaText,
                       ],
@@ -281,7 +210,6 @@ class PatientDetailsHeader extends StatelessWidget {
                     ],
                   ),
                 ),
-                ...contact,
               ],
             ),
             if (tabs != null) ...[
@@ -291,6 +219,38 @@ class PatientDetailsHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// The amber "Details pending" capsule: the patient's record is missing
+/// something. Tap opens the edit sheet ([onTap]). Shared by the desktop
+/// header and the phone's poster.
+class DetailsPendingPill extends StatelessWidget {
+  const DetailsPendingPill({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: 'Details pending. Edit patient.',
+      builder: (context, hovered) => Container(
+        height: CruSize.infoPill,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+        decoration: ShapeDecoration(
+          color: hovered ? cruHoverShade(c.amberTint, c) : c.amberTint,
+          shape: const StadiumBorder(),
+        ),
+        child: Center(
+          child: Text(
+            'Details pending',
+            style: CruType.caption.w600.tint(c.amberText),
+          ),
+        ),
+      ),
     );
   }
 }

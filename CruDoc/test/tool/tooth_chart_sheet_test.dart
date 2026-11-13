@@ -16,12 +16,17 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/chart
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_art.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_arches.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/odontogram_picture_chart.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_arches_3d.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_arches_vector.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_textures.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+/// Raise (e.g. 2.5) to inspect edges closely; keep 1.0 otherwise.
+const double _pixelRatio = 1.0;
 
 void main() {
   testWidgets('renders tooth chart sheets A, B, C, D and Arches', (tester) async {
@@ -298,6 +303,7 @@ void main() {
       }
     }
 
+    await tester.runAsync(loadOdontogramPictures);
     // ==================== Arches Sheets (360 px and 900 px) ====================
     for (final width in [360.0, 900.0]) {
       final widthLabel = width.toInt().toString();
@@ -326,7 +332,6 @@ void main() {
     }
 
     // ==================== 3D odontogram (360 px) ====================
-    await tester.runAsync(loadArchPictures3d);
     for (final isDark in [false, true]) {
       final themeName = isDark ? 'dark' : 'light';
       await _captureWidget(
@@ -346,6 +351,23 @@ void main() {
         File('${outDirArches.path}/arches3d_360_$themeName.png'),
       );
     }
+
+    await _captureWidget(
+      tester,
+      _wrapWidget(
+        child: ToothChartArches3d(
+          data: sampleData,
+          child: false,
+          selected: '16',
+          onSelect: (_) {},
+          layer: ChartLayer.dental,
+        ),
+        colors: CruColors.day,
+        width: 900,
+      ),
+      const Size(900, 1020),
+      File('${outDirArches.path}/arches3d_900_light.png'),
+    );
 
     // ==================== Layout checks ====================
     // Row chart: no tooth's box overlaps its neighbour's, at any width.
@@ -454,7 +476,7 @@ Future<void> _captureWidget(
   await tester.runAsync(() async {
     final boundary =
         repaintKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: 1.0);
+    final image = await boundary.toImage(pixelRatio: _pixelRatio);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     await file.writeAsBytes(byteData!.buffer.asUint8List());
   });

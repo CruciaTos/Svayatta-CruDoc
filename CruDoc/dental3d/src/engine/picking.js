@@ -4,6 +4,7 @@ import { isVisibleDeep } from './registry.js';
 const DRAG_PX = 5;
 const DRAG_PX_TOUCH = 10; // fingers wobble more than a mouse
 const DOUBLE_TAP_MS = 350;
+const IN_APP = new URLSearchParams(location.search).get('app') === '1';
 
 // Click selects (only if the pointer moved < 5 px); hover raycasts at most once
 // per animation frame, never while a button is down and never for touch.
@@ -64,10 +65,13 @@ export function createPicking(stage, registry, handlers) {
     if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < d.lim && !d.multi) {
       const id = pickAt(e.clientX, e.clientY);
       handlers.select(id);
-      if (id) handlers.tap?.(id);
-      // double click / double tap on a tooth brings it close
+      // single tap only selects; double tap opens the tooth form in the app
+      // (outside the app it brings the tooth close)
       const now = performance.now();
-      if (id && lastTap && lastTap.id === id && now - lastTap.t < DOUBLE_TAP_MS) { handlers.fly?.(id); lastTap = null; }
+      if (id && lastTap && lastTap.id === id && now - lastTap.t < DOUBLE_TAP_MS) {
+        if (IN_APP) handlers.tap?.(id); else handlers.fly?.(id);
+        lastTap = null;
+      }
       else lastTap = id ? { id, t: now } : null;
     }
   };

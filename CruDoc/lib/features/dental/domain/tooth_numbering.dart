@@ -177,9 +177,9 @@ enum OdontogramStyle {
   final String label;
 }
 
-/// The 3D odontogram is built but switched off: the settings choice is hidden
-/// and the chart always uses the flat teeth (a saved model3d value is ignored).
-const bool kOdontogram3dEnabled = false;
+/// The odontogram style choice (2D line art or 3D clay) in settings; off: the
+/// choice is hidden and the chart is always 2D (a saved model3d value is ignored).
+const bool kOdontogram3dEnabled = true;
 
 /// The clinic's odontogram style choice, stored as a meta record. Default 2D.
 final odontogramStyleProvider = FutureProvider<OdontogramStyle>((ref) async {

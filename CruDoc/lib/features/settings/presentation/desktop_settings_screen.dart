@@ -1400,7 +1400,7 @@ class _DentalSection extends ConsumerWidget {
         _SettingsCard(
           title: 'Odontogram style',
           description:
-              'How the teeth look in the arches chart: flat 2D drawings or top views rendered from the 3D model.',
+              'How the teeth look in the arches chart: a clean 2D line drawing or a 3D clay-style picture.',
           child: Row(
             children: [
               CruSegmentedControl<OdontogramStyle>(
@@ -1416,8 +1416,8 @@ class _DentalSection extends ConsumerWidget {
               Expanded(
                 child: Text(
                   odontoStyle == OdontogramStyle.flat2d
-                      ? 'Flat vector teeth.'
-                      : 'Biting-surface pictures of the 3D teeth.',
+                      ? 'Black line drawing of the teeth.'
+                      : 'Grey clay-style picture of the teeth.',
                   style: CruType.caption.tint(c.label2),
                 ),
               ),

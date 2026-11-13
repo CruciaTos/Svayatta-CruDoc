@@ -147,6 +147,8 @@ flutter:
     # (45° steps), occlusal, apical. Source PNGs: assets/images/bonebox_teeth/
     # (git-ignored, not bundled).
     - assets/images/teeth/
+    # Odontogram artwork, used with the owner's permission.
+    - assets/images/odontogram/
     # Physio 3D muscle chart viewer and model (see tool/muscle_pipeline).
     - assets/muscle_viewer/
     - assets/muscle_viewer/vendor/

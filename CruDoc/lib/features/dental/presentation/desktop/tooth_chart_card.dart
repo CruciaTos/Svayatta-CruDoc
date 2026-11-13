@@ -423,7 +423,9 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
             data: phone ? data : null,
           );
     void onToothSelect(String tooth) {
-      if (phone) {
+      // Phone: first tap shows the tooth's summary, a second tap on the same
+      // tooth opens its form (same as 3D: tap to look, tap again to chart).
+      if (phone && _selected != tooth) {
         setState(() => _selected = tooth);
       } else {
         _open(tooth);

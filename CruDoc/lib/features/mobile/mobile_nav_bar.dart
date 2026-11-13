@@ -25,12 +25,26 @@ class MobileNavItem {
 class MobileNavBar extends StatefulWidget {
   const MobileNavBar({
     super.key,
-    required this.controller,
+    required PageController this.controller,
     required this.items,
     this.badges = const {},
-  });
+  }) : selected = null,
+       onSelect = null;
 
-  final PageController controller;
+  /// The same bar for pages that are not a [PageView] (Charting's
+  /// workspaces): the lens slides to [selected]; a tap or a drag picks a
+  /// tab through [onSelect].
+  const MobileNavBar.selection({
+    super.key,
+    required int this.selected,
+    required ValueChanged<int> this.onSelect,
+    required this.items,
+    this.badges = const {},
+  }) : controller = null;
+
+  final PageController? controller;
+  final int? selected;
+  final ValueChanged<int>? onSelect;
   final List<MobileNavItem> items;
 
   /// Small amber counts on tabs (people waiting on Schedule).
@@ -61,11 +75,13 @@ class _MobileNavBarState extends State<MobileNavBar> {
   /// would assert.
   ScrollPosition? get _position {
     final c = widget.controller;
-    return c.hasClients ? c.positions.last : null;
+    return c != null && c.hasClients ? c.positions.last : null;
   }
 
   double get _page {
-    final initial = widget.controller.initialPage.toDouble();
+    final sel = widget.selected;
+    if (sel != null) return sel.toDouble();
+    final initial = widget.controller!.initialPage.toDouble();
     final p = _position;
     if (p == null || !p.hasContentDimensions || p is! PageMetrics) {
       return initial;
@@ -75,7 +91,12 @@ class _MobileNavBarState extends State<MobileNavBar> {
 
   void _goTo(int index) {
     MobileHaptics.select();
-    widget.controller.animateToPage(
+    final pick = widget.onSelect;
+    if (pick != null) {
+      if (index != widget.selected) pick(index);
+      return;
+    }
+    widget.controller!.animateToPage(
       index,
       duration: const Duration(milliseconds: 340),
       curve: Curves.easeOutCubic,
@@ -89,6 +110,15 @@ class _MobileNavBarState extends State<MobileNavBar> {
   /// lens snaps onto it (with a tick); held between two tabs it stays
   /// between them. Nothing settles until the thumb lets go.
   void _dragTo(double localX, double slot) {
+    if (widget.onSelect != null) {
+      // Selection mode: the lens jumps tab to tab under the thumb.
+      final near = ((localX - slot / 2) / slot).round().clamp(0, _count - 1);
+      if (near != _lastTick) {
+        _lastTick = near;
+        _goTo(near);
+      }
+      return;
+    }
     final pos = _position;
     if (pos == null) return;
     final raw = ((localX - slot / 2) / slot).clamp(0.0, _count - 1.0);
@@ -112,7 +142,8 @@ class _MobileNavBarState extends State<MobileNavBar> {
   void _settle() {
     setState(() => _dragging = false);
     _lastTick = -1;
-    widget.controller.animateToPage(
+    if (widget.controller == null) return;
+    widget.controller!.animateToPage(
       _page.round(),
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
@@ -188,10 +219,10 @@ class _MobileNavBarState extends State<MobileNavBar> {
                     ],
                   ),
                 ),
-                child: AnimatedBuilder(
-                  animation: widget.controller,
-                  builder: (context, _) {
-                    final page = _page;
+                child: _PageSource(
+                  controller: widget.controller,
+                  page: () => _page,
+                  builder: (context, page) {
                     final inner = MobileMetrics.navHeight - _rim * 2;
                     return Stack(
                       children: [
@@ -237,6 +268,37 @@ class _MobileNavBarState extends State<MobileNavBar> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Feeds the bar the current page: live from the [PageView] controller, or
+/// sliding to the selected tab in selection mode.
+class _PageSource extends StatelessWidget {
+  const _PageSource({
+    required this.controller,
+    required this.page,
+    required this.builder,
+  });
+
+  final PageController? controller;
+  final double Function() page;
+  final Widget Function(BuildContext context, double page) builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = controller;
+    if (c != null) {
+      return AnimatedBuilder(
+        animation: c,
+        builder: (context, _) => builder(context, page()),
+      );
+    }
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: page()),
+      duration: const Duration(milliseconds: 340),
+      curve: Curves.easeOutCubic,
+      builder: (context, p, _) => builder(context, p),
     );
   }
 }

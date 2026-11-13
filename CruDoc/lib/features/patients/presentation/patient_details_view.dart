@@ -30,6 +30,8 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/ass
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
+import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
@@ -107,15 +109,26 @@ class PatientDetailsScreen extends ConsumerWidget {
     return Theme(
       data: CruTheme.of(ref.watch(resolvedAppearanceProvider)),
       child: Builder(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.transparent,
-          body: SafeArea(
-            child: PatientDetailsView(
-              patientId: patientId,
-              onBack: () => Navigator.of(context).maybePop(),
+        builder: (context) {
+          final phone = MediaQuery.sizeOf(context).width < _phoneWidth;
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Stack(
+              children: [
+                // Phones: the same background as the main screens.
+                if (phone) const Positioned.fill(child: MobileBackdrop()),
+                SafeArea(
+                  // the floating action bar handles the bottom inset itself
+                  bottom: !phone,
+                  child: PatientDetailsView(
+                    patientId: patientId,
+                    onBack: () => Navigator.of(context).maybePop(),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -637,11 +650,10 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                                 top: 0,
                                 // bar: large button + 2 x 12 padding, plus
                                 // the phone's gesture/nav bar inset
+                                // clears the floating action bar, like
+                                // the main screens clear their nav bar
                                 bottom: showBottomBar
-                                    ? CruSpace.s32 * 3 +
-                                          MediaQuery.viewPaddingOf(
-                                            context,
-                                          ).bottom
+                                    ? MobileMetrics.bottom(context)
                                     : padding.bottom,
                               ),
                               child: t == _Tab.overview
@@ -715,10 +727,11 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
           return Stack(
             children: [
               body,
+              // Floats where the app's nav bar sits on the main screens.
               Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
+                left: MobileMetrics.gutter,
+                right: MobileMetrics.gutter,
+                bottom: MobileMetrics.navBottom(context),
                 child: _PatientDetailsBottomBar(
                   isDentist: isDentist,
                   canBook: canBook,
@@ -886,21 +899,25 @@ class _PatientDetailsBottomBar extends StatelessWidget {
       );
     }
 
+    // A floating card in the nav bar's place: buttons radius 12, inset 8,
+    // so the card is 20 (inner radius = outer - inset).
     return Container(
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.all(CruSpace.s8),
+      decoration: ShapeDecoration(
         color: c.surface,
-        border: Border(top: BorderSide(color: c.cardBorder, width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: CruSpace.s16,
-            vertical: CruSpace.s12,
-          ),
-          child: content,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(CruRadius.control + CruSpace.s8),
+          side: BorderSide(color: c.cardBorder),
         ),
+        shadows: [
+          BoxShadow(
+            color: c.ink.withValues(alpha: 0.14),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
+      child: content,
     );
   }
 }

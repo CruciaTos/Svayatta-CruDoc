@@ -46,6 +46,9 @@ import 'package:doctor_management_app/features/revenue/presentation/desktop_crea
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/snap_column.dart';
 import 'package:doctor_management_app/shared/widgets/swipe_pages.dart';
+import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/mobile/mobile_nav_bar.dart';
+import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/morph_tag.dart';
@@ -533,9 +536,21 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
             ],
           ),
           const SizedBox(height: CruSpace.s8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: allergyPill,
+          // Safety row: allergies always; medical conditions only when the
+          // patient has some (they change what is safe to do today).
+          Wrap(
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
+            children: [
+              allergyPill,
+              if (omHistory?.data['systemic'] is List &&
+                  (omHistory!.data['systemic'] as List).isNotEmpty)
+                _Chip(
+                  text: omCardLine(omHistory).split(' · ').first,
+                  onTap: () =>
+                      showOmHistoryDialog(context, p, existing: omHistory),
+                ),
+            ],
           ),
         ],
       );
@@ -714,9 +729,7 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
       for (final id in ids) ?findRecord(records, id),
     ];
 
-    final phoneBottomInset = phone
-        ? _ChartingBottomBar.height + MediaQuery.viewPaddingOf(context).bottom
-        : 0.0;
+    final phoneBottomInset = phone ? MobileMetrics.bottom(context) : 0.0;
     Widget scroll(Widget child) => SingleChildScrollView(
       padding: EdgeInsets.only(bottom: phoneBottomInset),
       child: child,
@@ -1017,19 +1030,25 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
         ? studio
         : Scaffold(
             backgroundColor: c.canvas,
-            body: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: phone
-                    ? CruSpace.mainPaddingPhone
-                    : const EdgeInsets.fromLTRB(
-                        CruSpace.s24,
-                        CruSpace.s20,
-                        CruSpace.s24,
-                        CruSpace.s24,
-                      ),
-                child: studio,
-              ),
+            body: Stack(
+              children: [
+                // Phones: the same background as the main screens.
+                if (phone) const Positioned.fill(child: MobileBackdrop()),
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: phone
+                        ? CruSpace.mainPaddingPhone
+                        : const EdgeInsets.fromLTRB(
+                            CruSpace.s24,
+                            CruSpace.s20,
+                            CruSpace.s24,
+                            CruSpace.s24,
+                          ),
+                    child: studio,
+                  ),
+                ),
+              ],
             ),
           );
 
@@ -1038,9 +1057,9 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
         children: [
           page,
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+            left: MobileMetrics.gutter,
+            right: MobileMetrics.gutter,
+            bottom: MobileMetrics.navBottom(context),
             child: _ChartingBottomBar(
               selected: shownTab,
               onSelect: _go,
@@ -1592,7 +1611,8 @@ class _SessionBar extends StatelessWidget {
   }
 }
 
-/// The phone's bottom tab bar for Charting: Chart, Plan, Records, Wrap-up.
+/// The phone's tab bar for Charting (Chart, Plan, Records, Wrap-up): the
+/// app's own floating nav bar, so Charting feels like the main screens.
 class _ChartingBottomBar extends StatelessWidget {
   const _ChartingBottomBar({
     required this.selected,
@@ -1602,60 +1622,26 @@ class _ChartingBottomBar extends StatelessWidget {
   final ChartingTab selected;
   final ValueChanged<ChartingTab> onSelect;
 
-  static const double height = 56.0;
+  static const tabs = [
+    ChartingTab.teeth,
+    ChartingTab.plan,
+    ChartingTab.records,
+    ChartingTab.wrapUp,
+  ];
+
+  static const _items = [
+    MobileNavItem('Chart', DentalIcons.tooth),
+    MobileNavItem('Plan', DentalIcons.plan),
+    MobileNavItem('Records', CruIcons.fileText),
+    MobileNavItem('Wrap-up', CruIcons.check),
+  ];
 
   @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    const items = [
-      (ChartingTab.teeth, 'Chart', DentalIcons.tooth),
-      (ChartingTab.plan, 'Plan', DentalIcons.plan),
-      (ChartingTab.records, 'Records', CruIcons.fileText),
-      (ChartingTab.wrapUp, 'Wrap-up', CruIcons.check),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border(top: BorderSide(color: c.hairline)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: height,
-          child: Row(
-            children: [
-              for (final (tab, label, icon) in items)
-                Expanded(
-                  child: CruPressable(
-                    onTap: () => onSelect(tab),
-                    builder: (context, hovered) => Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CruIcon(
-                            icon,
-                            size: 20,
-                            color: tab == selected ? c.accent : c.label3,
-                          ),
-                          const SizedBox(height: CruSpace.s4),
-                          Text(
-                            label,
-                            style: tab == selected
-                                ? CruType.caption.w600.tint(c.accentText)
-                                : CruType.caption.tint(c.label3),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MobileNavBar.selection(
+    items: _items,
+    selected: tabs.indexOf(selected).clamp(0, tabs.length - 1),
+    onSelect: (i) => onSelect(tabs[i]),
+  );
 }
 
 /// A titled section in the Records tab on phone and tablet.

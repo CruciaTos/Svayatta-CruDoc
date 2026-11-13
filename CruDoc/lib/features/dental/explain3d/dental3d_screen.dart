@@ -24,6 +24,7 @@ class Dental3dView extends ConsumerStatefulWidget {
     this.patientName,
     this.showPlan = true,
     this.onToothSelected,
+    this.onToothTapped,
     this.compact = false,
     this.selectedFdi,
   });
@@ -32,6 +33,9 @@ class Dental3dView extends ConsumerStatefulWidget {
   final String? patientName;
   final bool showPlan;
   final ValueChanged<int?>? onToothSelected;
+
+  /// A tap (not a drag) on a tooth in 3D: the host opens that tooth's form.
+  final ValueChanged<int>? onToothTapped;
   final bool compact;
   final int? selectedFdi;
 
@@ -190,9 +194,15 @@ class _Dental3dViewState extends ConsumerState<Dental3dView> {
         return;
       }
       _snapshot = snapshot;
-      final uri = widget.compact
-          ? opened.page.replace(queryParameters: {'compact': '1'})
-          : opened.page;
+      // app=1: the page hides its demo-patient picker (it would overwrite this
+      // patient's chart); compact=1: no side panel (the card has its own).
+      final uri = opened.page.replace(
+        queryParameters: {
+          'app': '1',
+          if (widget.compact) 'compact': '1',
+          if (Theme.of(context).brightness == Brightness.dark) 'theme': 'dark',
+        },
+      );
       setState(() {
         _token = opened.token;
         _url = uri;
@@ -247,6 +257,10 @@ class _Dental3dViewState extends ConsumerState<Dental3dView> {
             : null;
         _webFdi = tooth;
         widget.onToothSelected?.call(tooth);
+      case 'TOOTH_TAPPED':
+        final payload = msg['payload'];
+        final fdi = payload is Map ? (payload['fdi'] as num?)?.toInt() : null;
+        if (fdi != null) widget.onToothTapped?.call(fdi);
       case 'STATE_UPDATED':
         final payload = msg['payload'];
         if (payload is Map && payload['persist'] != null) {
@@ -315,8 +329,6 @@ class _Dental3dViewState extends ConsumerState<Dental3dView> {
         // The page owns every drag: no rubber-banding or scrolling around it.
         disallowOverScroll: true,
         overScrollMode: OverScrollMode.NEVER,
-        disableVerticalScroll: true,
-        disableHorizontalScroll: true,
       ),
       // A phone can drop the page's process under memory pressure (216k
       // triangles): reload, and the READY packet feeds it the snapshot again.
@@ -349,23 +361,39 @@ class _Dental3dViewState extends ConsumerState<Dental3dView> {
 
 /// "Show the patient": the patient's teeth as an interactive 3D model (the
 /// web page in `assets/dental3d/`) in a full-screen WebView, served over
-/// loopback.
-class Dental3dScreen extends StatelessWidget {
+/// loopback. [peekBuilder], when given, shows the picked tooth and the way
+/// into it under the model (the card's picked-tooth panel).
+class Dental3dScreen extends StatefulWidget {
   const Dental3dScreen({
     super.key,
     required this.patientId,
     this.patientName,
     this.showPlan = true,
+    this.peekBuilder,
+    this.onToothTapped,
   });
 
   final String patientId;
   final String? patientName;
   final bool showPlan;
 
+  /// A tap (not a drag) on a tooth: the host opens that tooth's form.
+  final ValueChanged<int>? onToothTapped;
+  final Widget Function(int fdi)? peekBuilder;
+
+  @override
+  State<Dental3dScreen> createState() => _Dental3dScreenState();
+}
+
+class _Dental3dScreenState extends State<Dental3dScreen> {
+  int? _selected;
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final name = patientName?.trim() ?? '';
+    final name = widget.patientName?.trim() ?? '';
+    final peek = _selected;
+    final peekBuilder = widget.peekBuilder;
     return Scaffold(
       backgroundColor: c.canvas,
       body: SafeArea(
@@ -401,12 +429,27 @@ class Dental3dScreen extends StatelessWidget {
             ),
             Expanded(
               child: Dental3dView(
-                patientId: patientId,
-                patientName: patientName,
-                showPlan: showPlan,
+                patientId: widget.patientId,
+                patientName: widget.patientName,
+                showPlan: widget.showPlan,
                 compact: false,
+                selectedFdi: _selected,
+                onToothTapped: widget.onToothTapped,
+                onToothSelected: peekBuilder == null
+                    ? null
+                    : (fdi) => setState(() => _selected = fdi),
               ),
             ),
+            if (peekBuilder != null && peek != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  CruSpace.s16,
+                  CruSpace.s8,
+                  CruSpace.s16,
+                  CruSpace.s8,
+                ),
+                child: peekBuilder(peek),
+              ),
           ],
         ),
       ),

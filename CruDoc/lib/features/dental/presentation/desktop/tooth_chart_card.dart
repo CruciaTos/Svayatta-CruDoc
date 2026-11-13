@@ -9,6 +9,8 @@ import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dar
 import 'package:doctor_management_app/features/dental/explain3d/dental3d_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/chart_legend.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_arches.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_arches_3d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
@@ -61,28 +63,6 @@ class ToothChartPreviewCard extends ConsumerWidget {
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final counts = toothChartCounts(data);
-    // Phones: 3D opens on its own screen (a page that scrolls cannot give a
-    // WebView its drags), tablets and desktops embed it in the card.
-    final phone = MediaQuery.sizeOf(context).width < 600;
-
-    // One 3D page at a time: the card's own view is closed while the full
-    // screen is open and comes back (with the new state) afterwards.
-    Future<void> openFullScreen() async {
-      final was = _threeD;
-      setState(() => _threeD = false);
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => Theme(
-            data: Theme.of(context),
-            child: Dental3dScreen(
-              patientId: p.id,
-              patientName: p.fullName,
-            ),
-          ),
-        ),
-      );
-      if (mounted && was) setState(() => _threeD = true);
-    }
     void open([ChartingTab tab = ChartingTab.teeth]) =>
         openCharting(context, patient, tab: tab);
     final exam = data.perioExam;
@@ -213,6 +193,26 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
 
   Patient get p => widget.patient;
 
+  // One 3D page at a time: the card's own view is closed while the full
+  // screen is open and comes back (with the new state) afterwards.
+  Future<void> openFullScreen() async {
+    final was = _threeD;
+    setState(() => _threeD = false);
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Theme(
+          data: Theme.of(context),
+          child: Dental3dScreen(
+            patientId: p.id,
+            patientName: p.fullName,
+            onToothTapped: (fdi) => _open(fdi.toString()),
+          ),
+        ),
+      ),
+    );
+    if (mounted && was) setState(() => _threeD = true);
+  }
+
   Future<void> _open(String tooth) async {
     setState(() => _selected = tooth);
     await showToothDetail(context, patient: p, tooth: tooth);
@@ -221,6 +221,17 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    // Phones: 3D opens on its own screen (a page that scrolls cannot give a
+    // WebView its drags), tablets and desktops embed it in the card.
+    final size = MediaQuery.sizeOf(context);
+    final phone = size.width < 600;
+    final phoneUpright = phone && size.height > size.width;
+    final chartView = phoneUpright
+        ? ToothChartView.arches
+        : (ref.watch(toothChartViewProvider).value ?? ToothChartView.rows);
+    final odontoStyle = kOdontogram3dEnabled
+        ? (ref.watch(odontogramStyleProvider).value ?? OdontogramStyle.flat2d)
+        : OdontogramStyle.flat2d;
     final data = watchPatientChart(ref, p.id);
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
@@ -366,12 +377,32 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                             selectedFdi: _selected != null
                                 ? int.tryParse(_selected!)
                                 : null,
-                            onToothSelected: (fdi) => setState(
-                              () => _selected = fdi?.toString(),
-                            ),
+                            onToothSelected: (fdi) =>
+                                setState(() => _selected = fdi?.toString()),
+                            onToothTapped: (fdi) => _open(fdi.toString()),
                           ),
                         ),
                       )
+                    : chartView == ToothChartView.arches
+                    ? (odontoStyle == OdontogramStyle.model3d
+                        ? ToothChartArches3d(
+                            key: const ValueKey('arches3d'),
+                            data: data,
+                            child: child,
+                            layer: layer,
+                            selected: _selected,
+                            onSelect: _open,
+                            numbering: numbering,
+                          )
+                        : ToothChartArches(
+                            key: const ValueKey('arches'),
+                            data: data,
+                            child: child,
+                            layer: layer,
+                            selected: _selected,
+                            onSelect: _open,
+                            numbering: numbering,
+                          ))
                     : ToothChart2D(
                         key: const ValueKey('2d'),
                         data: data,

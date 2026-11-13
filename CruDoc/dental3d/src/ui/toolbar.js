@@ -59,7 +59,10 @@ export function createToolbar({ store, actions }) {
     }, label);
     gumSeg.append(b); return b;
   });
-  const layers = popBtn('layers', 'Layers', [h('div', { class: 'pop-title' }, 'Gums'), gumSeg, h('div', { class: 'pop-title gum-gap' }, 'Layers'), layerList]);
+  // Inside the app (?app=1) gums are always glass: no gum toggle.
+  const appMode = new URLSearchParams(window.location.search).get('app') === '1';
+  if (appMode) { actions.setGumStyle('glass'); actions.setLayer('gums', true); }
+  const layers = popBtn('layers', 'Layers', [...(appMode ? [] : [h('div', { class: 'pop-title' }, 'Gums'), gumSeg]), h('div', { class: appMode ? 'pop-title' : 'pop-title gum-gap' }, 'Layers'), layerList]);
 
   // views
   const views = popBtn('view', 'View', [
@@ -87,8 +90,11 @@ export function createToolbar({ store, actions }) {
   const patients = popBtn('patients', 'Example patient', [h('div', { class: 'pop-title' }, 'Example patient'), h('div', { class: 'pop-list' }, patientBtns)]);
 
   const wrap = (x) => h('div', { class: 'pop-wrap' }, x.btn, x.pop);
+  // Inside the app (?app=1) the example patients are hidden: loading one would replace the real
+  // patient's chart and be saved over it.
+  const inApp = new URLSearchParams(window.location.search).get('app') === '1';
   const el = h('div', { class: 'toolbar', role: 'toolbar', 'aria-label': 'Viewer controls' },
-    seg, h('div', { class: 'tb-sep' }), h('div', { class: 'pop-wrap' }, adjustBtn, sliders), wrap(patients), wrap(layers), wrap(views), wrap(quality));
+    seg, h('div', { class: 'tb-sep' }), h('div', { class: 'pop-wrap' }, adjustBtn, sliders), ...(inApp ? [] : [wrap(patients)]), wrap(layers), wrap(views), wrap(quality));
   document.addEventListener('click', (e) => { if (!el.contains(e.target)) closeAll(); });
   // keyboard: + / - zoom, 0 resets the view (not while typing)
   window.addEventListener('keydown', (e) => {

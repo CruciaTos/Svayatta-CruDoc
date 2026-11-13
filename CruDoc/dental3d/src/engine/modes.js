@@ -12,7 +12,9 @@ export const MODES = ['pbr', 'xray', 'heatmap'];
 // visibility. Called from the store subscriber; cheap enough to run in full.
 export function createAppearance(registry, store, stage, gums) {
   const ghost = createGhostMaterial();
+  stage.ghostMaterial = ghost;
   const pulpMat = createPulpMaterial();
+  pulpMat.color.set('#C9A0A0'); pulpMat.emissive.set('#3A2424'); pulpMat.emissiveIntensity = 0.2;
   const pulpSel = createPulpMaterial();
   pulpSel.color.set('#FF5A4F'); pulpSel.emissiveIntensity = 0.9;
   const pulpRct = createPulpMaterial();
@@ -36,7 +38,7 @@ export function createAppearance(registry, store, stage, gums) {
   for (const m of runtime) m.userData.natural = m.material;
 
   function heatColor(t, selected, hovered) {
-    let hex = selected ? STATUS_COLORS.selected : (t.statusColor || STATUS_COLORS[t.status] || NEUTRAL_LIGHT);
+    let hex = (t.statusColor || STATUS_COLORS[t.status] || NEUTRAL_LIGHT);
     if (!hex) hex = NEUTRAL_LIGHT;
     if (hovered && !selected) { white.set(hex).lerp(new THREE.Color('#FFFFFF'), 0.35); hex = '#' + white.getHexString(); }
     return hex;
@@ -45,7 +47,7 @@ export function createAppearance(registry, store, stage, gums) {
   function refresh() {
     const s = store.get();
     const L = s.layers;
-    const high = s.quality === 'high';
+    
     registry.nodes.arch_upper.visible = L.upper;
     registry.nodes.arch_lower.visible = L.lower;
     let ghostActive = false;
@@ -68,17 +70,21 @@ export function createAppearance(registry, store, stage, gums) {
       } else if (xray && !sel) {
         useGhost = true;
       } else if (xray && sel) {
-        setTint(mat, SELECT, 0.18);
+        setTint(mat, HOVER, 0);
         mat.transparent = true; mat.opacity = 0.5;   // glassy, so the pulp inside is visible
       } else {
-        setTint(mat, sel ? SELECT : HOVER, sel ? 0.45 : hov ? 0.3 : 0);
+        setTint(mat, HOVER, hov ? 0.3 : 0);
       }
-      if (sel && high) { mat.emissive.set('#4F8EF7'); mat.emissiveIntensity = 6.0; }
       if (wasTransparent !== mat.transparent) mat.needsUpdate = true; // OPAQUE define depends on it
       for (const m of obj.userData.meshes) m.material = useGhost ? ghost : mat;
       if (useGhost) ghostActive = true;
       if (pulp) {
-        pulp.visible = xray && t.present;
+        // Nerves stay hidden everywhere, except in a tooth with a root-canal treatment or finding (soft tone).
+        const endo = t.rctDone
+          || (Array.isArray(t.conditions) && t.conditions.some((c) => c && /endo|pulp|periapical|abscess|rct/i.test(c.type || '')))
+          || (Array.isArray(s.treatments) && s.treatments.some((tr) => tr && tr.type === 'rct' && (tr.tooth == fdi || (Array.isArray(tr.teeth) && tr.teeth.includes(fdi)))));
+        pulp.visible = !!endo && t.present;
+        for (const m of pulp.userData.meshes) m.visible = pulp.visible;
         const targetPulpMat = pulp.userData.matOverride || (sel ? pulpSel : (t.rctDone ? pulpRct : pulpMat));
         for (const m of pulp.userData.meshes) m.material = targetPulpMat;
       }

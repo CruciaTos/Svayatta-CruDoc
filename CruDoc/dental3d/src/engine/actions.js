@@ -150,7 +150,7 @@ export function createActions({ store, registry, cameraRig }) {
       if ('explode' in snap) patch.explode = clamp01(snap.explode);
       if ('jawOpen' in snap) patch.jawOpen = clamp01(snap.jawOpen);
       if (QUALITY_LEVELS.includes(snap.quality)) patch.quality = snap.quality;
-      if (snap.gumStyle === 'solid' || snap.gumStyle === 'glass') patch.gumStyle = snap.gumStyle;
+      if (snap.gumStyle === 'solid' || snap.gumStyle === 'glass') patch.gumStyle = new URLSearchParams(window.location.search).get('app') === '1' ? 'glass' : snap.gumStyle;
       if ('selectedId' in snap && (snap.selectedId === null || exists(snap.selectedId))) patch.selectedId = snap.selectedId;
       if (snap.layers && typeof snap.layers === 'object') {
         patch.layers = {};

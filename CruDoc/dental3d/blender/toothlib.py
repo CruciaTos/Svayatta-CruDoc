@@ -82,6 +82,11 @@ def _ring(dx, dy, ex, ey, n):
 
 
 class Root:
+    """One root.  Classic mode: ring that tapers with (ax, px) and drifts to c1 / distal by dc.
+    Path mode (opt-in, `path` + `prof`): the centre line is a smooth curve through (t, x, y) points and the
+    half-extents are ex0 * fx(t), ey0 * fy(t) through (t, fx, fy) points (t = depth / L, 0 = cervical line),
+    so roots can fan out, curve in the apical third and end in a rounded point."""
+
     def __init__(self, r, L_total):
         self.name = r.get('name', 'root')
         self.L = r['L']
@@ -99,24 +104,58 @@ class Root:
         self.dcy = r.get('dcy', 0.0)
         self.n = r.get('n', 2.2)
         self.rc0 = r.get('rc0', 0.45)
+        self.path = r.get('path')
+        if self.path is not None:
+            ts_ = [p[0] for p in self.path]
+            self.pcx = Curve(ts_, [p[1] for p in self.path])
+            self.pcy = Curve(ts_, [p[2] for p in self.path])
+            pr = r['prof']
+            tp = [p[0] for p in pr]
+            self.pfx = Curve(tp, [p[1] for p in pr])
+            self.pfy = Curve(tp, [p[2] if len(p) > 2 else p[1] for p in pr])
+
+    def set_neck(self, cx, cy, ex, ey):
+        """Make the root's top section match the crown's cervical section (centre cx, cy; half-extents ex, ey,
+        in this root's own frame): no ledge or bulge at the junction.  The centre line eases from the
+        crown's centre towards its own axis (path mode: keeps 30 % of the offset at the apex)."""
+        self.ex0, self.ey0 = ex, ey
+        if self.path is not None:
+            ox, oy = cx - self.path[0][1], cy - self.path[0][2]
+            self.path = [(t, x + ox * (1 - 0.7 * ss(t)), y + oy * (1 - 0.7 * ss(t))) for (t, x, y) in self.path]
+            ts_ = [p[0] for p in self.path]
+            self.pcx = Curve(ts_, [p[1] for p in self.path])
+            self.pcy = Curve(ts_, [p[2] for p in self.path])
+        else:
+            self.c0 = (cx, cy)
+            self.ts = 0.0
 
     def centre(self, Z):
         t = np.clip(-Z / self.L, 0.0, 1.0)
+        if self.path is not None:
+            return self.pcx(t), self.pcy(t)
         s = ss(np.clip((t - self.ts) / (1 - self.ts), 0.0, 1.0))
         u = np.clip((t - 0.62) / 0.38, 0.0, 1.0)
         cx = self.c0[0] + (self.c1[0] - self.c0[0]) * s - self.dc * u * u
         cy = self.c0[1] + (self.c1[1] - self.c0[1]) * s + self.dcy * u * u
         return cx, cy
 
-    def F(self, X, Y, Z):
+    def extents(self, Z):
         t = np.clip(-Z / self.L, 0.0, 1.0)
-        cx, cy = self.centre(Z)
+        if self.path is not None:
+            return self.ex0 * self.pfx(t), self.ey0 * self.pfy(t)
         ex = self.ex0 * (self.ax + (1 - self.ax) * (1 - t) ** self.px)
         ey = self.ey0 * (self.ay + (1 - self.ay) * (1 - t) ** self.py)
+        return ex, ey
+
+    def F0(self, X, Y, Z):
+        """root ring field, open at the top (no cervical cut)"""
+        cx, cy = self.centre(Z)
+        ex, ey = self.extents(Z)
         f = _ring(X - cx, Y - cy, ex, ey, self.n)
-        f = smax(f, Z - 0.3, 0.3)
-        f = smax(f, -Z - self.L, self.lr * 0.45)
-        return f
+        return smax(f, -Z - self.L, self.lr * 0.45)
+
+    def F(self, X, Y, Z):
+        return smax(self.F0(X, Y, Z), Z - 0.3, 0.3)
 
 
 class Tooth:
@@ -145,6 +184,7 @@ class Tooth:
         self.bow_f = spec.get('bow_f', 0.0)
         self.bow_l = spec.get('bow_l', 0.0)
         self.roots = [Root(r, self.L) for r in spec['roots']]
+        self.k_root = spec.get('k_root', 0.5)
         # roots must start inside the neck (no ledge / rib at the CEJ)
         cx_m, cx_d = spec['xm'][0], spec['xd'][0]
         cy_f, cy_l = spec['yf'][0], spec['yl'][0]
@@ -238,7 +278,7 @@ class Tooth:
         rf = None
         for r in self.roots:
             fr = r.F(X, Y, Z)
-            rf = fr if rf is None else smin(rf, fr, 0.5)
+            rf = fr if rf is None else smin(rf, fr, self.k_root)
         if rf is not None:
             f = smin(f, rf, ku)
         return f

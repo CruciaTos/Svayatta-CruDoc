@@ -296,11 +296,15 @@ class _Layout {
   }) {
     final full = rows == ChartRows.full;
     final side = full ? 24.0 : 6.0;
-    // Neighbours just touch at their contacts.
-    const gapMm = 0.12;
+    // Each tooth gets a slot as wide as its own picture (crown width) plus a
+    // small even gap, so neighbours never overlap.
+    const gapMm = 0.5;
     final (upper, lower) = ToothSpec.arches(child: child);
+    final fits = {
+      for (final n in [...upper, ...lower]) n: _SlotFit.of(n),
+    };
     double rowMm(List<String> r) =>
-        r.fold<double>(0, (s, n) => s + ToothSpec.of(n).md) +
+        r.fold<double>(0, (s, n) => s + fits[n]!.width) +
         gapMm * (r.length - 1);
     final widest = math.max(rowMm(upper), rowMm(lower));
     final k = math.max(
@@ -356,13 +360,17 @@ class _Layout {
       var x = (width - rowMm(row) * k) / 2;
       for (final n in row) {
         final s = ToothSpec.of(n);
-        final w = s.md * k;
-        final cx = x + w / 2;
+        final fit = fits[n]!;
+        final w = fit.width * k;
+        // The slot's middle; the tooth's own origin sits off it by the
+        // crown's offset (mirrored on the patient's left).
+        final mid = x + w / 2;
+        final cx = mid - (s.patientRight ? fit.mid : -fit.mid) * k;
         slots.add(
           _Slot(
             number: n,
             spec: s,
-            cx: cx,
+            cx: mid,
             upper: isUpper,
             buccal: full
                 ? BuccalShape.of(
@@ -448,6 +456,50 @@ class _Layout {
     }
     return null;
   }
+}
+
+/// A tooth's width on the chart: its model picture's crown (cheek side and
+/// biting surface, roots included), in mm, and where the picture's middle
+/// sits relative to the tooth's own origin. Drawn-shape teeth use their
+/// average crown width.
+class _SlotFit {
+  const _SlotFit(this.width, this.mid);
+
+  factory _SlotFit.of(String number) {
+    final m = toothModelShapeFor(number);
+    if (m == null) return _SlotFit(ToothSpec.of(number).md, 0);
+    var lo = double.infinity, hi = -double.infinity;
+    for (final list in [m.buccalCrown, m.buccalRoots, m.occlusalOutline]) {
+      for (final p in list) {
+        lo = math.min(lo, p.dx);
+        hi = math.max(hi, p.dx);
+      }
+    }
+    return _SlotFit(hi - lo, (lo + hi) / 2);
+  }
+
+  final double width;
+  final double mid;
+}
+
+/// Each tooth's drawn box (cheek side, roots and biting surface together)
+/// for a chart [width] pixels wide, row by row, left to right. For tests:
+/// neighbours in a row must not overlap.
+@visibleForTesting
+List<List<Rect>> toothChartBoxes(
+  double width, {
+  bool child = false,
+  ChartRows rows = ChartRows.full,
+}) {
+  final l = _Layout.of(width, child: child, rows: rows, perio: false);
+  final upper = <Rect>[];
+  final lower = <Rect>[];
+  for (final s in l.slots) {
+    var r = s.occlusal.outline.getBounds();
+    if (s.buccal != null) r = r.expandToInclude(s.buccal!.silhouette.getBounds());
+    (s.upper ? upper : lower).add(r);
+  }
+  return [upper, lower];
 }
 
 class _Slot {

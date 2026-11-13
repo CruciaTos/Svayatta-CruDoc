@@ -64,6 +64,7 @@ export function createPicking(stage, registry, handlers) {
     if (!d.moved && Math.hypot(e.clientX - d.x, e.clientY - d.y) < d.lim && !d.multi) {
       const id = pickAt(e.clientX, e.clientY);
       handlers.select(id);
+      if (id) handlers.tap?.(id);
       // double click / double tap on a tooth brings it close
       const now = performance.now();
       if (id && lastTap && lastTap.id === id && now - lastTap.t < DOUBLE_TAP_MS) { handlers.fly?.(id); lastTap = null; }

@@ -25,7 +25,7 @@ LIB_DIR = os.path.join(D, 'tmp', 'library')
 LIB_TEETH = os.path.join(LIB_DIR, 'teeth', 'M.O.D Round')
 
 # library -> canonical sign of X (mesial) for each jaw file set; Y is always flipped (facial +Y -> -Y)
-SX = {'upper': +1.0, 'lower': -1.0}
+SX = {'upper': +1.0, 'lower': +1.0}
 CLASS_TRIS = {1: 5000, 2: 5000, 3: 5000, 4: 6000, 5: 6000, 6: 9000, 7: 9000, 8: 9000}
 
 
@@ -339,13 +339,8 @@ def build_lib_tooth(tooth, spec, fit, Vc, Fc, target, h=0.15, band=(-3.0, 0.3), 
         Xu, Yu = X / sx, Y / sy
         rf = None
         for r in tooth.roots:
-            t = np.clip(-Zu / r.L, 0.0, 1.0)
-            cx, cy = r.centre(Zu)
-            ex = r.ex0 * (r.ax + (1 - r.ax) * (1 - t) ** r.px)
-            ey = r.ey0 * (r.ay + (1 - r.ay) * (1 - t) ** r.py)
-            f = tl._ring(Xu - cx, Yu - cy, ex, ey, r.n)
-            f = tl.smax(f, -Zu - r.L, r.lr * 0.45)
-            rf = f if rf is None else tl.smin(rf, f, 0.5)
+            f = r.F0(Xu, Yu, Zu)
+            rf = f if rf is None else tl.smin(rf, f, tooth.k_root)
         return rf * fs
 
     lo, hi = tl.tooth_bounds(spec)
@@ -471,6 +466,14 @@ def build_lib_type(tid, spec, formula, cerv=None, h=0.15):
     Vl, Fl = crown_canonical(tid)
     Vc, info = fit_crown(Vl, (spec['H'], spec['md'], spec['bl']), centre, cerv)
     target = CLASS_TRIS[int(tid[1])]
+    if len(tooth.roots) == 1:
+        # single root: start exactly at the crown's cervical section, then taper
+        sx, sy = fit[0], fit[1]
+        sl = Vc[np.abs(Vc[:, 2]) < 0.3]
+        if len(sl) > 20:
+            x0, x1, y0, y1 = sl[:, 0].min(), sl[:, 0].max(), sl[:, 1].min(), sl[:, 1].max()
+            tooth.roots[0].set_neck(0.5 * (x0 + x1) / sx, 0.5 * (y0 + y1) / sy, 0.5 * (x1 - x0) / sx * 1.02,
+                                    0.5 * (y1 - y0) / sy * 1.02)
     r = build_lib_tooth(tooth, spec, fit, Vc, Fl, target, h)
     V, T, N = r['V'], r['T'], r['N']
     T = tl.fix_winding(V, T, N)

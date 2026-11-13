@@ -8,20 +8,14 @@ import { setTint } from '../engine/toothMaterial.js';
 // reverse, so stepping back or closing restores the exact starting look. Nothing here
 // loops: a ticker returns false when it is done and the stage stops rendering.
 export function createAnimationRunner({ stage, registry, store, gums, cameraRig, appearance, visuals }) {
-  let activeTicker = null;
-  let cancelTicker = null;
+  const activeCancels = new Set();
   const undo = [];
   let baselineMode = 'pbr';
 
   // Stops the running animation but leaves its changes in place.
   function stopMotion() {
-    if (cancelTicker) {
-      cancelTicker();
-      cancelTicker = null;
-    } else if (activeTicker && stage.removeTicker) {
-      stage.removeTicker(activeTicker);
-    }
-    activeTicker = null;
+    for (const cancel of activeCancels) cancel();
+    activeCancels.clear();
   }
 
   // Back to the state before the first step.
@@ -82,20 +76,26 @@ export function createAnimationRunner({ stage, registry, store, gums, cameraRig,
         return;
       }
       const startTime = performance.now();
+      let remove = null;
+      let done = false;
       const tick = () => {
+        if (done) return false;
         const raw = Math.min(1, (performance.now() - startTime) / duration);
         const k = raw * raw * (3 - 2 * raw); // smoothstep
         onTick(k, raw);
-        stage.invalidate();
         if (raw >= 1) {
+          done = true;
+          if (remove) {
+            remove();
+            activeCancels.delete(remove);
+          }
           if (onComplete) onComplete();
-          activeTicker = null;
           return false;
         }
         return true;
       };
-      activeTicker = tick;
-      cancelTicker = stage.addTicker(tick);
+      remove = stage.addTicker(tick);
+      activeCancels.add(remove);
       stage.invalidate();
     };
 
@@ -346,13 +346,17 @@ export function createAnimationRunner({ stage, registry, store, gums, cameraRig,
         const all = teethOf();
         const list = treatment?.type === 'bridge' && all.length >= 2 ? [all[0], all[all.length - 1]] : [+targetFdi];
         fly(toothObj?.name);
+        const meshes = [];
         for (const f of list) {
           const m = registry.teeth.get(f)?.userData?.meshes?.[0]?.userData?.natural;
           if (!m?.userData?.u) continue;
           const origPrep = m.userData.u.uPrep.value;
-          startTicker(900, (k) => { m.userData.u.uPrep.value = k * amount; });
+          meshes.push(m);
           cleanups.push(() => { m.userData.u.uPrep.value = origPrep; });
         }
+        startTicker(900, (k) => {
+          for (const m of meshes) m.userData.u.uPrep.value = k * amount;
+        });
         break;
       }
 
@@ -378,6 +382,7 @@ export function createAnimationRunner({ stage, registry, store, gums, cameraRig,
       case 'seat_bridge': {
         // The player puts the finished work in place first (preview); here the caps slide on.
         fly(toothObj?.name);
+        const caps = [];
         for (const f of (visual === 'seat_bridge' ? teethOf() : [+targetFdi])) {
           const obj = registry.teeth.get(f);
           const cap = obj?.children.find((c) => c.userData.isTreatmentVisual && c.isMesh);
@@ -385,10 +390,14 @@ export function createAnimationRunner({ stage, registry, store, gums, cameraRig,
           if (treatment?.type === 'implant') hide(obj, 'natural'); // the cap alone, not the old crown under it
           const origY = cap.position.y;
           cap.position.y = origY + 9.0;
-          startTicker(900, (k) => { cap.position.y = THREE.MathUtils.lerp(origY + 9.0, origY, k); },
-            () => { cap.position.y = origY; });
+          caps.push({ cap, origY });
           cleanups.push(() => { cap.position.y = origY; });
         }
+        startTicker(900, (k) => {
+          for (const { cap, origY } of caps) cap.position.y = THREE.MathUtils.lerp(origY + 9.0, origY, k);
+        }, () => {
+          for (const { cap, origY } of caps) cap.position.y = origY;
+        });
         break;
       }
 

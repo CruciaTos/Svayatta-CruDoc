@@ -18,10 +18,10 @@ export function createStage(container) {
   renderer.toneMapping = THREE.AgXToneMapping ?? THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.localClippingEnabled = true;
-  renderer.setClearColor(BG, 1);
+  renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(BG);
+  scene.background = null; // the page's CSS gradient shows through
 
   const camera = new THREE.PerspectiveCamera(30, 1, 1, 2000);
   camera.position.set(0, 6, 190);
@@ -46,6 +46,7 @@ export function createStage(container) {
   let last = 0;
   let renderFn = () => renderer.render(scene, camera);
   let renderedFrames = 0;
+  if (typeof window !== 'undefined') window.__frames = 0;
 
   const stage = {
     canvas, renderer, scene, camera, controls, container,
@@ -55,6 +56,7 @@ export function createStage(container) {
     removeTicker(fn) { tickers.delete(fn); },
     onResize: new Set(),
     beforeRender: new Set(),
+    afterRender: new Set(),
     pixelRatioCap: 1.5,
     size: { w: 1, h: 1 },
   };
@@ -74,13 +76,20 @@ export function createStage(container) {
     for (const fn of stage.beforeRender) fn();
     const t0 = performance.now();
     renderFn();
+    for (const fn of stage.afterRender) fn();
     cpuTimes.push(performance.now() - t0);
     if (cpuTimes.length > 240) cpuTimes.shift();
     renderedFrames++;
+    if (typeof window !== 'undefined') window.__frames = renderedFrames;
     if (busy) invalidate(); else last = 0;
   }
 
   controls.addEventListener('change', invalidate);
+  // Phones drop the GL context when the app is backgrounded or memory is tight; three.js rebuilds
+  // its state on restore, but the on-demand loop must be told to draw again (and when the page
+  // comes back to the front).
+  canvas.addEventListener('webglcontextrestored', () => invalidate());
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) invalidate(); });
 
   function resize() {
     const w = Math.max(1, container.clientWidth);

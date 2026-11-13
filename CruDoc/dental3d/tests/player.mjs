@@ -34,6 +34,7 @@ const ev = (pg, fn, ...a) => pg.evaluate(fn, ...a);
 // closing restores the patient's state; the render loop stops once a step has finished.
 await ev(page, () => {
   const d = window.__dental3d;
+  d.cameraRig.timeScale = 40;
   const r3 = (v) => Math.round(v * 1000) / 1000;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const sig = () => {
@@ -62,12 +63,17 @@ await ev(page, () => {
   };
   const settle = async () => {
     const t0 = performance.now();
-    let last = -1, lc = performance.now();
-    while (performance.now() - t0 < 8000) {
-      await sleep(60);
-      const n = d.stats().renderedFrames;
-      if (n !== last) { last = n; lc = performance.now(); }
-      if (performance.now() - lc > 400 && d.flyDone()) return true;
+    let lastFrames = window.__frames ?? d.stats().renderedFrames;
+    let stableStart = performance.now();
+    while (performance.now() - t0 < 15000) {
+      await sleep(100);
+      const cur = window.__frames ?? d.stats().renderedFrames;
+      if (cur !== lastFrames) {
+        lastFrames = cur;
+        stableStart = performance.now();
+      } else if (performance.now() - stableStart >= 1500 && d.flyDone()) {
+        return true;
+      }
     }
     return false;
   };

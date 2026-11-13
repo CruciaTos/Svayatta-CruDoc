@@ -232,7 +232,7 @@ for (const m of ['pbr', 'xray', 'heatmap']) {
     };
   });
   if (m === 'pbr') check('mode pbr: nothing ghosted, pulps hidden', r.mode === 'pbr' && !r.selGhost && !r.otherGhost && !r.gumGhost && !r.pulpVisible);
-  if (m === 'xray') check('mode xray: selected tooth solid + pulp shown, others/gum ghosted', r.mode === 'xray' && !r.selGhost && r.otherGhost && r.gumGhost && r.pulpVisible);
+  if (m === 'xray') check('mode xray: selected tooth solid, pulps hidden (no endo), others/gum ghosted', r.mode === 'xray' && !r.selGhost && r.otherGhost && r.gumGhost && !r.pulpVisible && !r.pulpOther);
   if (m === 'heatmap') check('mode heatmap: teeth tinted by status', r.mode === 'heatmap' && r.tint > 0.9 && !r.otherGhost);
 }
 await ev(page, () => { window.App3DBridge.setMode('pbr'); window.App3DBridge.selectPart(null); });

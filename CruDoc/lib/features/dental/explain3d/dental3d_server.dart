@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
@@ -22,6 +23,7 @@ class Dental3dServer {
   final Set<String> _tokens = {};
   HttpServer? _http;
   Future<int>? _port;
+  Timer? _idle;
 
   Future<int> _ensureStarted() => _port ??= _start();
 
@@ -34,6 +36,7 @@ class Dental3dServer {
 
   /// Registers a fresh token and returns the page to load.
   Future<({Uri page, String token})> open() async {
+    _idle?.cancel();
     final port = await _ensureStarted();
     final rng = math.Random.secure();
     final token = base64Url
@@ -51,10 +54,21 @@ class Dental3dServer {
     );
   }
 
-  void revoke(String token) => _tokens.remove(token);
+  /// Forgets a token. With no page left open the server stops after a short
+  /// idle spell (it restarts on the next [open]), so it does not stay bound to
+  /// a port for the rest of the session.
+  void revoke(String token) {
+    _tokens.remove(token);
+    if (_tokens.isNotEmpty) return;
+    _idle?.cancel();
+    _idle = Timer(const Duration(seconds: 30), () {
+      if (_tokens.isEmpty) unawaited(close());
+    });
+  }
 
   /// Stops the server and forgets every token.
   Future<void> close() async {
+    _idle?.cancel();
     _tokens.clear();
     final http = _http;
     _http = null;

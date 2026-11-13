@@ -1288,6 +1288,10 @@ class _DentalSection extends ConsumerWidget {
     final dentalFeatures = ref.watch(dentalFeaturesProvider);
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final chartView =
+        ref.watch(toothChartViewProvider).value ?? ToothChartView.rows;
+    final odontoStyle =
+        ref.watch(odontogramStyleProvider).value ?? OdontogramStyle.flat2d;
     final large = ref.watch(largeModeProvider).value ?? false;
     final tabs = {
       for (final t in sidebarTabs(
@@ -1366,6 +1370,60 @@ class _DentalSection extends ConsumerWidget {
           ],
         ),
       ),
+      _SettingsCard(
+        title: 'Tooth chart view',
+        description:
+            'How the 2D tooth chart is laid out: parallel rows or dental arches (odontogram).',
+        child: Row(
+          children: [
+            CruSegmentedControl<ToothChartView>(
+              semanticLabel: 'Tooth chart view',
+              segments: [
+                for (final v in ToothChartView.values) CruSegment(v, v.label),
+              ],
+              selected: chartView,
+              onChanged: (v) => setToothChartView(ref, v),
+            ),
+            const SizedBox(width: CruSpace.s16),
+            Expanded(
+              child: Text(
+                chartView == ToothChartView.rows
+                    ? 'Cheek-side and biting-surface rows.'
+                    : 'Upper and lower dental arches (odontogram).',
+                style: CruType.caption.tint(c.label2),
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (kOdontogram3dEnabled)
+        _SettingsCard(
+          title: 'Odontogram style',
+          description:
+              'How the teeth look in the arches chart: flat 2D drawings or top views rendered from the 3D model.',
+          child: Row(
+            children: [
+              CruSegmentedControl<OdontogramStyle>(
+                semanticLabel: 'Odontogram style',
+                segments: [
+                  for (final v in OdontogramStyle.values)
+                    CruSegment(v, v.label),
+                ],
+                selected: odontoStyle,
+                onChanged: (v) => setOdontogramStyle(ref, v),
+              ),
+              const SizedBox(width: CruSpace.s16),
+              Expanded(
+                child: Text(
+                  odontoStyle == OdontogramStyle.flat2d
+                      ? 'Flat vector teeth.'
+                      : 'Biting-surface pictures of the 3D teeth.',
+                  style: CruType.caption.tint(c.label2),
+                ),
+              ),
+            ],
+          ),
+        ),
       _SettingsCard(
         title: 'Larger text and icons (chairside)',
         description:

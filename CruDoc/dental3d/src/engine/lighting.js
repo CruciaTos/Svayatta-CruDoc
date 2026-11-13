@@ -13,7 +13,7 @@ export function setupLighting(stage) {
   scene.environmentIntensity = 0.75;
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight('#FFFFFF', '#C9CFD8', 0.8));
+  scene.add(new THREE.HemisphereLight('#FFFFFF', '#8E97A6', 0.78));
 
   const rig = new THREE.Group();
   scene.add(rig);
@@ -33,15 +33,15 @@ export function setupLighting(stage) {
   c.width = c.height = 128;
   const g = c.getContext('2d');
   const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
-  grad.addColorStop(0, 'rgba(15,23,42,0.2)');
-  grad.addColorStop(0.55, 'rgba(15,23,42,0.08)');
+  grad.addColorStop(0, 'rgba(15,23,42,0.42)');
+  grad.addColorStop(0.55, 'rgba(15,23,42,0.2)');
   grad.addColorStop(1, 'rgba(15,23,42,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(150, 150),
+    new THREE.PlaneGeometry(170, 170),
     new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }),
   );
   shadow.rotation.x = -Math.PI / 2;

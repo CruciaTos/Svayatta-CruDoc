@@ -514,3 +514,75 @@ for _t in ('U1', 'U2', 'L1', 'L2'):
             _s['yl'][_i] = min(_s['yl'][_i], _s['yl'][0] + 0.55 * (_s['yl'][_i] - _s['yl'][0]) + 0.0)
 SPECS['U3']['yl'] = [3.5, 3.9, 3.5, 2.5, 1.7, 1.1, 0.9, 0.6]
 SPECS['L3']['yl'] = [3.5, 3.7, 3.3, 2.4, 1.6, 1.0, 0.8, 0.55]
+
+
+# ---- pass 7: natural roots (path + profile mode of toothlib.Root).  t = depth / L from the gum line.
+#      Molars: short common trunk, clear furcation, roots taper to rounded apices and curve distally in the
+#      apical third.  Premolars: one smooth tapering root (upper first premolar splits in the apical half).
+def _proot(name, L, path, ex0, ey0, fx, fy=None, lr=1.4, rc0=0.4, n=2.3):
+    fy = fy or fx
+    return dict(name=name, L=L, path=path, prof=[(t, a, b) for (t, a), (_, b) in zip(fx, fy)],
+                c0=(path[0][1], path[0][2]), c1=(path[-1][1], path[-1][2]), ex0=ex0, ey0=ey0, dc=0.0,
+                lr=lr, rc0=rc0, n=n, ts=0.3, ax=0.2, px=1.0)
+
+
+def _mol_prof(tip=0.22):
+    return [(0, 1.0), (.2, .95), (.4, .79), (.7, .57), (.9, .4), (1.0, tip)]
+
+
+def _fan(pts, sx=1.0, sy=1.0):
+    return [(t, x * sx, y * sy) for (t, x, y) in pts]
+
+
+# upper molars: trunk (roots still one mass) ~4.5 mm, then rounded furcation, little splay
+_UM_MB = [(0, 1.55, -2.3), (.3, 1.75, -2.4), (.4, 1.9, -2.5), (.55, 2.2, -2.7), (.75, 2.4, -2.95), (.9, 2.5, -3.1), (1.0, 2.3, -3.2)]
+_UM_DB = [(0, -1.55, -2.3), (.3, -1.7, -2.4), (.4, -1.85, -2.5), (.55, -2.1, -2.65), (.75, -2.3, -2.8), (1.0, -2.7, -2.9)]
+_UM_P = [(0, 0.0, 2.3), (.3, 0.05, 2.7), (.5, 0.2, 3.5), (.75, 0.4, 4.4), (.9, 0.4, 4.8), (1.0, 0.25, 4.9)]
+SPECS['U6']['roots'] = [
+    _proot('rootMB', 11.8, _UM_MB, 2.4, 2.55, _mol_prof()),
+    _proot('rootDB', 11.2, _UM_DB, 2.3, 1.9, _mol_prof()),
+    _proot('rootP', 12.5, _UM_P, 2.0, 2.1, _mol_prof(), rc0=0.45),
+]
+SPECS['U7']['roots'] = [
+    _proot('rootMB', 10.8, _fan(_UM_MB, 0.9, 0.95), 2.1, 2.4, _mol_prof()),
+    _proot('rootDB', 10.3, _fan(_UM_DB, 0.88, 0.95), 2.0, 1.75, _mol_prof()),
+    _proot('rootP', 11.5, _fan(_UM_P, 0.85, 0.92), 1.9, 2.0, _mol_prof(), rc0=0.45),
+]
+# third molar: shorter, converging, partly fused but tapered
+SPECS['U8']['roots'] = [
+    _proot('rootMB', 9.6, _fan(_UM_MB, 0.55, 0.8), 2.0, 2.3, _mol_prof(tip=0.26)),
+    _proot('rootDB', 9.2, _fan(_UM_DB, 0.5, 0.8), 1.9, 2.1, _mol_prof(tip=0.26)),
+    _proot('rootP', 10.5, _fan(_UM_P, 0.6, 0.62), 2.1, 2.2, _mol_prof(tip=0.26), rc0=0.45),
+]
+
+# lower molars: trunk ~4.5 mm, rounded furcation, apices inside the crown width, slight distal curve
+_LM_M = [(0, 1.9, 0), (.28, 2.05, 0), (.4, 2.25, 0), (.65, 2.45, 0), (.9, 2.5, 0), (1.0, 2.3, 0)]
+_LM_D = [(0, -1.9, 0), (.28, -2.0, 0), (.4, -2.2, 0), (.65, -2.4, 0), (1.0, -2.5, 0)]
+_LM_FY = [(0, 1.0), (.25, .96), (.5, .83), (.75, .63), (.9, .45), (1.0, .16)]
+SPECS['L6']['roots'] = [
+    _proot('rootM', 14.0, _LM_M, 2.4, 3.4, _mol_prof(), _LM_FY),
+    _proot('rootD', 13.2, _LM_D, 2.3, 3.2, _mol_prof(), _LM_FY),
+]
+SPECS['L7']['roots'] = [
+    _proot('rootM', 13.0, _fan(_LM_M, 0.95), 2.3, 3.2, _mol_prof(), _LM_FY),
+    _proot('rootD', 12.3, _fan(_LM_D, 0.95), 2.2, 3.0, _mol_prof(), _LM_FY),
+]
+SPECS['L8']['roots'] = [
+    _proot('rootM', 11.0, _fan(_LM_M, 0.72), 2.4, 2.9, _mol_prof(tip=0.26), _LM_FY),
+    _proot('rootD', 10.4, _fan(_LM_D, 0.7), 2.3, 2.7, _mol_prof(tip=0.26), _LM_FY),
+]
+for _t in ('U6', 'U7', 'U8', 'L6', 'L7', 'L8'):
+    SPECS[_t]['k_root'] = 1.1   # round (arch-shaped) furcation
+
+_PM_FX = [(0, 1.0), (.15, .95), (.4, .78), (.65, .6), (.85, .44), (1.0, .24)]
+_PM_FY = [(0, 1.0), (.2, .93), (.5, .74), (.8, .52), (1.0, .22)]
+_PM_PATH = [(0, 0.0, 0.0), (.6, 0.0, 0.0), (.8, -0.2, 0.1), (1.0, -0.55, 0.2)]
+SPECS['U5']['roots'] = [_proot('root', 14.0, _PM_PATH, 2.5, 4.0, _PM_FX, _PM_FY)]
+SPECS['L4']['roots'] = [_proot('root', 14.0, _PM_PATH, 2.5, 3.25, _PM_FX, _PM_FY)]
+SPECS['L5']['roots'] = [_proot('root', 14.5, _PM_PATH, 2.5, 3.5, _PM_FX, _PM_FY)]
+_U4_FX = [(0, 1.0), (.3, .9), (.6, .7), (.85, .5), (1.0, .22)]
+_U4_FY = [(0, 1.0), (.3, .88), (.6, .66), (.85, .5), (1.0, .26)]
+SPECS['U4']['roots'] = [
+    _proot('rootB', 13.5, [(0, 0.0, -1.5), (.45, 0.0, -1.8), (.7, -0.1, -2.3), (1.0, -0.4, -2.9)], 2.2, 2.2, _U4_FX, _U4_FY),
+    _proot('rootP', 13.8, [(0, 0.0, 1.5), (.45, 0.0, 1.8), (.7, 0.0, 2.3), (1.0, -0.3, 2.9)], 2.2, 2.2, _U4_FX, _U4_FY),
+]

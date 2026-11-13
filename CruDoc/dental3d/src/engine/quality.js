@@ -5,7 +5,6 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { BG } from './stage.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
 
 export const QUALITY_LEVELS = ['low', 'medium', 'high'];
@@ -101,8 +100,8 @@ export function createQuality(stage) {
     disposeComposer();
     stage.resize(); // sets the pixel ratio + size first
     const composed = preset.ao || preset.bloom;
-    scene.background = composed ? null : new THREE.Color(BG);
-    renderer.setClearColor(composed ? 0x000000 : BG, composed ? 0 : 1);
+    scene.background = null;
+    renderer.setClearColor(0x000000, 0);
     if (composed) build(preset);
     stage.setRenderFn(render);
     return name;

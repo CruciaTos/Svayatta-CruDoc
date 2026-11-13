@@ -1,6 +1,7 @@
 import './ui/styles.css';
 import manifest from '../scene_manifest.json';
 import { createStore } from './state/store.js';
+import { createOutline } from './engine/outline.js';
 import { createStage } from './engine/stage.js';
 import { setupLighting } from './engine/lighting.js';
 import { createQuality, defaultQuality } from './engine/quality.js';
@@ -28,6 +29,7 @@ if (isCompact) {
   document.documentElement.classList.add('compact');
   app.classList.add('compact');
 }
+if (new URLSearchParams(window.location.search).get('theme') === 'dark') document.documentElement.classList.add('dark');
 const stageEl = h('div', { class: 'stage' });
 const bar = h('i');
 const msg = h('div', { class: 'msg' }, 'Loading 3D model');
@@ -58,13 +60,19 @@ async function boot() {
   const gums = createGums(registry, store, () => stage.invalidate());
   gums.rebuildAll();
   const appearance = createAppearance(registry, store, stage, gums);
+  createOutline(stage, registry, store);
   const explode = createExplode(registry, store, stage);
   applyShape(registry, store, explode, gums);
   const visuals = createVisuals(registry, store, stage);
   visuals.rebuild();
   const cameraRig = createCameraRig(stage, registry, store);
   const actions = createActions({ store, registry, cameraRig });
-  createPicking(stage, registry, { select: (id) => actions.select(id), hover: (id) => actions.hover(id), fly: (id) => actions.flyTo(id) });
+  createPicking(stage, registry, { select: (id) => actions.select(id), hover: (id) => actions.hover(id), fly: (id) => actions.flyTo(id),
+    // a tap (not a drag) on a tooth tells the host to open that tooth's form
+    tap: (id) => {
+      const part = id && registry.parts.get(id);
+      if (part && part.fdi) window.App3DBridge?.emit('TOOTH_TAPPED', { fdi: part.fdi });
+    } });
 
   const player = createPlayer({ store, actions, registry, stage, cameraRig, gums, explode, visuals, appearance });
   actions.playExplainer = (id) => player.play(id);

@@ -1,5 +1,7 @@
 :root {
-  --canvas: #F4F5F7;
+  --canvas: #CBD2DC;
+  --bg-top: #D3DAE4;
+  --bg-bot: #AEB8C6;
   --panel: #FFFFFF;
   --panel-2: #F8FAFC;
   --border: #E2E8F0;
@@ -47,6 +49,24 @@ button {
   display: none !important;
 }
 
+html.dark {
+  --canvas: #1B1F26;
+  --bg-top: #262B34;
+  --bg-bot: #12151A;
+}
+
+.stage {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255, 255, 255, 0) 55%, rgba(15, 23, 42, 0.16) 100%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bot));
+}
+
+html.dark .stage {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255, 255, 255, 0) 55%, rgba(0, 0, 0, 0.35) 100%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bot));
+}
+
 #app {
   position: fixed;
   inset: 0;
@@ -61,7 +81,6 @@ button {
   top: 0;
   bottom: 0;
   right: var(--inspector-w);
-  background: var(--canvas);
 }
 
 .stage-canvas {

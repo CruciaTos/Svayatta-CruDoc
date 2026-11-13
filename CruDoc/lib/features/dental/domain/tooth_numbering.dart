@@ -123,3 +123,92 @@ Future<void> setToothNumbering(WidgetRef ref, ToothNumbering n) async {
       : current.copyWith(data: {...current.data, 'value': n.name});
   await saveDentalRecord(ref, record);
 }
+
+/// How the 2D tooth chart is laid out.
+enum ToothChartView {
+  rows('Rows'),
+  arches('Arches');
+
+  const ToothChartView(this.label);
+
+  /// "Rows" / "Arches", used as the segmented-control label.
+  final String label;
+}
+
+/// The clinic's chart view choice, stored as a meta record. Default Rows.
+final toothChartViewProvider = FutureProvider<ToothChartView>((ref) async {
+  final records = await ref.watch(clinicRecordsProvider(RecKind.meta).future);
+  for (final r in records) {
+    if (r.str('what') != 'chart_view') continue;
+    final v = r.str('value').toLowerCase().trim();
+    if (v == 'arches') return ToothChartView.arches;
+    if (v == 'rows') return ToothChartView.rows;
+  }
+  return ToothChartView.rows;
+});
+
+/// Persists the clinic's tooth chart view choice.
+Future<void> setToothChartView(WidgetRef ref, ToothChartView view) async {
+  final records = await ref.read(clinicRecordsProvider(RecKind.meta).future);
+  DentalRecord? current;
+  for (final r in records) {
+    if (r.str('what') == 'chart_view') {
+      current = r;
+      break;
+    }
+  }
+  final record = current == null
+      ? DentalRecord.create('', RecKind.meta, {
+          'what': 'chart_view',
+          'value': view.name,
+        })
+      : current.copyWith(data: {...current.data, 'value': view.name});
+  await saveDentalRecord(ref, record);
+}
+
+/// How the odontogram (arch chart) teeth are drawn.
+enum OdontogramStyle {
+  flat2d('2D'),
+  model3d('3D');
+
+  const OdontogramStyle(this.label);
+
+  /// "2D" / "3D", used as the segmented-control label.
+  final String label;
+}
+
+/// The 3D odontogram is built but switched off: the settings choice is hidden
+/// and the chart always uses the flat teeth (a saved model3d value is ignored).
+const bool kOdontogram3dEnabled = false;
+
+/// The clinic's odontogram style choice, stored as a meta record. Default 2D.
+final odontogramStyleProvider = FutureProvider<OdontogramStyle>((ref) async {
+  if (!kOdontogram3dEnabled) return OdontogramStyle.flat2d;
+  final records = await ref.watch(clinicRecordsProvider(RecKind.meta).future);
+  for (final r in records) {
+    if (r.str('what') != 'odontogram_style') continue;
+    final v = r.str('value').toLowerCase().trim();
+    if (v == 'model3d') return OdontogramStyle.model3d;
+    if (v == 'flat2d') return OdontogramStyle.flat2d;
+  }
+  return OdontogramStyle.flat2d;
+});
+
+/// Persists the clinic's odontogram style choice.
+Future<void> setOdontogramStyle(WidgetRef ref, OdontogramStyle style) async {
+  final records = await ref.read(clinicRecordsProvider(RecKind.meta).future);
+  DentalRecord? current;
+  for (final r in records) {
+    if (r.str('what') == 'odontogram_style') {
+      current = r;
+      break;
+    }
+  }
+  final record = current == null
+      ? DentalRecord.create('', RecKind.meta, {
+          'what': 'odontogram_style',
+          'value': style.name,
+        })
+      : current.copyWith(data: {...current.data, 'value': style.name});
+  await saveDentalRecord(ref, record);
+}

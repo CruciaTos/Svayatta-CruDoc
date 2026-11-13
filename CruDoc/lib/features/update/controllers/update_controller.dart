@@ -1,6 +1,10 @@
 // lib/features/update/controllers/update_controller.dart
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/update/models/app_release.dart';
@@ -207,10 +211,34 @@ class UpdateController extends Notifier<UpdateControllerState> {
     return result;
   }
 
+  static bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+
+  /// The release the current/last update run is for, so [retry] and the
+  /// "came back from settings" resume know what to carry on with.
+  AppRelease? _activeRelease;
+  Future<void>? _updateInFlight;
+  AppLifecycleListener? _lifecycle;
+
   /// Begins downloading + installing [release], streaming progress into
-  /// [UpdateControllerState.progress] as it arrives. Called once, from
-  /// `UpdateProgressSheet.initState` — see that file's doc comment.
+  /// [UpdateControllerState.progress] as it arrives. Returns at once when
+  /// a run is already in flight, so a second tap never starts a second
+  /// download. On Android the download itself runs in the system
+  /// DownloadManager and is re-attached to by later calls.
   Future<void> startUpdate(AppRelease release) async {
+    if (_updateInFlight != null) return;
+    _activeRelease = release;
+    if (_isAndroid) _ensureLifecycle();
+
+    final run = _runUpdate(release);
+    _updateInFlight = run;
+    try {
+      await run;
+    } finally {
+      _updateInFlight = null;
+    }
+  }
+
+  Future<void> _runUpdate(AppRelease release) async {
     final service = ref.read(updateServiceProvider);
     try {
       await for (final progress in service.startDownloadAndInstall(release)) {
@@ -225,6 +253,52 @@ class UpdateController extends Notifier<UpdateControllerState> {
         debugPrintStack(stackTrace: st);
       }
     }
+  }
+
+  /// Android: when the person comes back from the "install unknown apps"
+  /// settings page, carry on by itself and open the installer.
+  void _ensureLifecycle() {
+    if (_lifecycle != null) return;
+    final listener = AppLifecycleListener(onResume: _resumeAfterSettings);
+    _lifecycle = listener;
+    ref.onDispose(listener.dispose);
+  }
+
+  Future<void> _resumeAfterSettings() async {
+    final release = _activeRelease;
+    if (release == null || _updateInFlight != null) return;
+    if (state.progress?.needsInstallPermission != true) return;
+    // Still not allowed: stay as is (don't reopen settings on every resume);
+    // the person can tap "Allow install" to be sent there again.
+    if (!await ref.read(updateServiceProvider).androidCanInstall()) return;
+    await startUpdate(release);
+  }
+
+  /// Starts over after a failure: on Android drops the old download first,
+  /// so the retry downloads fresh.
+  Future<void> retry() async {
+    final release = _activeRelease;
+    if (release == null) return;
+    if (_isAndroid) {
+      await ref.read(updateServiceProvider).cancelAndroidDownload();
+    }
+    clearProgress();
+    await startUpdate(release);
+  }
+
+  /// Android only, for the launcher: if [release] is already downloading
+  /// (or downloaded) in the background, re-attach to it and return true so
+  /// the "Update available" dialog isn't shown again.
+  Future<bool> resumeIfDownloading(AppRelease release) async {
+    if (!_isAndroid) return false;
+    if (_updateInFlight != null) return true;
+    final status = await ref
+        .read(updateServiceProvider)
+        .androidDownloadStatus(release);
+    const live = {'pending', 'running', 'paused', 'successful'};
+    if (!live.contains(status)) return false;
+    unawaited(startUpdate(release));
+    return true;
   }
 
   /// User tapped "Later" — hide the dialog/banner for this session

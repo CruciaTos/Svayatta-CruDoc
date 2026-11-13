@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/update/models/app_release.dart';
 import 'package:doctor_management_app/core/update/models/update_check_result.dart';
+import 'package:doctor_management_app/core/update/models/update_progress.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/features/update/presentation/update_available_dialog.dart';
 
@@ -56,7 +58,10 @@ class _UpdateLauncherState extends ConsumerState<UpdateLauncher> {
   void initState() {
     super.initState();
     if (!_enabled) return;
-    ref.listenManual(updateControllerProvider, (_, next) => _prompt(next));
+    ref.listenManual(updateControllerProvider, (prev, next) {
+      _notifyIfFailed(prev, next);
+      _prompt(next);
+    });
     _first = Timer(_firstCheckDelay, _check);
     _again = Timer.periodic(_recheckEvery, (_) => _check());
     _lifecycle = AppLifecycleListener(
@@ -102,9 +107,73 @@ class _UpdateLauncherState extends ConsumerState<UpdateLauncher> {
     if (state.dismissedForSession || state.progress != null) return;
     _mayPrompt = false;
     _dialogOpen = true;
-    showUpdateAvailableDialog(context, result.release).whenComplete(() {
+    _offer(result.release);
+  }
+
+  /// Shows the dialog, unless (Android) this release is already downloading
+  /// or downloaded in the background, in which case it re-attaches to that.
+  Future<void> _offer(AppRelease release) async {
+    try {
+      if (!kIsWeb &&
+          Platform.isAndroid &&
+          await ref
+              .read(updateControllerProvider.notifier)
+              .resumeIfDownloading(release)) {
+        return;
+      }
+      if (!mounted) return;
+      await showUpdateAvailableDialog(context, release);
+    } catch (e) {
+      debugPrint('[UpdateLauncher] $e');
+    } finally {
       _dialogOpen = false;
-    });
+    }
+  }
+
+  /// Android downloads run in the background with no sheet on screen, so a
+  /// failure is reported with a snackbar that offers Retry. (A forced
+  /// update keeps its own sheet, which already has a Retry button.)
+  void _notifyIfFailed(UpdateControllerState? prev, UpdateControllerState next) {
+    if (!mounted || kIsWeb || !Platform.isAndroid) return;
+    final askNow = next.progress?.needsInstallPermission ?? false;
+    final askBefore = prev?.progress?.needsInstallPermission ?? false;
+    final pending = next.checkResult;
+    if (askNow && !askBefore && pending is UpdateAvailable) {
+      // Shown when the person is back from (or skipped) the settings page;
+      // if they allowed it there, the controller already carries on.
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          duration: const Duration(minutes: 1),
+          content: const Text('Allow CruDoc to install the downloaded update.'),
+          action: SnackBarAction(
+            label: 'Allow',
+            onPressed: () => ref
+                .read(updateControllerProvider.notifier)
+                .startUpdate(pending.release),
+          ),
+        ),
+      );
+      return;
+    }
+    final failedNow = next.progress?.state == UpdateProgressState.failed;
+    final failedBefore = prev?.progress?.state == UpdateProgressState.failed;
+    if (!failedNow || failedBefore) return;
+    final result = next.checkResult;
+    if (result is UpdateAvailable &&
+        (result.release.manifest?.forceUpdate ?? false)) {
+      return;
+    }
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: const Text(
+          'The update could not be downloaded.',
+        ),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () => ref.read(updateControllerProvider.notifier).retry(),
+        ),
+      ),
+    );
   }
 
   @override

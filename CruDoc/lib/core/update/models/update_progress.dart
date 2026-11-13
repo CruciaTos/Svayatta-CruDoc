@@ -36,12 +36,23 @@ class UpdateProgress {
   /// a future "show why it failed" UI without a shape change.
   final String? errorMessage;
 
+  /// Android only: the background download is paused until the phone is
+  /// back online.
+  final bool waitingForNetwork;
+
+  /// Android only: the package is downloaded and verified, but the person
+  /// still has to allow "install unknown apps" for CruDoc. The controller
+  /// carries on by itself when they come back from that settings page.
+  final bool needsInstallPermission;
+
   const UpdateProgress({
     required this.state,
     this.bytesDownloaded = 0,
     this.totalBytes = 0,
     this.percent = 0,
     this.errorMessage,
+    this.waitingForNetwork = false,
+    this.needsInstallPermission = false,
   });
 
   static const idleState = UpdateProgress(state: UpdateProgressState.idle);

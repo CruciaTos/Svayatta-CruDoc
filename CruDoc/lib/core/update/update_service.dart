@@ -5,6 +5,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:doctor_management_app/core/update/models/app_release.dart';
 import 'package:doctor_management_app/core/update/models/update_check_result.dart';
 import 'package:doctor_management_app/core/update/models/update_progress.dart';
+import 'package:doctor_management_app/core/update/platform/android_update_installer.dart';
+import 'package:doctor_management_app/core/update/platform/update_installer.dart';
 import 'package:doctor_management_app/core/update/platform/update_installer_factory.dart';
 import 'package:doctor_management_app/core/update/sources/github_release_source.dart';
 import 'package:doctor_management_app/core/update/sources/update_source.dart';
@@ -105,6 +107,16 @@ class UpdateService {
       // Windows exits the app from inside install(); Android hands off
       // to the system installer and returns here. Either way, there's
       // nothing further for this stream to report — fall through to close.
+    } on UpdateInstallPermissionException catch (e) {
+      // Not a failure: Android's "install unknown apps" page is open and
+      // the controller carries on when the person comes back.
+      emit(
+        UpdateProgress(
+          state: UpdateProgressState.readyToInstall,
+          needsInstallPermission: true,
+          errorMessage: e.message,
+        ),
+      );
     } on UpdateException catch (e) {
       emit(
         UpdateProgress(
@@ -122,5 +134,34 @@ class UpdateService {
     } finally {
       await controller.close();
     }
+  }
+
+  /// The Android installer, or null on any other platform.
+  AndroidUpdateInstaller? _androidInstaller() {
+    try {
+      final UpdateInstaller installer = _installerFactory.create();
+      return installer is AndroidUpdateInstaller ? installer : null;
+    } on UpdateException {
+      return null;
+    }
+  }
+
+  /// Android only: stops the background download and forgets it, so a
+  /// retry starts fresh. No-op elsewhere.
+  Future<void> cancelAndroidDownload() async {
+    await _androidInstaller()?.cancelDownload();
+  }
+
+  /// Android only: whether the phone currently lets CruDoc open the
+  /// installer ("install unknown apps"). `true` elsewhere.
+  Future<bool> androidCanInstall() async {
+    return await _androidInstaller()?.canInstall() ?? true;
+  }
+
+  /// Android only: status of the stored background download if it is the
+  /// package for [release] (`pending`, `running`, `paused`, `successful`,
+  /// `failed`), else `none`. Always `none` elsewhere.
+  Future<String> androidDownloadStatus(AppRelease release) async {
+    return await _androidInstaller()?.downloadStatusFor(release) ?? 'none';
   }
 }

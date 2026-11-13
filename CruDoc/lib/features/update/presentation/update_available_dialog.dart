@@ -1,5 +1,9 @@
 // lib/features/update/presentation/update_available_dialog.dart
 
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,6 +33,12 @@ Future<void> showUpdateAvailableDialog(
 
 bool _isForceUpdate(AppRelease release) =>
     release.manifest?.forceUpdate ?? false;
+
+/// Android (non-forced): the download continues in the background instead
+/// of behind the modal progress sheet. Windows and a forced update keep
+/// the blocking sheet.
+bool _runsInBackground(AppRelease release) =>
+    !kIsWeb && Platform.isAndroid && !_isForceUpdate(release);
 
 /// Modal shown when [UpdateController] finds a newer release: version,
 /// changelog, and Update now / Later / Skip actions. Later and Skip are
@@ -170,6 +180,26 @@ class UpdateAvailableDialog extends ConsumerWidget {
             onPressed: isBusy
                 ? null
                 : () {
+                    if (_runsInBackground(release)) {
+                      // Android downloads in the background: close the
+                      // pop-up and let the person keep working.
+                      final messenger = ScaffoldMessenger.maybeOf(context);
+                      Navigator.pop(context);
+                      unawaited(
+                        ref
+                            .read(updateControllerProvider.notifier)
+                            .startUpdate(release),
+                      );
+                      messenger?.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Downloading the update. You can keep working — '
+                            'progress is in your notifications.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.pop(context);
                     showUpdateProgressSheet(context, release);
                   },

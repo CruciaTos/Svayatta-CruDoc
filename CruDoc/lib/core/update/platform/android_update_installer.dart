@@ -1,9 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import 'package:doctor_management_app/core/update/models/app_release.dart';
 import 'package:doctor_management_app/core/update/models/update_manifest.dart';
@@ -11,27 +8,17 @@ import 'package:doctor_management_app/core/update/models/update_progress.dart';
 import 'package:doctor_management_app/core/update/platform/update_installer.dart';
 import 'package:doctor_management_app/core/update/update_exceptions.dart';
 
-/// Android's [UpdateInstaller]. Downloads the `.apk` asset to app-scoped
-/// storage, verifies it, and hands it to the system's own
+/// Android's [UpdateInstaller]. Downloads the `.apk` asset through the
+/// system DownloadManager (so it continues in the background, even after
+/// the app is closed), verifies it, and hands it to the system's own
 /// signature-verified install flow.
 ///
 /// Requires `android.permission.REQUEST_INSTALL_PACKAGES` and a
-/// `FileProvider <provider>` entry in `AndroidManifest.xml` — the one
-/// platform needing a manifest change (architecture doc §5/§7), but
-/// that change is isolated to `android/`, not to any Dart logic outside
-/// this class.
-///
-/// The actual "hand the APK to the system installer" step needs a small
-/// native intent (`FileProvider` content URI + `ACTION_VIEW` with
-/// `FLAG_GRANT_READ_URI_PERMISSION`) that no plugin already in
-/// `pubspec.yaml` covers — flagged as an open decision in architecture
-/// doc §7/§8. Rather than guess at a new plugin dependency, [install]
-/// calls a `crudoc/update_installer` platform channel; see the
-/// `MissingPluginException` branch below for exactly what to add on the
-/// Kotlin side.
+/// `FileProvider <provider>` entry in `AndroidManifest.xml`. The native side
+/// lives in `MainActivity.kt` (channel `crudoc/update_installer`),
+/// `UpdateDownloads.kt` and `UpdateDownloadReceiver.kt`.
 class AndroidUpdateInstaller implements UpdateInstaller {
-  AndroidUpdateInstaller({http.Client? client})
-    : _client = client ?? http.Client();
+  AndroidUpdateInstaller();
 
   /// Fallback `update.json` key, and the only one releases before 1.0.8
   /// read. It points at the 64-bit APK.
@@ -49,7 +36,10 @@ class AndroidUpdateInstaller implements UpdateInstaller {
     'crudoc/update_installer',
   );
 
-  final http.Client _client;
+  static const Duration _pollEvery = Duration(milliseconds: 700);
+
+  static const String _downloadFailedMessage =
+      'The download failed. Check the internet connection and tap Retry.';
 
   File? _downloadedFile;
   String? _expectedSha256;
@@ -57,6 +47,9 @@ class AndroidUpdateInstaller implements UpdateInstaller {
   @override
   bool get supportsInAppInstall => true;
 
+  /// Starts (or re-attaches to) the background download, then follows it
+  /// until it finishes. The native side never starts a second download for
+  /// the same file, so calling this again while one runs just re-attaches.
   @override
   Future<void> download(
     AppRelease release,
@@ -78,24 +71,103 @@ class AndroidUpdateInstaller implements UpdateInstaller {
     }
 
     _expectedSha256 = platformInfo?.sha256;
+    final totalHint = platformInfo?.size ?? asset.size;
 
-    // App-scoped storage that a FileProvider can expose via a content://
-    // URI — never the public Downloads folder, which REQUEST_INSTALL_PACKAGES
-    // sideloading doesn't need and which complicates cleanup.
-    final dir =
-        await getExternalStorageDirectory() ??
-        await getApplicationSupportDirectory();
-    final destination = File(p.join(dir.path, asset.name));
+    try {
+      await _installChannel.invokeMethod<int>('startApkDownload', {
+        'url': asset.downloadUrl,
+        'fileName': asset.name,
+        'title': 'CruDoc update ${release.version}',
+      });
 
-    await downloadFileWithProgress(
-      client: _client,
-      uri: Uri.parse(asset.downloadUrl),
-      destination: destination,
-      totalHint: platformInfo?.size ?? asset.size,
-      onProgress: onProgress,
+      while (true) {
+        final info = await _query();
+        final status = info['status'] as String? ?? 'none';
+        final bytes = (info['bytes'] as num?)?.toInt() ?? 0;
+        final reported = (info['total'] as num?)?.toInt() ?? 0;
+        final total = reported > 0 ? reported : totalHint;
+
+        if (status == 'successful') {
+          final path = info['path'] as String?;
+          if (path == null || path.isEmpty || !File(path).existsSync()) {
+            throw const UpdateDownloadException(_downloadFailedMessage);
+          }
+          _downloadedFile = File(path);
+          return;
+        }
+        if (status == 'failed' || status == 'none') {
+          throw const UpdateDownloadException(_downloadFailedMessage);
+        }
+
+        onProgress(
+          UpdateProgress(
+            state: UpdateProgressState.downloading,
+            bytesDownloaded: bytes,
+            totalBytes: total,
+            percent: total > 0 ? (bytes / total).clamp(0.0, 1.0) : 0.0,
+            waitingForNetwork: info['waitingForNetwork'] == true,
+          ),
+        );
+        await Future<void>.delayed(_pollEvery);
+      }
+    } on MissingPluginException {
+      throw const UpdateDownloadException(
+        'The Android download bridge is missing. Reinstall CruDoc from the '
+        'latest build.',
+      );
+    } on PlatformException catch (e) {
+      throw UpdateDownloadException(
+        e.message ?? 'The download could not start.',
+      );
+    }
+  }
+
+  Future<Map<String, Object?>> _query() async {
+    final raw = await _installChannel.invokeMapMethod<String, Object?>(
+      'queryApkDownload',
     );
+    return raw ?? const {};
+  }
 
-    _downloadedFile = destination;
+  /// Stops the background download and forgets it, so the next
+  /// [download] starts fresh.
+  Future<void> cancelDownload() async {
+    try {
+      await _installChannel.invokeMethod<void>('cancelApkDownload');
+    } on PlatformException {
+      // Nothing to cancel.
+    } on MissingPluginException {
+      // Same.
+    }
+  }
+
+  /// Whether Android currently lets CruDoc open the installer.
+  Future<bool> canInstall() async {
+    try {
+      return await _installChannel.invokeMethod<bool>('canInstallPackages') ??
+          true;
+    } on PlatformException {
+      return true;
+    } on MissingPluginException {
+      return true;
+    }
+  }
+
+  /// Status of the stored background download (`none`, `pending`,
+  /// `running`, `paused`, `successful`, `failed`), but only when it is the
+  /// package for [release]; `none` for anything else.
+  Future<String> downloadStatusFor(AppRelease release) async {
+    try {
+      final assetName = (await _platformInfoFor(release))?.asset;
+      if (assetName == null || assetName.isEmpty) return 'none';
+      final info = await _query();
+      if (info['fileName'] != assetName) return 'none';
+      return info['status'] as String? ?? 'none';
+    } on PlatformException {
+      return 'none';
+    } on MissingPluginException {
+      return 'none';
+    }
   }
 
   @override
@@ -131,6 +203,13 @@ class AndroidUpdateInstaller implements UpdateInstaller {
         'entry in AndroidManifest.xml (architecture doc §7).',
       );
     } on PlatformException catch (e) {
+      if (e.code == 'NEEDS_PERMISSION') {
+        throw UpdateInstallPermissionException(
+          e.message ??
+              'Allow CruDoc to install updates, then come back — the update '
+                  'continues by itself.',
+        );
+      }
       throw UpdateInstallException(
         'The system installer could not be launched: ${e.message}',
       );

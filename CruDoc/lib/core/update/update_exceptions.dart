@@ -41,3 +41,10 @@ class UpdateVerificationException extends UpdateException {
 class UpdateInstallException extends UpdateException {
   const UpdateInstallException(super.message);
 }
+
+/// Android won't open the installer until the person allows "install
+/// unknown apps" for CruDoc. Not a failure: the settings page is already
+/// open and the update carries on when they come back.
+class UpdateInstallPermissionException extends UpdateException {
+  const UpdateInstallPermissionException(super.message);
+}

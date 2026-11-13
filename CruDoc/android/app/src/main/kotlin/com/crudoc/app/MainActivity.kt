@@ -34,6 +34,28 @@ class MainActivity : FlutterActivity() {
                     // Processor types this phone runs, best first, so the
                     // matching per-ABI APK is downloaded.
                     "supportedAbis" -> result.success(Build.SUPPORTED_ABIS.toList())
+                    // Background download through the system DownloadManager.
+                    "startApkDownload" -> try {
+                        result.success(
+                            UpdateDownloads.start(
+                                this,
+                                call.argument<String>("url") ?: "",
+                                call.argument<String>("fileName") ?: "update.apk",
+                                call.argument<String>("title") ?: "CruDoc update",
+                            ),
+                        )
+                    } catch (e: Exception) {
+                        result.error("DOWNLOAD_FAILED", e.message ?: "The download could not start.", null)
+                    }
+                    "queryApkDownload" -> result.success(UpdateDownloads.query(this))
+                    "cancelApkDownload" -> {
+                        UpdateDownloads.cancel(this)
+                        result.success(null)
+                    }
+                    "canInstallPackages" -> result.success(
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                            packageManager.canRequestPackageInstalls(),
+                    )
                     else -> result.notImplemented()
                 }
             }
@@ -51,6 +73,7 @@ class MainActivity : FlutterActivity() {
                 result.error("NO_FILE", "The downloaded update could not be found.", null)
                 return
             }
+            UpdateDownloads.cancelReadyNotification(this)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                 !packageManager.canRequestPackageInstalls()
             ) {
@@ -62,7 +85,7 @@ class MainActivity : FlutterActivity() {
                 )
                 result.error(
                     "NEEDS_PERMISSION",
-                    "Allow CruDoc to install updates in the settings that just opened, then tap Update again.",
+                    "Allow CruDoc to install updates, then come back — the update continues by itself.",
                     null,
                 )
                 return

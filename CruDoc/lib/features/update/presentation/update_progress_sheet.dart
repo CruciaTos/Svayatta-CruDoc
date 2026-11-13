@@ -50,6 +50,10 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
   }
 
   void _retry() {
+    ref.read(updateControllerProvider.notifier).retry();
+  }
+
+  void _allowInstall() {
     ref.read(updateControllerProvider.notifier).startUpdate(widget.release);
   }
 
@@ -111,9 +115,10 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
                   UpdateProgressState.verifying => const _SpinnerRow(
                     label: 'Verifying download…',
                   ),
-                  UpdateProgressState.readyToInstall => const _SpinnerRow(
-                    label: 'Ready to install…',
-                  ),
+                  UpdateProgressState.readyToInstall =>
+                    progress?.needsInstallPermission == true
+                        ? _AllowInstallBody(onAllow: _allowInstall)
+                        : const _SpinnerRow(label: 'Ready to install…'),
                   UpdateProgressState.installing => const _SpinnerRow(
                     label: 'Installing…',
                   ),
@@ -166,7 +171,9 @@ class _DownloadingBody extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          total > 0
+          progress?.waitingForNetwork == true
+              ? 'Waiting for internet…'
+              : total > 0
               ? '${_formatBytes(downloaded)} of ${_formatBytes(total)} · '
                     '${(percent * 100).toStringAsFixed(0)}%'
               : _formatBytes(downloaded),
@@ -206,6 +213,50 @@ class _SpinnerRow extends StatelessWidget {
             fontFamily: AppColors.bodyFontFamily,
             color: c.label,
             fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Android only: the update is downloaded but CruDoc isn't yet allowed to
+/// install apps. The settings page is already open; coming back continues
+/// by itself, and this button reopens it.
+class _AllowInstallBody extends StatelessWidget {
+  const _AllowInstallBody({required this.onAllow});
+
+  final VoidCallback onAllow;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Allow CruDoc to install updates, then come back — the update '
+          'continues by itself.',
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: c.label2,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: onAllow,
+            style: FilledButton.styleFrom(
+              backgroundColor: c.accent,
+              foregroundColor: c.onAccent,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text('Allow install'),
           ),
         ),
       ],

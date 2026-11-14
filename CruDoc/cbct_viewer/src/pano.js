@@ -9,16 +9,20 @@
 import { eventTarget } from '@cornerstonejs/core';
 import { Enums as ToolsEnums } from '@cornerstonejs/tools';
 import { core, axes, dot, add, mul, sub, norm, cross, COLORS } from './core.js';
-import { state, subscribe } from './state.js';
+import { state, subscribe, set } from './state.js';
 import { h, svgEl } from './chrome.js';
 import { icon } from './icons.js';
 import { scanKind } from './presets3d.js';
 import { findArchAsync } from './arch.js';
 import { archPath, panoramicAsync, crossSection } from './panoramic.js';
 import { smoothPath, implantAxis, clearance, safety, planeDistance, NERVE_RADIUS } from './plan.js';
-import { NERVE, SAFETY } from './planning.js';
+import { NERVE, SAFETY, setImplant } from './planning.js';
 
-const THICKNESS_MM = 10; // how deep into the jaw the panoramic picture looks
+const SLABS = [5, 10, 20, 30]; // how deep into the jaw the panoramic picture can look (mm)
+let thickness = 10; // chosen slab for this session (the picture may still show the previous one while it rebuilds)
+let slabJob = 0;
+const HIT_PX = 6; // grab tolerance around an implant, screen pixels (mouse)
+const HIT_TOUCH_PX = 14;
 const CROSS_WIDTH_MM = 30;
 const STEP_KEY_MM = 1;
 const MAX_PIXELS = 600000; // panoramic picture size cap (a coarser step on very tall scans)
@@ -26,11 +30,12 @@ const SLICE_MS = 10; // work per slice
 
 let frame = null;
 let btn = null;
+let slabBtn = null;
 let layer = null;
 let on = false;
 let jobId = 0;
 // status: idle | busy | none | ready
-const job = { status: 'idle', note: '', voxels: null, arch: null, pano: null, step: 0.25, rightOnLeft: true };
+const job = { status: 'idle', note: '', voxels: null, arch: null, pano: null, step: 0.25, thickness: 10, rightOnLeft: true };
 const sel = { col: 0, rowMm: 0 }; // marker: arch column and height (mm along the scan's z axis)
 let cs = null; // the cross-section on screen
 let queued = false;
@@ -46,6 +51,7 @@ async function build() {
   const geo = core.geo;
   const id = ++jobId;
   const stale = () => id !== jobId || core.voxels !== voxels;
+  slabJob++;
   Object.assign(job, { status: 'busy', note: '', voxels, arch: null, pano: null });
   cs = null;
   refresh();
@@ -61,11 +67,13 @@ async function build() {
     const step = Math.max(0.25, Math.sqrt((length * extentZ) / MAX_PIXELS));
     const arch = archPath(found.points, step, geo);
     if (arch.points.length < 2) return done(id, 'none', 'No dental arch was found in this scan.');
-    const pano = await panoramicAsync(voxels, geo, arch, { stepMm: step, thicknessMm: THICKNESS_MM }, SLICE_MS, stale);
+    const slab = thickness;
+    const pano = await panoramicAsync(voxels, geo, arch, { stepMm: step, thicknessMm: slab }, SLICE_MS, stale);
     if (stale() || !pano) return;
     job.arch = arch;
     job.pano = pano;
     job.step = step;
+    job.thickness = slab;
     // Patient's right is the low-x end (DICOM LPS: +x is Left); a panoramic shows right on the left.
     job.rightOnLeft = arch.points[0][0] <= arch.points[arch.points.length - 1][0];
     // Start in the middle of the arch, at the height the arch was found at.
@@ -87,10 +95,43 @@ function done(id, status, note) {
   job.note = note;
   if (status === 'ready') showCross();
   refresh();
+  if (status === 'ready' && job.thickness !== thickness) rebuildSlab(); // the slab was changed while the first picture was building
+}
+
+// A new slab thickness: only the picture is rebuilt (same arch, same step); the marker, the
+// cross-section and the old picture stay on screen until the new one is ready.
+async function rebuildSlab() {
+  if (job.status !== 'ready') return;
+  const { voxels, arch, step } = job;
+  const id = jobId;
+  const sid = ++slabJob;
+  const slab = thickness;
+  const stale = () => id !== jobId || sid !== slabJob || core.voxels !== voxels;
+  refresh();
+  try {
+    const pano = await panoramicAsync(voxels, core.geo, arch, { stepMm: step, thicknessMm: slab }, SLICE_MS, stale);
+    if (stale() || !pano) return;
+    job.pano = pano;
+    job.thickness = slab;
+  } catch (err) {
+    console.warn('CBCT viewer: panoramic slab', err);
+  }
+  if (sid === slabJob) {
+    refresh();
+    schedule();
+  }
+}
+
+function setSlab(mm) {
+  if (!SLABS.includes(mm) || mm === thickness) return;
+  thickness = mm;
+  if (job.status === 'ready') rebuildSlab();
+  else refresh();
 }
 
 function reset() {
   jobId++;
+  slabJob++;
   Object.assign(job, { status: 'idle', note: '', voxels: null, arch: null, pano: null });
   cs = null;
   on = false;
@@ -233,8 +274,14 @@ function draw() {
   els.info.textContent = `Along the arch ${(sel.col * job.step).toFixed(1)} of ${total.toFixed(0)} mm · arrow keys step ${STEP_KEY_MM} mm`;
 }
 
+// World point -> panoramic picture pixel (null past the ends of the arch).
+function toPano(q) {
+  const at = locate(q);
+  return at.off ? null : { x: at.col + 0.5, y: (job.pano.zTopMm - at.zMm) / job.step + 0.5, lateral: at.lateral };
+}
+
 // The implant plan on both pictures (same colours as the slice views). On the panoramic the
-// nerve canal is projected onto the arch: solid inside the 10 mm the picture looks through,
+// nerve canal is projected onto the arch: solid inside the slab the picture looks through,
 // faint outside. On the cross-section only where the canal and the implants cut the plane.
 function drawPlan() {
   const gp = els.panoPlan;
@@ -244,16 +291,12 @@ function drawPlan() {
   if (!isDental()) return;
   const plan = state.plan;
   const stepMm = job.step;
-  const halfSlab = THICKNESS_MM / 2;
+  const halfSlab = job.thickness / 2;
   const nerves = [plan.nerves.right, plan.nerves.left];
   const width = Math.max(1.5, (2 * NERVE_RADIUS) / stepMm);
   const polyline = (pts, opacity) => svgEl('polyline', { points: pts.map((p) => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' '), fill: 'none', stroke: NERVE, 'stroke-width': width, 'stroke-opacity': opacity, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
 
-  // On the panoramic: arch column and height -> pixel.
-  const onPano = (q) => {
-    const at = locate(q);
-    return at.off ? null : { x: at.col + 0.5, y: (job.pano.zTopMm - at.zMm) / stepMm + 0.5, lateral: at.lateral };
-  };
+  const onPano = toPano;
   for (const pts of nerves) {
     if (pts.length < 2) continue;
     // Consecutive pieces with the same look (solid / faint) become one line.
@@ -348,6 +391,10 @@ function refresh() {
   const show = isDental();
   btn.style.display = show ? '' : 'none';
   btn.classList.toggle('on', on && show);
+  slabBtn.style.display = on && show && job.status === 'ready' ? '' : 'none';
+  slabBtn.textContent = `${thickness} mm`;
+  slabBtn.classList.toggle('busy', job.status === 'ready' && job.thickness !== thickness);
+  slabBtn.title = `Slab thickness: the panoramic looks ${thickness} mm into the jaw (click to change)`;
   frame.root.classList.toggle('pano-on', on && show);
   els.name.textContent = on && show ? 'Panoramic' : 'Coronal';
   const ready = job.status === 'ready';
@@ -376,15 +423,99 @@ function toggle() {
   if (on) follow(); // start where the crosshair is
 }
 
-// Click or drag on the panoramic picture: move the marker to that spot.
-function pick(e) {
-  if (job.status !== 'ready') return;
+// Pointer position on the panoramic picture: picture pixels and the screen size of one pixel.
+function toPicture(e) {
   const r = els.panoCell.getBoundingClientRect();
   const { width: w, height: hh } = job.pano;
   const s = Math.min(r.width / w, r.height / hh);
-  const x = (e.clientX - r.left - (r.width - w * s) / 2) / s;
-  const y = (e.clientY - r.top - (r.height - hh * s) / 2) / s;
+  return { x: (e.clientX - r.left - (r.width - w * s) / 2) / s, y: (e.clientY - r.top - (r.height - hh * s) / 2) / s, s };
+}
+
+// Click or drag on the panoramic picture: move the marker to that spot.
+function pick(e) {
+  if (job.status !== 'ready') return;
+  const { x, y } = toPicture(e);
+  const { width: w, height: hh } = job.pano;
   select(Math.max(0, Math.min(w - 1, x - 0.5)), job.pano.zTopMm - Math.max(0, Math.min(hh - 1, y - 0.5)) * job.step);
+}
+
+// ───────────────────────── Dragging an implant ─────────────────────────
+
+// The implant under a picture point (the last one wins, as it is drawn on top), or -1.
+function implantAt(x, y, tol) {
+  const list = state.plan.implants;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const { top, apex } = implantAxis(list[i]);
+    const a = toPano(top);
+    const b = toPano(apex);
+    if (!a || !b) continue;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / len2)) : 0;
+    if (Math.hypot(x - (a.x + t * dx), y - (a.y + t * dy)) <= list[i].diameter / 2 / job.step + tol) return i;
+  }
+  return -1;
+}
+
+// A point on the arch at a (fractional) column, and its outward normal.
+function archAt(c) {
+  const { points, normals } = job.arch;
+  const f = Math.max(0, Math.min(points.length - 1, c));
+  const i = Math.min(points.length - 2, Math.floor(f));
+  const t = f - i;
+  const lerp = (u, v) => add(mul(u, 1 - t), mul(v, t));
+  return { p: lerp(points[i], points[i + 1]), n: norm(lerp(normals[i], normals[i + 1])) };
+}
+
+// Where the implant's top goes when the pointer has moved dx columns and dy picture rows: along
+// the arch (its side offset kept, following the normal) and straight up or down. The apex moves
+// with it, so axis and length stay as they were.
+function draggedTop(start, dx, dy) {
+  const z = axes(core.geo).z;
+  const c1 = Math.max(0, Math.min(job.arch.points.length - 1, start.col + dx));
+  const a0 = archAt(start.col);
+  const a1 = archAt(c1);
+  let delta = add(sub(a1.p, a0.p), mul(sub(a1.n, a0.n), start.lateral));
+  delta = sub(delta, mul(z, dot(delta, z))); // the horizontal part only
+  delta = add(delta, mul(z, -dy * job.step));
+  return add(start.top, delta);
+}
+
+let drag = null; // { i, x, y, col, lateral, top, pending, raf }
+
+function startDrag(e, i) {
+  const { x, y } = toPicture(e);
+  const im = state.plan.implants[i];
+  const at = locate(im.top);
+  drag = { i, x, y, col: at.col, lateral: at.lateral, top: [...im.top], pending: null, raf: 0 };
+  set({ plan: { selected: i } });
+  els.panoCell.classList.add('grabbing');
+}
+
+function applyDrag() {
+  if (!drag) return;
+  drag.raf = 0;
+  const e = drag.pending;
+  if (!e) return;
+  drag.pending = null;
+  const { x, y } = toPicture(e);
+  const dy = Math.max(0, Math.min(job.pano.height - 1, y)) - drag.y;
+  setImplant(drag.i, { top: draggedTop(drag, x - drag.x, dy) });
+}
+
+function moveDrag(e) {
+  drag.pending = { clientX: e.clientX, clientY: e.clientY };
+  if (!drag.raf) drag.raf = requestAnimationFrame(applyDrag);
+}
+
+function endDrag(cancel) {
+  if (!drag) return;
+  if (drag.raf) cancelAnimationFrame(drag.raf);
+  if (cancel) setImplant(drag.i, { top: drag.top });
+  else if (drag.pending) applyDrag();
+  drag = null;
+  els.panoCell.classList.remove('grabbing');
 }
 
 export function initPano(ui) {
@@ -414,18 +545,44 @@ export function initPano(ui) {
 
   btn = h('button', { class: 'vpbtn', type: 'button', title: 'Panoramic view of the dental arch', 'aria-label': 'Panoramic view', onclick: toggle }, icon('panoramic', 14));
   frame.root.querySelector('.vpbtns').prepend(btn);
+  slabBtn = h('button', { class: 'vpbtn txt', type: 'button', 'aria-label': 'Slab thickness', onclick: () => setSlab(SLABS[(SLABS.indexOf(thickness) + 1) % SLABS.length]) });
+  frame.root.querySelector('.vpbtns').prepend(slabBtn);
 
   let dragging = false;
+  const tolFor = (e, pt) => (e.pointerType === 'touch' ? HIT_TOUCH_PX : HIT_PX) / pt.s;
   els.panoCell.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    dragging = true;
+    if (e.button !== 0 || job.status !== 'ready') return;
+    const pt = toPicture(e);
+    const i = implantAt(pt.x, pt.y, tolFor(e, pt));
     els.panoCell.setPointerCapture(e.pointerId);
+    if (i >= 0) {
+      startDrag(e, i);
+      return;
+    }
+    dragging = true;
     pick(e);
   });
-  els.panoCell.addEventListener('pointermove', (e) => dragging && pick(e));
-  const stop = () => (dragging = false);
+  els.panoCell.addEventListener('pointermove', (e) => {
+    if (drag) moveDrag(e);
+    else if (dragging) pick(e);
+    else if (job.status === 'ready') {
+      const pt = toPicture(e);
+      els.panoCell.classList.toggle('grab', implantAt(pt.x, pt.y, tolFor(e, pt)) >= 0);
+    }
+  });
+  const stop = () => {
+    dragging = false;
+    endDrag(false);
+  };
   els.panoCell.addEventListener('pointerup', stop);
   els.panoCell.addEventListener('pointercancel', stop);
+  // Escape during a drag puts the implant back where it was.
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !drag) return;
+    e.preventDefault();
+    e.stopPropagation();
+    endDrag(true);
+  }, true);
 
   // Reset on this slot goes back to the middle of the arch (the slice view under it has nothing to show).
   frame.root.querySelector('.vpbtns').addEventListener('click', (e) => {
@@ -468,12 +625,16 @@ export const panoState = () => ({
   columns: job.pano ? job.pano.width : 0,
   rows: job.pano ? job.pano.height : 0,
   step: job.step,
+  thickness: job.thickness,
+  wantedThickness: thickness,
   col: sel.col,
   home: job.home ? job.home.col : null,
   sMm: sel.col * job.step,
   rowMm: sel.rowMm,
   cross: cs ? [cs.width, cs.height] : null,
   point: job.arch ? pointAt(sel.col) : null,
+  normal: job.arch ? job.arch.normals[sel.col] : null,
 });
+export const panoSetSlab = setSlab;
 export const panoSelect = (col, rowMm) => select(col, rowMm);
 export const panoLocate = (q) => (job.status === 'ready' ? locate(q) : null);

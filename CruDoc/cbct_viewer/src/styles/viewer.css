@@ -233,6 +233,8 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); ou
 
 /* Panoramic view in the Coronal slot (pano.js): a layer above the slice view, which keeps rendering underneath. */
 .vpbtn.on { color: var(--text); }
+.vpbtn.txt { width: auto; padding: 0 8px; font-size: var(--fs-hint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vpbtn.busy { opacity: 0.6; }
 .pano {
   position: absolute; inset: 0; z-index: 2; display: none; box-sizing: border-box;
   padding: 48px 14px 30px; background: var(--mpr-bg); touch-action: none; user-select: none;
@@ -242,6 +244,8 @@ button:focus-visible, input:focus-visible { outline: 1px solid var(--accent); ou
 .pano-cells { display: flex; flex: 1; gap: 14px; min-width: 0; min-height: 0; }
 .pcell { position: relative; flex: 1 1 0; min-width: 0; min-height: 0; }
 .pcell.pick { cursor: crosshair; }
+.pcell.pick.grab { cursor: grab; }
+.pcell.pick.grabbing { cursor: grabbing; }
 .pcell canvas, .pcell svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .pcell canvas { object-fit: contain; }
 .pcell svg { overflow: hidden; pointer-events: none; }

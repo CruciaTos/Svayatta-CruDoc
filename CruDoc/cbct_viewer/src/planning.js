@@ -79,7 +79,7 @@ function clearNerve() {
   setNerve(plan().side, []);
 }
 
-function setImplant(i, patch) {
+export function setImplant(i, patch) {
   const list = plan().implants.map((im, k) => (k === i ? { ...im, ...patch } : im));
   set({ plan: { implants: list } });
 }

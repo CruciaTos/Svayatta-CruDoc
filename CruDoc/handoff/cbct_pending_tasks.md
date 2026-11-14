@@ -58,9 +58,9 @@ look: `handoff/cbct_reference.png`; web/Flutter contract: `handoff/cbct_protocol
 
 ## Open (Claude does next)
 
-1. **Panoramic view on screen** (from B1–B3) and a "Copy summary" button (B4): a fifth view
-   or a layout mode, click on the panoramic to move the crosshair, cross-sections along the
-   arch, implants drawn on it.
+1. ~~Panoramic view on screen + Copy summary~~ DONE 2026-11-10/11 (f3a08ae): `src/pano.js`,
+   see handoff/claude_3d_viewer_handoff.md "Panoramic view". Not built: slab thickness /
+   curved setting, dragging implants on the panoramic. Not verified on a real CBCT.
 2. **Real CBCT check** of surface 3D (triangle count, noisy bone) and the implant plan.
 3. **Cut face in surface mode** is a hollow shell: cap it.
 4. **Automatic tooth boxing and numbering** along the arch (no AI), then AI help: decisions

@@ -175,6 +175,116 @@ if (st.status === 'ready') {
   check('implant drawn on the panoramic', (await count('.pano .pcell.pick g.plan polygon, .pano .pcell.pick g.plan circle')) >= 1);
   check('implant drawn on the cross-section', (await count('.pano .pcell:not(.pick) g.plan polygon')) >= 1);
   await slot.screenshot({ path: path.join(out, 'pano-plan.png') });
+
+  // Drag an implant on the panoramic. A second implant is selected first, so the drag must select the grabbed one.
+  await page.evaluate(([p0, p1]) => window.__cbct.set({ plan: { implants: [{ top: p0, diameter: 4, length: 10, jaw: 'lower', tiltAP: 6, tiltLR: -4 }, { top: p1, diameter: 4, length: 10, jaw: 'lower', tiltAP: 0, tiltLR: 0 }], selected: 1 } }), [pts[1], pts[2]]);
+  await page.waitForTimeout(300);
+  const implants = () => page.evaluate(() => window.__cbct.state.plan.implants.map((im) => ({ top: [...im.top], length: im.length, diameter: im.diameter, tiltAP: im.tiltAP, tiltLR: im.tiltLR })));
+  const sc = (await state());
+  const ptr = await page.evaluate(() => {
+    const cellR = document.querySelector('.pano .pcell.pick').getBoundingClientRect();
+    const w = window.__cbct.panoState();
+    const r = document.querySelector('.pano .pcell.pick g.plan polygon').getBoundingClientRect();
+    return { s: Math.min(cellR.width / w.columns, cellR.height / w.rows), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  const before = await implants();
+  const loc0 = await page.evaluate((q) => window.__cbct.panoLocate(q), before[0].top);
+  const COLS = 10;
+  const ROWS = 8;
+  await page.mouse.move(ptr.x, ptr.y);
+  check('cursor is grab over an implant', await page.evaluate(() => document.querySelector('.pano .pcell.pick').classList.contains('grab')));
+  await page.mouse.down();
+  await page.mouse.move(ptr.x + (COLS * ptr.s) / 2, ptr.y + (ROWS * ptr.s) / 2, { steps: 4 });
+  await page.mouse.move(ptr.x + COLS * ptr.s, ptr.y + ROWS * ptr.s, { steps: 4 });
+  await page.waitForTimeout(200);
+  check('cursor is grabbing during the drag', await page.evaluate(() => document.querySelector('.pano .pcell.pick').classList.contains('grabbing')));
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  const after = await implants();
+  const loc1 = await page.evaluate((q) => window.__cbct.panoLocate(q), after[0].top);
+  const lenNow = (im) => Math.hypot(...im.top.map((v, i) => v - before[0].top[i]));
+  check('dragging an implant selected it', (await page.evaluate(() => window.__cbct.state.plan.selected)) === 0);
+  check('drag moved the implant along the arch by the dragged columns', Math.abs(loc1.col - loc0.col - COLS) <= 1, `${loc0.col} -> ${loc1.col}`);
+  check('drag moved the implant down by the dragged rows', Math.abs(after[0].top[2] - before[0].top[2] + ROWS * sc.step) < 0.3, `${(after[0].top[2] - before[0].top[2]).toFixed(2)} mm, expected ${(-ROWS * sc.step).toFixed(2)}`);
+  check('drag kept the side offset', Math.abs(loc1.lateral - loc0.lateral) < 0.3, `${loc0.lateral.toFixed(2)} -> ${loc1.lateral.toFixed(2)} mm`);
+  check('drag kept length, diameter and tilts', after[0].length === 10 && after[0].diameter === 4 && after[0].tiltAP === 6 && after[0].tiltLR === -4);
+  check('drag did not touch the other implant', JSON.stringify(after[1]) === JSON.stringify(before[1]));
+  check('drag did not move the marker', (await state()).col === sc.col);
+  check('implant really moved', lenNow(after[0]) > 2, `${lenNow(after[0]).toFixed(2)} mm`);
+
+  // Escape during a drag puts it back.
+  const mid = await page.evaluate(() => {
+    const r = document.querySelector('.pano .pcell.pick g.plan polygon').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await page.mouse.move(mid.x, mid.y);
+  await page.mouse.down();
+  await page.mouse.move(mid.x - 6 * ptr.s, mid.y - 5 * ptr.s, { steps: 4 });
+  await page.waitForTimeout(150);
+  const moving = await implants();
+  check('implant follows the drag before Escape', moving[0].top.some((v, i) => Math.abs(v - after[0].top[i]) > 0.5));
+  await page.keyboard.press('Escape');
+  await page.mouse.move(mid.x - 8 * ptr.s, mid.y, { steps: 2 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  check('Escape restored the implant', JSON.stringify((await implants())[0].top) === JSON.stringify(after[0].top));
+
+  // A click on empty picture still moves the marker.
+  const cellBox = await page.locator('.pano .pcell.pick').boundingBox();
+  const colBefore = (await state()).col;
+  await page.mouse.click(cellBox.x + cellBox.width * 0.9, cellBox.y + cellBox.height * 0.1);
+  await page.waitForTimeout(200);
+  check('click on empty picture still moves the marker', (await state()).col !== colBefore);
+  check('and leaves the implants alone', JSON.stringify(await implants()) === JSON.stringify(after));
+
+  // Slab thickness: rebuilds the picture only, keeps the marker, plan uses the new slab.
+  const slabBtn = slot.locator('.vpbtns button[aria-label="Slab thickness"]');
+  check('slab button shows the default 10 mm', (await slabBtn.textContent()) === '10 mm');
+  const stBefore = await state();
+  const sumOf = () => page.evaluate(() => {
+    const c = document.querySelector('.pano canvas');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let s = 0;
+    for (let i = 0; i < d.length; i += 4 * 7) s += d[i];
+    return s;
+  });
+  const sum10 = await sumOf();
+  await slabBtn.click();
+  for (let i = 0; i < 60 && (await state()).thickness !== 20; i++) await page.waitForTimeout(100);
+  const st20 = await state();
+  check('slab button cycles to 20 mm and the picture is rebuilt with it', st20.thickness === 20 && (await slabBtn.textContent()) === '20 mm', `${st20.thickness}`);
+  check('slab change keeps the marker, the arch and the picture size', st20.col === stBefore.col && st20.rowMm === stBefore.rowMm && st20.columns === stBefore.columns && st20.rows === stBefore.rows && st20.length === stBefore.length);
+  await page.waitForTimeout(200);
+  check('picture changed with the slab', (await sumOf()) !== sum10);
+  // Two quick clicks: the first build is cancelled, the last choice wins.
+  await slabBtn.click();
+  await slabBtn.click();
+  for (let i = 0; i < 80 && (await state()).thickness !== 5; i++) await page.waitForTimeout(100);
+  const st5 = await state();
+  check('quick clicks: the last slab (5 mm) wins', st5.thickness === 5 && st5.wantedThickness === 5, `${st5.thickness} / ${st5.wantedThickness}`);
+  check('marker still where it was', st5.col === stBefore.col && st5.rowMm === stBefore.rowMm);
+  // The plan overlay follows the slab: an implant 8 mm to the side of the arch is cut by a 20 mm slab, not by a 5 mm one.
+  const sidePt = await page.evaluate(() => {
+    const w = window.__cbct.panoState();
+    return [0, 1, 2].map((k) => w.point[k] + w.normal[k] * 8);
+  });
+  await page.evaluate((p) => window.__cbct.set({ plan: { nerves: { right: [], left: [] }, implants: [{ top: p, diameter: 4, length: 10, jaw: 'lower', tiltAP: 0, tiltLR: 0 }], selected: 0 } }), sidePt);
+  const fillNow = async () => {
+    await page.waitForTimeout(200);
+    return page.evaluate(() => {
+      const el = document.querySelector('.pano .pcell.pick g.plan polygon');
+      return el ? Number(el.getAttribute('fill-opacity')) : null;
+    });
+  };
+  const thin = await fillNow(); // slab is 5 mm
+  await page.evaluate(() => window.__cbct.panoSetSlab(20));
+  for (let i = 0; i < 80 && (await state()).thickness !== 20; i++) await page.waitForTimeout(100);
+  const thick = await fillNow();
+  check('implant beside the arch is faint in a 5 mm slab and filled in a 20 mm slab', thin === 0.08 && thick === 0.3, `${thin} -> ${thick}`);
+  await page.evaluate(() => window.__cbct.panoSetSlab(10));
+  for (let i = 0; i < 80 && (await state()).thickness !== 10; i++) await page.waitForTimeout(100);
+  check('slab back to 10 mm', (await state()).thickness === 10 && (await slabBtn.textContent()) === '10 mm');
+
   await page.evaluate(() => window.__cbct.set({ plan: { nerves: { right: [], left: [] }, implants: [], selected: -1 } }));
   await page.waitForTimeout(200);
   check('plan removed from the pictures', (await count('.pano g.plan *')) === 0);

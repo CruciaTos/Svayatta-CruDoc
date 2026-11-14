@@ -103,6 +103,7 @@ dependencies:
   sign_in_with_apple: ^7.0.1
   in_app_purchase: ^3.2.3
   app_links: ^6.4.0
+  csv: ^8.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

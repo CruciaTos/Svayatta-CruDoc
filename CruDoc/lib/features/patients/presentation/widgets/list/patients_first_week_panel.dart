@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_search_bar.dart';
@@ -6,14 +7,12 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// "Bring your existing patients into CruDoc": shown below the list
 /// while the clinic has only a handful of patients.
-class PatientsFirstWeekPanel extends StatelessWidget {
+class PatientsFirstWeekPanel extends ConsumerWidget {
   const PatientsFirstWeekPanel({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    // Import and the template are a GAP: both say so when pressed.
-    void unavailable() => PatientActions.importUnavailable(context);
 
     return Container(
       padding: CruSpace.firstWeekPanel,
@@ -65,11 +64,13 @@ class PatientsFirstWeekPanel extends StatelessWidget {
             spacing: CruSpace.s16,
             runSpacing: CruSpace.s12,
             children: [
-              _ImportButton(onPressed: unavailable),
+              _ImportButton(
+                onPressed: () => PatientActions.openImportExport(context, ref),
+              ),
               CruLink(
                 label: 'Download the template',
                 style: CruType.callout,
-                onPressed: unavailable,
+                onPressed: () => PatientActions.downloadTemplate(context),
               ),
             ],
           ),

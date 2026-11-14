@@ -37,6 +37,7 @@ import 'package:doctor_management_app/features/subscription/presentation/subscri
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
+import 'package:doctor_management_app/features/settings/presentation/import_export_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/call_forwarding_section.dart';
 import 'package:doctor_management_app/features/files/presentation/nearby_sharing_settings.dart';
@@ -73,6 +74,9 @@ enum SettingsSection {
 
   /// AI assistance features, dictation, intelligence tools & safety.
   aiAssistance('AI assistance', CruIcons.sparkle),
+
+  /// Bring patients in from Excel or CSV; take them out as a file.
+  importExport('Import & export', CruIcons.importExport),
 
   /// Not on the web, which keeps nothing on the device.
   storage('Storage', CruIcons.download),
@@ -114,6 +118,8 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
     SettingsSection.team => access != null && access.can(ClinicPermission.team),
     SettingsSection.myFeatures => !isOwner,
     SettingsSection.storage => !kIsWeb,
+    SettingsSection.importExport =>
+      access == null || access.can(ClinicPermission.patientsEdit),
     // Forwards calls to the AI receptionist: the AI Calling module.
     SettingsSection.callForwarding =>
       (access == null || access.can(ClinicPermission.ai)) &&
@@ -166,6 +172,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.accounts => const _AccountsSection(),
       SettingsSection.devices => _DevicesSection(user: user),
       SettingsSection.appearance => const _AppearanceSection(),
+      SettingsSection.importExport => const ImportExportSection(),
       SettingsSection.storage => const StorageSection(),
       SettingsSection.callForwarding => const CallForwardingSection(),
       SettingsSection.reminders => const _RemindersSection(),

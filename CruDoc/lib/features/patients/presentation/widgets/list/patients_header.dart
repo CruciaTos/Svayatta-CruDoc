@@ -109,7 +109,7 @@ class PatientsHeader extends ConsumerWidget {
               label: 'Import / Export',
               kind: CruButtonKind.secondary,
               icon: CruIcons.importExport,
-              onPressed: () => PatientActions.importUnavailable(context),
+              onPressed: () => PatientActions.openImportExport(context, ref),
             ),
             const SizedBox(width: CruSpace.s10),
             CruButton(

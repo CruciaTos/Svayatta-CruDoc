@@ -9,8 +9,13 @@ import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/schedule_visit_sheet.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
+import 'package:doctor_management_app/features/mobile/mobile_more.dart';
+import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/patient_export.dart';
+import 'package:doctor_management_app/features/patients/data/patient_import.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
@@ -214,10 +219,34 @@ abstract final class PatientActions {
       'your follow-up visit. Please reply to book a time that suits you. '
       'Thank you.';
 
-  static void importUnavailable(BuildContext context) => _say(
-    ScaffoldMessenger.maybeOf(context),
-    "Import and export aren't available yet.",
-  );
+  /// Saves (or shares, on a phone) the headers-only import template.
+  static Future<void> downloadTemplate(BuildContext context) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      await deliverFile(
+        'CruDoc patient import sample.csv',
+        csvBytes([sampleHeaders]),
+      );
+    } catch (_) {
+      _say(messenger, "Couldn't save the file. Try another folder.");
+    }
+  }
+
+  /// Opens Settings → Import & export (its own page on the phone).
+  static void openImportExport(BuildContext context, WidgetRef ref) {
+    if (cruIsPhone(context)) {
+      openMobileSettings(
+        context,
+        ref,
+        SettingsSection.importExport,
+        backLabel: 'Patients',
+      );
+      return;
+    }
+    ref.read(settingsSectionProvider.notifier).state =
+        SettingsSection.importExport;
+    ref.read(shellNavigatorProvider)?.call(DesktopTab.settings);
+  }
 
   static String _firstName(PatientSummary s) {
     final f = s.patient.firstName.trim();

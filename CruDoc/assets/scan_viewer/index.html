@@ -37,7 +37,7 @@ button.on{background:#0a84ff;color:#fff;border-color:#0a84ff}
 </div>
 <div id="cmp">
   <div id="cmpInfo"></div>
-  <div class="row"><button id="bMap" class="on">Colour map</button><button id="bOver">Overlay</button><button id="bSwap">Swap</button><button id="bExit">Exit</button></div>
+  <div class="row"><button id="bMap" class="on">Colour map</button><button id="bOver">Overlay</button><button id="bSwap">Swap</button><button id="bSave" style="display:none">Save picture</button><button id="bExit">Exit</button></div>
   <div id="tolRow"><span>Tolerance &plusmn;<b id="tolV">0.10</b> mm</span><input type="range" id="tol" min="0.05" max="0.5" step="0.01" value="0.1"></div>
   <div id="legend"><div id="lgBar"></div><div id="lgLab"><span>&minus;1 mm (lost)</span><span>0</span><span>+1 mm (gained)</span></div><div id="lgNote"></div></div>
   <div id="cmpWarn"></div>
@@ -56,29 +56,33 @@ function parseSTL(buf) {
   if (buf.byteLength >= 84) {
     const n = dv.getUint32(80, true);
     if (84 + n * 50 === buf.byteLength) {
-      const pos = new Float32Array(n * 9);
-      for (let i = 0; i < n; i++) { const o = 84 + i * 50 + 12; for (let k = 0; k < 9; k++) pos[i * 9 + k] = dv.getFloat32(o + k * 4, true); }
-      return { pos };
+      const pos = new Float32Array(n * 9), tn = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { const o = 84 + i * 50 + 12; for (let k = 0; k < 9; k++) pos[i * 9 + k] = dv.getFloat32(o + k * 4, true); for (let k = 0; k < 3; k++) tn[i * 3 + k] = dv.getFloat32(o - 12 + k * 4, true); }
+      return { pos, tn };
     }
   }
   const s = new TextDecoder().decode(buf), out = [];
   const re = /vertex\s+(\S+)\s+(\S+)\s+(\S+)/g; let m;
   while ((m = re.exec(s))) out.push(+m[1], +m[2], +m[3]);
   if (!out.length || out.length % 9) throw new Error('Not a valid STL file.');
-  return { pos: new Float32Array(out) };
+  const tn = [], rn = /facet\s+normal\s+(\S+)\s+(\S+)\s+(\S+)/g;
+  while ((m = rn.exec(s))) tn.push(+m[1] || 0, +m[2] || 0, +m[3] || 0);
+  return { pos: new Float32Array(out), tn: tn.length === out.length / 3 ? new Float32Array(tn) : null };
 }
 function parseOBJ(buf) {
-  const v = [], idx = [];
+  const v = [], idx = [], vn = [], tn = [];
   for (const line of new TextDecoder().decode(buf).split('\n')) {
     const t = line.trim().split(/\s+/);
     if (t[0] === 'v') v.push(+t[1], +t[2], +t[3]);
+    else if (t[0] === 'vn') vn.push(+t[1], +t[2], +t[3]);
     else if (t[0] === 'f') {
       const f = t.slice(1).map(x => { const i = parseInt(x); return i < 0 ? v.length / 3 + i : i - 1; });
-      for (let i = 1; i + 1 < f.length; i++) idx.push(f[0], f[i], f[i + 1]);
+      const ni = parseInt((t[1].split('/')[2]) || 0), nb = ni ? (ni < 0 ? vn.length / 3 + ni : ni - 1) * 3 : -1;
+      for (let i = 1; i + 1 < f.length; i++) { idx.push(f[0], f[i], f[i + 1]); if (nb >= 0 && nb < vn.length) tn.push(vn[nb], vn[nb + 1], vn[nb + 2]); else tn.push(0, 0, 0); }
     }
   }
   if (!v.length) throw new Error('No vertices found in OBJ.');
-  return { pos: new Float32Array(v), index: idx.length ? idx : null };
+  return { pos: new Float32Array(v), index: idx.length ? idx : null, tn: idx.length && tn.length === idx.length ? new Float32Array(tn) : null };
 }
 function parsePLY(buf) {
   const head = text(buf, 16384), e = head.indexOf('end_header');
@@ -105,25 +109,25 @@ function parsePLY(buf) {
     case 'uint': case 'uint32': return dv.getUint32(o, le);
     case 'float': case 'float32': return dv.getFloat32(o, le);
     default: return dv.getFloat64(o, le); } };
-  let pos = null; const idx = [];
+  let pos = null, vn = null; const idx = [];
   if (fmt === 'ascii') {
     const tk = new TextDecoder().decode(b.subarray(off)).split(/\s+/).filter(Boolean); let p = 0;
     for (const el of els) {
-      if (el.name === 'vertex') pos = new Float32Array(el.n * 3);
+      if (el.name === 'vertex') { pos = new Float32Array(el.n * 3); vn = new Float32Array(el.n * 3); }
       for (let i = 0; i < el.n; i++) {
         const vals = {};
         for (const pr of el.props) {
           if (pr.list) { const c = +tk[p++], a = []; for (let k = 0; k < c; k++) a.push(+tk[p++]); vals[pr.name] = a; }
           else vals[pr.name] = +tk[p++];
         }
-        if (el.name === 'vertex') { pos[i * 3] = vals.x; pos[i * 3 + 1] = vals.y; pos[i * 3 + 2] = vals.z; }
+        if (el.name === 'vertex') { pos[i * 3] = vals.x; pos[i * 3 + 1] = vals.y; pos[i * 3 + 2] = vals.z; vn[i * 3] = vals.nx || 0; vn[i * 3 + 1] = vals.ny || 0; vn[i * 3 + 2] = vals.nz || 0; }
         else if (el.name === 'face') { const f = vals.vertex_indices || vals.vertex_index; if (f) for (let k = 1; k + 1 < f.length; k++) idx.push(f[0], f[k], f[k + 1]); }
       }
     }
   } else if (le || fmt === 'binary_big_endian') {
     let o = off;
     for (const el of els) {
-      if (el.name === 'vertex') pos = new Float32Array(el.n * 3);
+      if (el.name === 'vertex') { pos = new Float32Array(el.n * 3); vn = new Float32Array(el.n * 3); }
       for (let i = 0; i < el.n; i++) {
         for (const pr of el.props) {
           if (pr.list) {
@@ -131,7 +135,7 @@ function parsePLY(buf) {
             for (let k = 0; k < c; k++) { a.push(rd(pr.it, o)); o += size[pr.it]; }
             if (el.name === 'face' && (pr.name === 'vertex_indices' || pr.name === 'vertex_index')) for (let k = 1; k + 1 < a.length; k++) idx.push(a[0], a[k], a[k + 1]);
           } else {
-            if (el.name === 'vertex') { const k = { x: 0, y: 1, z: 2 }[pr.name]; if (k !== undefined) pos[i * 3 + k] = rd(pr.type, o); }
+            if (el.name === 'vertex') { const k = { x: 0, y: 1, z: 2 }[pr.name], q = { nx: 0, ny: 1, nz: 2 }[pr.name]; if (k !== undefined) pos[i * 3 + k] = rd(pr.type, o); else if (q !== undefined) vn[i * 3 + q] = rd(pr.type, o); }
             o += size[pr.type];
           }
         }
@@ -139,7 +143,7 @@ function parsePLY(buf) {
     }
   } else throw new Error('Unsupported PLY encoding.');
   if (!pos) throw new Error('No vertices found in PLY.');
-  return { pos, index: idx.length ? idx : null };
+  return { pos, index: idx.length ? idx : null, vn };
 }
 
 // Runs inside an inline Web Worker (stringified), so it must not use anything from outside.
@@ -309,19 +313,27 @@ function workerMain() {
     for (let i = 0, k = 0; i < n; i += step, k++) { out[3 * k] = pts[3 * i]; out[3 * k + 1] = pts[3 * i + 1]; out[3 * k + 2] = pts[3 * i + 2]; }
     return out;
   }
-  function normals(pos, idx) {
+  function normals(pos, idx, tn, vn) {
     const n = pos.length / 3, nr = new Float32Array(n * 3), tri = idx ? Math.floor(idx.length / 3) : Math.floor(n / 3);
+    let agree = 0, oppo = 0;
     for (let f = 0; f < tri; f++) {
       const a = idx ? idx[3 * f] : 3 * f, b = idx ? idx[3 * f + 1] : 3 * f + 1, c = idx ? idx[3 * f + 2] : 3 * f + 2;
       const e1x = pos[3 * b] - pos[3 * a], e1y = pos[3 * b + 1] - pos[3 * a + 1], e1z = pos[3 * b + 2] - pos[3 * a + 2];
       const e2x = pos[3 * c] - pos[3 * a], e2y = pos[3 * c + 1] - pos[3 * a + 1], e2z = pos[3 * c + 2] - pos[3 * a + 2];
       const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+      let sx = 0, sy = 0, sz = 0;
+      if (tn) { sx = tn[3 * f]; sy = tn[3 * f + 1]; sz = tn[3 * f + 2]; }
+      else if (vn) { sx = vn[3 * a] + vn[3 * b] + vn[3 * c]; sy = vn[3 * a + 1] + vn[3 * b + 1] + vn[3 * c + 1]; sz = vn[3 * a + 2] + vn[3 * b + 2] + vn[3 * c + 2]; }
+      const sd = sx * nx + sy * ny + sz * nz;
+      if (sd > 0) agree++; else if (sd < 0) oppo++;
       for (const v of [a, b, c]) { nr[3 * v] += nx; nr[3 * v + 1] += ny; nr[3 * v + 2] += nz; }
     }
     for (let i = 0; i < n; i++) {
       const l = Math.hypot(nr[3 * i], nr[3 * i + 1], nr[3 * i + 2]);
       if (l > 0) { nr[3 * i] /= l; nr[3 * i + 1] /= l; nr[3 * i + 2] /= l; }
     }
+    // Winding check so blue/red never swap: flip when most stored (file) normals oppose the winding normals; no stored normals = no flip.
+    if (oppo > agree) for (let i = 0; i < nr.length; i++) nr[i] = -nr[i];
     return nr;
   }
   function run(d) {
@@ -360,7 +372,7 @@ function workerMain() {
     }
     const ostep = Math.max(1, Math.floor(oN / 400000));
     const ap = ostep === 1 ? opA : sample(opA, Math.ceil(oN / ostep));
-    const ogrid = makeGrid(ap), nrm = normals(op, oi);
+    const ogrid = makeGrid(ap), nrm = normals(op, oi, d.otn, d.ovn);
     const dev = new Float32Array(nN), LIM2 = 2.5 * 2.5; let have = 0;
     for (let i = 0; i < nN; i++) {
       const x = np[3 * i], y = np[3 * i + 1], z = np[3 * i + 2];
@@ -459,7 +471,7 @@ try {
   allMats.push(matMap, matPlain, matOld);
   const parsers = { stl: parseSTL, obj: parseOBJ, ply: parsePLY };
   let base = null, runSeq = 0, devMark = null, devLine = '';
-  const getBase = () => base || (base = { name: scanName, pos: g.attributes.position.array, index: m.index ? Uint32Array.from(m.index) : null });
+  const getBase = () => base || (base = { name: scanName, pos: g.attributes.position.array, index: m.index ? Uint32Array.from(m.index) : null, tn: m.tn, vn: m.vn });
   const syncRead = () => { read.style.bottom = (cmp && cmpEl.style.display !== 'none' ? cmpEl.offsetHeight + 20 : 12) + 'px'; };
   const setInfo = (t, warn) => {
     cmpInfo.textContent = t;
@@ -527,7 +539,7 @@ try {
     cmp.dev = d.dev; Rv = geo.boundingSphere.radius || 1; reset();
     cmp.busy = false; cmpEl.classList.remove('busy');
     recolor(); applyMode();
-    const rms = d.rms, bad = !isFinite(rms) || rms > 0.5 || d.overlap < 0.3;
+    cmp.rms = d.rms; const rms = d.rms, bad = !isFinite(rms) || rms > 0.5 || d.overlap < 0.3;
     devLine = 'Tap the surface for the deviation';
     cmp.head = 'New: ' + nw.name + '  ·  Old: ' + od.name + '\nAligned · RMS ' + (isFinite(rms) ? rms.toFixed(2) + ' mm' : 'n/a') + ' · overlap ' + Math.round(d.overlap * 100) + '%';
     cmp.warn = bad ? 'Scans may not overlap well' + (isFinite(rms) ? ' (RMS ' + rms.toFixed(2) + ' mm)' : '') + '.' : '';
@@ -552,7 +564,7 @@ try {
       else if (d.type === 'done') { w.terminate(); cmp.worker = null; applyResult(nw, od, d); }
     };
     w.onerror = ev => stop('Could not compare these scans' + (ev && ev.message ? ': ' + ev.message : '.'));
-    w.postMessage({ np: nw.pos, op: od.pos, oi: od.index, iters: 40 });
+    w.postMessage({ np: nw.pos, op: od.pos, oi: od.index, otn: od.tn, ovn: od.vn, iters: 40 });
   }
   bCmp.onclick = async () => {
     const h = window.flutter_inappwebview;
@@ -568,7 +580,7 @@ try {
       if (!o.index && fmt !== 'stl') throw new Error('The picked scan has no surface triangles.');
       for (let i = 0; i < o.pos.length; i += 3) { o.pos[i] -= cA.x; o.pos[i + 1] -= cA.y; o.pos[i + 2] -= cA.z; }
       if (!cmp) cmp = { tol: 0.1, mode: 'map' };
-      cmp.other = { name: info.name || 'Other scan', pos: o.pos, index: o.index ? Uint32Array.from(o.index) : null };
+      cmp.other = { name: info.name || 'Other scan', pos: o.pos, index: o.index ? Uint32Array.from(o.index) : null, tn: o.tn, vn: o.vn };
       cmp.swapped = false; runCompare();
     } catch (e) { cmp = cmp || { tol: 0.1, mode: 'map' }; showPanel(true); setInfo(e.message || 'Could not open the picked scan.'); }
   };
@@ -576,6 +588,31 @@ try {
   $('bOver').onclick = () => { if (cmp && cmp.mesh) { cmp.mode = 'over'; applyMode(); } };
   $('bSwap').onclick = () => { if (cmp && cmp.other && !cmp.busy) { cmp.swapped = !cmp.swapped; runCompare(); } };
   $('bExit').onclick = exitCompare;
+  if (new URLSearchParams(location.search).get('pt') === '1') $('bSave').style.display = '';
+  $('bSave').onclick = async () => {
+    const h = window.flutter_inappwebview;
+    if (!h || !h.callHandler || !cmp || !cmp.mesh || cmp.busy) return;
+    ren.render(scene, cam);
+    const src = ren.domElement, W = src.width, H = src.height, bar = Math.round(H * 0.12);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H + bar;
+    const x = cv.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H + bar); x.drawImage(src, 0, 0);
+    const fs = Math.max(11, Math.round(bar * 0.26)), pad = Math.round(W * 0.03);
+    if (cmp.mode === 'map') {
+      const g = x.createLinearGradient(pad, 0, W - pad, 0), tol = cmp.tol;
+      const p1 = (SCALE - tol) / (2 * SCALE), p2 = (SCALE + tol) / (2 * SCALE);
+      g.addColorStop(0, C_LOST); g.addColorStop(p1, C_OK); g.addColorStop(p2, C_OK); g.addColorStop(1, C_GAIN);
+      x.fillStyle = g; x.fillRect(pad, H + bar * 0.12, W - 2 * pad, bar * 0.22);
+      x.fillStyle = '#222'; x.font = fs + 'px sans-serif'; x.textBaseline = 'top';
+      x.textAlign = 'left'; x.fillText('\u22121 mm (lost)', pad, H + bar * 0.4);
+      x.textAlign = 'center'; x.fillText('0', W / 2, H + bar * 0.4);
+      x.textAlign = 'right'; x.fillText('+1 mm (gained)', W - pad, H + bar * 0.4);
+      x.textAlign = 'left'; x.fillText('Green = within \u00b1' + tol.toFixed(2) + ' mm', pad, H + bar * 0.68);
+    }
+    x.fillStyle = '#222'; x.font = fs + 'px sans-serif'; x.textAlign = 'right'; x.textBaseline = 'top';
+    x.fillText('RMS ' + (isFinite(cmp.rms) ? cmp.rms.toFixed(2) + ' mm' : 'n/a'), W - pad, H + bar * 0.68);
+    try { await h.callHandler('savePicture', { png: cv.toDataURL('image/png'), rms: isFinite(cmp.rms) ? cmp.rms : null }); } catch (e) {}
+  };
   $('tol').oninput = e => { if (!cmp || !cmp.dev) return; cmp.tol = +e.target.value; $('tolV').textContent = cmp.tol.toFixed(2); recolor(); };
   function showDeviation(hit) {
     if (!cmp || !cmp.dev || !hit.face || cmp.busy) return;

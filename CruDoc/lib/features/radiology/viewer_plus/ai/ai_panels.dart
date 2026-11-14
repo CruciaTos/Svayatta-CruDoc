@@ -50,6 +50,7 @@ class RadAiSecondReadPanel extends ConsumerStatefulWidget {
 
 class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
   bool _running = false;
+  final Set<String> _accepted = {};
   String? _error;
 
   Map<String, dynamic>? _latestRun() {
@@ -156,6 +157,9 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
   Future<void> _accept(RadAiFinding f) async {
     final patientId = widget.study.patientId;
     if (patientId.isEmpty || !_canChart(f)) return;
+    // Guard against double taps and Accept-all overlapping single accepts:
+    // the study/finding list stays stale until the next rebuild.
+    if (!f.isPending || !_accepted.add(f.id)) return;
     try {
       final visit = chartWriteVisit(ref, patientId);
       final now = DateTime.now();
@@ -193,6 +197,7 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
       refreshDentalPatient(ref, patientId);
       await _updateStatus(f.id, 'accepted');
     } catch (_) {
+      _accepted.remove(f.id);
       if (mounted) radToast(context, "Couldn't add to the chart. Try again.");
     }
   }

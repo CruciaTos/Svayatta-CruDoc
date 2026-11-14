@@ -99,8 +99,16 @@ Map<String, dynamic> buildDental3dSnapshot(
           surfaces: const [],
           status: 'completed',
         );
-      case ToothCondition.boneLoss || ToothCondition.periapicalLesion:
-        break; // no 3D drawing for these
+      case ToothCondition.boneLoss:
+        // Depth only when the note states it ("bone loss 3.5 mm"): the page
+        // shows the number, so none is invented.
+        final mm = RegExp(r'(\d+(?:\.\d+)?)\s*mm', caseSensitive: false)
+            .firstMatch(e.notes);
+        final depth = mm == null ? null : double.tryParse(mm.group(1)!);
+        if (depth != null && depth > 0) tooth['boneLoss'] = depth;
+      case ToothCondition.periapicalLesion:
+        // The viewer's "infection at root tip" condition.
+        conditions.add({'type': 'abscess', 'surfaces': surfaces});
       case null:
         break;
     }

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -25,6 +26,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/pat
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_dicom_file.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/scan_viewer_placeholder.dart';
 import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
 import 'package:doctor_management_app/features/scan/presentation/scan_flow.dart';
 import 'package:doctor_management_app/features/files/presentation/send_sheet.dart';
@@ -116,6 +118,22 @@ abstract final class FilesActions {
           patientName: patientName,
         );
         if (shown) return;
+      }
+      if (const ['.stl', '.ply', '.obj'].contains(
+            p.extension(file.name).toLowerCase(),
+          ) &&
+          !kIsWeb &&
+          context.mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ScanViewerPlaceholderScreen(
+              filePath: local.path,
+              fileName: file.name,
+              patientId: file.patientId.isEmpty ? null : file.patientId,
+            ),
+          ),
+        );
+        return;
       }
       final opened = await launchUrl(Uri.file(local.path));
       if (!opened) {

@@ -622,6 +622,7 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                                 builder: (_) => ScanViewerPlaceholderScreen(
                                   filePath: f.path,
                                   fileName: f.name,
+                                  patientId: _patient?.id,
                                 ),
                               ),
                             );

@@ -239,7 +239,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
-    if (_voiceOn) _voiceCleanup();
+    if (_voiceOn || VoiceBus.perioListening.value) _voiceCleanup();
     _notes.dispose();
     _focus.dispose();
     super.dispose();
@@ -513,6 +513,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     try {
       await engine.init();
       if (!engine.isReady) throw StateError('not ready');
+      if (!mounted) return;
       _voiceSub = engine.transcripts.listen(_onTranscript);
       VoiceBus.perioListening.value = true;
       if (mounted) setState(() => _voiceOn = true);

@@ -464,14 +464,19 @@ class _StudyRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    RadFormat.date(study.studyDate),
+                    study.extras['fmx'] is Map
+                        ? 'Full-mouth series · ${study.imageCount} films'
+                        : RadFormat.date(study.studyDate),
                     style: CruType.row.tabular.tint(c.label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     [
-                      RadFormat.images(study.imageCount),
+                      if (study.extras['fmx'] is Map)
+                        RadFormat.date(study.studyDate)
+                      else
+                        RadFormat.images(study.imageCount),
                       if (prior) 'Prior',
                     ].join(' · '),
                     style: CruType.subhead.tabular.tint(c.label2),

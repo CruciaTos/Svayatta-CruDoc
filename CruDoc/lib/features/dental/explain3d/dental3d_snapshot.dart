@@ -99,6 +99,8 @@ Map<String, dynamic> buildDental3dSnapshot(
           surfaces: const [],
           status: 'completed',
         );
+      case ToothCondition.boneLoss || ToothCondition.periapicalLesion:
+        break; // no 3D drawing for these
       case null:
         break;
     }

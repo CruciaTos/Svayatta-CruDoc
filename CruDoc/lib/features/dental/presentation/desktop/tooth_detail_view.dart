@@ -27,6 +27,7 @@ import 'package:doctor_management_app/features/dental/presentation/providers/den
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/endo_dialog.dart';
 import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
+import 'package:doctor_management_app/features/dental/records/tooth_images_strip.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -765,7 +766,14 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     );
     final right = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [record, gap, endoCard, gap, perioCard],
+      children: [
+        record,
+        gap,
+        endoCard,
+        gap,
+        perioCard,
+        ToothImagesStrip(patient: p, tooth: int.tryParse(_tooth) ?? 0),
+      ],
     );
     final body = LayoutBuilder(
       builder: (context, constraints) {

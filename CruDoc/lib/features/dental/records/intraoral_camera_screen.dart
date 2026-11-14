@@ -216,6 +216,7 @@ class _IntraoralCameraScreenState extends State<IntraoralCameraScreen> {
               name: 'Intraoral · $tag · ${stamp + i}.jpg',
               sizeBytes: s.bytes.length,
               bytes: s.bytes,
+              teeth: [if (s.tooth != null) s.tooth!],
             ),
           ],
           patientId: widget.patient.id,

@@ -152,6 +152,8 @@ abstract final class DentalChart {
     ToothCondition.impacted => 'Impacted',
     ToothCondition.restored => 'Restored',
     ToothCondition.rootCanal => 'Root canal treated',
+    ToothCondition.boneLoss => 'Bone loss',
+    ToothCondition.periapicalLesion => 'Periapical lesion',
   };
 
   static String treatmentLabel(ToothTreatment t) => switch (t) {
@@ -199,7 +201,9 @@ abstract final class DentalChart {
     return switch (condition(e.condition)) {
       ToothCondition.caries ||
       ToothCondition.fractured ||
-      ToothCondition.impacted => ToothState.needsCare,
+      ToothCondition.impacted ||
+      ToothCondition.boneLoss ||
+      ToothCondition.periapicalLesion => ToothState.needsCare,
       ToothCondition.missing => ToothState.missing,
       ToothCondition.unerupted => ToothState.notErupted,
       ToothCondition.restored || ToothCondition.rootCanal => ToothState.treated,

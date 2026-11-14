@@ -31,12 +31,16 @@ class FileSource {
     required this.sizeBytes,
     this.path,
     this.bytes,
+    this.teeth = const [],
   });
 
   final String name;
   final int sizeBytes;
   final String? path;
   final Uint8List? bytes;
+
+  /// FDI numbers of the teeth this picture shows (none for full mouth).
+  final List<int> teeth;
 
   /// The content type, or null when the Files screen doesn't take it.
   String? get contentType => PatientFileTypes.contentTypeFor(name);
@@ -544,6 +548,7 @@ class FilesRepository {
         updatedAt: now,
         localPath: rel,
         sha256: sha256,
+        teeth: s.teeth,
       );
       await _putFile(f);
       final queued = await StorageSyncQueue.instance.enqueue(

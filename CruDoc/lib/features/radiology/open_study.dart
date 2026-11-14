@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_viewer_screen.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/presentation/fmx_series_view.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/report_editor_screen.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_screen.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
@@ -30,6 +31,13 @@ Future<void> openRadStudy(
   String? imageId,
 }) async {
   unawaited(ref.read(radiologyProvider).openedStudy(s));
+  if (imageId == null && isFmxSeriesStudy(s)) {
+    // A full-mouth series opens in its mount; a film opens from there.
+    await Navigator.of(context, rootNavigator: true).push(
+      radRoute<void>(FmxSeriesViewScreen(study: s)),
+    );
+    return;
+  }
   await Navigator.of(context, rootNavigator: true).push(
     radRoute<void>(
       RadViewerScreen(studyId: s.id, initialStudy: s, initialImageId: imageId),

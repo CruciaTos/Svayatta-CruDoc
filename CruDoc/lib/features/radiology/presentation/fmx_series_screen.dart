@@ -65,10 +65,9 @@ const fmxTemplates = <FmxTemplate>[
 ];
 
 class _Shot {
-  _Shot(this.bytes, this.at, this.studyId);
+  _Shot(this.bytes, this.at);
   Uint8List bytes;
   DateTime at;
-  final String studyId;
 }
 
 /// Full-mouth X-ray series: the mount fills in as each film is captured.
@@ -83,6 +82,9 @@ class FmxSeriesScreen extends ConsumerStatefulWidget {
 class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
   final _service = RvgSensorService.instance;
   final _seriesId = radId('fmx_');
+  // The whole series is one study; each capture adds or replaces an image.
+  final _studyId = radId('study_');
+  DateTime? _startedAt;
 
   Patient? _patient;
   FmxTemplate _template = fmxTemplates.first;
@@ -137,7 +139,7 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
   }
 
   void _setTemplate(FmxTemplate t) {
-    if (_busy || t == _template) return;
+    if (_busy || t == _template || _shots.isNotEmpty) return;
     setState(() {
       _template = t;
       _current = _firstEmpty(0);
@@ -239,68 +241,86 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
   }
 
   Future<void> _store(FmxSlot slot, RvgCaptureResult res, String device) async {
-    final old = _shots[slot.label];
-    final shot = _Shot(
-      res.imageBytes,
-      res.capturedAt,
-      old?.studyId ?? radId('study_'),
-    );
-    // Retake keeps the same study id so the saved study is replaced.
+    final shot = _Shot(res.imageBytes, res.capturedAt);
+    final isNew = !_shots.containsKey(slot.label);
     _log.add(shot);
     _logLabels.add(slot.label);
 
+    final idx = _slots.indexOf(slot);
     final ctrl = ref.read(radiologyProvider);
-    final dir = await ctrl.studyDir(shot.studyId);
+    final dir = await ctrl.studyDir(_studyId);
     Directory(dir.path).createSync(recursive: true);
-    const storedName = 'img_0000.png';
+    // One file per slot: a retake overwrites it.
+    final storedName = 'img_${idx.toString().padLeft(4, '0')}.png';
     File(p.join(dir.path, storedName)).writeAsBytesSync(res.imageBytes);
 
-    final teeth = slot.teeth.join(',');
-    final tag = 'FMX · ${slot.label} · teeth $teeth';
+    final image = RadImageRef(
+      id: 'img_$idx',
+      path: storedName,
+      kind: RadFileKind.raster,
+      seriesDescription: slot.label,
+      instanceNumber: idx + 1,
+      width: res.width,
+      height: res.height,
+      dicomModality: 'IO',
+    );
+    final meta = <String, dynamic>{
+      'imageId': image.id,
+      'slot': slot.label,
+      'teeth': slot.teeth,
+      'bitewing': slot.bitewing,
+      'exposedAt': res.capturedAt.toIso8601String(),
+      'kvp': null,
+      'ma': null,
+      'exposureSeconds': null,
+    };
+
+    // Merge onto the saved copy: uploads that finished meanwhile have
+    // written their storage paths into it.
+    final saved = await ref.read(radiologyRepositoryProvider).study(_studyId);
+    final images = <RadImageRef>[
+      for (final i in saved?.images ?? const <RadImageRef>[])
+        if (i.id != image.id) i,
+      image,
+    ]..sort((a, b) => a.instanceNumber.compareTo(b.instanceNumber));
+    final metas = <Map<String, dynamic>>[
+      for (final m in _imageMetas(saved))
+        if (m['imageId'] != image.id) m,
+      meta,
+    ]..sort((a, b) => _slotOf(a).compareTo(_slotOf(b)));
+
+    final count = _shots.length + (isNew ? 1 : 0);
+    final desc = 'Full-mouth series (${_template.name}) · $count/${_slots.length}';
     final now = DateTime.now();
+    _startedAt ??= saved?.studyDate ?? now;
     final study = RadStudy(
-      id: shot.studyId,
+      id: _studyId,
       patientId: _patient!.id,
       patientName: _patient!.fullName,
       patientExternalId: _patient!.id,
-      modality: slot.bitewing ? RadModality.bitewing : RadModality.iopa,
-      studyDate: now,
-      receivedAt: now,
-      description: tag,
-      clinicalQuestion:
-          '$tag · series $_seriesId · exposed ${res.capturedAt.toIso8601String()} · ${_logText()}',
-      images: [
-        RadImageRef(
-          id: 'img_0',
-          path: storedName,
-          kind: RadFileKind.raster,
-          width: res.width,
-          height: res.height,
-          dicomModality: 'IO',
-        ),
-      ],
-      bodyPart: 'Mouth / teeth $teeth',
+      modality: RadModality.iopa,
+      studyDate: _startedAt!,
+      receivedAt: saved?.receivedAt ?? now,
+      description: desc,
+      clinicalQuestion: '$desc · series $_seriesId · ${_logText()}',
+      images: images,
+      bodyPart: 'Mouth / teeth',
       equipment: device,
       extras: {
-        'tooth': slot.teeth.first,
         'fmx': {
           'seriesId': _seriesId,
           'template': _template.name,
-          'slot': slot.label,
-          'teeth': slot.teeth,
-          'exposedAt': res.capturedAt.toIso8601String(),
-          'kvp': null,
-          'ma': null,
-          'exposureSeconds': null,
+          'slots': _slots.length,
+          'images': metas,
         },
       },
-      createdAt: now,
+      createdAt: saved?.createdAt ?? now,
       updatedAt: now,
     );
     await ctrl.saveStudy(
       study,
       auditAction: 'RVG FMX capture',
-      detail: tag,
+      detail: '$desc · ${slot.label}',
     );
     unawaited(
       RadiologyCloudSync.enqueueStudyImages(
@@ -317,6 +337,19 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
     });
   }
 
+  static List<Map<String, dynamic>> _imageMetas(RadStudy? s) {
+    final fmx = s?.extras['fmx'];
+    final list = fmx is Map ? fmx['images'] : null;
+    return [
+      if (list is List)
+        for (final m in list)
+          if (m is Map) Map<String, dynamic>.from(m),
+    ];
+  }
+
+  static int _slotOf(Map<String, dynamic> m) =>
+      int.tryParse('${m['imageId']}'.replaceFirst('img_', '')) ?? 0;
+
   Future<void> _leave() async {
     if (_busy) return;
     if (_complete || _shots.isEmpty && _log.isEmpty) {
@@ -332,7 +365,6 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final narrow = MediaQuery.sizeOf(context).width < 640;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -358,7 +390,25 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
             children: [
               _header(),
               const SizedBox(height: CruSpace.s12),
-              Expanded(child: narrow ? _list() : _grid()),
+              Expanded(
+                child: FmxMount(
+                  template: _template,
+                  current: _slots[_current],
+                  onTap: _busy
+                      ? null
+                      : (s) => setState(() => _current = _slots.indexOf(s)),
+                  imageFor: (s) {
+                    final shot = _shots[s.label];
+                    return shot == null
+                        ? null
+                        : Image.memory(
+                            shot.bytes,
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          );
+                  },
+                ),
+              ),
               const SizedBox(height: CruSpace.s12),
               _controls(),
               const SizedBox(height: CruSpace.s12),
@@ -381,7 +431,7 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
           ChoiceChip(
             label: Text(t.name),
             selected: t == _template,
-            onSelected: _busy ? null : (_) => _setTemplate(t),
+            onSelected: _busy || _shots.isNotEmpty ? null : (_) => _setTemplate(t),
           ),
         Text(
           _patient?.fullName ?? 'Patient chosen at first capture',
@@ -397,91 +447,6 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
             onChanged: _busy ? null : (d) => setState(() => _device = d),
           ),
       ],
-    );
-  }
-
-  Widget _grid() {
-    return Column(
-      children: [
-        for (var r = 0; r < _template.rows.length; r++) ...[
-          if (r > 0) const SizedBox(height: CruSpace.s8),
-          Expanded(
-            child: Row(
-              children: [
-                for (var i = 0; i < _template.rows[r].length; i++) ...[
-                  if (i > 0) const SizedBox(width: CruSpace.s8),
-                  Expanded(child: _tile(_template.rows[r][i])),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _list() {
-    return ListView.separated(
-      itemCount: _slots.length,
-      separatorBuilder: (_, _) => const SizedBox(height: CruSpace.s8),
-      itemBuilder: (_, i) => SizedBox(height: 120, child: _tile(_slots[i])),
-    );
-  }
-
-  Widget _tile(FmxSlot slot) {
-    final c = context.cru;
-    final idx = _slots.indexOf(slot);
-    final cur = idx == _current;
-    final shot = _shots[slot.label];
-    return InkWell(
-      borderRadius: BorderRadius.circular(CruRadius.control),
-      onTap: _busy ? null : () => setState(() => _current = idx),
-      child: Container(
-        decoration: BoxDecoration(
-          color: c.inset,
-          borderRadius: BorderRadius.circular(CruRadius.control),
-          border: Border.all(
-            color: cur ? c.accent : c.hairline,
-            width: cur ? 2 : 1,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(CruRadius.control),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (shot != null)
-                Image.memory(shot.bytes, fit: BoxFit.cover, gaplessPlayback: true),
-              Positioned(
-                left: CruSpace.s8,
-                right: CruSpace.s8,
-                bottom: CruSpace.s8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.surface.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(CruRadius.full),
-                  ),
-                  child: Text(
-                    slot.label,
-                    style: CruType.caption.w600.tint(c.label),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              if (shot != null)
-                Positioned(
-                  top: CruSpace.s8,
-                  right: CruSpace.s8,
-                  child: Icon(Icons.check_circle, size: 18, color: c.green),
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -554,6 +519,111 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
                     ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// The mount: one tile per film position, laid out like the template (a
+/// list on narrow screens). Used to capture a series and, read-only, to
+/// look at a saved one.
+class FmxMount extends StatelessWidget {
+  const FmxMount({
+    super.key,
+    required this.template,
+    required this.imageFor,
+    this.current,
+    this.onTap,
+  });
+
+  final FmxTemplate template;
+
+  /// The picture for a slot, or null when it is empty.
+  final Widget? Function(FmxSlot slot) imageFor;
+  final FmxSlot? current;
+  final void Function(FmxSlot slot)? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 640) {
+      final slots = template.slots;
+      return ListView.separated(
+        itemCount: slots.length,
+        separatorBuilder: (_, _) => const SizedBox(height: CruSpace.s8),
+        itemBuilder: (_, i) =>
+            SizedBox(height: 120, child: _tile(context, slots[i])),
+      );
+    }
+    return Column(
+      children: [
+        for (var r = 0; r < template.rows.length; r++) ...[
+          if (r > 0) const SizedBox(height: CruSpace.s8),
+          Expanded(
+            child: Row(
+              children: [
+                for (var i = 0; i < template.rows[r].length; i++) ...[
+                  if (i > 0) const SizedBox(width: CruSpace.s8),
+                  Expanded(child: _tile(context, template.rows[r][i])),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _tile(BuildContext context, FmxSlot slot) {
+    final c = context.cru;
+    final cur = slot == current;
+    final image = imageFor(slot);
+    return InkWell(
+      borderRadius: BorderRadius.circular(CruRadius.control),
+      onTap: onTap == null ? null : () => onTap!(slot),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.inset,
+          borderRadius: BorderRadius.circular(CruRadius.control),
+          border: Border.all(
+            color: cur ? c.accent : c.hairline,
+            width: cur ? 2 : 1,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(CruRadius.control),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ?image,
+              Positioned(
+                left: CruSpace.s8,
+                right: CruSpace.s8,
+                bottom: CruSpace.s8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CruSpace.s8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.surface.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(CruRadius.full),
+                  ),
+                  child: Text(
+                    slot.label,
+                    style: CruType.caption.w600.tint(c.label),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              if (image != null)
+                Positioned(
+                  top: CruSpace.s8,
+                  right: CruSpace.s8,
+                  child: Icon(Icons.check_circle, size: 18, color: c.green),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

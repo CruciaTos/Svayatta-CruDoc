@@ -214,6 +214,7 @@ class FilesCloudSync {
     final sha256 = row['sha256'] as String? ?? '';
     final receivedFromUid = row['receivedFromUid'] as String? ?? '';
     final receivedFromName = row['receivedFromName'] as String? ?? '';
+    final teeth = PatientFile.fromLocalMap({'teeth': row['teeth']}).teeth;
     return {
       ...common,
       'patientId': row['patientId'] as String? ?? '',
@@ -225,6 +226,7 @@ class FilesCloudSync {
       'thumb': FieldCipher.encrypt(row['thumb'] as String?),
       'viewPath': row['viewPath'] as String? ?? '',
       if (sha256.isNotEmpty) 'sha256': sha256,
+      if (teeth.isNotEmpty) 'teeth': teeth,
       if (receivedFromUid.isNotEmpty)
         'receivedFrom': {
           'uid': receivedFromUid,
@@ -276,6 +278,10 @@ class FilesCloudSync {
       'sha256': d['sha256'] as String? ?? '',
       'receivedFromUid': rFromUid,
       'receivedFromName': rFromName,
+      'teeth': [
+        for (final e in (d['teeth'] as List? ?? const []))
+          if (e is num) e.toInt(),
+      ],
     }).copyWith(visibleTo: visibleTo).toLocalMap();
   }
 

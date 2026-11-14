@@ -204,6 +204,7 @@ class PatientFile {
     this.sha256 = '',
     this.receivedFromUid = '',
     this.receivedFromName = '',
+    this.teeth = const [],
   });
 
   final String id;
@@ -255,6 +256,10 @@ class PatientFile {
   /// If received from a colleague, the sender's doctor name ("From Dr Mehta").
   final String receivedFromName;
 
+  /// FDI numbers of the teeth this picture shows (empty when it is not
+  /// linked to a tooth). Old files have none.
+  final List<int> teeth;
+
   FileKind get kind => PatientFileTypes.kindOf(contentType);
 
   PatientFile copyWith({
@@ -273,6 +278,7 @@ class PatientFile {
     String? sha256,
     String? receivedFromUid,
     String? receivedFromName,
+    List<int>? teeth,
   }) => PatientFile(
     id: id,
     doctorId: doctorId,
@@ -295,6 +301,7 @@ class PatientFile {
     sha256: sha256 ?? this.sha256,
     receivedFromUid: receivedFromUid ?? this.receivedFromUid,
     receivedFromName: receivedFromName ?? this.receivedFromName,
+    teeth: teeth ?? this.teeth,
   );
 
   Map<String, Object?> toLocalMap() => {
@@ -319,6 +326,7 @@ class PatientFile {
     'sha256': sha256,
     'receivedFromUid': receivedFromUid,
     'receivedFromName': receivedFromName,
+    'teeth': jsonEncode(teeth),
   };
 
   factory PatientFile.fromLocalMap(Map<String, Object?> m) => PatientFile(
@@ -343,6 +351,10 @@ class PatientFile {
     sha256: m['sha256'] as String? ?? '',
     receivedFromUid: m['receivedFromUid'] as String? ?? '',
     receivedFromName: m['receivedFromName'] as String? ?? '',
+    teeth: [
+      for (final e in _decodeList(m['teeth']))
+        if (int.tryParse(e) != null) int.parse(e),
+    ],
   );
 }
 

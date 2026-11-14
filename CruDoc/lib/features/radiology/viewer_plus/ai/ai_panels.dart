@@ -162,7 +162,8 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
       final cond = switch (f.kind) {
         RadAiKind.caries => ToothCondition.caries,
         RadAiKind.impacted => ToothCondition.impacted,
-        _ => null,
+        RadAiKind.boneLoss => ToothCondition.boneLoss,
+        RadAiKind.periapical => ToothCondition.periapicalLesion,
       };
       final surfaces = [
         for (final ch in f.surface.toUpperCase().split(''))
@@ -178,7 +179,7 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
               doctorId: ref.read(dentalDoctorIdProvider),
               patientId: patientId,
               toothNumber: f.tooth,
-              condition: cond?.name,
+              condition: cond.name,
               surface: surfaces.isEmpty ? null : surfaces.join(','),
               visitId: visit?.id,
               baseEntryId: chartBaseFor(ref, patientId, visit, f.tooth),

@@ -1819,7 +1819,8 @@ class LocalDatabaseService extends ChangeNotifier {
         lastSyncedAt INTEGER,
         sha256 TEXT NOT NULL DEFAULT '',
         receivedFromUid TEXT NOT NULL DEFAULT '',
-        receivedFromName TEXT NOT NULL DEFAULT ''
+        receivedFromName TEXT NOT NULL DEFAULT '',
+        teeth TEXT NOT NULL DEFAULT '[]'
       )
     ''');
     await db.execute('''
@@ -1866,6 +1867,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'sha256': "sha256 TEXT NOT NULL DEFAULT ''",
     'receivedFromUid': "receivedFromUid TEXT NOT NULL DEFAULT ''",
     'receivedFromName': "receivedFromName TEXT NOT NULL DEFAULT ''",
+    'teeth': "teeth TEXT NOT NULL DEFAULT '[]'",
   };
 
   static const Map<String, String> _fileFoldersColumns = {

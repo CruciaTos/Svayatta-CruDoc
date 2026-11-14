@@ -46,7 +46,9 @@ enum ToothCondition {
   unerupted,
   impacted,
   restored,
-  rootCanal;
+  rootCanal,
+  boneLoss,
+  periapicalLesion;
 
   static ToothCondition? fromString(String? val) {
     if (val == null || val.trim().isEmpty) return null;

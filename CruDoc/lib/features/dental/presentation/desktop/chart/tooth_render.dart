@@ -309,6 +309,31 @@ void paintTooth(
   if (look.rootShown > 0) _paintRoots(canvas, p, v, c, look);
   _paintCrown(canvas, p, v, c, look);
   _paintFindings(canvas, p, v, c);
+  if (look.rootShown > 0) {
+    if (v.condition == ToothCondition.periapicalLesion) {
+      final apex = Offset(0, p.ch + p.rl * look.rootShown * 0.96);
+      final r = math.max(1.6, p.mw * 0.22);
+      canvas.drawCircle(apex, r, Paint()..color = Colors.black87);
+      canvas.drawCircle(
+        apex,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = c.amberText,
+      );
+    } else if (v.condition == ToothCondition.boneLoss) {
+      final y = p.ch + p.rl * look.rootShown * 0.4;
+      canvas.drawLine(
+        Offset(-p.mw * 1.15, y),
+        Offset(p.mw * 1.15, y),
+        Paint()
+          ..strokeWidth = 1.6
+          ..strokeCap = StrokeCap.round
+          ..color = c.amberText,
+      );
+    }
+  }
   if (look.planMode && v.isPlanned) {
     canvas.drawPath(
       p.crown,

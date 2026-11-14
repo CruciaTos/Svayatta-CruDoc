@@ -75,7 +75,8 @@ Future<void> addCruDocReferrer(
     }
   } catch (e) {
     if (context.mounted) {
-      recToast(context, "Couldn't add ${drName(person.name)}: $e");
+      debugPrint('add referrer failed: $e');
+      recToast(context, "Couldn't add ${drName(person.name)}. Try again.");
     }
   }
 }
@@ -103,7 +104,8 @@ Future<void> answerReferrerRequest(
       );
     }
   } catch (e) {
-    if (context.mounted) recToast(context, "Couldn't answer: $e");
+    debugPrint('answer failed: $e');
+    if (context.mounted) recToast(context, "Couldn't answer. Try again.");
   }
 }
 

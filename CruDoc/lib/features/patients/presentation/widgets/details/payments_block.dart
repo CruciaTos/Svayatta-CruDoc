@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
@@ -149,7 +150,7 @@ class PaymentsSummaryCard extends ConsumerWidget {
     final c = context.cru;
     final billing = ref.watch(patientBillingProvider(summary.id));
     final lines = _dueLines(summary, billing, showBills);
-    final phone = MediaQuery.sizeOf(context).width < 600;
+    final phone = !usesDesktopLayout(context);
     if (phone) {
       // One line: the glance card's Due cell is the quick action.
       final total = patientDueTotal(summary, billing, showBills);

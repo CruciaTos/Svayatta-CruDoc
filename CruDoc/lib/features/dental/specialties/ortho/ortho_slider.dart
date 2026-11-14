@@ -112,7 +112,8 @@ class _OrthoBeforeAfterDialogState
         }
       }
     } catch (e) {
-      if (mounted) recToast(context, 'Export failed: $e');
+      debugPrint('export failed: $e');
+      if (mounted) recToast(context, "Couldn't export. Try again.");
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -135,7 +136,10 @@ class _OrthoBeforeAfterDialogState
           child: CircularProgressIndicator(),
         ),
       ),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) {
+        debugPrint('load photos failed: $e');
+        return const Center(child: Text("Couldn't load the photos. Try again."));
+      },
       data: (records) {
         final sets = records.map(OrthoPhotoSet.fromRecord).toList()
           ..sort((a, b) => a.date.compareTo(b.date));

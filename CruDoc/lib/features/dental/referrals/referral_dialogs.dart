@@ -162,7 +162,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
       if (mounted) setState(() => _selectedContact = contact);
     } catch (e) {
       if (mounted) {
-        recToast(context, "Couldn't save ${drName(person.name)}: $e");
+        recToast(context, "Couldn't save ${drName(person.name)}. Try again.");
       }
     }
   }
@@ -300,7 +300,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
         );
       }
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving referral: $e');
+      debugPrint('save referral failed: $e');
+      if (mounted) recToast(context, "Couldn't save the referral. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -790,7 +791,8 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
         Navigator.of(context).pop(resultContact);
       }
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving contact: $e');
+      debugPrint('save contact failed: $e');
+      if (mounted) recToast(context, "Couldn't save the contact. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -904,7 +906,7 @@ class _ContactDirectoryDialogState
       }
     } catch (e) {
       if (mounted) {
-        recToast(context, "Couldn't save ${drName(person.name)}: $e");
+        recToast(context, "Couldn't save ${drName(person.name)}. Try again.");
       }
     }
   }
@@ -1119,7 +1121,8 @@ class _WriteReplyDialogState extends ConsumerState<WriteReplyDialog> {
       if (mounted) recToast(context, 'Treatment summary saved');
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving reply: $e');
+      debugPrint('save reply failed: $e');
+      if (mounted) recToast(context, "Couldn't save the reply. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart' show kDoubleTapTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/appt_doctor_tint.dart';
 
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
@@ -283,6 +284,7 @@ class _TwoLines extends StatelessWidget {
                       softWrap: false,
                     ),
                   ),
+                  MissingDetailsDot(patient: item.patient),
                   if (item.isHomeVisit) _Home(style: style),
                 ],
               ),

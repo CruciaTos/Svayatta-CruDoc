@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:doctor_management_app/core/update/models/app_release.dart';
@@ -54,12 +55,15 @@ Future<void> downloadFileWithProgress({
   try {
     response = await client.send(http.Request('GET', uri));
   } catch (e) {
-    throw UpdateDownloadException('Could not start the download: $e');
+    debugPrint('[Update] download start failed: $e');
+    throw const UpdateDownloadException(
+      "Couldn't start the download. Check your connection and try again.",
+    );
   }
 
   if (response.statusCode != 200) {
-    throw UpdateDownloadException(
-      'Download failed with HTTP ${response.statusCode}.',
+    throw const UpdateDownloadException(
+      "Couldn't download the update. Try again later.",
     );
   }
 
@@ -84,7 +88,10 @@ Future<void> downloadFileWithProgress({
     }
     await sink.flush();
   } catch (e) {
-    throw UpdateDownloadException('Download interrupted: $e');
+    debugPrint('[Update] download interrupted: $e');
+    throw const UpdateDownloadException(
+      'The download was interrupted. Try again.',
+    );
   } finally {
     await sink.close();
   }

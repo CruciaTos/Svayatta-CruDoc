@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -164,7 +166,7 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                   ),
                   // The shortcut only exists in the desktop shell.
                   if (!cruIsTouchPlatform &&
-                      MediaQuery.sizeOf(context).width >= 900) ...[
+                      usesDesktopLayout(context)) ...[
                     const SizedBox(width: CruSpace.s8),
                     CruKeycap(_shortcut),
                   ] else
@@ -255,10 +257,18 @@ class _OptionRow extends StatelessWidget {
               CruMonogram(name: patient.fullName, size: 26),
               const SizedBox(width: CruSpace.s10),
               Expanded(
-                child: Text(
-                  patient.fullName,
-                  style: CruType.callout.tint(c.label),
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        patient.fullName,
+                        style: CruType.callout.tint(c.label),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    MissingDetailsDot(patient: patient),
+                  ],
                 ),
               ),
               Text(

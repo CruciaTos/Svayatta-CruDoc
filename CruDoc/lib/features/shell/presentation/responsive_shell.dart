@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/update/presentation/update_launcher.dart';
 import 'package:doctor_management_app/features/todos/presentation/todo_reminder_watcher.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_network_watcher.dart';
@@ -17,13 +18,10 @@ import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dar
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_gate.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Width (logical pixels) above which [DesktopShell] is shown instead of
-/// the phone [MobileShell]. Tweak this single number to change where the
-/// layout switches over.
-const double kDesktopBreakpoint = 900;
-
-/// Picks between the phone [MobileShell] and [DesktopShell] based on the
-/// available width. A new doctor (no specialty, never onboarded) sees
+/// Picks between the phone [MobileShell] and [DesktopShell] by device type
+/// ([usesDesktopLayout]): phones get the phone layout, tablets (any
+/// orientation) and PCs get the desktop one, scaled down below
+/// [kDesktopLayoutMinWidth]. A new doctor (no specialty, never onboarded) sees
 /// [OnboardingFlow] first. Clinic invites pop up over all of it
 /// ([ClinicInviteWatcher]), referrals from other doctors are announced
 /// ([ReferralNetworkWatcher]), and so is a resolved bug report or feedback
@@ -109,24 +107,18 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
     }
     return KeyedSubtree(
       key: ValueKey(access?.clinicId),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // The first-run tour, separately per layout. Crossing the
-          // breakpoint swaps the gate too, which ends the other tour.
-          if (constraints.maxWidth >= kDesktopBreakpoint) {
-            return const TutorialGate(
+      // The first-run tour, separately per layout.
+      child: usesDesktopLayout(context)
+          ? const TutorialGate(
               key: ValueKey(TutorialPlatform.desktop),
               platform: TutorialPlatform.desktop,
               child: DesktopShell(),
-            );
-          }
-          return const TutorialGate(
-            key: ValueKey(TutorialPlatform.mobile),
-            platform: TutorialPlatform.mobile,
-            child: MobileShell(),
-          );
-        },
-      ),
+            )
+          : const TutorialGate(
+              key: ValueKey(TutorialPlatform.mobile),
+              platform: TutorialPlatform.mobile,
+              child: MobileShell(),
+            ),
     );
   }
 

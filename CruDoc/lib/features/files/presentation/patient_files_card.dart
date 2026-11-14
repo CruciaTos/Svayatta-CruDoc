@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/patients/data/providers/session_files_provider.dart';
@@ -235,7 +236,7 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
       );
     }
 
-    final phone = MediaQuery.sizeOf(context).width < 600;
+    final phone = !usesDesktopLayout(context);
     final seeAll = widget.onSeeAll;
     if (phone && !full && seeAll != null) {
       // One line, "Files · N". Adding is inside the Files screen.

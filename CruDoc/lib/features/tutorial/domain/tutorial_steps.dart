@@ -35,7 +35,7 @@ bool _phoneRevenue(TutorialScope s) =>
     s.roleAllows('revenue') &&
     s.can(ClinicPermission.revenue);
 
-/// The desktop tour (window at least `kDesktopBreakpoint` wide).
+/// The desktop tour (PCs and tablets, see `usesDesktopLayout`).
 List<TutorialStep> desktopTutorialSteps() {
   final search = defaultTargetPlatform == TargetPlatform.macOS
       ? '⌘ K'

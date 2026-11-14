@@ -155,7 +155,8 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving response: $e');
+      debugPrint('save response failed: $e');
+      if (mounted) recToast(context, "Couldn't save the response. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -605,7 +606,10 @@ class PatientFormsDialog extends ConsumerWidget {
                 child: CircularProgressIndicator(),
               ),
             ),
-            error: (e, _) => Text('Error loading forms: $e'),
+            error: (e, _) {
+              debugPrint('load forms failed: $e');
+              return const Text("Couldn't load the forms. Try again.");
+            },
             data: (records) {
               if (records.isEmpty) {
                 return DentalEmptyState(

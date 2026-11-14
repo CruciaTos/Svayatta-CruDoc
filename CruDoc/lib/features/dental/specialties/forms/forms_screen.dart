@@ -169,7 +169,12 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
             Expanded(
               child: recordsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                error: (e, _) {
+                  debugPrint('load forms failed: $e');
+                  return const Center(
+                    child: Text("Couldn't load the forms. Try again."),
+                  );
+                },
                 data: (records) {
                   final templates =
                       records.map(FormTemplate.fromRecord).toList()

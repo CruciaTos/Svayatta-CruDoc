@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -59,7 +60,7 @@ Future<void> showSessionDetailsSheet(
   BuildContext context,
   VisitWithPatient vw,
 ) {
-  if (MediaQuery.of(context).size.width >= 800) {
+  if (usesDesktopLayout(context)) {
     return showDesktopSessionDetailsDialog(context, vw);
   }
   return showModalBottomSheet<void>(
@@ -220,9 +221,12 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
         ).showIsland(const SnackBar(content: Text('Appointment deleted.')));
         Navigator.pop(context);
       } catch (e) {
+        debugPrint('delete appointment failed: $e');
         if (!mounted) return;
         ScaffoldMessenger.of(context).showIsland(
-          SnackBar(content: Text('Failed to delete appointment: $e')),
+          const SnackBar(
+            content: Text("Couldn't delete the appointment. Try again."),
+          ),
         );
       }
     }

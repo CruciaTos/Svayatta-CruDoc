@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
@@ -227,7 +228,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     // Phones: 3D opens on its own screen (a page that scrolls cannot give a
     // WebView its drags), tablets and desktops embed it in the card.
     final size = MediaQuery.sizeOf(context);
-    final phone = size.width < 600;
+    final phone = !usesDesktopLayout(context);
     final phoneUpright = phone && size.height > size.width;
     final chartView = phoneUpright
         ? ToothChartView.arches

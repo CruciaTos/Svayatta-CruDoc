@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:flutter/material.dart';
 
@@ -614,7 +615,7 @@ Future<bool?> showAddPatientSheet(
   PatientRepository? repository,
   ValueChanged<String>? onCreated,
 }) {
-  if (MediaQuery.of(context).size.width >= 800) {
+  if (usesDesktopLayout(context)) {
     return showDesktopAddEditPatientDialog(
       context,
       repository: repository,
@@ -639,7 +640,7 @@ Future<bool?> showEditPatientSheet(
   required Patient patient,
   PatientRepository? repository,
 }) {
-  if (MediaQuery.of(context).size.width >= 800) {
+  if (usesDesktopLayout(context)) {
     return showDesktopAddEditPatientDialog(
       context,
       patient: patient,

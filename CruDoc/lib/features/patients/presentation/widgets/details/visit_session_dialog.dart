@@ -176,9 +176,10 @@ class _VisitSessionDialogState extends ConsumerState<VisitSessionDialog> {
     try {
       await _repo.updateStatus(widget.visit.id, status);
     } catch (e) {
+      debugPrint('Couldnt change the visit. Try again.: $e');
       messenger?.showIsland(
         SnackBar(
-          content: Text("Couldn't change the visit: $e"),
+          content: Text("Couldn't change the visit. Try again."),
           behavior: SnackBarBehavior.floating,
         ),
       );

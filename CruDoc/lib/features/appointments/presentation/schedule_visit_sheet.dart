@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
 import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -28,7 +29,7 @@ Future<bool> showScheduleVisitSheet(
   if (!PlanModules.instance.require(context, 'appointments', 'Appointments')) {
     return Future.value(false);
   }
-  if (MediaQuery.of(context).size.width >= 800) {
+  if (usesDesktopLayout(context)) {
     return showDesktopScheduleVisitDialog(
       context,
       patient: patient,
@@ -202,10 +203,11 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
         _errorText = e.message;
       });
     } catch (e) {
+      debugPrint('schedule visit failed: $e');
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _errorText = 'Failed to schedule session: $e';
+        _errorText = "Couldn't schedule the visit. Try again.";
       });
     }
   }

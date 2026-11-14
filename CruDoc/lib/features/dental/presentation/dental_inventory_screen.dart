@@ -724,8 +724,12 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
           Expanded(
             child: inventoryAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) =>
-                  Center(child: Text('Error loading inventory: $err')),
+              error: (err, _) {
+                debugPrint('load inventory failed: $err');
+                return const Center(
+                  child: Text("Couldn't load the inventory. Try again."),
+                );
+              },
               data: (allItems) {
                 final items = _filterList(allItems);
                 final lowStockCount = items.where((i) => i.isLowStock).length;

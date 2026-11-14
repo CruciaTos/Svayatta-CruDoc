@@ -117,13 +117,14 @@ class _TransfersBodyState extends ConsumerState<_TransfersBody> {
     setState(() => _busy.add(id));
     try {
       await action();
-    } catch (e) {
+    } catch (e, st) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showIsland(
-          SnackBar(
-            content: Text('$failed: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotice.error(
+          context,
+          "Couldn't $failed. Try again.",
+          error: e,
+          stack: st,
+          onRetry: () => _run(id, action, failed),
         );
       }
     } finally {

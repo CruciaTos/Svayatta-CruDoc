@@ -148,8 +148,11 @@ class _NowCard extends ConsumerWidget {
           '${serving.firstName} done. Started with ${next.name}.',
         );
       }
-    } catch (e) {
-      if (context.mounted) mobileSay(context, 'Could not update the queue: $e');
+    } catch (e, st) {
+      debugPrint('queue update failed: $e\n$st');
+      if (context.mounted) {
+        mobileSay(context, "Couldn't update the queue. Try again.");
+      }
     }
   }
 
@@ -441,8 +444,11 @@ class _BookedCard extends ConsumerWidget {
         await repo.checkInVisit(m.visit);
       }
       if (context.mounted) mobileSay(context, '${item.firstName} checked in.');
-    } catch (e) {
-      if (context.mounted) mobileSay(context, 'Could not check in: $e');
+    } catch (e, st) {
+      debugPrint('check-in failed: $e\n$st');
+      if (context.mounted) {
+        mobileSay(context, "Couldn't check in. Try again.");
+      }
     }
   }
 
@@ -456,8 +462,9 @@ class _BookedCard extends ConsumerWidget {
         Uri.parse(url),
         mode: LaunchMode.externalApplication,
       );
-      if (!opened && context.mounted)
+      if (!opened && context.mounted) {
         mobileSay(context, 'Could not open maps.');
+      }
     }
     if (context.mounted) await _checkIn(context, ref);
   }

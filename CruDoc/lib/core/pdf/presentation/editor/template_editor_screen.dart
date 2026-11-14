@@ -509,11 +509,14 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen>
           _controller.markSaved(reloaded);
         }
       }
-    } catch (e) {
+    } catch (e, st) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        AppNotice.error(
           context,
-        ).showIsland(SnackBar(content: Text('Save failed: $e')));
+          "Couldn't save the template. Try again.",
+          error: e,
+          stack: st,
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -569,11 +572,14 @@ class _TemplateEditorScreenState extends ConsumerState<TemplateEditorScreen>
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        AppNotice.error(
           context,
-        ).showIsland(SnackBar(content: Text('Could not render preview: $e')));
+          "Couldn't show the preview.",
+          error: e,
+          stack: st,
+        );
       }
     }
   }

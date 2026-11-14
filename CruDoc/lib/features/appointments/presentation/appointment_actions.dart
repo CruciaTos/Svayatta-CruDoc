@@ -347,9 +347,10 @@ abstract final class ApptActions {
         ),
       );
     } catch (e) {
+      debugPrint('Couldnt add ${patient.firstName}. Try ag: $e');
       messenger?.showIsland(
         SnackBar(
-          content: Text("Couldn't add ${patient.firstName}: $e"),
+          content: Text("Couldn't add ${patient.firstName}. Try again."),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -431,9 +432,10 @@ abstract final class ApptActions {
         ),
       );
     } catch (e) {
+      debugPrint('Couldnt combine them. Try again.: $e');
       messenger?.showIsland(
         SnackBar(
-          content: Text("Couldn't combine them: $e"),
+          content: Text("Couldn't combine them. Try again."),
           behavior: SnackBarBehavior.floating,
         ),
       );

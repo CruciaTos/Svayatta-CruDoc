@@ -145,14 +145,15 @@ class _SendSheetState extends State<_SendSheet> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
       if (mounted) {
         setState(() => _sending = false);
-        ScaffoldMessenger.of(context).showIsland(
-          SnackBar(
-            content: Text('Could not send: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppNotice.error(
+          context,
+          "Couldn't send. Try again.",
+          error: e,
+          stack: st,
+          onRetry: () => _sendTo(colleague),
         );
       }
     }

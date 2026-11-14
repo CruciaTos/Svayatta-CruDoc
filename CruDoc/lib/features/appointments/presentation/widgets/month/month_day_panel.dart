@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_builder.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
@@ -235,18 +236,26 @@ class MonthPanelRow extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CruType.callout
-                            .tint(missed ? c.label3 : c.label)
-                            .copyWith(
-                              decoration: missed
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                              decorationColor: c.label3,
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              item.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: CruType.callout
+                                  .tint(missed ? c.label3 : c.label)
+                                  .copyWith(
+                                    decoration: missed
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                    decorationColor: c.label3,
+                                  ),
                             ),
+                          ),
+                          MissingDetailsDot(patient: item.patient),
+                        ],
                       ),
                       if (item.detailLine != null)
                         Text(

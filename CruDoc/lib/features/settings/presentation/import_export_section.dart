@@ -554,6 +554,14 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 background: c.amberTint,
                 foreground: c.amberText,
               ),
+              if (plan.noDob > 0)
+                CruChip(
+                  value:
+                      'No date of birth or age: ${_count.format(plan.noDob)} '
+                      "— saved with today's date; fill in later",
+                  background: c.amberTint,
+                  foreground: c.amberText,
+                ),
               CruChip(
                 value: '${_count.format(plan.errors)} errors',
                 icon: CruIcons.warning,
@@ -662,6 +670,14 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
             ),
           ),
           const SizedBox(width: CruSpace.s8),
+          if (r.lacksDobAndAge) ...[
+            CruChip(
+              value: 'No DOB',
+              background: c.amberTint,
+              foreground: c.amberText,
+            ),
+            const SizedBox(width: CruSpace.s4),
+          ],
           _statusChip(context, r),
         ],
       ),

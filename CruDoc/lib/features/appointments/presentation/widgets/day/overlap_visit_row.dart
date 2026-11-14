@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -44,6 +45,7 @@ class OverlapVisitRow extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    MissingDetailsDot(patient: item.patient),
                     if (item.isNewPatient) ...[
                       const SizedBox(width: CruSpace.s6),
                       const _NewTag(),

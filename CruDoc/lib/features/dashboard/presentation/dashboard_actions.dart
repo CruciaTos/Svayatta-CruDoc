@@ -261,8 +261,9 @@ abstract final class DashboardActions {
       say('Started consultation with ${upNext.name}.');
     } on QueueException catch (e) {
       say(e.message);
-    } catch (e) {
-      say('Could not start the consultation: $e');
+    } catch (e, st) {
+      debugPrint('startConsultation failed: $e\n$st');
+      say("Couldn't start the consultation. Try again.");
     }
   }
 
@@ -294,9 +295,17 @@ abstract final class DashboardActions {
       messenger?.showIsland(
         SnackBar(content: Text(done), behavior: SnackBarBehavior.floating),
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('queue action failed: $e\n$st');
       messenger?.showIsland(
-        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(
+            e is QueueException
+                ? e.message
+                : "Couldn't update the queue. Try again.",
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }

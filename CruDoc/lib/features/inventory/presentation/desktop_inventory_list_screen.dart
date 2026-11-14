@@ -613,12 +613,6 @@ class _VendorCard extends StatelessWidget {
                     .tint(context.cru.label3)
                     .copyWith(fontStyle: FontStyle.italic),
               ),
-              if (!isUnassigned)
-                TextButton.icon(
-                  onPressed: () {}, // Mock action for adding item to vendor
-                  icon: const Icon(Icons.add_shopping_cart, size: 14),
-                  label: const Text('Add Item', style: CruType.caption),
-                ),
             ],
           ),
         ],

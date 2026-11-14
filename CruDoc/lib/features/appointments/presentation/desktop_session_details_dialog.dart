@@ -81,10 +81,11 @@ class _DesktopSessionDetailsDialogState
         context,
       ).showIsland(const SnackBar(content: Text('Note saved')));
     } catch (e) {
+      debugPrint('Couldnt save the note. Try again.: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showIsland(SnackBar(content: Text('Failed to save note: $e')));
+      ).showIsland(SnackBar(content: Text("Couldn't save the note. Try again.")));
     } finally {
       if (mounted) setState(() => _savingNote = false);
     }
@@ -113,10 +114,11 @@ class _DesktopSessionDetailsDialogState
         ),
       );
     } catch (e) {
+      debugPrint('Couldnt update the status. Try again.: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showIsland(SnackBar(content: Text('Failed to update status: $e')));
+      ).showIsland(SnackBar(content: Text("Couldn't update the status. Try again.")));
     } finally {
       if (mounted) setState(() => _updatingStatus = false);
     }
@@ -133,10 +135,11 @@ class _DesktopSessionDetailsDialogState
         SnackBar(content: Text('Checked in as token ${created.tokenNumber}')),
       );
     } catch (e) {
+      debugPrint('Couldnt check in to the queue. Try again: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showIsland(SnackBar(content: Text('Could not check into queue: $e')));
+      ).showIsland(SnackBar(content: Text("Couldn't check in to the queue. Try again.")));
     } finally {
       if (mounted) setState(() => _checkingIntoQueue = false);
     }
@@ -163,10 +166,11 @@ class _DesktopSessionDetailsDialogState
         context,
       ).showIsland(const SnackBar(content: Text('Appointment removed.')));
     } catch (e) {
+      debugPrint('Couldnt delete the appointment. Try agai: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showIsland(SnackBar(content: Text('Failed to delete: $e')));
+      ).showIsland(SnackBar(content: Text("Couldn't delete the appointment. Try again.")));
     }
   }
 

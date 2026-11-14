@@ -322,8 +322,9 @@ class _EditorElementsPanelState extends State<EditorElementsPanel> {
           ),
         ),
       );
-    } catch (e) {
-      if (mounted) _toast(context, 'Could not add the picture: $e');
+    } catch (e, st) {
+      debugPrint('add picture failed: $e\n$st');
+      if (mounted) _toast(context, "Couldn't add the picture. Try again.");
     }
   }
 
@@ -1100,8 +1101,9 @@ class EditorPagePanel extends StatelessWidget {
         ),
       );
       if (context.mounted) _toast(context, 'Letterhead paper added.');
-    } catch (e) {
-      if (context.mounted) _toast(context, 'Could not add it: $e');
+    } catch (e, st) {
+      debugPrint('add letterhead failed: $e\n$st');
+      if (context.mounted) _toast(context, "Couldn't add it. Try again.");
     }
   }
 

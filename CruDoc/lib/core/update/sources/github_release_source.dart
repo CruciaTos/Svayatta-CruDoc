@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -47,8 +48,9 @@ class GithubReleaseSource implements UpdateSource {
           .get(_latestReleaseUri, headers: _apiHeaders)
           .timeout(_requestTimeout);
     } catch (e) {
+      debugPrint('Couldnt check for updates. Check your co: $e');
       throw UpdateCheckException(
-        'Could not reach GitHub to check for updates: $e',
+        "Couldn't check for updates. Check your connection and try again.",
       );
     }
 

@@ -836,10 +836,13 @@ class _HomeopathyCaseTakingSheetState
         ),
       );
       Navigator.pop(context, true);
-    } catch (e) {
+    } catch (e, st) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showIsland(
-        SnackBar(content: Text('Could not save the case sheet: $e')),
+      AppNotice.error(
+        context,
+        "Couldn't save the case sheet. Your entries are still here. Try again.",
+        error: e,
+        stack: st,
       );
     } finally {
       if (mounted) setState(() => _isSaving = false);

@@ -52,7 +52,8 @@ class _ExportLabCaseDialogState extends ConsumerState<ExportLabCaseDialog> {
       }
     } catch (e) {
       if (mounted) {
-        recToast(context, 'Export failed: $e');
+        debugPrint('export failed: $e');
+    recToast(context, "Couldn't export. Try again.");
       }
     } finally {
       if (mounted) setState(() => _exporting = false);

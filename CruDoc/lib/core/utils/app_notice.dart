@@ -22,6 +22,39 @@ class AppNotice {
   final String? from;
   final String? to;
   final Duration duration;
+
+  /// Shows only [message] to the user; the raw [error] and [stack] go to the
+  /// debug log. Adds a "Try again" action when [onRetry] is given.
+  static void error(
+    BuildContext context,
+    String message, {
+    Object? error,
+    StackTrace? stack,
+    VoidCallback? onRetry,
+  }) {
+    if (error != null) debugPrint('AppNotice.error: $message | $error');
+    if (stack != null) debugPrint('$stack');
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (AppNotices.hosted) {
+      AppNotices.show(
+        AppNotice(
+          text: message,
+          actionLabel: onRetry == null ? null : 'Try again',
+          onAction: onRetry,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } else {
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: onRetry == null
+              ? null
+              : SnackBarAction(label: 'Try again', onPressed: onRetry),
+        ),
+      );
+    }
+  }
 }
 
 /// The message the island is showing now, if any. The island (the voice

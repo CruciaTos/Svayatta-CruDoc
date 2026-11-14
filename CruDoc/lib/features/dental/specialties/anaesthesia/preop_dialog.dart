@@ -309,7 +309,8 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
         Navigator.of(context).pop(sc);
       }
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving pre-op: $e');
+      debugPrint('save pre-op failed: $e');
+      if (mounted) recToast(context, "Couldn't save the pre-op. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -327,7 +328,8 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
         }
       }
     } catch (e) {
-      if (mounted) recToast(context, 'Error starting case: $e');
+      debugPrint('start case failed: $e');
+      if (mounted) recToast(context, "Couldn't start the case. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }

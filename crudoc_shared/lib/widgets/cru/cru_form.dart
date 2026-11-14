@@ -1,3 +1,6 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,14 +11,23 @@ import 'package:crudoc_shared/widgets/cru/cru_card.dart';
 import 'package:crudoc_shared/widgets/cru/cru_icons.dart';
 import 'package:crudoc_shared/widgets/cru/cru_pressable.dart';
 
-/// Below this width (a phone) form dialogs fill the screen, sections
+/// On a phone (see _phone) form dialogs fill the screen, sections
 /// stack their label above the fields and wide field rows wrap.
 const double kCruFormPhoneWidth = 600;
 
-bool _phone(BuildContext context) =>
-    MediaQuery.sizeOf(context).width < kCruFormPhoneWidth;
+/// Phone by device type, not width: false on Windows/macOS/Linux, otherwise
+/// the shortest side is under 600. Same rule as `usesDesktopLayout` in the
+/// app (CruDoc/lib/core/layout/device_layout.dart); duplicated here because
+/// this package cannot import the app. Landscape phones stay phones and
+/// short PC windows never become phones.
+bool _phone(BuildContext context) {
+  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+    return false;
+  }
+  return MediaQuery.sizeOf(context).shortestSide < kCruFormPhoneWidth;
+}
 
-/// True on a phone-width screen: the phone app's pushed pages. Desktop
+/// True on a phone: the phone app's pushed pages. Desktop
 /// layouts keep their own look above this width.
 bool cruIsPhone(BuildContext context) => _phone(context);
 

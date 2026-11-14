@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/router/app_router.dart';
 import 'package:doctor_management_app/core/theme/cru_colors.dart';
 import 'package:doctor_management_app/core/theme/cru_tokens.dart';
 import 'package:doctor_management_app/core/theme/cru_type.dart';
 import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/features/mobile/mobile_island.dart';
-import 'package:doctor_management_app/features/shell/presentation/responsive_shell.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
@@ -96,8 +96,15 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
     }
     _engine.init().then(
       (_) => mounted ? setState(() => _loaded = true) : null,
-      onError: (Object e) =>
-          mounted ? setState(() => _error = 'Voice is off: $e') : null,
+      onError: (Object e, StackTrace st) {
+        debugPrint('Voice engine failed to start: $e\n$st');
+        if (mounted) {
+          setState(
+            () => _error = 'Voice is off. Check that a microphone is '
+                'connected and allowed for CruDoc in system settings.',
+          );
+        }
+      },
     );
   }
 
@@ -283,7 +290,7 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
   Widget build(BuildContext context) {
     if (_isDuplicate) return widget.child;
     // Phone-sized: the island in the status bar instead of the pill.
-    if (MediaQuery.sizeOf(context).width < kDesktopBreakpoint) {
+    if (!usesDesktopLayout(context)) {
       AppNotices.hosted = false; // MobileIsland sets it when signed in
       return Stack(
         children: [

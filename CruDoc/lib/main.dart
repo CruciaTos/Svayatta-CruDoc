@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
@@ -476,18 +477,21 @@ class MoodyDashboardApp extends ConsumerWidget {
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         final systemScale = mediaQuery.textScaler.scale(1);
+        // The first-run tour dims everything, the voice pill included.
+        final app = TutorialHost(
+          child: VoiceOverlay(
+            child: ConsultationScribeLauncher(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
+        );
         return MediaQuery(
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(systemScale * textSize.scale),
           ),
-          // The first-run tour dims everything, the voice pill included.
-          child: TutorialHost(
-            child: VoiceOverlay(
-              child: ConsultationScribeLauncher(
-                child: child ?? const SizedBox.shrink(),
-              ),
-            ),
-          ),
+          // Tablets and PCs get the PC layout; narrower than 1024 it is
+          // scaled down, routes, dialogs and sheets included.
+          child: usesDesktopLayout(context) ? ScaleToMinWidth(child: app) : app,
         );
       },
     );

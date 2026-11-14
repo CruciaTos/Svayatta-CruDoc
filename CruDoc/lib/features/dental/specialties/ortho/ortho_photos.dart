@@ -241,7 +241,8 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
         recToast(context, '${slot.title} photo saved');
       }
     } catch (e) {
-      if (mounted) recToast(context, 'Failed to save photo: $e');
+      debugPrint('save photo failed: $e');
+      if (mounted) recToast(context, "Couldn't save the photo. Try again.");
     }
   }
 
@@ -366,7 +367,10 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
           child: CircularProgressIndicator(),
         ),
       ),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) {
+        debugPrint('load photos failed: $e');
+        return const Center(child: Text("Couldn't load the photos. Try again."));
+      },
       data: (records) {
         final sets = records.map(OrthoPhotoSet.fromRecord).toList()
           ..sort((a, b) => b.date.compareTo(a.date));

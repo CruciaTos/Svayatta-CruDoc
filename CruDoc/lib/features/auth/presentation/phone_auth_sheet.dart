@@ -120,14 +120,15 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
             setState(() {
               _errorText = widget.linkToCurrentUser
                   ? phoneLinkErrorMessage(e)
-                  : 'Auto-verification failed: ${e.message}';
+                  : authErrorMessage(e);
               _isLoading = false;
               _verifying = false;
             });
           } catch (e) {
+            debugPrint('auto-verification failed: $e');
             if (!mounted) return;
             setState(() {
-              _errorText = 'Auto-verification failed: $e';
+              _errorText = "Couldn't sign in. Try again.";
               _isLoading = false;
               _verifying = false;
             });

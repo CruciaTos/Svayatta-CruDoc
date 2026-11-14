@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
@@ -128,6 +129,7 @@ class PatientDetailsHeader extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(child: name),
+            MissingDetailsDot(patient: p),
             if (patientDetailsPending(p)) ...[
               const SizedBox(width: CruSpace.s8),
               DetailsPendingPill(

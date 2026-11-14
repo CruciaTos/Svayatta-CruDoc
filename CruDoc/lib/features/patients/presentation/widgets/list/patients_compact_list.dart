@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
@@ -193,11 +194,19 @@ class _CompactRow extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      s.name,
-                      style: CruType.row.tint(c.label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            s.name,
+                            style: CruType.row.tint(c.label),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        MissingDetailsDot(patient: s.patient),
+                      ],
                     ),
                     if (subtitle != null)
                       Text(

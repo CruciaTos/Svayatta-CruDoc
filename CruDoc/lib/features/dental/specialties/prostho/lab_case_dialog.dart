@@ -241,7 +241,8 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving lab case: $e');
+      debugPrint('save lab case failed: $e');
+      if (mounted) recToast(context, "Couldn't save the lab case. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }

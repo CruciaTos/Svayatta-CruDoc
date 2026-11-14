@@ -288,7 +288,10 @@ class LanClient {
           final stalled =
               DateTime.now().difference(lastProgressAt) > _pullStall;
           if (retryIndex >= _pullMaxFailures - 1 || stalled) {
-            throw HttpException('Gave up on the Wi-Fi transfer: $e');
+            debugPrint('[LanClient] Gave up on the transfer: $e');
+            throw const HttpException(
+              "Couldn't finish the Wi-Fi transfer. Try again.",
+            );
           }
           final waitSec = backoffs[min(retryIndex, backoffs.length - 1)];
           retryIndex++;

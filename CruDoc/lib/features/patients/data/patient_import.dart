@@ -285,6 +285,12 @@ class ImportRow {
   final int number;
   final List<String> raw;
   RowStatus status;
+
+  /// No date of birth and no usable age: saved with today's date.
+  bool get lacksDobAndAge =>
+      status != RowStatus.error &&
+      dateOfBirth == null &&
+      _ageYears(age) == null;
   final String firstName;
   final String lastName;
   final String phone;
@@ -312,6 +318,15 @@ class ImportPlan {
   int get duplicates =>
       rows.where((r) => r.status == RowStatus.duplicate).length;
   int get errors => rows.where((r) => r.status == RowStatus.error).length;
+
+  /// Rows that will be imported with today's date (no DOB and no usable age).
+  int get noDob => rows.where((r) => r.lacksDobAndAge).length;
+}
+
+/// Age in years from a free-text age cell, else null.
+int? _ageYears(String age) {
+  final years = int.tryParse(RegExp(r'\d{1,3}').stringMatch(age) ?? '');
+  return years != null && years <= 120 ? years : null;
 }
 
 String _digits(String s) => s.replaceAll(RegExp(r'\D'), '');
@@ -543,8 +558,8 @@ Patient patientForRow(
   var dob = row.dateOfBirth;
   final notes = <String>[if (row.notes.isNotEmpty) row.notes];
   if (dob == null) {
-    final years = int.tryParse(RegExp(r'\d{1,3}').stringMatch(row.age) ?? '');
-    if (years != null && years <= 120) {
+    final years = _ageYears(row.age);
+    if (years != null) {
       dob = DateTime(now.year - years);
     } else {
       dob = DateTime(now.year, now.month, now.day);

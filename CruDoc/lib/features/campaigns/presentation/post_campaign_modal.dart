@@ -1031,50 +1031,53 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
                   },
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: CheckboxListTile(
-                  value: _enableWhatsApp,
-                  tileColor: _enableWhatsApp
-                      ? context.cru.greenTint
-                      : context.cru.inset,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    side: BorderSide(
-                      color: _enableWhatsApp
-                          ? context.cru.greenText
-                          : context.cru.cardBorder,
+              // Hidden until WhatsApp campaigns are available.
+              if (kWhatsAppCampaignsEnabled) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: CheckboxListTile(
+                    value: _enableWhatsApp,
+                    tileColor: _enableWhatsApp
+                        ? context.cru.greenTint
+                        : context.cru.inset,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      side: BorderSide(
+                        color: _enableWhatsApp
+                            ? context.cru.greenText
+                            : context.cru.cardBorder,
+                      ),
                     ),
-                  ),
-                  secondary: Icon(
-                    Icons.chat_rounded,
-                    color: kWhatsAppCampaignsEnabled
-                        ? context.cru.greenText
-                        : context.cru.label3,
-                  ),
-                  title: Text(
-                    'WhatsApp Message',
-                    style: CruType.subhead.w700.tint(
-                      kWhatsAppCampaignsEnabled
-                          ? context.cru.label
+                    secondary: Icon(
+                      Icons.chat_rounded,
+                      color: kWhatsAppCampaignsEnabled
+                          ? context.cru.greenText
                           : context.cru.label3,
                     ),
+                    title: Text(
+                      'WhatsApp Message',
+                      style: CruType.subhead.w700.tint(
+                        kWhatsAppCampaignsEnabled
+                            ? context.cru.label
+                            : context.cru.label3,
+                      ),
+                    ),
+                    subtitle: Text(
+                      kWhatsAppCampaignsEnabled
+                          ? 'Direct mobile chat notification'
+                          : 'Available once your clinic connects its own '
+                                'WhatsApp number. Use Email for now.',
+                      style: CruType.micro,
+                    ),
+                    onChanged: kWhatsAppCampaignsEnabled
+                        ? (val) {
+                            if (val == false && !_enableEmail) return;
+                            setState(() => _enableWhatsApp = val ?? true);
+                          }
+                        : null,
                   ),
-                  subtitle: Text(
-                    kWhatsAppCampaignsEnabled
-                        ? 'Direct mobile chat notification'
-                        : 'Available once your clinic connects its own '
-                              'WhatsApp number. Use Email for now.',
-                    style: CruType.micro,
-                  ),
-                  onChanged: kWhatsAppCampaignsEnabled
-                      ? (val) {
-                          if (val == false && !_enableEmail) return;
-                          setState(() => _enableWhatsApp = val ?? true);
-                        }
-                      : null,
                 ),
-              ),
+              ],
             ],
           ),
         ],

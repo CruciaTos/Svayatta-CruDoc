@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -471,11 +472,19 @@ class PatientTableRow extends StatelessWidget {
               const SizedBox(width: CruSpace.s12),
               Expanded(
                 child: twoLine(
-                  Text(
-                    s.name,
-                    style: CruType.row.tint(c.label),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          s.name,
+                          style: CruType.row.tint(c.label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      MissingDetailsDot(patient: s.patient),
+                    ],
                   ),
                   // Patient ID is a GAP (UUIDs only): phone alone.
                   phone,

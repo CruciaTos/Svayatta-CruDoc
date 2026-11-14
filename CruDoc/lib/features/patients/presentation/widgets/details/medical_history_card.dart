@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
@@ -60,7 +61,7 @@ class _MedicalHistoryCardState extends State<MedicalHistoryCard> {
     ];
     final updated = caseSheet?.updatedAt ?? summary.patient.updatedAt;
 
-    final phone = MediaQuery.sizeOf(context).width < 600;
+    final phone = !usesDesktopLayout(context);
     final hasOverflow = phone && rows.length > 3;
     final shown = hasOverflow && !_expanded ? rows.take(3).toList() : rows;
 

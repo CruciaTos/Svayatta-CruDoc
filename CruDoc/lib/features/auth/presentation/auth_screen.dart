@@ -579,10 +579,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _enterApp();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _showError(e.message ?? 'Signup failed');
+      _showError(
+        authErrorMessage(e, fallback: "Couldn't create the account. Try again."),
+      );
     } catch (e) {
+      debugPrint('signup failed: $e');
       if (!mounted) return;
-      _showError('Signup failed: $e');
+      _showError("Couldn't create the account. Try again.");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

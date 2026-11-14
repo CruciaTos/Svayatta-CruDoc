@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/errors/queue_exceptions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/services/auth_providers.dart';
@@ -147,8 +148,11 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
     setState(() => _expanded = false);
     try {
       await action();
-    } catch (e) {
-      _say('$e');
+    } catch (e, st) {
+      debugPrint('island action failed: $e\n$st');
+      _say(
+        e is QueueException ? e.message : "Couldn't complete that. Try again.",
+      );
     }
   }
 

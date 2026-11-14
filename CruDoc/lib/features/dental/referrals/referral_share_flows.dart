@@ -216,7 +216,8 @@ Future<void> sendReferralEmail(
       );
       how = 'Emailed from ${gmail.connectedEmail}';
     } catch (e) {
-      if (context.mounted) recToast(context, 'Couldn\'t send the email: $e');
+      debugPrint('send email failed: $e');
+      if (context.mounted) recToast(context, "Couldn't send the email. Try again.");
       return;
     }
   } else if (_hasShareSheet) {
@@ -496,7 +497,8 @@ Future<Patient?> fileSharedReferral(
       final id = await patients.createPatient(draft);
       patient = await patients.getPatient(id);
     } catch (e) {
-      if (context.mounted) recToast(context, 'Couldn\'t add the patient: $e');
+      debugPrint('add patient failed: $e');
+      if (context.mounted) recToast(context, "Couldn't add the patient. Try again.");
       return null;
     }
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/appt_status_style.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/month/appt_time_label.dart';
@@ -156,6 +157,7 @@ class AgendaRow extends StatelessWidget {
                                 ),
                           ),
                         ),
+                        MissingDetailsDot(patient: item.patient),
                         if (item.isHomeVisit) ...[
                           const SizedBox(width: CruSpace.s6),
                           CruIcon(

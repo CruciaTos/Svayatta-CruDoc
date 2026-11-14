@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
@@ -214,8 +215,32 @@ String phoneLinkErrorMessage(FirebaseAuthException e) => switch (e.code) {
   'provider-already-linked' => 'This account already has a phone number.',
   'invalid-verification-code' => "That code isn't right. Check it and try again.",
   'session-expired' || 'code-expired' => 'The code expired. Send a new one.',
-  _ => e.message ?? 'Could not confirm the number. Try again.',
+  _ => authErrorMessage(e, fallback: "Couldn't confirm the number. Try again."),
 };
+
+/// Plain sentence for a FirebaseAuth failure; the raw message is only logged.
+String authErrorMessage(
+  FirebaseAuthException e, {
+  String fallback = "Couldn't sign in. Try again.",
+}) {
+  debugPrint('FirebaseAuth ${e.code}: ${e.message}');
+  return switch (e.code) {
+    'invalid-verification-code' => "That code isn't right. Check it and try again.",
+    'session-expired' || 'code-expired' => 'The code expired. Send a new one.',
+    'too-many-requests' =>
+      'Too many attempts. Wait a few minutes and try again.',
+    'network-request-failed' => "You're offline. Try again when connected.",
+    'invalid-phone-number' => 'That phone number is not valid.',
+    'invalid-email' => 'That email address is not valid.',
+    'email-already-in-use' => 'An account already exists with that email.',
+    'weak-password' => 'Choose a stronger password.',
+    'wrong-password' ||
+    'invalid-credential' ||
+    'user-not-found' => 'Email or password is not right.',
+    'user-disabled' => 'This account has been disabled.',
+    _ => fallback,
+  };
+}
 
 /// Custom exception so callers can distinguish "user cancelled" from real errors.
 class FirebaseAuthCancelledException implements Exception {

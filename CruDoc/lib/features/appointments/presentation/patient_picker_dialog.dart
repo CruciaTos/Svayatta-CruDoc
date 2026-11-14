@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show StateController;
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
@@ -199,12 +200,17 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
                     color: c.accent,
                   ),
                 ),
-                error: (error, stack) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(CruSpace.s20),
-                    child: CruFormNotice('Error loading patients: $error'),
-                  ),
-                ),
+                error: (error, stack) {
+                  debugPrint('load patients failed: $error');
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(CruSpace.s20),
+                      child: CruFormNotice(
+                        "Couldn't load patients. Try again.",
+                      ),
+                    ),
+                  );
+                },
                 data: (patients) {
                   if (patients.isEmpty) {
                     if (_searchQuery.isNotEmpty) {
@@ -342,11 +348,19 @@ class _PatientListItem extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          patient.fullName,
-                          style: CruType.body.w600.tint(c.label),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                patient.fullName,
+                                style: CruType.body.w600.tint(c.label),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            MissingDetailsDot(patient: patient),
+                          ],
                         ),
                       ),
                       if (patientDetailsPending(patient)) ...[

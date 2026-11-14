@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
 import 'package:uuid/uuid.dart';
 
@@ -41,7 +42,7 @@ Future<void> showToothDetail(
 }) => showDialog<void>(
   context: context,
   // Phones: edge to edge (the view pads itself clear of the notch).
-  useSafeArea: MediaQuery.sizeOf(context).width >= 600,
+  useSafeArea: usesDesktopLayout(context),
   builder: (_) => ToothDetailView(patient: patient, tooth: tooth),
 );
 
@@ -824,7 +825,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
 
     final size = MediaQuery.sizeOf(context);
     // Phones: the dialog fills the screen.
-    final phone = size.width < 600;
+    final phone = !usesDesktopLayout(context);
     return PopScope(
       canPop: !_dirty,
       onPopInvokedWithResult: (didPop, _) async {

@@ -84,12 +84,16 @@ class _CampaignAnalyticsDialogState
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
       if (mounted) {
         setState(() => _isRetrying = false);
-        ScaffoldMessenger.of(
+        AppNotice.error(
           context,
-        ).showIsland(SnackBar(content: Text('Retry failed: $e')));
+          "Couldn't resend to the failed recipients. Try again.",
+          error: e,
+          stack: st,
+          onRetry: _handleRetry,
+        );
       }
     }
   }

@@ -232,7 +232,8 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
 
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) recToast(context, 'Error saving form: $e');
+      debugPrint('save form failed: $e');
+      if (mounted) recToast(context, "Couldn't save the form. Try again.");
     } finally {
       if (mounted) setState(() => _busy = false);
     }

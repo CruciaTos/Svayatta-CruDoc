@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
@@ -232,7 +233,7 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
     final c = context.cru;
     final p = widget.patient;
     final width = MediaQuery.sizeOf(context).width;
-    final phone = width < 600;
+    final phone = !usesDesktopLayout(context);
     final now = ref.watch(dashboardNowProvider);
     final summary = ref.watch(patientSummaryProvider(p.id)).value;
     final canBook = ref.watch(clinicCanProvider(ClinicPermission.schedule));

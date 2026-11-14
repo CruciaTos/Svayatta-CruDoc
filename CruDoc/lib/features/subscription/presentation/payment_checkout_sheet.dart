@@ -102,7 +102,10 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _opening = false);
-      _showError(e is StateError ? e.message : '$e');
+      debugPrint('checkout failed: $e');
+      _showError(
+        e is StateError ? e.message : "Couldn't start the payment. Try again.",
+      );
     }
   }
 
@@ -136,7 +139,12 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     try {
       await _subscriptionService.completeMockPayment(orderId);
     } catch (e) {
-      if (mounted) _showError(e is StateError ? e.message : '$e');
+      debugPrint('payment failed: $e');
+      if (mounted) {
+        _showError(
+          e is StateError ? e.message : "Couldn't complete the payment. Try again.",
+        );
+      }
     } finally {
       if (mounted) setState(() => _mockPaying = false);
     }
@@ -149,7 +157,12 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     try {
       await _subscriptionService.cancelPlanCheckout(orderId);
     } catch (e) {
-      if (mounted) _showError(e is StateError ? e.message : '$e');
+      debugPrint('cancel checkout failed: $e');
+      if (mounted) {
+        _showError(
+          e is StateError ? e.message : "Couldn't cancel the payment. Try again.",
+        );
+      }
     } finally {
       if (mounted) setState(() => _cancelling = false);
     }

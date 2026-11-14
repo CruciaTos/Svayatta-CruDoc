@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/layout/device_layout.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/clinical_forms.dart';
@@ -698,7 +699,7 @@ class RecordGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     // Phones: one card per group with compact rows, so a whole group fits
     // on screen. Wider screens keep the card grid.
-    if (MediaQuery.sizeOf(context).width < 600) {
+    if (!usesDesktopLayout(context)) {
       return CruCard(
         semanticLabel: 'Records',
         padding: const EdgeInsets.symmetric(vertical: CruSpace.s4),

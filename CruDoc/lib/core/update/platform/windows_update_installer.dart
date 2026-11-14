@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -96,8 +97,9 @@ class WindowsUpdateInstaller implements UpdateInstaller {
     try {
       await Process.start(file.path, const [], mode: ProcessStartMode.detached);
     } catch (e) {
+      debugPrint('Couldnt start the installer. Try again.: $e');
       throw UpdateInstallException(
-        'Could not launch the downloaded installer: $e',
+        "Couldn't start the installer. Try again.",
       );
     }
 

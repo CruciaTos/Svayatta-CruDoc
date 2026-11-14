@@ -660,31 +660,33 @@ class _MobilePostCampaignSheetState
               setState(() => _enableEmail = v);
             },
           ),
-          SwitchListTile(
-            dense: true,
-            activeThumbColor: c.accent,
-            contentPadding: EdgeInsets.zero,
-            value: _enableWhatsApp,
-            title: Text(
-              'WhatsApp Broadcast',
-              style: CruType.subhead.w600.tint(
-                kWhatsAppCampaignsEnabled ? c.label : c.label3,
+          // Hidden until WhatsApp campaigns are available.
+          if (kWhatsAppCampaignsEnabled)
+            SwitchListTile(
+              dense: true,
+              activeThumbColor: c.accent,
+              contentPadding: EdgeInsets.zero,
+              value: _enableWhatsApp,
+              title: Text(
+                'WhatsApp Broadcast',
+                style: CruType.subhead.w600.tint(
+                  kWhatsAppCampaignsEnabled ? c.label : c.label3,
+                ),
               ),
+              subtitle: Text(
+                kWhatsAppCampaignsEnabled
+                    ? 'Delivers automatically via WhatsApp Business Cloud API.'
+                    : 'Available once your clinic connects its own WhatsApp '
+                          'number. Use Email for now.',
+                style: CruType.micro.tint(c.label2),
+              ),
+              onChanged: kWhatsAppCampaignsEnabled
+                  ? (v) {
+                      if (v == false && !_enableEmail) return;
+                      setState(() => _enableWhatsApp = v);
+                    }
+                  : null,
             ),
-            subtitle: Text(
-              kWhatsAppCampaignsEnabled
-                  ? 'Delivers automatically via WhatsApp Business Cloud API.'
-                  : 'Available once your clinic connects its own WhatsApp '
-                        'number. Use Email for now.',
-              style: CruType.micro.tint(c.label2),
-            ),
-            onChanged: kWhatsAppCampaignsEnabled
-                ? (v) {
-                    if (v == false && !_enableEmail) return;
-                    setState(() => _enableWhatsApp = v);
-                  }
-                : null,
-          ),
         ],
       ),
     );
@@ -1329,10 +1331,11 @@ class _MobilePostCampaignSheetState
         });
       }
     } catch (e) {
+      debugPrint('campaign dispatch failed: $e');
       if (mounted) {
         setState(() {
           _isDispatching = false;
-          _dispatchError = 'Failed to broadcast campaign: $e';
+          _dispatchError = "Couldn't send the campaign. Try again.";
         });
       }
     }

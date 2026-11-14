@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/errors/queue_exceptions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -1063,8 +1064,16 @@ class _WalkInRow extends ConsumerWidget {
     try {
       await action();
       if (context.mounted) mobileSay(context, done);
-    } catch (e) {
-      if (context.mounted) mobileSay(context, '$e');
+    } catch (e, st) {
+      debugPrint('schedule action failed: $e\n$st');
+      if (context.mounted) {
+        mobileSay(
+          context,
+          e is QueueException
+              ? e.message
+              : "Couldn't complete that. Try again.",
+        );
+      }
     }
   }
 
@@ -1258,8 +1267,16 @@ class _ApptRow extends ConsumerWidget {
     try {
       await action();
       if (context.mounted) mobileSay(context, done);
-    } catch (e) {
-      if (context.mounted) mobileSay(context, '$e');
+    } catch (e, st) {
+      debugPrint('schedule action failed: $e\n$st');
+      if (context.mounted) {
+        mobileSay(
+          context,
+          e is QueueException
+              ? e.message
+              : "Couldn't complete that. Try again.",
+        );
+      }
     }
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/patients/domain/patient_completeness.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
@@ -85,12 +87,24 @@ class PatientPosterHero extends StatelessWidget {
           const SizedBox(height: CruSpace.s12),
           Semantics(
             header: true,
-            child: Text(
-              p.fullName,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: MobileType.largeTitle.tint(c.label),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Mirror of the dot's width so the centred name does not
+                // move when the dot shows.
+                if (missingDetails(p).isNotEmpty)
+                  const SizedBox(width: CruSpace.s16),
+                Flexible(
+                  child: Text(
+                    p.fullName,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: MobileType.largeTitle.tint(c.label),
+                  ),
+                ),
+                MissingDetailsDot(patient: p),
+              ],
             ),
           ),
           const SizedBox(height: CruSpace.s4),

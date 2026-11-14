@@ -157,3 +157,9 @@ export function normalisePhone(
 
   return digits;
 }
+
+/** The clinic-local calendar date of an instant, as YYYY-MM-DD. */
+export function istDateKey(at: Date): string {
+  const shifted = new Date(at.getTime() + IST_OFFSET_MINUTES * 60_000);
+  return shifted.toISOString().slice(0, 10);
+}

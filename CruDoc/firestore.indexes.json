@@ -33,6 +33,20 @@
       ]
     },
     {
+      "collectionGroup": "visitations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "doctorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "scheduledStart",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "patients",
       "queryScope": "COLLECTION",
       "fields": [

@@ -65,6 +65,14 @@ class FirestoreSyncService {
     'visitations': 'home',
   };
 
+  /// How far around now the live visit listener reaches: from this far back
+  /// to this far ahead of the scheduled start.
+  static const Duration _liveVisitWindowBack = Duration(days: 60);
+  static const Duration _liveVisitWindowAhead = Duration(days: 365);
+
+  /// Page size for the first-ever download of a clinic's visits.
+  static const int _visitPageSize = 500;
+
   final List<StreamSubscription> _liveSubscriptions = [];
   String? _subscribedDoctorId;
 
@@ -96,8 +104,10 @@ class FirestoreSyncService {
   String? _accessKey;
 
   /// Every Firestore collection this service caches locally.
-  static Iterable<String> get _allSyncedCollections =>
-      [..._collections, ..._visitFirestoreToType.keys];
+  static Iterable<String> get _allSyncedCollections => [
+    ..._collections,
+    ..._visitFirestoreToType.keys,
+  ];
 
   /// The SQLite table a collection lands in. Both visit collections share
   /// one table, and they are gated by the same permission.
@@ -216,9 +226,9 @@ class FirestoreSyncService {
       // Drop what this person may no longer read before listening again, so
       // a demotion takes effect on this device and not just on the server.
       unawaited(
-        _purgeUnreadableCollections()
-            .then((_) => _scrubClinicalFields())
-            .then((_) {
+        _purgeUnreadableCollections().then((_) => _scrubClinicalFields()).then((
+          _,
+        ) {
           _startLiveSubscriptions(id);
           return synchronize();
         }),
@@ -399,92 +409,133 @@ class FirestoreSyncService {
         collection,
         ClinicSession.instance.access,
       );
-      final sub = _scopedQuery(collection, doctorId)
-          .snapshots()
-          .listen((snapshot) async {
-            for (final change in snapshot.docChanges) {
-              try {
-                final doc = change.doc;
-                if (change.type == DocumentChangeType.removed) {
-                  if (narrowed) {
-                    // Leaving a narrowed query usually means "no longer
-                    // yours", not "deleted": the reconcile below takes it off
-                    // the device rather than archiving a copy on it.
-                    continue;
-                  }
-                  await _applyRemoteDeletion(collection, doc.id, doctorId);
-                } else {
-                  final data = doc.data();
-                  if (data == null) continue;
-                  await _upsertDownloadedRow(
-                    collection,
-                    doc.id,
-                    data,
-                    doctorId,
-                  );
-                }
-              } catch (e, st) {
-                // Swallow individual doc handling errors so the listener continues.
-                debugPrint(
-                  'Live sync doc update failed in $collection: $e\n$st',
-                );
+      final sub = _scopedQuery(collection, doctorId).snapshots().listen((
+        snapshot,
+      ) async {
+        for (final change in snapshot.docChanges) {
+          try {
+            final doc = change.doc;
+            if (change.type == DocumentChangeType.removed) {
+              if (narrowed) {
+                // Leaving a narrowed query usually means "no longer
+                // yours", not "deleted": the reconcile below takes it off
+                // the device rather than archiving a copy on it.
+                continue;
               }
+              await _applyRemoteDeletion(collection, doc.id, doctorId);
+            } else {
+              final data = doc.data();
+              if (data == null) continue;
+              await _upsertDownloadedRow(collection, doc.id, data, doctorId);
             }
-            // A server answer to a narrowed query is the complete list of
-            // what this doctor may hold. Anything else cached locally — a
-            // patient reassigned while this device was off, which no change
-            // event would ever report — comes off the device now. A cache
-            // answer can be partial, so it is never used for this.
-            if (narrowed && !snapshot.metadata.isFromCache) {
-              try {
-                await _reconcileScopedCollection(
-                  collection,
-                  doctorId,
-                  {for (final d in snapshot.docs) d.id},
-                );
-              } catch (e) {
-                debugPrint('Scoped reconcile of $collection failed: $e');
-              }
-            }
-          });
+          } catch (e, st) {
+            // Swallow individual doc handling errors so the listener continues.
+            debugPrint('Live sync doc update failed in $collection: $e\n$st');
+          }
+        }
+        // A server answer to a narrowed query is the complete list of
+        // what this doctor may hold. Anything else cached locally — a
+        // patient reassigned while this device was off, which no change
+        // event would ever report — comes off the device now. A cache
+        // answer can be partial, so it is never used for this.
+        if (narrowed && !snapshot.metadata.isFromCache) {
+          try {
+            await _reconcileScopedCollection(collection, doctorId, {
+              for (final d in snapshot.docs) d.id,
+            });
+          } catch (e) {
+            debugPrint('Scoped reconcile of $collection failed: $e');
+          }
+        }
+      });
       _liveSubscriptions.add(sub);
     }
 
     for (final firestoreCollection in _visitFirestoreToType.keys) {
       if (!canReadCollection(firestoreCollection)) continue;
-      final sub = _firestore
-          .collection(firestoreCollection)
-          .where('doctorId', isEqualTo: doctorId)
-          .snapshots()
-          .listen((snapshot) async {
-            for (final change in snapshot.docChanges) {
-              try {
-                final doc = change.doc;
-                if (change.type == DocumentChangeType.removed) {
-                  await _applyRemoteDeletion(
-                    firestoreCollection,
-                    doc.id,
-                    doctorId,
-                    sqliteTable: 'visits',
-                  );
-                } else {
-                  final data = doc.data();
-                  if (data == null) continue;
-                  await _upsertDownloadedRow(
-                    firestoreCollection,
-                    doc.id,
-                    data,
-                    doctorId,
-                    sqliteTable: 'visits',
-                  );
-                }
-              } catch (e, st) {
-                // Swallow per-doc errors so listener stays alive.
-                debugPrint('Live sync doc update failed in visits: $e\n$st');
+      // Live only for the visits around now. Everything older is already in
+      // SQLite from earlier syncs, and a first sync on a new device pulls it
+      // in pages (see _downloadChangedRows). A visit edited elsewhere that
+      // sits outside this window still arrives through that incremental
+      // catch-up, which is keyed on updatedAt rather than the visit date.
+      final now = DateTime.now();
+      final windowStart = Timestamp.fromDate(
+        now.subtract(_liveVisitWindowBack),
+      );
+      final windowEnd = Timestamp.fromDate(now.add(_liveVisitWindowAhead));
+      Future<void> handle(QuerySnapshot<Map<String, dynamic>> snapshot) async {
+        for (final change in snapshot.docChanges) {
+          try {
+            final doc = change.doc;
+            if (change.type == DocumentChangeType.removed) {
+              // With a date window, "removed" also means "rescheduled out
+              // of the window". Look the document up: still there means
+              // keep it (and take its new date); gone means deleted.
+              final current = await _firestore
+                  .collection(firestoreCollection)
+                  .doc(doc.id)
+                  .get();
+              final currentData = current.data();
+              if (current.exists && currentData != null) {
+                await _upsertDownloadedRow(
+                  firestoreCollection,
+                  doc.id,
+                  currentData,
+                  doctorId,
+                  sqliteTable: 'visits',
+                );
+              } else {
+                await _applyRemoteDeletion(
+                  firestoreCollection,
+                  doc.id,
+                  doctorId,
+                  sqliteTable: 'visits',
+                );
               }
+            } else {
+              final data = doc.data();
+              if (data == null) continue;
+              await _upsertDownloadedRow(
+                firestoreCollection,
+                doc.id,
+                data,
+                doctorId,
+                sqliteTable: 'visits',
+              );
             }
-          });
-      _liveSubscriptions.add(sub);
+          } catch (e, st) {
+            // Swallow per-doc errors so listener stays alive.
+            debugPrint('Live sync doc update failed in visits: $e\n$st');
+          }
+        }
+      }
+
+      void subscribe(bool windowed) {
+        var query = _firestore
+            .collection(firestoreCollection)
+            .where('doctorId', isEqualTo: doctorId);
+        if (windowed) {
+          query = query
+              .where('scheduledStart', isGreaterThanOrEqualTo: windowStart)
+              .where('scheduledStart', isLessThanOrEqualTo: windowEnd);
+        }
+        late final StreamSubscription<QuerySnapshot<Map<String, dynamic>>> sub;
+        sub = query.snapshots().listen(
+          handle,
+          onError: (Object e) {
+            debugPrint('Live visit listener on $firestoreCollection: $e');
+            if (!windowed) return;
+            // Most likely the doctorId + scheduledStart index is not deployed
+            // yet: listen to everything rather than to nothing.
+            _liveSubscriptions.remove(sub);
+            sub.cancel();
+            subscribe(false);
+          },
+        );
+        _liveSubscriptions.add(sub);
+      }
+
+      subscribe(true);
     }
   }
 
@@ -745,31 +796,54 @@ class FirestoreSyncService {
     for (final firestoreCollection in _visitFirestoreToType.keys) {
       if (!canReadCollection(firestoreCollection)) continue;
       final lastSyncTime = await _lastSyncTime(firestoreCollection);
-      Query<Map<String, dynamic>> query = _firestore
+      final base = _firestore
           .collection(firestoreCollection)
           .where('doctorId', isEqualTo: doctorId);
-      if (lastSyncTime > 0) {
-        query = query.where(
-          'updatedAt',
-          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
-        );
-      }
-      final snapshot = await query.get();
-
       var newestSyncTime = lastSyncTime;
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final updatedAtMillis = _timestampToMillis(data['updatedAt']);
-        if (updatedAtMillis > newestSyncTime) {
-          newestSyncTime = updatedAtMillis;
+
+      Future<void> apply(QuerySnapshot<Map<String, dynamic>> snapshot) async {
+        for (final doc in snapshot.docs) {
+          final data = doc.data();
+          final updatedAtMillis = _timestampToMillis(data['updatedAt']);
+          if (updatedAtMillis > newestSyncTime) {
+            newestSyncTime = updatedAtMillis;
+          }
+          await _upsertDownloadedRow(
+            firestoreCollection,
+            doc.id,
+            data,
+            doctorId,
+            sqliteTable: 'visits',
+          );
         }
-        await _upsertDownloadedRow(
-          firestoreCollection,
-          doc.id,
-          data,
-          doctorId,
-          sqliteTable: 'visits',
+      }
+
+      if (lastSyncTime > 0) {
+        await apply(
+          await base
+              .where(
+                'updatedAt',
+                isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(
+                  lastSyncTime,
+                ),
+              )
+              .get(),
         );
+      } else {
+        // First sync on this device: a page at a time, by document id so no doc
+        // (even one without a scheduledStart) is skipped, and memory stays
+        // flat. The watermark is only set after every page, so an interrupted
+        // run starts over rather than skipping the rest.
+        final paged = base.orderBy(FieldPath.documentId).limit(_visitPageSize);
+        QueryDocumentSnapshot<Map<String, dynamic>>? last;
+        while (true) {
+          final snapshot =
+              await (last == null ? paged : paged.startAfterDocument(last))
+                  .get();
+          await apply(snapshot);
+          if (snapshot.docs.length < _visitPageSize) break;
+          last = snapshot.docs.last;
+        }
       }
 
       if (newestSyncTime > lastSyncTime) {

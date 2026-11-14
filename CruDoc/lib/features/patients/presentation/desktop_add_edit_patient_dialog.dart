@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -761,7 +762,7 @@ class _DesktopAddEditPatientDialogState
                     ),
                   ],
                 ),
-                const _ReminderNotice(),
+                _ReminderNotice(patientId: widget.patient?.id),
               ],
             ),
             if (_showsClinical)
@@ -846,7 +847,10 @@ class _DesktopAddEditPatientDialogState
 /// clinic actually has reminders switched on, so it never promises a message
 /// that will not arrive.
 class _ReminderNotice extends ConsumerWidget {
-  const _ReminderNotice();
+  const _ReminderNotice({this.patientId});
+
+  /// Set when editing, which adds this patient's own on/off switch.
+  final String? patientId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -855,25 +859,75 @@ class _ReminderNotice extends ConsumerWidget {
     if (!available || !enabled) return const SizedBox.shrink();
 
     final c = context.cru;
+    final id = patientId;
     return Padding(
       padding: const EdgeInsets.only(top: CruSpace.s8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: CruSpace.s2),
-            child: CruIcon(CruIcons.whatsapp, size: 14, color: c.label3),
-          ),
-          const SizedBox(width: CruSpace.s8),
-          Expanded(
-            child: Text(
-              'Appointment reminders will be sent on WhatsApp. '
-              'Reply STOP to opt out.',
-              style: CruType.caption.tint(c.label2),
-            ),
+          if (id != null) ...[
+            _SendRemindersSwitch(patientId: id),
+            const SizedBox(height: CruSpace.s12),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: CruSpace.s2),
+                child: CruIcon(CruIcons.whatsapp, size: 14, color: c.label3),
+              ),
+              const SizedBox(width: CruSpace.s8),
+              Expanded(
+                child: Text(
+                  'Appointment reminders will be sent on WhatsApp. '
+                  'Reply STOP to opt out.',
+                  style: CruType.caption.tint(c.label2),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Whether this patient gets automatic reminders and recalls. Writes
+/// `remindersOptOut` on the patient (absent or false means on), which the
+/// server reads before every message, on any channel.
+class _SendRemindersSwitch extends StatelessWidget {
+  const _SendRemindersSwitch({required this.patientId});
+
+  final String patientId;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final ref = FirebaseFirestore.instance
+        .collection('patients')
+        .doc(patientId);
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: ref.snapshots(),
+      builder: (context, snap) {
+        final on = snap.data?.data()?['remindersOptOut'] != true;
+        return Row(
+          children: [
+            Expanded(
+              child: Text('Send reminders', style: CruType.row.tint(c.label)),
+            ),
+            CruSegmentedControl<bool>(
+              semanticLabel: 'Send reminders',
+              segments: const [
+                CruSegment(false, 'Off'),
+                CruSegment(true, 'On'),
+              ],
+              selected: on,
+              onChanged: (v) =>
+                  ref.set({'remindersOptOut': !v}, SetOptions(merge: true)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

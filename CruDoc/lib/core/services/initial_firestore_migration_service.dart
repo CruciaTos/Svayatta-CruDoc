@@ -7,6 +7,9 @@ import 'package:doctor_management_app/core/services/local_database_service.dart'
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
+import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
+import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
 
 /// One-time Firestore-to-SQLite bootstrap for existing cloud data.
 ///
@@ -37,6 +40,45 @@ class InitialFirestoreMigrationService {
     'visitations': 'home',
   };
 
+  /// Page size for the first download of a clinic's visits.
+  static const int _visitPageSize = 500;
+
+  /// Whether [runIfNeeded] still has a collection to pull from the cloud.
+  ///
+  /// Local reads only. False means [runIfNeeded] would return without touching
+  /// the network, so startup can simply await it.
+  Future<bool> hasWorkToDo() async {
+    final doctorId = ClinicSession.instance.tenantId;
+    if (doctorId == null || doctorId.isEmpty) return false;
+    for (final collection in _collections) {
+      if (!FirestoreSyncService.canReadCollection(collection)) continue;
+      if (!await _hasCompletedInitialMigration(collection)) return true;
+    }
+    return false;
+  }
+
+  /// Tells the screens reading [collection] from SQLite that rows landed. The
+  /// migration writes straight to the database, so without this a screen that
+  /// is already open (startup no longer waits for it) would keep showing the
+  /// emptiness it first read.
+  void _notifyChanged(String collection) {
+    if (_visitFirestoreToType.containsKey(collection)) {
+      VisitLocalService.instance.notifyVisitsChanged();
+      return;
+    }
+    switch (collection) {
+      case 'patients':
+        PatientLocalService.instance.notifyPatientsChanged();
+        break;
+      case 'revenue_entries':
+        RevenueLocalService.instance.notifyRevenueEntriesChanged();
+        break;
+      case 'pending_payments':
+        RevenueLocalService.instance.notifyPendingPaymentsChanged();
+        break;
+    }
+  }
+
   Future<void> runIfNeeded() async {
     final doctorId = ClinicSession.instance.tenantId;
     if (doctorId == null || doctorId.isEmpty) {
@@ -60,6 +102,7 @@ class InitialFirestoreMigrationService {
       if (await _hasCompletedInitialMigration(collection)) continue;
       try {
         await _migrateCollection(collection, doctorId);
+        _notifyChanged(collection);
       } catch (e, st) {
         // Keep the guard unset so the next launch can retry. Startup should not
         // be blocked just because Firestore is temporarily unavailable.
@@ -77,11 +120,11 @@ class InitialFirestoreMigrationService {
     // Narrowed to the doctor's own patients the same way as the live sync,
     // or the rules refuse it. From the server only: answered from the
     // cache, this once saved the previous person's patients on this device.
-    final snapshot = await FirestoreSyncService.scopedQueryFor(
+    final query = FirestoreSyncService.scopedQueryFor(
       _firestore,
       collection,
       doctorId,
-    ).get(const GetOptions(source: Source.server));
+    );
     var newestUpdatedAt = 0;
 
     // Visit Firestore collections (appointments, visitations) both land in
@@ -90,44 +133,73 @@ class InitialFirestoreMigrationService {
         ? 'visits'
         : collection;
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final row = _sqliteRowFor(collection, doc.id, data, doctorId);
-      final updatedAt = (row['updatedAt'] as num?)?.toInt() ?? 0;
-      if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
+    Future<void> apply(QuerySnapshot<Map<String, dynamic>> snapshot) async {
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final row = _sqliteRowFor(collection, doc.id, data, doctorId);
+        final updatedAt = (row['updatedAt'] as num?)?.toInt() ?? 0;
+        if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
 
-      final db = await _databaseService.localDatabase;
+        final db = await _databaseService.localDatabase;
 
-      // Foreign key safety: ensure parent patient exists locally before writing to visits
-      if (sqliteTable == 'visits') {
-        final patientId = row['patientId'] as String?;
-        if (patientId != null && patientId.isNotEmpty) {
-          await _ensurePatientExists(patientId, doctorId);
+        // Foreign key safety: ensure parent patient exists locally before writing to visits
+        if (sqliteTable == 'visits') {
+          final patientId = row['patientId'] as String?;
+          if (patientId != null && patientId.isNotEmpty) {
+            await _ensurePatientExists(patientId, doctorId);
+          }
+        }
+
+        // If a local row exists and is locally modified (pending), preserve
+        // the local change instead of overwriting it with the cloud copy.
+        final existing = await db.query(
+          sqliteTable,
+          where: 'id = ?',
+          whereArgs: [doc.id],
+          limit: 1,
+        );
+        if (existing.isNotEmpty &&
+            (existing.first['syncStatus'] == 'pending')) {
+          // Skip replacing a locally-pending row to avoid losing unsynced edits.
+          continue;
+        }
+
+        if (existing.isNotEmpty) {
+          await db.update(
+            sqliteTable,
+            row,
+            where: 'id = ?',
+            whereArgs: [doc.id],
+          );
+        } else {
+          await db.insert(
+            sqliteTable,
+            row,
+            conflictAlgorithm: LocalConflictAlgorithm.replace,
+          );
         }
       }
+    }
 
-      // If a local row exists and is locally modified (pending), preserve
-      // the local change instead of overwriting it with the cloud copy.
-      final existing = await db.query(
-        sqliteTable,
-        where: 'id = ?',
-        whereArgs: [doc.id],
-        limit: 1,
-      );
-      if (existing.isNotEmpty && (existing.first['syncStatus'] == 'pending')) {
-        // Skip replacing a locally-pending row to avoid losing unsynced edits.
-        continue;
+    const server = GetOptions(source: Source.server);
+    if (sqliteTable == 'visits') {
+      // A page at a time, ordered by document id rather than by date: a date
+      // order would silently leave out any doc without a scheduledStart, and
+      // every doc must arrive. The completion mark below is only written
+      // after the last page, so an interrupted run starts over.
+      final paged = query.orderBy(FieldPath.documentId).limit(_visitPageSize);
+      QueryDocumentSnapshot<Map<String, dynamic>>? last;
+      while (true) {
+        final page =
+            await (last == null ? paged : paged.startAfterDocument(last)).get(
+              server,
+            );
+        await apply(page);
+        if (page.docs.length < _visitPageSize) break;
+        last = page.docs.last;
       }
-
-      if (existing.isNotEmpty) {
-        await db.update(sqliteTable, row, where: 'id = ?', whereArgs: [doc.id]);
-      } else {
-        await db.insert(
-          sqliteTable,
-          row,
-          conflictAlgorithm: LocalConflictAlgorithm.replace,
-        );
-      }
+    } else {
+      await apply(await query.get(server));
     }
 
     await _markInitialMigrationComplete(collection, newestUpdatedAt);

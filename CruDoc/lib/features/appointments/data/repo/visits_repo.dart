@@ -95,16 +95,58 @@ class VisitRepository {
     return out;
   }
 
-  Stream<List<Visit>> _watchWebVisits() {
+  /// How far around now the web's live visit listener reaches by default.
+  static const Duration _webWindowBack = Duration(days: 60);
+  static const Duration _webWindowAhead = Duration(days: 365);
+
+  /// Page size for one-time reads of older visits.
+  static const int _webPageSize = 500;
+
+  List<Visit> _visitsFromDocs(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) => docs
+      .map(
+        (doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id),
+      )
+      .where((v) => !v.isDeleted)
+      .toList();
+
+  /// Live visits for the web, which has no local database to read from.
+  ///
+  /// Instead of listening to every visit the doctor ever had, this listens to
+  /// the ones whose [field] lies within [back] before now and [ahead] after
+  /// it (no upper bound when [ahead] is null). [patientId] narrows to one
+  /// patient's whole history instead, which is small enough to listen to
+  /// without a date range. Screens that need history beyond the window use
+  /// [_watchWebVisitsWithHistory] or [_fetchWebVisitsBefore].
+  ///
+  /// If the range query is refused (the doctorId + date index is not deployed
+  /// yet) it falls back to listening to everything, so a missing index slows
+  /// the screen down rather than emptying it.
+  Stream<List<Visit>> _watchWebVisits({
+    String field = 'scheduledStart',
+    Duration back = _webWindowBack,
+    Duration? ahead = _webWindowAhead,
+    String? patientId,
+  }) {
     final doctorId = _currentDoctorId;
-    final appts = FirebaseFirestore.instance
-        .collection('appointments')
-        .where('doctorId', isEqualTo: doctorId)
-        .snapshots();
-    final visitations = FirebaseFirestore.instance
-        .collection('visitations')
-        .where('doctorId', isEqualTo: doctorId)
-        .snapshots();
+    final now = DateTime.now();
+    final from = Timestamp.fromDate(now.subtract(back));
+    final to = ahead == null ? null : Timestamp.fromDate(now.add(ahead));
+
+    Query<Map<String, dynamic>> queryFor(String collection, bool ranged) {
+      var q = FirebaseFirestore.instance
+          .collection(collection)
+          .where('doctorId', isEqualTo: doctorId);
+      if (patientId != null) {
+        return q.where('patientId', isEqualTo: patientId);
+      }
+      if (ranged) {
+        q = q.where(field, isGreaterThanOrEqualTo: from);
+        if (to != null) q = q.where(field, isLessThanOrEqualTo: to);
+      }
+      return q;
+    }
 
     final controller = StreamController<List<Visit>>.broadcast();
     List<Visit> lastAppts = [];
@@ -115,41 +157,117 @@ class VisitRepository {
       controller.add([...lastAppts, ...lastVisits]);
     }
 
-    StreamSubscription? sub1;
-    StreamSubscription? sub2;
+    final subs = <String, StreamSubscription>{};
+
+    void listen(String collection, bool ranged) {
+      subs[collection] = queryFor(collection, ranged).snapshots().listen(
+        (snap) {
+          final list = _visitsFromDocs(snap.docs);
+          if (collection == 'appointments') {
+            lastAppts = list;
+          } else {
+            lastVisits = list;
+          }
+          emit();
+        },
+        onError: (Object e) {
+          if (ranged && patientId == null) {
+            debugPrint('Ranged visit listener on $collection failed: $e');
+            subs[collection]?.cancel();
+            listen(collection, false);
+          } else if (!controller.isClosed) {
+            controller.addError(e);
+          }
+        },
+      );
+    }
 
     controller.onListen = () {
-      sub1 = appts.listen((snap) {
-        lastAppts = snap.docs
-            .map(
-              (doc) => Visit.fromMap(
-                _decryptedFromFirestore(doc.data()),
-                id: doc.id,
-              ),
-            )
-            .where((v) => !v.isDeleted)
-            .toList();
-        emit();
-      });
-      sub2 = visitations.listen((snap) {
-        lastVisits = snap.docs
-            .map(
-              (doc) => Visit.fromMap(
-                _decryptedFromFirestore(doc.data()),
-                id: doc.id,
-              ),
-            )
-            .where((v) => !v.isDeleted)
-            .toList();
-        emit();
-      });
+      listen('appointments', true);
+      listen('visitations', true);
     };
 
     controller.onCancel = () {
-      sub1?.cancel();
-      sub2?.cancel();
+      for (final sub in subs.values) {
+        sub.cancel();
+      }
+      subs.clear();
     };
 
+    return controller.stream;
+  }
+
+  /// One-time read of every visit scheduled before [before], newest first, in
+  /// pages. For screens that show more than the live window covers.
+  Future<List<Visit>> _fetchWebVisitsBefore(DateTime before) async {
+    final doctorId = _currentDoctorId;
+    final byId = <String, Visit>{};
+    for (final collection in const ['appointments', 'visitations']) {
+      final base = FirebaseFirestore.instance
+          .collection(collection)
+          .where('doctorId', isEqualTo: doctorId);
+      try {
+        final paged = base
+            .where('scheduledStart', isLessThan: Timestamp.fromDate(before))
+            .orderBy('scheduledStart', descending: true)
+            .limit(_webPageSize);
+        QueryDocumentSnapshot<Map<String, dynamic>>? last;
+        while (true) {
+          final snap =
+              await (last == null ? paged : paged.startAfterDocument(last))
+                  .get();
+          for (final v in _visitsFromDocs(snap.docs)) {
+            byId[v.id] = v;
+          }
+          if (snap.docs.length < _webPageSize) break;
+          last = snap.docs.last;
+        }
+      } on FirebaseException catch (e) {
+        // Index not deployed yet: read everything once and cut it here.
+        if (e.code != 'failed-precondition') rethrow;
+        final snap = await base.get();
+        for (final v in _visitsFromDocs(snap.docs)) {
+          if (v.scheduledStart.isBefore(before)) byId[v.id] = v;
+        }
+      }
+    }
+    return byId.values.toList();
+  }
+
+  /// The live window plus a one-time read of everything older, merged. For
+  /// screens that need the whole history (the calendar, each patient's last
+  /// visit) without keeping a listener on all of it. Older visits are read
+  /// once per subscription, so an edit to one shows after the screen reloads.
+  Stream<List<Visit>> _watchWebVisitsWithHistory() {
+    final windowStart = DateTime.now().subtract(_webWindowBack);
+    final controller = StreamController<List<Visit>>.broadcast();
+    var live = <Visit>[];
+    var older = <Visit>[];
+    var liveSeen = false;
+    StreamSubscription<List<Visit>>? sub;
+
+    void emit() {
+      if (!liveSeen || controller.isClosed) return;
+      controller.add([...live, ...older]);
+    }
+
+    controller.onListen = () {
+      sub = _watchWebVisits().listen((list) {
+        live = list;
+        liveSeen = true;
+        emit();
+      }, onError: controller.addError);
+      _fetchWebVisitsBefore(windowStart)
+          .then((list) {
+            older = list;
+            emit();
+          })
+          .catchError((Object e) {
+            debugPrint('Older visits could not be read: $e');
+            if (!controller.isClosed) controller.addError(e);
+          });
+    };
+    controller.onCancel = () => sub?.cancel();
     return controller.stream;
   }
 
@@ -740,8 +858,13 @@ class VisitRepository {
   /// onward, ordered by start time ascending.
   Stream<List<Visit>> watchUpcomingVisits({DateTime? from}) {
     if (kIsWeb) {
-      final startFrom = from ?? DateTime.now();
-      return _watchWebVisits().map((list) {
+      final now = DateTime.now();
+      final startFrom = from ?? now;
+      // Reach back far enough to cover an explicit earlier [from].
+      final reach = now.difference(startFrom) + const Duration(days: 1);
+      return _watchWebVisits(
+        back: reach > _webWindowBack ? reach : _webWindowBack,
+      ).map((list) {
         final filtered = list
             .where((v) => !v.isDeleted && v.scheduledStart.isAfter(startFrom))
             .toList();
@@ -779,7 +902,9 @@ class VisitRepository {
     bool includeDeleted = false,
   }) {
     if (kIsWeb) {
-      return _watchWebVisits().map((list) {
+      // One patient's whole history, not date-limited: it is small, and this
+      // is the screen that must never be missing a visit.
+      return _watchWebVisits(patientId: patientId).map((list) {
         final filtered = list
             .where(
               (v) =>
@@ -802,7 +927,7 @@ class VisitRepository {
   Stream<Map<String, Visit>> watchLastVisitPerPatient() {
     if (kIsWeb) {
       final now = DateTime.now();
-      return _watchWebVisits().map((list) {
+      return _watchWebVisitsWithHistory().map((list) {
         final map = <String, Visit>{};
         final pastVisits = list
             .where((v) => !v.isDeleted && v.scheduledStart.isBefore(now))
@@ -823,7 +948,9 @@ class VisitRepository {
   /// newest first. Powers the dashboard's "Recent Activity" card.
   Stream<List<Visit>> watchRecentVisits() {
     if (kIsWeb) {
-      return _watchWebVisits().map((list) {
+      // By last change, not by visit date: an old visit edited today belongs
+      // here, so the window is on updatedAt.
+      return _watchWebVisits(field: 'updatedAt', ahead: null).map((list) {
         final filtered = list.where((v) => !v.isDeleted).toList();
         filtered.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
         return filtered;
@@ -835,7 +962,7 @@ class VisitRepository {
   /// Streams all non-deleted visits (past, present, and future) for calendar view.
   Stream<List<Visit>> watchAllVisits() {
     if (kIsWeb) {
-      return _watchWebVisits().map((list) {
+      return _watchWebVisitsWithHistory().map((list) {
         final filtered = list.where((v) => !v.isDeleted).toList();
         filtered.sort((a, b) => b.scheduledStart.compareTo(a.scheduledStart));
         return filtered;

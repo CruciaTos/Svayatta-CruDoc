@@ -1,9 +1,9 @@
 import * as admin from "firebase-admin";
 import {getDb} from "./db";
-import {getConfig, WhatsAppNotConfiguredError} from "./config";
+import {getConfig, WhatsAppConfig} from "./config";
 import {
   CLINIC_TIME_ZONE, firstNameOf, formatDate, formatTime, fullNameOf,
-  istDayRange, normalisePhone,
+  istDateKey, istDayRange, normalisePhone,
 } from "./format";
 import {claimReminder, logSkipped, markFailed, markSent} from "./logs";
 import {filterOptedOut} from "./optouts";
@@ -11,6 +11,10 @@ import {MetaSendError, sendTemplateMessage} from "./send";
 import {APPOINTMENT_REMINDER} from "./templates";
 import {decryptField, PatientKeyring} from "../crypto/patientCipher";
 import {decryptProfileField} from "../crypto/profileCipher";
+import {
+  buildClinicContext, ClinicContext, deliver, logSkip,
+} from "../reminders/deliver";
+import {renderEmail} from "../reminders/settings";
 import {recordApiUsage} from "../api-usage";
 
 /**
@@ -46,7 +50,7 @@ interface Candidate {
   inlinePhone: string | null;
 }
 
-interface DoctorProfile {
+export interface DoctorProfile {
   doctorId: string;
   doctorName: string;
   clinicName: string;
@@ -62,9 +66,11 @@ interface DoctorProfile {
  * all mean no, because sending is spending someone's money and messaging
  * someone who did not agree to it.
  */
-function assessDoctor(
+export function assessDoctor(
   doctorId: string,
   data: admin.firestore.DocumentData | undefined,
+  /** Recalls have their own switch, so they skip the reminders one. */
+  requireRemindersOn = true,
 ): DoctorProfile {
   const base: DoctorProfile = {
     doctorId,
@@ -94,7 +100,7 @@ function assessDoctor(
   };
 
   // The switch is opt-out: absent means on.
-  if (data.whatsappRemindersEnabled === false) {
+  if (requireRemindersOn && data.whatsappRemindersEnabled === false) {
     return {...profile, reason: "reminders_switched_off"};
   }
 
@@ -117,11 +123,8 @@ function assessDoctor(
     return {...profile, reason: "subscription_expired"};
   }
 
-  // The reminder tells the patient to ring the clinic to reschedule, so a
-  // reminder without a number to ring is worse than none.
-  if (!clinicPhone) {
-    return {...profile, reason: "no_clinic_phone"};
-  }
+  // A clinic phone is only needed for WhatsApp (the template tells the
+  // patient to ring it); the channel layer checks that itself, email does not.
   if (!clinicName) {
     return {...profile, reason: "no_clinic_name"};
   }
@@ -238,21 +241,17 @@ async function sendReminders(
     summary.skipped[reason] = (summary.skipped[reason] || 0) + 1;
   };
 
-  // Fail the whole run loudly rather than per message: an unset token is an
-  // operational problem, not something to record against 200 patients.
-  let config;
-  try {
-    config = getConfig();
-  } catch (err) {
-    if (err instanceof WhatsAppNotConfiguredError) {
-      console.error(`[WhatsApp] sweep aborted: ${err.message}`);
-      return summary;
-    }
-    throw err;
-  }
-
   summary.considered = candidates.length;
   if (!candidates.length) return summary;
+
+  // The shared CruDoc number, as reminders have always been sent. Without it
+  // WhatsApp falls back to the outbox (a clinic's own number) or to email.
+  let sharedConfig: WhatsAppConfig | null = null;
+  try {
+    sharedConfig = getConfig();
+  } catch (_) {
+    console.error("[reminders] shared WhatsApp number is not configured");
+  }
 
   const doctors = await loadAll(
     "users", candidates.map((c) => c.doctorId),
@@ -274,7 +273,9 @@ async function sendReminders(
   interface Resolved {
     candidate: Candidate;
     profile: DoctorProfile;
-    phone: string;
+    phone: string | null;
+    email: string | null;
+    optOutFlag: boolean;
     firstName: string;
     fullName: string;
   }
@@ -302,7 +303,7 @@ async function sendReminders(
       );
     } catch (err) {
       console.error(
-        `[WhatsApp] cannot unwrap the key for ${candidate.doctorId}: ` +
+        `[reminders] cannot unwrap the key for ${candidate.doctorId}: ` +
         `${(err as Error).message}`,
       );
     }
@@ -318,107 +319,165 @@ async function sendReminders(
     const firstName = firstNameOf(nameSource);
     const fullName = fullNameOf(nameSource);
 
-    const phone = normalisePhone(
-      plain(patient?.phone) || plain(candidate.inlinePhone),
-    );
-
-    if (!phone) {
-      skip("invalid_or_missing_phone");
-      await logSkipped({
-        appointmentId: candidate.appointmentId,
-        doctorId: candidate.doctorId,
-        patientId: candidate.patientId,
-        recipientName: fullName || null,
-        reason: "invalid_or_missing_phone",
-      });
-      continue;
-    }
-
     if (!firstName) {
       skip("no_patient_name");
       await logSkipped({
         appointmentId: candidate.appointmentId,
         doctorId: candidate.doctorId,
         patientId: candidate.patientId,
-        recipientPhone: phone,
+        recipientPhone:
+          normalisePhone(plain(patient?.phone) || plain(candidate.inlinePhone)),
         reason: "no_patient_name",
       });
+      await logSkip(
+        candidate.doctorId, "reminder", candidate.appointmentId,
+        istDateKey(candidate.scheduledStart), candidate.patientId,
+        "no_patient_name",
+      );
       continue;
     }
 
-    resolved.push({candidate, profile, phone, firstName, fullName});
+    resolved.push({
+      candidate,
+      profile,
+      phone: normalisePhone(
+        plain(patient?.phone) || plain(candidate.inlinePhone),
+      ),
+      email: plain(patient?.email).trim().toLowerCase() || null,
+      optOutFlag: patient?.remindersOptOut === true,
+      firstName,
+      fullName,
+    });
   }
 
-  const optedOut = await filterOptedOut(resolved.map((r) => r.phone));
+  const optedOut = await filterOptedOut(
+    resolved.map((r) => r.phone).filter((p): p is string => !!p),
+  );
+
+  const contexts = new Map<string, ClinicContext>();
 
   for (const r of resolved) {
-    if (optedOut.has(r.phone)) {
-      skip("opted_out");
-      await logSkipped({
-        appointmentId: r.candidate.appointmentId,
-        doctorId: r.candidate.doctorId,
-        patientId: r.candidate.patientId,
-        recipientPhone: r.phone,
-        recipientName: r.fullName,
-        reason: "opted_out",
-      });
-      continue;
+    const clinicId = r.candidate.doctorId;
+    let ctx = contexts.get(clinicId);
+    if (!ctx) {
+      ctx = await buildClinicContext(
+        clinicId, doctors.get(clinicId), r.profile.clinicPhone,
+      );
+      contexts.set(clinicId, ctx);
     }
 
-    const claimed = await claimReminder({
-      appointmentId: r.candidate.appointmentId,
-      doctorId: r.candidate.doctorId,
-      patientId: r.candidate.patientId,
-      recipientPhone: r.phone,
-      recipientName: r.fullName,
+    const start = r.candidate.scheduledStart;
+    const date = formatDate(start, CLINIC_TIME_ZONE);
+    const time = formatTime(start, CLINIC_TIME_ZONE);
+    const vars = {
+      patient: r.firstName,
+      date,
+      time,
+      clinic: r.profile.clinicName,
+      doctor: r.profile.doctorName,
+    };
+
+    const waParams = {
+      patientFirstName: r.firstName,
       clinicName: r.profile.clinicName,
-      scheduledStart: r.candidate.scheduledStart,
-    });
-
-    if (!claimed) {
-      skip("already_handled");
-      continue;
-    }
+      doctorName: r.profile.doctorName,
+      date,
+      time,
+      clinicPhone: r.profile.clinicPhone || "",
+    };
+    const phone = r.phone;
+    const shared = sharedConfig;
+    // The original send, unchanged: shared number, claim, log, usage.
+    const direct = phone && shared ?
+      async (): Promise<"sent" | "already"> => {
+        const claimed = await claimReminder({
+          appointmentId: r.candidate.appointmentId,
+          doctorId: r.candidate.doctorId,
+          patientId: r.candidate.patientId,
+          recipientPhone: phone,
+          recipientName: r.fullName,
+          clinicName: r.profile.clinicName,
+          scheduledStart: r.candidate.scheduledStart,
+        });
+        if (!claimed) return "already";
+        try {
+          const {messageId} = await sendTemplateMessage({
+            to: phone,
+            spec: APPOINTMENT_REMINDER,
+            config: shared,
+            params: waParams,
+          });
+          await markSent(r.candidate.appointmentId, messageId);
+          await recordApiUsage(r.candidate.doctorId, "whatsapp", "reminder");
+          return "sent";
+        } catch (err) {
+          const meta = err instanceof MetaSendError ? err : null;
+          await markFailed(
+            r.candidate.appointmentId,
+            (err as Error)?.message || "send_failed",
+            meta?.code,
+          );
+          await recordApiUsage(
+            r.candidate.doctorId, "whatsapp", "reminder", {error: true},
+          );
+          throw err;
+        }
+      } :
+      undefined;
 
     try {
-      const {messageId} = await sendTemplateMessage({
-        to: r.phone,
-        spec: APPOINTMENT_REMINDER,
-        config,
-        params: {
-          patientFirstName: r.firstName,
-          clinicName: r.profile.clinicName,
-          doctorName: r.profile.doctorName,
-          date: formatDate(r.candidate.scheduledStart, CLINIC_TIME_ZONE),
-          time: formatTime(r.candidate.scheduledStart, CLINIC_TIME_ZONE),
-          clinicPhone: r.profile.clinicPhone || "",
+      const result = await deliver(
+        ctx,
+        {
+          patientId: r.candidate.patientId,
+          phone: r.phone,
+          email: r.email,
+          optedOut: r.optOutFlag || (!!r.phone && optedOut.has(r.phone)),
         },
-      });
-
-      await markSent(r.candidate.appointmentId, messageId);
-      await recordApiUsage(r.candidate.doctorId, "whatsapp", "reminder");
-      summary.sent++;
-    } catch (err) {
-      const meta = err instanceof MetaSendError ? err : null;
-      const reason = (err as Error)?.message || "send_failed";
-
-      // Only the status is written, never a success. A failed send that read
-      // as sent was what made the old delivery badges untrustworthy.
-      await markFailed(r.candidate.appointmentId, reason, meta?.code);
-      await recordApiUsage(
-        r.candidate.doctorId, "whatsapp", "reminder", {error: true},
+        "reminder",
+        {
+          refId: r.candidate.appointmentId,
+          dayKey: istDateKey(start),
+          whatsapp: {
+            templateKey: APPOINTMENT_REMINDER.key,
+            params: waParams,
+            direct,
+          },
+          email: renderEmail(ctx.settings.email.reminder, vars),
+        },
       );
-      summary.failed++;
 
+      if (result.status === "sent" || result.status === "queued") {
+        summary.sent++;
+      } else if (result.status === "failed") {
+        summary.failed++;
+      } else {
+        skip(result.reason || result.status);
+        // The feed has always shown skipped reminders; keep it doing so.
+        if (result.reason === "opted_out" ||
+            (result.reason === "no_channel" && !r.phone)) {
+          await logSkipped({
+            appointmentId: r.candidate.appointmentId,
+            doctorId: r.candidate.doctorId,
+            patientId: r.candidate.patientId,
+            recipientPhone: r.phone,
+            recipientName: r.fullName,
+            reason: result.reason === "opted_out" ?
+              "opted_out" : "invalid_or_missing_phone",
+          });
+        }
+      }
+    } catch (err) {
+      summary.failed++;
       console.error(
-        `[WhatsApp] reminder failed for ${r.candidate.appointmentId}` +
-        `${meta ? ` (code ${meta.code})` : ""}: ${reason}`,
+        `[reminders] reminder failed for ${r.candidate.appointmentId}: ` +
+        `${(err as Error)?.message}`,
       );
     }
   }
 
   console.log(
-    `[WhatsApp] ${label} sweep: considered ${summary.considered}, sent ${summary.sent}, ` +
+    `[reminders] ${label} sweep: considered ${summary.considered}, sent ${summary.sent}, ` +
     `failed ${summary.failed}, skipped ${JSON.stringify(summary.skipped)}`,
   );
 

@@ -8,6 +8,8 @@ import 'package:doctor_management_app/features/campaigns/data/models/campaign_mo
 import 'package:doctor_management_app/features/campaigns/data/providers/campaign_providers.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/campaign_analytics_dialog.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/post_campaign_modal.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/reminders_panel.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
@@ -29,6 +31,9 @@ class _DesktopCampaignsScreenState
   final _search = TextEditingController();
   CampaignCategory? _category;
   CampaignStatus? _status;
+
+  /// Automatic reminders instead of the campaign list. Owner only.
+  bool _reminders = false;
 
   String get _doctorId => FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
@@ -55,6 +60,8 @@ class _DesktopCampaignsScreenState
   @override
   Widget build(BuildContext context) {
     final repo = ref.watch(campaignRepositoryProvider);
+    final isOwner = ref.watch(clinicAccessProvider).value?.isOwner ?? true;
+    final showReminders = isOwner && _reminders;
     return Padding(
       padding: desktopPagePadding(context),
       child: StreamBuilder<List<CampaignModel>>(
@@ -77,96 +84,121 @@ class _DesktopCampaignsScreenState
                     ? 'Health notices to your patients by WhatsApp and email'
                     : _subtitle(all),
                 actions: [
-                  CruButton(
-                    label: 'New campaign',
-                    icon: CruIcons.plus,
-                    onPressed: () => PostCampaignModal.show(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: CruSpace.cardGap),
-              _Glance(campaigns: all ?? const []),
-              const SizedBox(height: CruSpace.cardGap),
-              DentalFilterBar(
-                filters: [
-                  _Menu<CampaignCategory>(
-                    tooltip: 'Category',
-                    allLabel: 'All categories',
-                    value: _category,
-                    values: CampaignCategory.values,
-                    label: (c) => c.label,
-                    onSelected: (c) => setState(() => _category = c),
-                  ),
-                  _Menu<CampaignStatus>(
-                    tooltip: 'Status',
-                    allLabel: 'All statuses',
-                    value: _status,
-                    values: CampaignStatus.values,
-                    label: (s) => s.label,
-                    onSelected: (s) => setState(() => _status = s),
-                  ),
-                  if (filtering)
-                    CruLink(
-                      label: 'Clear',
-                      onPressed: () {
-                        _search.clear();
-                        setState(() {
-                          _category = null;
-                          _status = null;
-                        });
-                      },
+                  if (isOwner)
+                    CruSegmentedControl<bool>(
+                      semanticLabel: 'Campaigns or reminders',
+                      segments: const [
+                        CruSegment(false, 'Campaigns'),
+                        CruSegment(true, 'Reminders'),
+                      ],
+                      selected: showReminders,
+                      onChanged: (v) => setState(() => _reminders = v),
+                    ),
+                  if (!showReminders)
+                    CruButton(
+                      label: 'New campaign',
+                      icon: CruIcons.plus,
+                      onPressed: () => PostCampaignModal.show(context),
                     ),
                 ],
-                search: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search title, topic or message',
-                  onChanged: (_) => setState(() {}),
-                ),
               ),
               const SizedBox(height: CruSpace.cardGap),
-              Expanded(
-                child: all == null
-                    ? const SizedBox.shrink()
-                    : shown.isEmpty
-                    // The empty card fills the list's space, like the
-                    // other pages' lists do.
-                    ? CruCard(
-                        padding: const EdgeInsets.all(CruSpace.s12),
-                        child: Center(
-                          child: SingleChildScrollView(
-                            child: DentalEmptyState(
-                              icon: CruIcons.megaphone,
-                              title: all.isEmpty
-                                  ? 'No campaigns yet'
-                                  : 'No campaigns here',
-                              body: all.isEmpty
-                                  ? 'Send check-up drives, vaccine notices and '
-                                        'health advisories to your patients.'
-                                  : 'Try another filter or search.',
-                              actions: [
-                                if (all.isEmpty)
-                                  CruButton(
-                                    label: 'New campaign',
-                                    icon: CruIcons.plus,
-                                    onPressed: () =>
-                                        PostCampaignModal.show(context),
-                                  ),
-                              ],
+              if (showReminders)
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 760),
+                        child: RemindersPanel(),
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
+                _Glance(campaigns: all ?? const []),
+                const SizedBox(height: CruSpace.cardGap),
+                DentalFilterBar(
+                  filters: [
+                    _Menu<CampaignCategory>(
+                      tooltip: 'Category',
+                      allLabel: 'All categories',
+                      value: _category,
+                      values: CampaignCategory.values,
+                      label: (c) => c.label,
+                      onSelected: (c) => setState(() => _category = c),
+                    ),
+                    _Menu<CampaignStatus>(
+                      tooltip: 'Status',
+                      allLabel: 'All statuses',
+                      value: _status,
+                      values: CampaignStatus.values,
+                      label: (s) => s.label,
+                      onSelected: (s) => setState(() => _status = s),
+                    ),
+                    if (filtering)
+                      CruLink(
+                        label: 'Clear',
+                        onPressed: () {
+                          _search.clear();
+                          setState(() {
+                            _category = null;
+                            _status = null;
+                          });
+                        },
+                      ),
+                  ],
+                  search: DentalSearchField(
+                    controller: _search,
+                    hint: 'Search title, topic or message',
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(height: CruSpace.cardGap),
+                Expanded(
+                  child: all == null
+                      ? const SizedBox.shrink()
+                      : shown.isEmpty
+                      // The empty card fills the list's space, like the
+                      // other pages' lists do.
+                      ? CruCard(
+                          padding: const EdgeInsets.all(CruSpace.s12),
+                          child: Center(
+                            child: SingleChildScrollView(
+                              child: DentalEmptyState(
+                                icon: CruIcons.megaphone,
+                                title: all.isEmpty
+                                    ? 'No campaigns yet'
+                                    : 'No campaigns here',
+                                body: all.isEmpty
+                                    ? 'Send check-up drives, vaccine notices and '
+                                          'health advisories to your patients.'
+                                    : 'Try another filter or search.',
+                                actions: [
+                                  if (all.isEmpty)
+                                    CruButton(
+                                      label: 'New campaign',
+                                      icon: CruIcons.plus,
+                                      onPressed: () =>
+                                          PostCampaignModal.show(context),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
+                        )
+                      : CruCard(
+                          semanticLabel: 'Campaigns',
+                          padding: const EdgeInsets.all(CruSpace.s12),
+                          child: ListView.separated(
+                            itemCount: shown.length,
+                            separatorBuilder: (_, _) => const CruSeparator(),
+                            itemBuilder: (context, i) =>
+                                _CampaignRow(campaign: shown[i]),
+                          ),
                         ),
-                      )
-                    : CruCard(
-                        semanticLabel: 'Campaigns',
-                        padding: const EdgeInsets.all(CruSpace.s12),
-                        child: ListView.separated(
-                          itemCount: shown.length,
-                          separatorBuilder: (_, _) => const CruSeparator(),
-                          itemBuilder: (context, i) =>
-                              _CampaignRow(campaign: shown[i]),
-                        ),
-                      ),
-              ),
+                ),
+              ],
             ],
           );
         },

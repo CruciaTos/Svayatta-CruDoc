@@ -73,6 +73,38 @@ export const APPOINTMENT_REMINDER: TemplateSpec = {
 };
 
 /**
+ * The recall: a patient the clinic asked to see again by a given date.
+ *
+ * Like the reminder it names no treatment, so nothing about the patient's
+ * health shows on a locked screen. Meta may treat a recall as MARKETING; if it
+ * does, resubmit under that category and change it here to match.
+ */
+export const RECALL_REMINDER: TemplateSpec = {
+  key: "recall_reminder",
+  name: "recall_reminder_v1",
+  category: "UTILITY",
+  language: "en",
+  paramOrder: [
+    "patientFirstName",
+    "clinicName",
+    "doctorName",
+    "date",
+    "clinicPhone",
+  ],
+  body:
+    "Hi {{1}}, it is time to book your next visit to {{2}} with {{3}}. " +
+    "Your check-up is due on {{4}}. To book, please call the clinic on {{5}}. " +
+    "Reply STOP to stop these reminders.",
+  example: {
+    patientFirstName: "Rahul",
+    clinicName: "Smile Dental Clinic",
+    doctorName: "Dr. Mehta",
+    date: "Tue, 6 Oct",
+    clinicPhone: "9812345678",
+  },
+};
+
+/**
  * A general clinic campaign — a health advisory, a camp, a vaccination drive,
  * a reopening notice.
  *
@@ -109,6 +141,7 @@ export const CLINIC_CAMPAIGN: TemplateSpec = {
 
 export const TEMPLATES: Record<string, TemplateSpec> = {
   [APPOINTMENT_REMINDER.key]: APPOINTMENT_REMINDER,
+  [RECALL_REMINDER.key]: RECALL_REMINDER,
   [CLINIC_CAMPAIGN.key]: CLINIC_CAMPAIGN,
 };
 

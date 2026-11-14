@@ -82,11 +82,72 @@ abstract final class DesktopGoogleOAuth {
         "Google sign-in isn't set up on this computer yet.",
       );
     }
+    final round = await _browserRound(
+      clientId: clientId,
+      scopes: scopes,
+      offline: offline,
+      forceConsent: forceConsent,
+      port: 0,
+      usePkce: true,
+    );
+    final body = await _token(client, {
+      'code': round.code,
+      'code_verifier': round.verifier!,
+      'redirect_uri': round.redirectUri,
+      'grant_type': 'authorization_code',
+    });
+    return DesktopGoogleTokens(
+      accessToken: body['access_token'] as String,
+      idToken: body['id_token'] as String?,
+      refreshToken: body['refresh_token'] as String?,
+      expiresIn: body['expires_in'] as int? ?? 3600,
+    );
+  }
+
+  /// Signs in through the browser for a server to finish: returns Google's
+  /// one-time code and the redirect it was issued for, without exchanging it
+  /// here. The server holds the client secret, so nothing secret ships in the
+  /// app. [clientId] is a Web application client whose authorized redirect
+  /// URIs include `http://127.0.0.1:<port>` (a Web client needs the exact
+  /// port, unlike a Desktop client), always asking for offline access.
+  static Future<({String code, String redirectUri})> authorizeForServer({
+    required String clientId,
+    required List<String> scopes,
+    int port = 53682,
+  }) async {
+    final round = await _browserRound(
+      clientId: clientId,
+      scopes: scopes,
+      offline: true,
+      forceConsent: true,
+      port: port,
+      usePkce: false,
+    );
+    return (code: round.code, redirectUri: round.redirectUri);
+  }
+
+  /// One trip to Google's page in the browser, caught on a one-time local
+  /// address. [port] 0 picks a free one.
+  static Future<({String code, String? verifier, String redirectUri})>
+  _browserRound({
+    required String clientId,
+    required List<String> scopes,
+    required bool offline,
+    required bool forceConsent,
+    required int port,
+    required bool usePkce,
+  }) async {
     HttpServer? server;
     try {
       final verifier = _codeVerifier();
       final state = _codeVerifier();
-      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      try {
+        server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+      } on SocketException {
+        throw const DesktopGoogleOAuthException(
+          'Another sign-in is already open. Close it and try again.',
+        );
+      }
       final redirectUri = 'http://127.0.0.1:${server.port}';
 
       final authUri = Uri.https(_authHost, '/o/oauth2/v2/auth', {
@@ -94,8 +155,8 @@ abstract final class DesktopGoogleOAuth {
         'redirect_uri': redirectUri,
         'response_type': 'code',
         'scope': scopes.join(' '),
-        'code_challenge': _codeChallenge(verifier),
-        'code_challenge_method': 'S256',
+        if (usePkce) 'code_challenge': _codeChallenge(verifier),
+        if (usePkce) 'code_challenge_method': 'S256',
         'state': state,
         if (offline) 'access_type': 'offline',
         if (forceConsent) 'prompt': 'consent' else 'prompt': 'select_account',
@@ -134,18 +195,10 @@ abstract final class DesktopGoogleOAuth {
           cancelled: true,
         );
       }
-
-      final body = await _token(client, {
-        'code': code,
-        'code_verifier': verifier,
-        'redirect_uri': redirectUri,
-        'grant_type': 'authorization_code',
-      });
-      return DesktopGoogleTokens(
-        accessToken: body['access_token'] as String,
-        idToken: body['id_token'] as String?,
-        refreshToken: body['refresh_token'] as String?,
-        expiresIn: body['expires_in'] as int? ?? 3600,
+      return (
+        code: code,
+        verifier: usePkce ? verifier : null,
+        redirectUri: redirectUri,
       );
     } finally {
       await server?.close(force: true);

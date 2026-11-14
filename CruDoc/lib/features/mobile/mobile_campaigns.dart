@@ -8,7 +8,9 @@ import 'package:doctor_management_app/features/campaigns/data/providers/campaign
 import 'package:doctor_management_app/features/campaigns/data/repo/campaign_repository.dart';
 import 'package:doctor_management_app/features/campaigns/data/services/campaign_dispatch_service.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/campaign_analytics_dialog.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/mobile_post_campaign_sheet.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/reminders_panel.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -34,11 +36,16 @@ class _MobileCampaignsPageState extends ConsumerState<MobileCampaignsPage> {
 
   CampaignStatus? _status;
 
+  /// Automatic reminders instead of the campaign list. Owner only.
+  bool _reminders = false;
+
   void _post() => MobilePostCampaignSheet.show(mobileRoot(context));
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final isOwner = ref.watch(clinicAccessProvider).value?.isOwner ?? true;
+    final showReminders = isOwner && _reminders;
     return StreamBuilder<List<CampaignModel>>(
       stream: _stream,
       builder: (context, snap) {
@@ -63,14 +70,35 @@ class _MobileCampaignsPageState extends ConsumerState<MobileCampaignsPage> {
               pushed: true,
               title: 'Campaigns',
               subtitle: 'Health notes to your patients by email',
-              trailing: MobileCircleButton(
-                icon: CruIcons.plus,
-                semanticLabel: 'Post a campaign',
-                onPressed: _post,
-              ),
+              trailing: showReminders
+                  ? null
+                  : MobileCircleButton(
+                      icon: CruIcons.plus,
+                      semanticLabel: 'Post a campaign',
+                      onPressed: _post,
+                    ),
             ),
             const SizedBox(height: CruSpace.s16),
-            if (all == null)
+            if (isOwner) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MobileMetrics.gutter,
+                ),
+                child: MobileSegmented<bool>(
+                  values: const [false, true],
+                  label: (v) => v ? 'Reminders' : 'Campaigns',
+                  selected: showReminders,
+                  onChanged: (v) => setState(() => _reminders = v),
+                ),
+              ),
+              const SizedBox(height: CruSpace.s16),
+            ],
+            if (showReminders)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
+                child: RemindersPanel(),
+              )
+            else if (all == null)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: MobileMetrics.gutter),
                 child: MobileCard(child: MobileLoading('Loading campaigns…')),

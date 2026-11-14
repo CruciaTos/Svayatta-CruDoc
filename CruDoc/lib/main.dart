@@ -175,6 +175,30 @@ void _wireWebEncryptionKeyLoading() {
   );
 }
 
+/// Runs the first-time pull, then starts sync, off the startup path. Does
+/// nothing if the person signed out or switched clinic while it ran, so a
+/// stale session never starts sync after its own shutdown.
+Future<void> _migrateThenSync(
+  InitialFirestoreMigrationService migration, {
+  required String clinicId,
+  required String uid,
+}) async {
+  try {
+    await migration.runIfNeeded();
+  } catch (e) {
+    debugPrint('Background first sync failed: $e');
+  }
+  final stillSignedIn =
+      FirebaseAuth.instance.currentUser?.uid == uid &&
+      ClinicSession.instance.access?.clinicId == clinicId;
+  if (!stillSignedIn) return;
+  try {
+    await FirestoreSyncService.instance.start();
+  } catch (e) {
+    debugPrint('Starting sync failed: $e');
+  }
+}
+
 /// Starts (and re-starts) the local-first data layer strictly in response
 /// to actual sign-in state, rather than unconditionally at cold start.
 ///
@@ -199,8 +223,24 @@ void _wireDoctorScopedStartup() {
       await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
         LocalDatabaseService.scopeFor(access.clinicId, user.uid),
       );
-      await InitialFirestoreMigrationService.instance.runIfNeeded();
-      await FirestoreSyncService.instance.start();
+      // The first pull of a clinic's data (migration) needs the network, and
+      // offline it can take a long while to give up. Only that case runs in
+      // the background; once a device has done it, this is a quick local
+      // check and start() below stays awaited, as before. Screens read from
+      // the local database and are told when the rows land. Sync still starts
+      // only after the migration, so the order is unchanged.
+      final migration = InitialFirestoreMigrationService.instance;
+      if (await migration.hasWorkToDo()) {
+        unawaited(
+          _migrateThenSync(
+            migration,
+            clinicId: access.clinicId,
+            uid: user.uid,
+          ),
+        );
+      } else {
+        await FirestoreSyncService.instance.start();
+      }
       FilesCloudSync.instance.ensureStarted();
       // Study images that never reached the cloud (imported before uploads
       // existed, or before the study had a patient). In the background.

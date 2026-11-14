@@ -5,6 +5,7 @@ import {
   sendDayBeforeReminders, sendMorningCatchUpReminders,
 } from "./whatsapp/reminders";
 import {patientKekPepperSecret} from "./crypto/patientCipher";
+import {gmailClientIdSecret, gmailClientSecretSecret} from "./reminders/gmail";
 import {
   processWebhook, verifySignature, verifySubscription,
 } from "./whatsapp/webhook";
@@ -35,6 +36,15 @@ const webhookVerifyToken = defineSecret("WHATSAPP_WEBHOOK_VERIFY_TOKEN");
 const webhookAppSecret = defineSecret("WHATSAPP_WEBHOOK_APP_SECRET");
 
 /**
+ * What the sweeps need: the shared number's token (reminders still send from
+ * it directly), the pepper for patient data, and the Gmail OAuth client that
+ * turns a clinic's stored refresh token into an access token.
+ */
+const reminderSecrets = [
+  accessToken, patientKekPepperSecret, gmailClientIdSecret, gmailClientSecretSecret,
+];
+
+/**
  * Sends tomorrow's reminders, every evening at 18:00 IST.
  *
  * `maxInstances: 1` with no retries because a second overlapping run would
@@ -52,7 +62,7 @@ export const sendDayBeforeWhatsAppReminders = onSchedule(
     retryCount: 0,
     // The pepper unwraps each clinic's key: patient names and phones are
     // encrypted, and must be read decrypted or not at all.
-    secrets: [accessToken, patientKekPepperSecret],
+    secrets: reminderSecrets,
   },
   async () => {
     await sendDayBeforeReminders();
@@ -72,7 +82,7 @@ export const sendMorningCatchUpWhatsAppReminders = onSchedule(
     timeoutSeconds: 540,
     memory: "512MiB",
     retryCount: 0,
-    secrets: [accessToken, patientKekPepperSecret],
+    secrets: reminderSecrets,
   },
   async () => {
     await sendMorningCatchUpReminders();

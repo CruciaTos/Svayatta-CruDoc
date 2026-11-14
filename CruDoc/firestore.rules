@@ -799,6 +799,29 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // The clinic's Gmail refresh token (sealed) for automatic reminder
+      // emails. Server only: the connectClinicGmail / disconnectClinicGmail
+      // functions and the reminder sweeps reach it with the Admin SDK. No
+      // client, not even the owner or Super Admin, may read or write it.
+      match /private/{docId} {
+        allow read, write: if false;
+      }
+
+      // What the app shows about the Gmail connection (state, address). Never
+      // a token. Server writes only, so a clinic cannot mark itself connected.
+      match /messaging_status/{docId} {
+        allow get: if clinicAllows(clinicId, 'settings');
+        allow list, write: if false;
+      }
+
+      // Every automatic reminder or recall attempt: kind, channel, status,
+      // error code and the patient id, no names, phones or addresses. Written
+      // by the sweeps only.
+      match /reminder_log/{logId} {
+        allow read: if clinicAllows(clinicId, 'messaging');
+        allow write: if false;
+      }
+
       // ---- Printable documents (handoff/antigravity_documents_pdf.md) ----
       // Clinic print details: everyone in the clinic reads them (staff print
       // bills too); only people with the settings permission edit them.

@@ -153,7 +153,11 @@ abstract final class CruSize {
 
   /// Below this card width the table drops the Age and Next visit
   /// columns so names stay readable.
-  static const double tableNarrow = 720;
+  static const double tableNarrow = 920;
+
+  /// Below this card width a table with the Charting column drops the
+  /// Age and Next visit columns.
+  static const double tableNarrowWithChart = 1060;
 
   /// "Send reminders" / "Message all" on a summary strip.
   static const double stripButton = 36;

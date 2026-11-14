@@ -361,11 +361,9 @@ class CruSidebar extends ConsumerWidget {
                 child: Semantics(
                   container: true,
                   label: 'Main navigation',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // The logo and name open and close the sidebar.
-                      CruPressable(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final brandButton = CruPressable(
                         onTap: canExpand ? callbacks.onToggleCollapsed : null,
                         tooltip: canExpand
                             ? (collapsed
@@ -375,9 +373,9 @@ class CruSidebar extends ConsumerWidget {
                         scaleOnPress: false,
                         builder: (context, hovered) =>
                             _Brand(collapsed: collapsed, progress: progress),
-                      ),
-                      const SizedBox(height: CruSpace.s16),
-                      TutorialAnchor(
+                      );
+
+                      final profileButton = TutorialAnchor(
                         target: TutorialTarget.account,
                         radius: CruRadius.switcher,
                         child: _ProfileButton(
@@ -387,129 +385,155 @@ class CruSidebar extends ConsumerWidget {
                           canExpand: canExpand,
                           progress: progress,
                         ),
-                      ),
-                      const SizedBox(height: CruSpace.s16),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Each group is a column with 2 px between its label
-                              // and items; 18 px between groups.
-                              for (var g = 0; g < groups.length; g++) ...[
-                                if (g > 0) const SizedBox(height: 16),
-                                // The label's slot grows and shrinks with the
-                                // sidebar, so the icons below glide up and down
-                                // instead of jumping.
-                                ClipRect(
-                                  child: Align(
-                                    alignment: Alignment.topLeft,
-                                    heightFactor: Curves.easeInOutCubic
-                                        .transform(progress),
-                                    child: Padding(
-                                      padding: EdgeInsets.fromLTRB(
-                                        lerpDouble(4, 10, progress)!,
-                                        0,
-                                        10,
-                                        6,
-                                      ),
-                                      child: Opacity(
-                                        opacity: ((progress - 0.25) / 0.75)
-                                            .clamp(0.0, 1.0),
-                                        child: Transform.translate(
-                                          offset: Offset(
-                                            (1.0 - progress) * -12.0,
-                                            0,
-                                          ),
-                                          child: Text(
-                                            groups[g].label,
-                                            maxLines: 1,
-                                            softWrap: false,
-                                            overflow: TextOverflow.clip,
-                                            style: c.isEvening
-                                                ? CruType.groupLabel.tint(
-                                                    c.label3,
-                                                  )
-                                                : CruType.groupLabel.tint(
-                                                    CruBrand.white.withValues(
-                                                      alpha: 0.72,
-                                                    ),
-                                                  ),
-                                          ),
-                                        ),
-                                      ),
+                      );
+
+                      final groupWidgets = <Widget>[
+                        for (var g = 0; g < groups.length; g++) ...[
+                          if (g > 0) const SizedBox(height: 16),
+                          ClipRect(
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              heightFactor: Curves.easeInOutCubic
+                                  .transform(progress),
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  lerpDouble(4, 10, progress)!,
+                                  0,
+                                  10,
+                                  6,
+                                ),
+                                child: Opacity(
+                                  opacity: ((progress - 0.25) / 0.75)
+                                      .clamp(0.0, 1.0),
+                                  child: Transform.translate(
+                                    offset: Offset(
+                                      (1.0 - progress) * -12.0,
+                                      0,
+                                    ),
+                                    child: Text(
+                                      groups[g].label,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.clip,
+                                      style: c.isEvening
+                                          ? CruType.groupLabel.tint(
+                                              c.label3,
+                                            )
+                                          : CruType.groupLabel.tint(
+                                              CruBrand.white.withValues(
+                                                alpha: 0.72,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ),
-                                for (
-                                  var i = 0;
-                                  i < groups[g].items.length;
-                                  i++
-                                ) ...[
-                                  SizedBox(
-                                    height: i > 0
-                                        ? CruSpace.s2
-                                        : lerpDouble(0, CruSpace.s2, progress)!,
-                                  ),
-                                  TutorialAnchor.maybe(
-                                    target:
-                                        _tourTargets[groups[g].items[i].tab],
-                                    child: _SidebarItem(
-                                      item: groups[g].items[i],
-                                      selected: _isSelected(
-                                        groups[g].items[i],
-                                        currentTab,
-                                      ),
-                                      collapsed: collapsed,
-                                      progress: progress,
-                                      badge:
-                                          groups[g].items[i].tab ==
-                                                  DesktopTab.appointments &&
-                                              waiting > 0
-                                          ? waiting
-                                          : null,
-                                      onTap: () => callbacks.onNavigate(
-                                        groups[g].items[i].tab,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
+                              ),
+                            ),
+                          ),
+                          for (
+                            var i = 0;
+                            i < groups[g].items.length;
+                            i++
+                          ) ...[
+                            SizedBox(
+                              height: i > 0
+                                  ? CruSpace.s2
+                                  : lerpDouble(0, CruSpace.s2, progress)!,
+                            ),
+                            TutorialAnchor.maybe(
+                              target:
+                                  _tourTargets[groups[g].items[i].tab],
+                              child: _SidebarItem(
+                                item: groups[g].items[i],
+                                selected: _isSelected(
+                                  groups[g].items[i],
+                                  currentTab,
+                                ),
+                                collapsed: collapsed,
+                                progress: progress,
+                                badge:
+                                    groups[g].items[i].tab ==
+                                            DesktopTab.appointments &&
+                                        waiting > 0
+                                    ? waiting
+                                    : null,
+                                onTap: () => callbacks.onNavigate(
+                                  groups[g].items[i].tab,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ];
+
+                      final bottomWidgets = <Widget>[
+                        const SizedBox(height: CruSpace.s10),
+                        if (emergency) ...[
+                          _SidebarItem(
+                            item: const _NavItem(
+                              DesktopTab.emergency,
+                              'Emergency',
+                              CruIcons.warning,
+                            ),
+                            selected: currentTab == DesktopTab.emergency,
+                            collapsed: collapsed,
+                            progress: progress,
+                            onTap: () =>
+                                callbacks.onNavigate(DesktopTab.emergency),
+                          ),
+                          const SizedBox(height: CruSpace.s8),
+                        ],
+                        if (plan?.daysRemaining != null && progress > 0.25) ...[
+                          Opacity(
+                            opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                            child: _PlanLine(
+                              text: plan!.isExpired
+                                  ? 'Plan expired'
+                                  : '${plan.doctorStatus.toLowerCase() == 'trial' ? 'Free trial' : '${plan.planName} plan'}'
+                                        ' · ${plan.daysRemaining} days left',
+                              onUpgrade: callbacks.onUpgrade,
+                            ),
+                          ),
+                          const SizedBox(height: CruSpace.s8),
+                        ],
+                        SyncStatusLine(collapsed: collapsed),
+                      ];
+
+                      if (constraints.maxHeight < 280) {
+                        return SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              brandButton,
+                              const SizedBox(height: CruSpace.s16),
+                              profileButton,
+                              const SizedBox(height: CruSpace.s16),
+                              ...groupWidgets,
+                              ...bottomWidgets,
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: CruSpace.s10),
-                      if (emergency) ...[
-                        _SidebarItem(
-                          item: const _NavItem(
-                            DesktopTab.emergency,
-                            'Emergency',
-                            CruIcons.warning,
+                        );
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          brandButton,
+                          const SizedBox(height: CruSpace.s16),
+                          profileButton,
+                          const SizedBox(height: CruSpace.s16),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: groupWidgets,
+                              ),
+                            ),
                           ),
-                          selected: currentTab == DesktopTab.emergency,
-                          collapsed: collapsed,
-                          progress: progress,
-                          onTap: () =>
-                              callbacks.onNavigate(DesktopTab.emergency),
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                      ],
-                      if (plan?.daysRemaining != null && progress > 0.25) ...[
-                        Opacity(
-                          opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
-                          child: _PlanLine(
-                            text: plan!.isExpired
-                                ? 'Plan expired'
-                                : '${plan.doctorStatus.toLowerCase() == 'trial' ? 'Free trial' : '${plan.planName} plan'}'
-                                      ' · ${plan.daysRemaining} days left',
-                            onUpgrade: callbacks.onUpgrade,
-                          ),
-                        ),
-                        const SizedBox(height: CruSpace.s8),
-                      ],
-                      SyncStatusLine(collapsed: collapsed),
-                    ],
+                          ...bottomWidgets,
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),

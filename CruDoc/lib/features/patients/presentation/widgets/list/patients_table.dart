@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -80,7 +82,13 @@ class PatientsTable extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final narrow = constraints.maxWidth < CruSize.tableNarrow;
+          final narrowBreakpoint =
+              chart ? CruSize.tableNarrowWithChart : CruSize.tableNarrow;
+          final narrow = constraints.maxWidth < narrowBreakpoint;
+          final minTableWidth = narrow
+              ? (chart ? 640.0 : 520.0)
+              : (chart ? CruSize.tableNarrowWithChart : CruSize.tableNarrow);
+          final tableWidth = math.max(constraints.maxWidth, minTableWidth);
           final children = <Widget>[
             _TableHeader(narrow: narrow, chart: chart),
             if (view.visible.isEmpty && empty != null) empty!,
@@ -152,10 +160,17 @@ class PatientsTable extends ConsumerWidget {
               ),
             );
           }
-          return Column(
+          final table = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children,
           );
+          if (constraints.maxWidth < minTableWidth) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(width: tableWidth, child: table),
+            );
+          }
+          return table;
         },
       ),
     );
@@ -483,7 +498,11 @@ class PatientTableRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      MissingDetailsDot(patient: s.patient),
+                      Flexible(
+                        flex: 0,
+                        fit: FlexFit.loose,
+                        child: MissingDetailsDot(patient: s.patient),
+                      ),
                     ],
                   ),
                   // Patient ID is a GAP (UUIDs only): phone alone.

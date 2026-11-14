@@ -1,6 +1,7 @@
-import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/widgets.dart';
 
 /// The PC layout ([DesktopShell]) is laid out at least this wide. A window
@@ -18,7 +19,7 @@ const double kTabletShortestSide = 600;
 /// Decided by device type, not window width. `shortestSide` does not change
 /// when the device rotates, so the answer is stable.
 bool usesDesktopLayout(BuildContext context) {
-  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+  if (!kIsWeb && _desktopOs()) {
     return true;
   }
   return MediaQuery.sizeOf(context).shortestSide >= kTabletShortestSide;
@@ -77,3 +78,10 @@ class ScaleToMinWidth extends StatelessWidget {
     );
   }
 }
+
+/// Desktop OS by Flutter's target platform (not dart:io), so widget tests
+/// (which default to Android) and per-test overrides pick the right layout.
+bool _desktopOs() =>
+    defaultTargetPlatform == TargetPlatform.windows ||
+    defaultTargetPlatform == TargetPlatform.macOS ||
+    defaultTargetPlatform == TargetPlatform.linux;

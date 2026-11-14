@@ -1,6 +1,7 @@
-import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -21,7 +22,7 @@ const double kCruFormPhoneWidth = 600;
 /// this package cannot import the app. Landscape phones stay phones and
 /// short PC windows never become phones.
 bool _phone(BuildContext context) {
-  if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+  if (!kIsWeb && _desktopOs()) {
     return false;
   }
   return MediaQuery.sizeOf(context).shortestSide < kCruFormPhoneWidth;
@@ -1429,3 +1430,10 @@ class CruFormNotice extends StatelessWidget {
     );
   }
 }
+
+/// Desktop OS by Flutter's target platform (not dart:io), so widget tests
+/// (which default to Android) and per-test overrides pick the right layout.
+bool _desktopOs() =>
+    defaultTargetPlatform == TargetPlatform.windows ||
+    defaultTargetPlatform == TargetPlatform.macOS ||
+    defaultTargetPlatform == TargetPlatform.linux;

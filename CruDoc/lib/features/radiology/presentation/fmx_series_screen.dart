@@ -289,6 +289,21 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
       meta,
     ]..sort((a, b) => _slotOf(a).compareTo(_slotOf(b)));
 
+    final savedFmx = saved?.extras['fmx'];
+    final savedLog = savedFmx is Map ? savedFmx['doseLog'] : null;
+    final doseLog = <Map<String, dynamic>>[
+      if (savedLog is List)
+        for (final m in savedLog)
+          if (m is Map) Map<String, dynamic>.from(m),
+      {
+        'slot': slot.label,
+        'at': res.capturedAt.toIso8601String(),
+        'kvp': null,
+        'ma': null,
+        'exposureSeconds': null,
+      },
+    ];
+
     final count = _shots.length + (isNew ? 1 : 0);
     final desc = 'Full-mouth series (${_template.name}) · $count/${_slots.length}';
     final now = DateTime.now();
@@ -312,6 +327,7 @@ class _FmxSeriesScreenState extends ConsumerState<FmxSeriesScreen> {
           'template': _template.name,
           'slots': _slots.length,
           'images': metas,
+          'doseLog': doseLog,
         },
       },
       createdAt: saved?.createdAt ?? now,

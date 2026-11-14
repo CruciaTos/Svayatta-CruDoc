@@ -113,19 +113,28 @@ Widget procedureStatusPill(CruColors c, String status) {
   };
 }
 
-/// Pass (green), Fail (red: the load isn't safe to use), Incomplete (amber).
-Widget sterilizationPill(CruColors c, String result) {
+/// Pass (green), BI pending (amber), Fail (neutral with a warning icon:
+/// the load isn't safe to use), Incomplete (amber, older entries).
+Widget sterilizationPill(CruColors c, String result, {bool biPending = false}) {
   final r = SterilizationResult.fromString(result);
+  if (r == SterilizationResult.pass && biPending) {
+    return CruPill(
+      text: 'BI pending',
+      background: c.amberTint,
+      foreground: c.amberText,
+    );
+  }
   return switch (r) {
     SterilizationResult.pass => CruPill(
-      text: 'Passed',
+      text: 'Pass',
       background: c.greenTint,
       foreground: c.greenText,
     ),
     SterilizationResult.fail => CruPill(
-      text: 'Failed',
-      background: c.redTint,
-      foreground: c.redText,
+      text: 'Fail',
+      background: c.inset,
+      foreground: c.label,
+      icon: CruIcons.warning,
     ),
     SterilizationResult.incomplete => CruPill(
       text: 'Incomplete',

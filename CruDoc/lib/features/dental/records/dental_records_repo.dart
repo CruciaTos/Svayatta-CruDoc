@@ -241,6 +241,34 @@ class DentalRecordsRepository {
     unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
   }
 
+  /// Saves many records in transactions of at most 400 rows, then syncs once.
+  Future<void> saveMany(String doctorId, List<DentalRecord> records) async {
+    if (records.isEmpty) return;
+    final db = await _db.localDatabase;
+    for (var i = 0; i < records.length; i += 400) {
+      final chunk = records.skip(i).take(400);
+      await db.transaction((txn) async {
+        for (final r in chunk) {
+          await txn.insert('dental_records', {
+            'id': r.id,
+            'doctorId': doctorId,
+            'patientId': r.patientId,
+            'kind': r.kind,
+            'data': jsonEncode(r.data),
+            'recordedAt': r.recordedAt.millisecondsSinceEpoch,
+            'isDeleted': 0,
+            'createdAt': r.createdAt.millisecondsSinceEpoch,
+            'updatedAt': r.updatedAt.millisecondsSinceEpoch,
+            'syncStatus': 'pending',
+            'pendingDelete': 0,
+          }, conflictAlgorithm: LocalConflictAlgorithm.replace);
+        }
+      });
+    }
+    notifyRecordsChanged();
+    unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
+  }
+
   Future<void> delete(String id) async {
     final db = await _db.localDatabase;
     await db.update(
@@ -260,14 +288,23 @@ class DentalRecordsRepository {
 
   /// Completed procedures since [since], for recall suggestions.
   Future<List<({String patientId, String name, DateTime at})>>
-  completedProcedures(String doctorId, DateTime since) async {
+  completedProcedures(
+    String doctorId,
+    DateTime since, {
+    String? patientId,
+  }) async {
     final db = await _db.localDatabase;
     final rows = await db.query(
       'procedure_log_entries',
       columns: ['patientId', 'procedureName', 'performedAt'],
       where:
-          "doctorId = ? AND isDeleted = 0 AND status = 'completed' AND performedAt >= ?",
-      whereArgs: [doctorId, since.millisecondsSinceEpoch],
+          "doctorId = ? AND isDeleted = 0 AND status = 'completed' AND performedAt >= ?"
+          '${patientId == null ? '' : ' AND patientId = ?'}',
+      whereArgs: [
+        doctorId,
+        since.millisecondsSinceEpoch,
+        ?patientId,
+      ],
       orderBy: 'performedAt DESC',
     );
     return [

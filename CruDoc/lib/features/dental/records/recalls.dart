@@ -116,9 +116,10 @@ class RecallRule {
 DateTime _addMonths(DateTime d, int m) => DateTime(d.year, d.month + m, d.day);
 
 /// The clinic's recall rules, created from the defaults the first time.
-final recallRulesProvider = FutureProvider<List<RecallRule>>((ref) async {
-  final repo = ref.watch(dentalRecordsRepoProvider);
-  final doctorId = ref.watch(dentalDoctorIdProvider);
+Future<List<RecallRule>> ensureRecallRules(
+  DentalRecordsRepository repo,
+  String doctorId,
+) async {
   var rules = await repo.all(doctorId, RecKind.recallRule);
   final seeded = (await repo.all(
     doctorId,
@@ -144,6 +145,13 @@ final recallRulesProvider = FutureProvider<List<RecallRule>>((ref) async {
   }
   return [for (final r in rules) RecallRule(r)]
     ..sort((a, b) => a.months.compareTo(b.months));
+}
+
+final recallRulesProvider = FutureProvider<List<RecallRule>>((ref) {
+  return ensureRecallRules(
+    ref.watch(dentalRecordsRepoProvider),
+    ref.watch(dentalDoctorIdProvider),
+  );
 });
 
 /// Recalls worth adding: completed treatments whose rule makes them due

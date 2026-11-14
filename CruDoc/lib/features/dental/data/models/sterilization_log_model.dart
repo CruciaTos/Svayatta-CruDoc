@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 
 /// Result status of an autoclave sterilization cycle.
 enum SterilizationResult {
@@ -32,6 +33,7 @@ enum SterilizationResult {
 ///
 /// Explicitly NOT patient-linked (sole scope key is [doctorId]).
 /// Analogue: [MedicineModel] (doctor-owned reference data).
+/// [result] is 'pass' or 'fail' (older rows may say 'incomplete').
 class SterilizationLogModel {
   final String id;
   final String doctorId;
@@ -43,6 +45,29 @@ class SterilizationLogModel {
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Manual-log fields (all optional so older rows still read).
+  final String autoclaveName;
+  final int cycleNumber;
+  final String program;
+  final int? temperatureC;
+  final int? pressureKpa;
+  final int? holdMinutes;
+
+  /// not_used | pass | fail
+  final String chemicalIndicator;
+
+  /// not_used | pass | fail | pending
+  final String biologicalIndicator;
+
+  /// Why the result differs from the indicators.
+  final String overrideReason;
+  final String createdBy;
+  final DateTime? editedAt;
+  final String editedBy;
+
+  /// Dated notes added after the day of the cycle.
+  final String correctionNote;
 
   /// Sync triad fields
   final String syncStatus;
@@ -60,10 +85,28 @@ class SterilizationLogModel {
     this.isDeleted = false,
     required this.createdAt,
     required this.updatedAt,
+    this.autoclaveName = '',
+    this.cycleNumber = 0,
+    this.program = '',
+    this.temperatureC,
+    this.pressureKpa,
+    this.holdMinutes,
+    this.chemicalIndicator = 'not_used',
+    this.biologicalIndicator = 'not_used',
+    this.overrideReason = '',
+    this.createdBy = '',
+    this.editedAt,
+    this.editedBy = '',
+    this.correctionNote = '',
     this.syncStatus = 'synced',
     this.pendingDelete = false,
     this.lastSyncedAt,
   });
+
+  /// Passed, but the spore test has not come back yet.
+  bool get biPending =>
+      biologicalIndicator == 'pending' &&
+      SterilizationResult.fromString(result) == SterilizationResult.pass;
 
   factory SterilizationLogModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -75,91 +118,91 @@ class SterilizationLogModel {
   factory SterilizationLogModel.fromJson(
     Map<String, dynamic> map, {
     String? id,
+  }) => _read(map, id: id ?? map['id'] as String? ?? '');
+
+  factory SterilizationLogModel.fromMap(Map<String, dynamic> map) =>
+      _read(map, id: map['id'] as String? ?? '');
+
+  static SterilizationLogModel _read(
+    Map<String, dynamic> map, {
+    required String id,
   }) {
+    bool flag(Object? v) => v == 1 || v == true;
+    int? whole(Object? v) => v is num ? v.toInt() : null;
+    String str(String k, [String d = '']) => map[k] as String? ?? d;
     return SterilizationLogModel(
-      id: id ?? map['id'] as String? ?? '',
-      doctorId: map['doctorId'] as String? ?? '',
+      id: id,
+      doctorId: str('doctorId'),
       cycleDate: _toDate(map['cycleDate']) ?? DateTime.now(),
-      operatorName: map['operatorName'] as String? ?? '',
-      loadDescription: map['loadDescription'] as String? ?? '',
-      result: map['result'] as String? ?? 'pass',
-      notes: map['notes'] as String? ?? '',
-      isDeleted: map['isDeleted'] as bool? ?? false,
+      operatorName: str('operatorName'),
+      loadDescription: str('loadDescription'),
+      result: str('result', 'pass'),
+      notes: str('notes'),
+      isDeleted: flag(map['isDeleted']),
       createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
       updatedAt: _toDate(map['updatedAt']) ?? DateTime.now(),
-      syncStatus: map['syncStatus'] as String? ?? 'synced',
-      pendingDelete: map['pendingDelete'] as bool? ?? false,
+      autoclaveName: str('autoclaveName'),
+      cycleNumber: whole(map['cycleNumber']) ?? 0,
+      program: str('program'),
+      temperatureC: whole(map['temperatureC']),
+      pressureKpa: whole(map['pressureKpa']),
+      holdMinutes: whole(map['holdMinutes']),
+      chemicalIndicator: str('chemicalIndicator', 'not_used'),
+      biologicalIndicator: str('biologicalIndicator', 'not_used'),
+      overrideReason: str('overrideReason'),
+      createdBy: str('createdBy'),
+      editedAt: _toDate(map['editedAt']),
+      editedBy: str('editedBy'),
+      correctionNote: str('correctionNote'),
+      syncStatus: str('syncStatus', 'synced'),
+      pendingDelete: flag(map['pendingDelete']),
       lastSyncedAt: _toDate(map['lastSyncedAt']),
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> _fields({required bool sql}) {
+    Object? t(DateTime? d) => d == null
+        ? null
+        : (sql ? d.millisecondsSinceEpoch : Timestamp.fromDate(d));
     return {
       'id': id,
       'doctorId': doctorId,
-      'cycleDate': Timestamp.fromDate(cycleDate),
+      'cycleDate': t(cycleDate),
       'operatorName': operatorName,
       'loadDescription': loadDescription,
       'result': result,
       'notes': notes,
-      'isDeleted': isDeleted,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'isDeleted': sql ? (isDeleted ? 1 : 0) : isDeleted,
+      'createdAt': t(createdAt),
+      'updatedAt': t(updatedAt),
+      'autoclaveName': autoclaveName,
+      'cycleNumber': cycleNumber,
+      'program': program,
+      'temperatureC': temperatureC,
+      'pressureKpa': pressureKpa,
+      'holdMinutes': holdMinutes,
+      'chemicalIndicator': chemicalIndicator,
+      'biologicalIndicator': biologicalIndicator,
+      'overrideReason': overrideReason,
+      'createdBy': createdBy,
+      'editedAt': t(editedAt),
+      'editedBy': editedBy,
+      'correctionNote': correctionNote,
       'syncStatus': syncStatus,
-      'pendingDelete': pendingDelete,
-      'lastSyncedAt': lastSyncedAt != null
-          ? Timestamp.fromDate(lastSyncedAt!)
-          : null,
+      'pendingDelete': sql ? (pendingDelete ? 1 : 0) : pendingDelete,
+      'lastSyncedAt': t(lastSyncedAt),
     };
   }
+
+  Map<String, dynamic> toJson() => _fields(sql: false);
 
   /// SQLite-shaped map representation (timestamps as millisecondsSinceEpoch)
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'doctorId': doctorId,
-      'cycleDate': cycleDate.millisecondsSinceEpoch,
-      'operatorName': operatorName,
-      'loadDescription': loadDescription,
-      'result': result,
-      'notes': notes,
-      'isDeleted': isDeleted ? 1 : 0,
-      'createdAt': createdAt.millisecondsSinceEpoch,
-      'updatedAt': updatedAt.millisecondsSinceEpoch,
-      'syncStatus': syncStatus,
-      'pendingDelete': pendingDelete ? 1 : 0,
-      'lastSyncedAt': lastSyncedAt?.millisecondsSinceEpoch,
-    };
-  }
-
-  factory SterilizationLogModel.fromMap(Map<String, dynamic> map) {
-    return SterilizationLogModel(
-      id: map['id'] as String? ?? '',
-      doctorId: map['doctorId'] as String? ?? '',
-      cycleDate: _toDate(map['cycleDate']) ?? DateTime.now(),
-      operatorName: map['operatorName'] as String? ?? '',
-      loadDescription: map['loadDescription'] as String? ?? '',
-      result: map['result'] as String? ?? 'pass',
-      notes: map['notes'] as String? ?? '',
-      isDeleted: map['isDeleted'] == 1 || map['isDeleted'] == true,
-      createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
-      updatedAt: _toDate(map['updatedAt']) ?? DateTime.now(),
-      syncStatus: map['syncStatus'] as String? ?? 'synced',
-      pendingDelete: map['pendingDelete'] == 1 || map['pendingDelete'] == true,
-      lastSyncedAt: _toDate(map['lastSyncedAt']),
-    );
-  }
+  Map<String, dynamic> toMap() => _fields(sql: true);
 
   SterilizationLogModel copyWith({
-    String? id,
-    String? doctorId,
-    DateTime? cycleDate,
-    String? operatorName,
-    String? loadDescription,
     String? result,
     String? notes,
     bool? isDeleted,
-    DateTime? createdAt,
     DateTime? updatedAt,
     String? syncStatus,
     bool? pendingDelete,
@@ -167,16 +210,29 @@ class SterilizationLogModel {
     bool clearLastSyncedAt = false,
   }) {
     return SterilizationLogModel(
-      id: id ?? this.id,
-      doctorId: doctorId ?? this.doctorId,
-      cycleDate: cycleDate ?? this.cycleDate,
-      operatorName: operatorName ?? this.operatorName,
-      loadDescription: loadDescription ?? this.loadDescription,
+      id: id,
+      doctorId: doctorId,
+      cycleDate: cycleDate,
+      operatorName: operatorName,
+      loadDescription: loadDescription,
       result: result ?? this.result,
       notes: notes ?? this.notes,
       isDeleted: isDeleted ?? this.isDeleted,
-      createdAt: createdAt ?? this.createdAt,
+      createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      autoclaveName: autoclaveName,
+      cycleNumber: cycleNumber,
+      program: program,
+      temperatureC: temperatureC,
+      pressureKpa: pressureKpa,
+      holdMinutes: holdMinutes,
+      chemicalIndicator: chemicalIndicator,
+      biologicalIndicator: biologicalIndicator,
+      overrideReason: overrideReason,
+      createdBy: createdBy,
+      editedAt: editedAt,
+      editedBy: editedBy,
+      correctionNote: correctionNote,
       syncStatus: syncStatus ?? this.syncStatus,
       pendingDelete: pendingDelete ?? this.pendingDelete,
       lastSyncedAt: clearLastSyncedAt
@@ -193,41 +249,17 @@ class SterilizationLogModel {
     return null;
   }
 
+  List<Object?> get _props => _fields(sql: true).values.toList();
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SterilizationLogModel &&
           runtimeType == other.runtimeType &&
-          id == other.id &&
-          doctorId == other.doctorId &&
-          cycleDate == other.cycleDate &&
-          operatorName == other.operatorName &&
-          loadDescription == other.loadDescription &&
-          result == other.result &&
-          notes == other.notes &&
-          isDeleted == other.isDeleted &&
-          createdAt == other.createdAt &&
-          updatedAt == other.updatedAt &&
-          syncStatus == other.syncStatus &&
-          pendingDelete == other.pendingDelete &&
-          lastSyncedAt == other.lastSyncedAt;
+          listEquals(_props, other._props);
 
   @override
-  int get hashCode => Object.hash(
-    id,
-    doctorId,
-    cycleDate,
-    operatorName,
-    loadDescription,
-    result,
-    notes,
-    isDeleted,
-    createdAt,
-    updatedAt,
-    syncStatus,
-    pendingDelete,
-    lastSyncedAt,
-  );
+  int get hashCode => Object.hashAll(_props);
 
   @override
   String toString() {

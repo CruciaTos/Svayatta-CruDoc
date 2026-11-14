@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../records/recall_rule_sync.dart';
 import '../../../../core/database/local_database.dart';
 import '../../../../core/services/local_database_service.dart';
 import '../models/dental_procedure_catalog_model.dart';
@@ -187,6 +190,9 @@ class DentalRepository {
       log.toMap(),
       conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
+    if (log.status == 'completed') {
+      unawaited(RecallRuleSync.run(log.doctorId, patientId: log.patientId));
+    }
   }
 
   Future<void> deleteProcedureLog(String id) async {

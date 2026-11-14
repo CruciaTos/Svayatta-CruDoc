@@ -94,8 +94,22 @@ ParsedTable parseTableFile(TableRequest req) {
     if (name.endsWith('.xlsx')) {
       final book = XlsxBook.open(req.bytes);
       names = book.sheetNames;
-      sheet = req.sheet.clamp(0, names.length - 1);
-      raw = book.rows(sheet);
+      if (req.sheet < 0) {
+        // Default: the first sheet that has data.
+        sheet = 0;
+        raw = book.rows(0);
+        for (var i = 0; i < names.length; i++) {
+          final r = book.rows(i);
+          if (r.any((row) => row.any((c) => c.trim().isNotEmpty))) {
+            sheet = i;
+            raw = r;
+            break;
+          }
+        }
+      } else {
+        sheet = req.sheet.clamp(0, names.length - 1);
+        raw = book.rows(sheet);
+      }
     } else if (name.endsWith('.csv') || name.endsWith('.txt')) {
       raw = _csvRows(req.bytes);
     } else {

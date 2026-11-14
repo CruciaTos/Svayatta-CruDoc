@@ -85,7 +85,71 @@ class FmxSeriesViewScreen extends ConsumerWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(CruSpace.s16),
-        child: FmxMount(
+        child: Column(
+          children: [
+            Expanded(child: _mount(context, ctrl, template, slotImage)),
+            _exposures(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exposures(BuildContext context) {
+    final c = context.cru;
+    final fmx = study.extras['fmx'];
+    final raw = fmx is Map ? fmx['doseLog'] : null;
+    final rows = <String>[];
+    if (raw is List) {
+      for (final m in raw) {
+        if (m is! Map) continue;
+        final at = DateTime.tryParse('${m['at']}')?.toLocal();
+        final time = at == null
+            ? ''
+            : '${at.hour.toString().padLeft(2, '0')}:'
+                  '${at.minute.toString().padLeft(2, '0')}';
+        final parts = <String>[
+          '${m['slot']}',
+          if (time.isNotEmpty) time,
+          if (m['kvp'] != null) '${m['kvp']} kVp',
+          if (m['ma'] != null) '${m['ma']} mA',
+          if (m['exposureSeconds'] != null) '${m['exposureSeconds']} s',
+        ];
+        rows.add(parts.join(' · '));
+      }
+    }
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: CruSpace.s12),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 120),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Exposures · ${rows.length}',
+                  style: CruType.caption.w600.tint(c.label),
+                ),
+                for (final r in rows)
+                  Text(r, style: CruType.caption.tint(c.label2)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _mount(
+    BuildContext context,
+    dynamic ctrl,
+    FmxTemplate template,
+    Map<String, RadImageRef> slotImage,
+  ) {
+    return FmxMount(
           template: template,
           imageFor: (slot) {
             final img = slotImage[slot.label];
@@ -110,8 +174,6 @@ class FmxSeriesViewScreen extends ConsumerWidget {
               ),
             );
           },
-        ),
-      ),
     );
   }
 }

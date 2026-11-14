@@ -79,7 +79,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       }
       _fileName = file.name;
       _bytes = bytes;
-      await _parse(0);
+      await _parse(-1);
     } catch (_) {
       if (mounted) {
         setState(() => _busy = false);

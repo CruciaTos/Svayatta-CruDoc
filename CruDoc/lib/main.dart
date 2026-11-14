@@ -34,6 +34,7 @@ import 'core/services/maps_key.dart';
 import 'core/pdf/services/generated_document_sync.dart';
 import 'core/services/storage_sync_queue.dart';
 import 'features/dental/records/dental_photo_cloud_sync.dart';
+import 'features/dental/records/recall_rule_sync.dart';
 import 'features/inventory/data/services/inventory_receipt_sync.dart';
 import 'core/services/local_storage_manager.dart';
 import 'features/radiology/data/radiology_cloud_sync.dart';
@@ -242,6 +243,10 @@ void _wireDoctorScopedStartup() {
         await FirestoreSyncService.instance.start();
       }
       FilesCloudSync.instance.ensureStarted();
+      // Turns recall rules into recall records for the server sweep (once).
+      if (access.can(ClinicPermission.clinicalView)) {
+        unawaited(RecallRuleSync.backfillOnce(access.clinicId));
+      }
       // Study images that never reached the cloud (imported before uploads
       // existed, or before the study had a patient). In the background.
       unawaited(RadiologyCloudSync.catchUp());

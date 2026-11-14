@@ -43,6 +43,7 @@ class XlsxBook {
     for (final m in RegExp(r'<sheet\b([^>]*?)/?>').allMatches(workbook)) {
       n++;
       final a = _attrs(m.group(1)!);
+      if (a['state'] == 'hidden' || a['state'] == 'veryHidden') continue;
       var target = targets[a['r:id'] ?? ''] ?? 'worksheets/sheet$n.xml';
       target = target.startsWith('/')
           ? target.substring(1)

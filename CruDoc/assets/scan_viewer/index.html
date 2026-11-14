@@ -17,12 +17,30 @@ button.on{background:#0a84ff;color:#fff;border-color:#0a84ff}
 .spin{width:28px;height:28px;border:3px solid #cfd3d9;border-top-color:#0a84ff;border-radius:50%;animation:s 1s linear infinite}
 @keyframes s{to{transform:rotate(360deg)}}
 #read{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid #d6d9de;border-radius:10px;padding:7px 12px;font:600 13px system-ui;display:none}
+#cmp{position:absolute;left:10px;right:10px;bottom:12px;margin:0 auto;max-width:440px;background:rgba(255,255,255,.95);border:1px solid #d6d9de;border-radius:14px;padding:10px 12px;font:13px system-ui;display:none;box-sizing:border-box}
+#cmp .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+#cmpInfo{font-weight:600;line-height:1.35}
+#cmpWarn{color:#b26a00;font-weight:600;margin-top:6px;display:none}
+#tolRow{margin-top:8px}
+#tolRow input{width:100%;margin:6px 0 0;touch-action:pan-x}
+#lgBar{height:10px;border-radius:5px;margin-top:8px}
+#lgLab{display:flex;justify-content:space-between;font-size:11px;color:#555;margin-top:3px}
+#lgNote{font-size:11px;color:#555;margin-top:2px}
+#cmp.busy button:not(#bExit),#cmp.busy input{pointer-events:none;opacity:.5}
 </style></head>
 <body>
 <div class="bar" id="bar" style="display:none">
   <button id="bReset">Reset view</button>
   <button id="bWire">Wireframe</button>
   <button id="bMeasure">Measure</button>
+  <button id="bCompare">Compare</button>
+</div>
+<div id="cmp">
+  <div id="cmpInfo"></div>
+  <div class="row"><button id="bMap" class="on">Colour map</button><button id="bOver">Overlay</button><button id="bSwap">Swap</button><button id="bExit">Exit</button></div>
+  <div id="tolRow"><span>Tolerance &plusmn;<b id="tolV">0.10</b> mm</span><input type="range" id="tol" min="0.05" max="0.5" step="0.01" value="0.1"></div>
+  <div id="legend"><div id="lgBar"></div><div id="lgLab"><span>&minus;1 mm (lost)</span><span>0</span><span>+1 mm (gained)</span></div><div id="lgNote"></div></div>
+  <div id="cmpWarn"></div>
 </div>
 <div id="read"></div>
 <div id="msg"><div class="spin"></div><div>Loading scan...</div></div>
@@ -124,7 +142,246 @@ function parsePLY(buf) {
   return { pos, index: idx.length ? idx : null };
 }
 
+// Runs inside an inline Web Worker (stringified), so it must not use anything from outside.
+// Rigid ICP (point-to-point, Horn quaternion) of the "old" scan onto the "new" scan,
+// then a signed deviation per vertex of the "new" scan.
+function workerMain() {
+  const RMAX = 10;
+  function jacobi(A, n) {
+    const V = [];
+    for (let i = 0; i < n; i++) { V.push(new Array(n).fill(0)); V[i][i] = 1; }
+    for (let sweep = 0; sweep < 50; sweep++) {
+      let off = 0, dg = 0;
+      for (let i = 0; i < n; i++) { dg += A[i][i] * A[i][i]; for (let j = i + 1; j < n; j++) off += A[i][j] * A[i][j]; }
+      if (off <= 1e-24 * (dg + 1e-300)) break;
+      for (let p = 0; p < n - 1; p++) for (let q = p + 1; q < n; q++) {
+        const apq = A[p][q]; if (Math.abs(apq) < 1e-300) continue;
+        const th = (A[q][q] - A[p][p]) / (2 * apq);
+        const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+        const c = 1 / Math.sqrt(t * t + 1), s = t * c;
+        for (let k = 0; k < n; k++) { const a = A[k][p], b = A[k][q]; A[k][p] = c * a - s * b; A[k][q] = s * a + c * b; }
+        for (let k = 0; k < n; k++) { const a = A[p][k], b = A[q][k]; A[p][k] = c * a - s * b; A[q][k] = s * a + c * b; }
+        for (let k = 0; k < n; k++) { const a = V[k][p], b = V[k][q]; V[k][p] = c * a - s * b; V[k][q] = s * a + c * b; }
+      }
+    }
+    const vals = []; for (let i = 0; i < n; i++) vals.push(A[i][i]);
+    return { vals, V };
+  }
+  // Uniform grid spatial hash for nearest-vertex queries.
+  function makeGrid(pts) {
+    const n = pts.length / 3;
+    let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const x = pts[3 * i], y = pts[3 * i + 1], z = pts[3 * i + 2];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
+    }
+    const diag = Math.hypot(x1 - x0, y1 - y0, z1 - z0) || 1;
+    const res = Math.max(32, Math.min(160, Math.round(Math.cbrt(n) * 2.2)));
+    const cell = diag / res;
+    const nx = Math.floor((x1 - x0) / cell) + 1, ny = Math.floor((y1 - y0) / cell) + 1, nz = Math.floor((z1 - z0) / cell) + 1;
+    const total = nx * ny * nz;
+    const start = new Int32Array(total + 1), cellOf = new Int32Array(n);
+    for (let i = 0; i < n; i++) {
+      const ix = Math.min(nx - 1, Math.floor((pts[3 * i] - x0) / cell));
+      const iy = Math.min(ny - 1, Math.floor((pts[3 * i + 1] - y0) / cell));
+      const iz = Math.min(nz - 1, Math.floor((pts[3 * i + 2] - z0) / cell));
+      const c = (iz * ny + iy) * nx + ix; cellOf[i] = c; start[c + 1]++;
+    }
+    for (let c = 0; c < total; c++) start[c + 1] += start[c];
+    const fill = start.slice(0, total), order = new Int32Array(n);
+    for (let i = 0; i < n; i++) order[fill[cellOf[i]]++] = i;
+    const g = { pts, d2: 0 };
+    g.nearest = (x, y, z) => {
+      let ix = Math.floor((x - x0) / cell), iy = Math.floor((y - y0) / cell), iz = Math.floor((z - z0) / cell);
+      ix = ix < 0 ? 0 : ix >= nx ? nx - 1 : ix; iy = iy < 0 ? 0 : iy >= ny ? ny - 1 : iy; iz = iz < 0 ? 0 : iz >= nz ? nz - 1 : iz;
+      let best = -1, bd = Infinity;
+      for (let r = 0; r <= RMAX; r++) {
+        for (let dz = -r; dz <= r; dz++) {
+          const cz = iz + dz; if (cz < 0 || cz >= nz) continue;
+          for (let dy = -r; dy <= r; dy++) {
+            const cy = iy + dy; if (cy < 0 || cy >= ny) continue;
+            const step = (Math.abs(dy) < r && Math.abs(dz) < r) ? 2 * r : 1;
+            for (let dx = -r; dx <= r; dx += step) {
+              const cx = ix + dx; if (cx < 0 || cx >= nx) continue;
+              const c = (cz * ny + cy) * nx + cx;
+              for (let k = start[c], e = start[c + 1]; k < e; k++) {
+                const j = order[k], ax = pts[3 * j] - x, ay = pts[3 * j + 1] - y, az = pts[3 * j + 2] - z;
+                const d = ax * ax + ay * ay + az * az;
+                if (d < bd) { bd = d; best = j; }
+              }
+            }
+          }
+        }
+        if (best >= 0) { const lim = r * cell; if (bd <= lim * lim) break; }
+      }
+      g.d2 = bd; return best;
+    };
+    return g;
+  }
+  // Horn's closed-form absolute orientation: P (moving) -> Q (fixed), m matched pairs.
+  function horn(P, Q, m) {
+    let pcx = 0, pcy = 0, pcz = 0, qcx = 0, qcy = 0, qcz = 0;
+    for (let i = 0; i < m; i++) { pcx += P[3 * i]; pcy += P[3 * i + 1]; pcz += P[3 * i + 2]; qcx += Q[3 * i]; qcy += Q[3 * i + 1]; qcz += Q[3 * i + 2]; }
+    pcx /= m; pcy /= m; pcz /= m; qcx /= m; qcy /= m; qcz /= m;
+    let Sxx = 0, Sxy = 0, Sxz = 0, Syx = 0, Syy = 0, Syz = 0, Szx = 0, Szy = 0, Szz = 0;
+    for (let i = 0; i < m; i++) {
+      const px = P[3 * i] - pcx, py = P[3 * i + 1] - pcy, pz = P[3 * i + 2] - pcz;
+      const qx = Q[3 * i] - qcx, qy = Q[3 * i + 1] - qcy, qz = Q[3 * i + 2] - qcz;
+      Sxx += px * qx; Sxy += px * qy; Sxz += px * qz; Syx += py * qx; Syy += py * qy; Syz += py * qz; Szx += pz * qx; Szy += pz * qy; Szz += pz * qz;
+    }
+    const N = [[Sxx + Syy + Szz, Syz - Szy, Szx - Sxz, Sxy - Syx],
+      [Syz - Szy, Sxx - Syy - Szz, Sxy + Syx, Szx + Sxz],
+      [Szx - Sxz, Sxy + Syx, -Sxx + Syy - Szz, Syz + Szy],
+      [Sxy - Syx, Szx + Sxz, Syz + Szy, -Sxx - Syy + Szz]];
+    const e = jacobi(N, 4); let k = 0;
+    for (let i = 1; i < 4; i++) if (e.vals[i] > e.vals[k]) k = i;
+    let w = e.V[0][k], x = e.V[1][k], y = e.V[2][k], z = e.V[3][k];
+    const nn = Math.hypot(w, x, y, z) || 1; w /= nn; x /= nn; y /= nn; z /= nn;
+    const R = [1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y),
+      2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x),
+      2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)];
+    const t = [qcx - (R[0] * pcx + R[1] * pcy + R[2] * pcz), qcy - (R[3] * pcx + R[4] * pcy + R[5] * pcz), qcz - (R[6] * pcx + R[7] * pcy + R[8] * pcz)];
+    return { R, t };
+  }
+  // Trimmed ICP: the worst (1 - trim) share of pairs is ignored so partial overlap still converges.
+  function icp(src, grid, R, t, iters, trim, onIter) {
+    const n = src.length / 3, tp = grid.pts;
+    const P = new Float64Array(n * 3), Q = new Float64Array(n * 3), si = new Int32Array(n), tj = new Int32Array(n), d2 = new Float64Array(n);
+    let prev = Infinity, rms = Infinity;
+    for (let it = 0; it < iters; it++) {
+      let m = 0;
+      for (let i = 0; i < n; i++) {
+        const x = src[3 * i], y = src[3 * i + 1], z = src[3 * i + 2];
+        const j = grid.nearest(R[0] * x + R[1] * y + R[2] * z + t[0], R[3] * x + R[4] * y + R[5] * z + t[1], R[6] * x + R[7] * y + R[8] * z + t[2]);
+        if (j >= 0) { si[m] = i; tj[m] = j; d2[m] = grid.d2; m++; }
+      }
+      if (m < 12) break;
+      const sorted = Float64Array.from(d2.subarray(0, m)).sort();
+      const thr = sorted[Math.min(m - 1, Math.floor(m * trim))];
+      let k = 0, sum = 0;
+      for (let a = 0; a < m; a++) if (d2[a] <= thr) {
+        const i = si[a], j = tj[a];
+        P[3 * k] = src[3 * i]; P[3 * k + 1] = src[3 * i + 1]; P[3 * k + 2] = src[3 * i + 2];
+        Q[3 * k] = tp[3 * j]; Q[3 * k + 1] = tp[3 * j + 1]; Q[3 * k + 2] = tp[3 * j + 2];
+        sum += d2[a]; k++;
+      }
+      rms = Math.sqrt(sum / k);
+      const h = horn(P, Q, k); R = h.R; t = h.t;
+      if (onIter) onIter(it + 1);
+      if (Math.abs(prev - rms) < 1e-6) break;
+      prev = rms;
+    }
+    return { R, t, rms };
+  }
+  function evalRms(src, grid, R, t, trim) {
+    const n = src.length / 3, d2 = [];
+    for (let i = 0; i < n; i++) {
+      const x = src[3 * i], y = src[3 * i + 1], z = src[3 * i + 2];
+      const j = grid.nearest(R[0] * x + R[1] * y + R[2] * z + t[0], R[3] * x + R[4] * y + R[5] * z + t[1], R[6] * x + R[7] * y + R[8] * z + t[2]);
+      if (j >= 0) d2.push(grid.d2);
+    }
+    if (d2.length < 12) return Infinity;
+    d2.sort((a, b) => a - b);
+    const keep = Math.max(1, Math.floor(d2.length * trim)); let sum = 0;
+    for (let i = 0; i < keep; i++) sum += d2[i];
+    return Math.sqrt(sum / keep);
+  }
+  function frame(pts) {
+    const n = pts.length / 3; let cx = 0, cy = 0, cz = 0;
+    for (let i = 0; i < n; i++) { cx += pts[3 * i]; cy += pts[3 * i + 1]; cz += pts[3 * i + 2]; }
+    cx /= n; cy /= n; cz /= n;
+    const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let i = 0; i < n; i++) {
+      const d = [pts[3 * i] - cx, pts[3 * i + 1] - cy, pts[3 * i + 2] - cz];
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a][b] += d[a] * d[b];
+    }
+    for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) C[a][b] /= n;
+    const e = jacobi(C, 3), ord = [0, 1, 2].sort((a, b) => e.vals[b] - e.vals[a]);
+    const F = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) F[r][c] = e.V[r][ord[c]];
+    const c0 = [F[0][0], F[1][0], F[2][0]], c1 = [F[0][1], F[1][1], F[2][1]];
+    F[0][2] = c0[1] * c1[2] - c0[2] * c1[1]; F[1][2] = c0[2] * c1[0] - c0[0] * c1[2]; F[2][2] = c0[0] * c1[1] - c0[1] * c1[0];
+    return { c: [cx, cy, cz], F };
+  }
+  function sample(pts, count) {
+    const n = pts.length / 3, step = Math.max(1, Math.floor(n / count));
+    const out = new Float32Array(Math.ceil(n / step) * 3);
+    for (let i = 0, k = 0; i < n; i += step, k++) { out[3 * k] = pts[3 * i]; out[3 * k + 1] = pts[3 * i + 1]; out[3 * k + 2] = pts[3 * i + 2]; }
+    return out;
+  }
+  function normals(pos, idx) {
+    const n = pos.length / 3, nr = new Float32Array(n * 3), tri = idx ? Math.floor(idx.length / 3) : Math.floor(n / 3);
+    for (let f = 0; f < tri; f++) {
+      const a = idx ? idx[3 * f] : 3 * f, b = idx ? idx[3 * f + 1] : 3 * f + 1, c = idx ? idx[3 * f + 2] : 3 * f + 2;
+      const e1x = pos[3 * b] - pos[3 * a], e1y = pos[3 * b + 1] - pos[3 * a + 1], e1z = pos[3 * b + 2] - pos[3 * a + 2];
+      const e2x = pos[3 * c] - pos[3 * a], e2y = pos[3 * c + 1] - pos[3 * a + 1], e2z = pos[3 * c + 2] - pos[3 * a + 2];
+      const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+      for (const v of [a, b, c]) { nr[3 * v] += nx; nr[3 * v + 1] += ny; nr[3 * v + 2] += nz; }
+    }
+    for (let i = 0; i < n; i++) {
+      const l = Math.hypot(nr[3 * i], nr[3 * i + 1], nr[3 * i + 2]);
+      if (l > 0) { nr[3 * i] /= l; nr[3 * i + 1] /= l; nr[3 * i + 2] /= l; }
+    }
+    return nr;
+  }
+  function run(d) {
+    const np = d.np, op = d.op, oi = d.oi, iters = d.iters;
+    const nN = np.length / 3, oN = op.length / 3;
+    const post = (o, tr) => self.postMessage(o, tr || []);
+    post({ type: 'phase', text: 'Aligning… preparing' });
+    const tstep = Math.max(1, Math.floor(nN / 400000));
+    const tgt = tstep === 1 ? np : sample(np, Math.ceil(nN / tstep));
+    const tgrid = makeGrid(tgt);
+    const s2k = sample(op, 2000), s8k = sample(op, 8000), sEval = sample(op, 10000);
+    // Rough start: identity (shared scanner space), centroid only, and the 4 proper principal-axis flips.
+    const fo = frame(sample(op, 20000)), fn = frame(sample(np, 20000));
+    const cands = [{ R: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [0, 0, 0] }, { R: [1, 0, 0, 0, 1, 0, 0, 0, 1], t: [fn.c[0] - fo.c[0], fn.c[1] - fo.c[1], fn.c[2] - fo.c[2]] }];
+    for (const s0 of [1, -1]) for (const s1 of [1, -1]) {
+      const D = [s0, s1, s0 * s1], R = new Array(9);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { let v = 0; for (let k = 0; k < 3; k++) v += fn.F[i][k] * D[k] * fo.F[j][k]; R[3 * i + j] = v; }
+      cands.push({ R, t: [fn.c[0] - (R[0] * fo.c[0] + R[1] * fo.c[1] + R[2] * fo.c[2]), fn.c[1] - (R[3] * fo.c[0] + R[4] * fo.c[1] + R[5] * fo.c[2]), fn.c[2] - (R[6] * fo.c[0] + R[7] * fo.c[1] + R[8] * fo.c[2])] });
+    }
+    let best = null, bestE = Infinity;
+    for (const c of cands) {
+      const r = icp(s2k, tgrid, c.R, c.t, 10, 0.8, null);
+      const e = evalRms(s2k, tgrid, r.R, r.t, 0.8);
+      if (e < bestE) { bestE = e; best = r; }
+    }
+    if (!best) throw new Error('Could not find a starting alignment.');
+    const fin = icp(s8k, tgrid, best.R, best.t, iters, 0.8, i => post({ type: 'progress', i, n: iters }));
+    post({ type: 'progress', i: iters, n: iters });
+    const rms = evalRms(sEval, tgrid, fin.R, fin.t, 0.8);
+    post({ type: 'phase', text: 'Computing deviation…' });
+    const R = fin.R, t = fin.t;
+    const opA = new Float32Array(op.length);
+    for (let i = 0; i < oN; i++) {
+      const x = op[3 * i], y = op[3 * i + 1], z = op[3 * i + 2];
+      opA[3 * i] = R[0] * x + R[1] * y + R[2] * z + t[0]; opA[3 * i + 1] = R[3] * x + R[4] * y + R[5] * z + t[1]; opA[3 * i + 2] = R[6] * x + R[7] * y + R[8] * z + t[2];
+    }
+    const ostep = Math.max(1, Math.floor(oN / 400000));
+    const ap = ostep === 1 ? opA : sample(opA, Math.ceil(oN / ostep));
+    const ogrid = makeGrid(ap), nrm = normals(op, oi);
+    const dev = new Float32Array(nN), LIM2 = 2.5 * 2.5; let have = 0;
+    for (let i = 0; i < nN; i++) {
+      const x = np[3 * i], y = np[3 * i + 1], z = np[3 * i + 2];
+      const j = ogrid.nearest(x, y, z);
+      if (j < 0 || ogrid.d2 > LIM2) { dev[i] = NaN; continue; }
+      const o = j * ostep, ax = nrm[3 * o], ay = nrm[3 * o + 1], az = nrm[3 * o + 2];
+      const nx = R[0] * ax + R[1] * ay + R[2] * az, ny = R[3] * ax + R[4] * ay + R[5] * az, nz = R[6] * ax + R[7] * ay + R[8] * az;
+      const dot = (x - ap[3 * j]) * nx + (y - ap[3 * j + 1]) * ny + (z - ap[3 * j + 2]) * nz;
+      const dist = Math.sqrt(ogrid.d2);
+      // Distance to the tangent plane is accurate for small gaps; for larger gaps (edges, real movement)
+      // fall back to the vertex distance so lateral offsets do not look like "no change".
+      const mag = dist < 0.5 ? Math.abs(dot) : dist;
+      dev[i] = dot < 0 ? -mag : mag; have++;
+    }
+    post({ type: 'done', dev, opA, rms, overlap: have / Math.max(1, nN) }, [dev.buffer, opA.buffer]);
+  }
+  self.onmessage = e => { try { run(e.data); } catch (err) { self.postMessage({ type: 'error', message: String((err && err.message) || err) }); } };
+}
+
 const kind = (new URLSearchParams(location.search).get('fmt') || '').toLowerCase();
+const scanName = new URLSearchParams(location.search).get('name') || 'This scan';
 const tick = () => new Promise(r => setTimeout(r, 30));
 try {
   const res = await fetch('/mesh');
@@ -137,9 +394,11 @@ try {
   g.setAttribute('position', new THREE.BufferAttribute(m.pos, 3));
   if (m.index) g.setIndex(m.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(m.index, 1) : new THREE.Uint16BufferAttribute(m.index, 1));
   const noFaces = !m.index && kind !== 'stl';
+  g.computeBoundingBox(); const cA = g.boundingBox.getCenter(new THREE.Vector3());
   g.center(); g.computeBoundingSphere();
   if (!noFaces) g.computeVertexNormals();
   const R = g.boundingSphere.radius || 1;
+  let Rv = R, cmp = null;
 
   const scene = new THREE.Scene();
   const cam = new THREE.PerspectiveCamera(40, 1, R / 100, R * 100);
@@ -153,7 +412,7 @@ try {
   const mesh = noFaces ? new THREE.Points(g, mat) : new THREE.Mesh(g, mat);
   scene.add(mesh);
   const ctl = new OrbitControls(cam, ren.domElement); ctl.enableDamping = true;
-  const reset = () => { cam.position.set(0, 0, R * 2.6); ctl.target.set(0, 0, 0); ctl.update(); };
+  const reset = () => { cam.position.set(0, 0, Rv * 2.6); ctl.target.set(0, 0, 0); ctl.update(); };
   reset();
   const fit = () => { const w = innerWidth, h = innerHeight; ren.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); };
   addEventListener('resize', fit); fit();
@@ -161,7 +420,8 @@ try {
 
   document.getElementById('bReset').onclick = reset;
   const bW = document.getElementById('bWire'); if (noFaces) bW.style.display = 'none';
-  bW.onclick = () => { mat.wireframe = !mat.wireframe; bW.classList.toggle('on', mat.wireframe); };
+  const allMats = [mat];
+  bW.onclick = () => { const w = !mat.wireframe; allMats.forEach(x => { x.wireframe = w; }); bW.classList.toggle('on', w); };
   const bM = document.getElementById('bMeasure'), read = document.getElementById('read');
   let measuring = false, pts = [], marks = [], line = null;
   const clear = () => { marks.forEach(s => scene.remove(s)); marks = []; if (line) { scene.remove(line); line = null; } pts = []; };
@@ -169,9 +429,11 @@ try {
   const ray = new THREE.Raycaster(), dn = { x: 0, y: 0, t: 0 };
   ren.domElement.addEventListener('pointerdown', e => { dn.x = e.clientX; dn.y = e.clientY; dn.t = Date.now(); });
   ren.domElement.addEventListener('pointerup', e => {
-    if (!measuring || noFaces || Math.hypot(e.clientX - dn.x, e.clientY - dn.y) > 6 || Date.now() - dn.t > 500) return;
+    const cmpOn = !!(cmp && cmp.mesh);
+    if ((!measuring && !cmpOn) || noFaces || Math.hypot(e.clientX - dn.x, e.clientY - dn.y) > 6 || Date.now() - dn.t > 500) return;
     ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight * 2 - 1)), cam);
-    const hit = ray.intersectObject(mesh, false)[0]; if (!hit) return;
+    const hit = ray.intersectObject(cmpOn ? cmp.mesh : mesh, false)[0]; if (!hit) return;
+    if (!measuring) { showDeviation(hit); return; }
     if (pts.length >= 2) clear();
     pts.push(hit.point.clone());
     const s = new THREE.Mesh(new THREE.SphereGeometry(R / 120, 12, 12), new THREE.MeshBasicMaterial({ color: 0xff3b30, depthTest: false }));
@@ -182,6 +444,150 @@ try {
       read.textContent = pts[0].distanceTo(pts[1]).toFixed(2) + ' mm';
     } else read.textContent = 'Tap the second point';
   });
+
+  // ---------- Compare two scans (alignment + deviation map) ----------
+  const $ = id => document.getElementById(id);
+  const cmpEl = $('cmp'), cmpInfo = $('cmpInfo'), cmpWarn = $('cmpWarn'), bCmp = $('bCompare');
+  cmpInfo.style.whiteSpace = 'pre-line';
+  if (noFaces) bCmp.style.display = 'none';
+  const C_LOST = '#1f4fe0', C_OK = '#3cc15a', C_GAIN = '#e5342b', C_NONE = '#b9bcc2', SCALE = 1;
+  const rgb = h => { const c = new THREE.Color(h); return [c.r, c.g, c.b]; };
+  const cLost = rgb(C_LOST), cOk = rgb(C_OK), cGain = rgb(C_GAIN), cNone = rgb(C_NONE);
+  const matMap = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  const matPlain = new THREE.MeshStandardMaterial({ color: 0xE9DFCB, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
+  const matOld = new THREE.MeshStandardMaterial({ color: 0xff9f0a, roughness: 0.85, metalness: 0, side: THREE.DoubleSide, transparent: true, opacity: 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  allMats.push(matMap, matPlain, matOld);
+  const parsers = { stl: parseSTL, obj: parseOBJ, ply: parsePLY };
+  let base = null, runSeq = 0, devMark = null, devLine = '';
+  const getBase = () => base || (base = { name: scanName, pos: g.attributes.position.array, index: m.index ? Uint32Array.from(m.index) : null });
+  const syncRead = () => { read.style.bottom = (cmp && cmpEl.style.display !== 'none' ? cmpEl.offsetHeight + 20 : 12) + 'px'; };
+  const setInfo = (t, warn) => {
+    cmpInfo.textContent = t;
+    cmpWarn.style.display = warn ? 'block' : 'none'; cmpWarn.textContent = warn || '';
+    syncRead();
+  };
+  const clearDevMark = () => { if (devMark) { scene.remove(devMark); devMark.geometry.dispose(); devMark.material.dispose(); devMark = null; } };
+  const disposeCmp = () => {
+    clearDevMark();
+    if (!cmp) return;
+    for (const k of ['mesh', 'oldMesh']) if (cmp[k]) { scene.remove(cmp[k]); cmp[k].geometry.dispose(); cmp[k] = null; }
+  };
+  const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  function recolor() {
+    const dev = cmp.dev, col = cmp.mesh.geometry.attributes.color, a = col.array, tol = cmp.tol;
+    for (let i = 0; i < dev.length; i++) {
+      const d = dev[i]; let c;
+      if (d !== d) c = cNone;
+      else {
+        const ad = Math.abs(d);
+        c = ad <= tol ? cOk : lerp3(cOk, d < 0 ? cLost : cGain, Math.min(1, (ad - tol) / (SCALE - tol)));
+      }
+      a[3 * i] = c[0]; a[3 * i + 1] = c[1]; a[3 * i + 2] = c[2];
+    }
+    col.needsUpdate = true;
+    const p1 = ((SCALE - tol) / (2 * SCALE) * 100).toFixed(1), p2 = ((SCALE + tol) / (2 * SCALE) * 100).toFixed(1);
+    $('lgBar').style.background = 'linear-gradient(to right,' + C_LOST + ' 0%,' + C_OK + ' ' + p1 + '%,' + C_OK + ' ' + p2 + '%,' + C_GAIN + ' 100%)';
+    $('lgNote').textContent = 'Green = within ±' + tol.toFixed(2) + ' mm · grey = no overlapping surface';
+  }
+  function applyMode() {
+    const map = cmp.mode === 'map';
+    $('bMap').classList.toggle('on', map); $('bOver').classList.toggle('on', !map);
+    $('tolRow').style.display = map ? 'block' : 'none'; $('legend').style.display = map ? 'block' : 'none';
+    if (cmp.mesh) { cmp.mesh.material = map ? matMap : matPlain; cmp.oldMesh.visible = !map; }
+    clearDevMark(); syncRead();
+  }
+  function showPanel(show) {
+    cmpEl.style.display = show ? 'block' : 'none'; bCmp.classList.toggle('on', show); syncRead();
+  }
+  function exitCompare() {
+    runSeq++;
+    if (cmp) { if (cmp.worker) { cmp.worker.terminate(); cmp.worker = null; } disposeCmp(); }
+    cmp = null; mesh.visible = true; Rv = R; reset(); showPanel(false);
+  }
+  function applyResult(nw, od, d) {
+    disposeCmp();
+    const n = nw.pos.length / 3; let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const x = nw.pos[3 * i], y = nw.pos[3 * i + 1], z = nw.pos[3 * i + 2];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; if (z < z0) z0 = z; if (z > z1) z1 = z;
+    }
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(nw.pos.slice(), 3));
+    if (nw.index) geo.setIndex(new THREE.BufferAttribute(nw.index, 1));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    geo.translate(-cx, -cy, -cz); geo.computeVertexNormals(); geo.computeBoundingSphere();
+    const og = new THREE.BufferGeometry();
+    og.setAttribute('position', new THREE.BufferAttribute(d.opA, 3));
+    if (od.index) og.setIndex(new THREE.BufferAttribute(od.index, 1));
+    og.translate(-cx, -cy, -cz); og.computeVertexNormals();
+    allMats.forEach(x => { x.wireframe = mat.wireframe; });
+    cmp.mesh = new THREE.Mesh(geo, matMap); cmp.oldMesh = new THREE.Mesh(og, matOld); cmp.oldMesh.renderOrder = 1;
+    scene.add(cmp.mesh); scene.add(cmp.oldMesh); mesh.visible = false;
+    cmp.dev = d.dev; Rv = geo.boundingSphere.radius || 1; reset();
+    cmp.busy = false; cmpEl.classList.remove('busy');
+    recolor(); applyMode();
+    const rms = d.rms, bad = !isFinite(rms) || rms > 0.5 || d.overlap < 0.3;
+    devLine = 'Tap the surface for the deviation';
+    cmp.head = 'New: ' + nw.name + '  ·  Old: ' + od.name + '\nAligned · RMS ' + (isFinite(rms) ? rms.toFixed(2) + ' mm' : 'n/a') + ' · overlap ' + Math.round(d.overlap * 100) + '%';
+    cmp.warn = bad ? 'Scans may not overlap well' + (isFinite(rms) ? ' (RMS ' + rms.toFixed(2) + ' mm)' : '') + '.' : '';
+    setInfo(cmp.head + '\n' + devLine, cmp.warn);
+  }
+  function runCompare() {
+    const b = getBase(), nw = cmp.swapped ? cmp.other : b, od = cmp.swapped ? b : cmp.other;
+    if (cmp.worker) cmp.worker.terminate();
+    const id = ++runSeq; cmp.busy = true; cmpEl.classList.add('busy'); showPanel(true);
+    setInfo('Aligning… preparing');
+    let w;
+    try { w = new Worker(URL.createObjectURL(new Blob(['(' + workerMain.toString() + ')()'], { type: 'text/javascript' }))); }
+    catch (e) { cmp.busy = false; cmpEl.classList.remove('busy'); setInfo('This viewer cannot run the alignment worker.'); return; }
+    cmp.worker = w;
+    const stop = t => { if (id !== runSeq) return; w.terminate(); cmp.worker = null; cmp.busy = false; cmpEl.classList.remove('busy'); setInfo(t); };
+    w.onmessage = ev => {
+      if (id !== runSeq) return;
+      const d = ev.data;
+      if (d.type === 'progress') setInfo('Aligning… ' + d.i + '/' + d.n);
+      else if (d.type === 'phase') setInfo(d.text);
+      else if (d.type === 'error') stop('Could not compare these scans: ' + d.message);
+      else if (d.type === 'done') { w.terminate(); cmp.worker = null; applyResult(nw, od, d); }
+    };
+    w.onerror = ev => stop('Could not compare these scans' + (ev && ev.message ? ': ' + ev.message : '.'));
+    w.postMessage({ np: nw.pos, op: od.pos, oi: od.index, iters: 40 });
+  }
+  bCmp.onclick = async () => {
+    const h = window.flutter_inappwebview;
+    if (!h || !h.callHandler) { cmp = cmp || { tol: 0.1, mode: 'map' }; showPanel(true); setInfo('Comparing needs the CruDoc app.'); return; }
+    let info;
+    try { info = await h.callHandler('pickCompare'); } catch (e) { return; }
+    if (!info || !info.fmt) return;
+    try {
+      const fmt = String(info.fmt).toLowerCase(), pr = parsers[fmt];
+      if (!pr) throw new Error('Unsupported format: .' + fmt);
+      const r = await fetch('/old?t=' + Date.now()); if (!r.ok) throw new Error('Could not read the picked scan.');
+      const o = pr(await r.arrayBuffer());
+      if (!o.index && fmt !== 'stl') throw new Error('The picked scan has no surface triangles.');
+      for (let i = 0; i < o.pos.length; i += 3) { o.pos[i] -= cA.x; o.pos[i + 1] -= cA.y; o.pos[i + 2] -= cA.z; }
+      if (!cmp) cmp = { tol: 0.1, mode: 'map' };
+      cmp.other = { name: info.name || 'Other scan', pos: o.pos, index: o.index ? Uint32Array.from(o.index) : null };
+      cmp.swapped = false; runCompare();
+    } catch (e) { cmp = cmp || { tol: 0.1, mode: 'map' }; showPanel(true); setInfo(e.message || 'Could not open the picked scan.'); }
+  };
+  $('bMap').onclick = () => { if (cmp && cmp.mesh) { cmp.mode = 'map'; applyMode(); } };
+  $('bOver').onclick = () => { if (cmp && cmp.mesh) { cmp.mode = 'over'; applyMode(); } };
+  $('bSwap').onclick = () => { if (cmp && cmp.other && !cmp.busy) { cmp.swapped = !cmp.swapped; runCompare(); } };
+  $('bExit').onclick = exitCompare;
+  $('tol').oninput = e => { if (!cmp || !cmp.dev) return; cmp.tol = +e.target.value; $('tolV').textContent = cmp.tol.toFixed(2); recolor(); };
+  function showDeviation(hit) {
+    if (!cmp || !cmp.dev || !hit.face || cmp.busy) return;
+    const pa = cmp.mesh.geometry.attributes.position, v = new THREE.Vector3(); let bi = -1, bd = Infinity;
+    for (const i of [hit.face.a, hit.face.b, hit.face.c]) { v.fromBufferAttribute(pa, i); const dd = v.distanceToSquared(hit.point); if (dd < bd) { bd = dd; bi = i; } }
+    const d = cmp.dev[bi];
+    clearDevMark();
+    devMark = new THREE.Mesh(new THREE.SphereGeometry(Rv / 120, 12, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+    devMark.renderOrder = 10; devMark.position.copy(hit.point); scene.add(devMark);
+    devLine = 'Deviation: ' + (d !== d ? 'no overlapping surface here' : (d > 0 ? '+' : d < 0 ? '−' : '') + Math.abs(d).toFixed(2) + ' mm' + (Math.abs(d) <= cmp.tol ? ' (within tolerance)' : d < 0 ? ' (material lost)' : ' (material gained)'));
+    setInfo(cmp.head + '\n' + devLine, cmp.warn);
+  }
   msg.style.display = 'none'; document.getElementById('bar').style.display = 'flex';
 } catch (e) { fail(e.message || 'Could not open this scan.'); }
 </script></body></html>

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -95,6 +96,7 @@ class _ScanBodyState extends State<_ScanBody> {
   HttpServer? _server;
   Uri? _url;
   String? _error;
+  String? _comparePath;
 
   @override
   void initState() {
@@ -119,7 +121,8 @@ class _ScanBodyState extends State<_ScanBody> {
       final fmt = p.extension(widget.filePath).replaceFirst('.', '');
       if (!mounted) return;
       setState(() {
-        _url = Uri.parse('http://127.0.0.1:${server.port}/index.html?fmt=$fmt');
+        _url = Uri.parse('http://127.0.0.1:${server.port}/index.html?fmt=$fmt'
+            '&name=${Uri.encodeQueryComponent(widget.fileName)}');
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -135,6 +138,10 @@ class _ScanBodyState extends State<_ScanBody> {
       } else if (path == '/mesh') {
         res.headers.contentType = ContentType.binary;
         await res.addStream(File(widget.filePath).openRead());
+      } else if (path == '/old' && _comparePath != null) {
+        res.headers.contentType = ContentType.binary;
+        res.headers.set('Cache-Control', 'no-store');
+        await res.addStream(File(_comparePath!).openRead());
       } else {
         final asset = path.startsWith('/vendor/')
             ? 'assets/muscle_viewer$path'
@@ -150,6 +157,108 @@ class _ScanBodyState extends State<_ScanBody> {
     } finally {
       await res.close();
     }
+  }
+
+  static const _scanExts = {'.stl', '.ply', '.obj'};
+
+  /// Lets the user pick the second ("old") scan: other scans in the same
+  /// folder first, or any file via the file picker.
+  Future<Map<String, String>?> _pickCompare() async {
+    String? chosen;
+    final siblings = <File>[];
+    try {
+      final dir = Directory(p.dirname(widget.filePath));
+      for (final e in dir.listSync()) {
+        if (e is File &&
+            e.path != widget.filePath &&
+            _scanExts.contains(p.extension(e.path).toLowerCase())) {
+          siblings.add(e);
+        }
+      }
+      siblings.sort(
+        (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
+      );
+    } catch (_) {}
+    if (!mounted) return null;
+    if (siblings.isEmpty) {
+      chosen = await _browseScan();
+    } else {
+      final c = context.cru;
+      chosen = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: c.canvas,
+        isScrollControlled: true,
+        builder: (ctx) => SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.7,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(CruSpace.s16),
+                  child: Text(
+                    'Compare with an earlier scan',
+                    style: CruType.callout.tint(c.label),
+                  ),
+                ),
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final f in siblings)
+                        ListTile(
+                          title: Text(
+                            p.basename(f.path),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.callout.tint(c.label),
+                          ),
+                          subtitle: Text(
+                            '${ScanViewerPlaceholderScreen.formatBytes(f.lengthSync())}  ·  '
+                            '${DateFormat('d MMM yyyy').format(f.statSync().modified)}',
+                            style: CruType.caption.tint(c.label2),
+                          ),
+                          onTap: () => Navigator.of(ctx).pop(f.path),
+                        ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(CruSpace.s16),
+                  child: CruButton(
+                    label: 'Browse files…',
+                    kind: CruButtonKind.secondary,
+                    onPressed: () async {
+                      final picked = await _browseScan();
+                      if (ctx.mounted) Navigator.of(ctx).pop(picked);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    if (chosen == null) return null;
+    _comparePath = chosen;
+    return {
+      'fmt': p.extension(chosen).replaceFirst('.', '').toLowerCase(),
+      'name': p.basename(chosen),
+    };
+  }
+
+  Future<String?> _browseScan() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['stl', 'ply', 'obj'],
+      dialogTitle: 'Select the scan to compare with',
+    );
+    if (result == null || result.files.isEmpty) return null;
+    return result.files.single.path;
   }
 
   @override
@@ -186,6 +295,12 @@ class _ScanBodyState extends State<_ScanBody> {
             disallowOverScroll: true,
             overScrollMode: OverScrollMode.NEVER,
           ),
+          onWebViewCreated: (controller) {
+            controller.addJavaScriptHandler(
+              handlerName: 'pickCompare',
+              callback: (_) => _pickCompare(),
+            );
+          },
           gestureRecognizers: {
             Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
           },

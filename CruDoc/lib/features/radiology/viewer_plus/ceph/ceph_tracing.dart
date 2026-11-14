@@ -20,6 +20,7 @@ void paintCephTracing(
   String? hover,
   bool planes = true,
   bool labels = true,
+  Set<String> uncertain = const {},
 }) {
   const ink = PlusStage.ink;
   if (planes) {
@@ -94,6 +95,17 @@ void paintCephTracing(
         isHover ? (Paint()..color = ink.accentText) : dotFill,
       )
       ..drawCircle(s, 3.5 * unit, dotRing);
+    if (uncertain.contains(e.key)) {
+      _dashedRing(
+        canvas,
+        s,
+        8 * unit,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..color = const Color(0xFFF5A623)
+          ..strokeWidth = 1.8 * unit,
+      );
+    }
     if (isNow) canvas.drawCircle(s, 9 * unit, now);
     if (labels || isNow || isHover) {
       _text(
@@ -104,6 +116,20 @@ void paintCephTracing(
         color: isNow || isHover ? ink.accentText : ink.label,
       );
     }
+  }
+}
+
+void _dashedRing(Canvas canvas, Offset c, double r, Paint paint) {
+  const n = 12;
+  for (var i = 0; i < n; i++) {
+    final a0 = i * 2 * math.pi / n;
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r),
+      a0,
+      math.pi / n,
+      false,
+      paint,
+    );
   }
 }
 

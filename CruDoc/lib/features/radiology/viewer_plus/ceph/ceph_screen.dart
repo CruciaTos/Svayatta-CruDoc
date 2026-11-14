@@ -14,7 +14,9 @@ import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/features/radiology/viewer/measure.dart';
 import 'package:doctor_management_app/features/radiology/viewer_plus/ai/ai_panels.dart';
+import 'package:doctor_management_app/core/services/ai_consent.dart';
 import 'package:doctor_management_app/features/radiology/viewer_plus/ceph/ceph_analysis.dart';
+import 'package:doctor_management_app/features/radiology/viewer_plus/ceph/ceph_auto_place.dart';
 import 'package:doctor_management_app/features/radiology/viewer_plus/ceph/ceph_tracing.dart';
 import 'package:doctor_management_app/features/radiology/viewer_plus/plus_canvas.dart';
 import 'package:doctor_management_app/features/radiology/viewer_plus/plus_ui.dart';
@@ -69,6 +71,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
 
   final Map<String, Offset> _points = {};
   final Set<String> _skipped = {};
+
+  /// AI-placed landmarks the dentist should check (low confidence).
+  final Set<String> _uncertain = {};
+  bool _aiBusy = false;
 
   /// The landmark being placed or adjusted ("now").
   String? _current;
@@ -313,6 +319,7 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
     if (id == null || !_points.containsKey(id)) return;
     _snapshot();
     _points.remove(id);
+    _uncertain.remove(id);
     _changed();
   }
 
@@ -327,6 +334,7 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
     _snapshot();
     _points.clear();
     _skipped.clear();
+    _uncertain.clear();
     _current = _nextAfter(null);
     _changed();
   }
@@ -338,6 +346,53 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
     if (first) _snapshot();
     _points[id] = _clamp(p + d);
     _changed();
+  }
+
+  Future<void> _autoPlace() async {
+    final image = _image.value;
+    if (image == null || _aiBusy) return;
+    if (_points.isNotEmpty) {
+      final ok = await confirmDental(
+        context,
+        title: 'Replace existing landmarks?',
+        body:
+            'The AI will place its own points. Undo (Ctrl+Z) brings yours back.',
+        action: 'Replace',
+      );
+      if (!ok || !mounted) return;
+    }
+    setState(() => _aiBusy = true);
+    String? error;
+    try {
+      if (!await AiConsent.granted) throw const AiConsentRequired();
+      final found = await cephAutoPlace(image);
+      if (!mounted) return;
+      _snapshot();
+      _points.clear();
+      _skipped.clear();
+      _uncertain.clear();
+      for (final f in found) {
+        _points[f.id] = _clamp(f.point);
+        if (f.low) _uncertain.add(f.id);
+      }
+      _current = _nextAfter(null);
+      _changed();
+    } on AiConsentRequired catch (e) {
+      error = '$e';
+    } on FormatException {
+      error = "The AI's answer couldn't be read. Place the landmarks by hand.";
+    } catch (_) {
+      error =
+          "Auto-place didn't work (offline or AI unavailable). "
+          'You can still place the landmarks by hand.';
+    }
+    if (!mounted) return;
+    setState(() => _aiBusy = false);
+    if (error != null) {
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   void _pick(String id) {
@@ -358,6 +413,7 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
     final hit = _hit(p);
     if (hit != null) {
       _snapshot();
+      _uncertain.remove(hit);
       _dragging = hit;
       _placing = false;
       setState(() => _current = hit);
@@ -926,6 +982,7 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
       toScreen: _view.toScreen,
       current: _current,
       hover: _hover,
+      uncertain: _uncertain,
       planes: _planes,
       labels: _labels,
     );
@@ -990,14 +1047,29 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen>
           semanticLabel: 'Landmarks placed',
         ),
         const SizedBox(height: CruSpace.s16),
+        if (_uncertain.isNotEmpty) ...[
+          Text('Check these', style: CruType.subhead.w600.tint(c.amberText)),
+          const SizedBox(height: CruSpace.s6),
+          Wrap(
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s8,
+            children: [
+              for (final id in _uncertain)
+                DentalChoiceChip(
+                  label: id,
+                  selected: id == _current,
+                  onTap: () => _pick(id),
+                ),
+            ],
+          ),
+          const SizedBox(height: CruSpace.s12),
+        ],
         _currentCard(c, cur),
         const SizedBox(height: CruSpace.s12),
-        const RadAiActionButton(label: 'AI place landmarks', expand: true),
-        const SizedBox(height: CruSpace.s6),
-        const RadNotConnected(
-          compact: true,
-          title: 'No AI key connected',
-          body: '',
+        RadAiActionButton(
+          label: _aiBusy ? 'Placing landmarks…' : 'AI place landmarks',
+          expand: true,
+          onPressed: _image.value == null || _aiBusy ? null : _autoPlace,
         ),
         for (final g in CephGroup.values) ...[
           PlusPanelLabel(g.label),

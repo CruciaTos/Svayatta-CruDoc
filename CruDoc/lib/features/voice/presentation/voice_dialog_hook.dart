@@ -92,6 +92,9 @@ class VoiceCancel extends VoiceEvent {
 
 /// Carries voice events from the controller to whichever form is open.
 abstract final class VoiceBus {
+  /// The perio chart is taking dictated depths: speech is not a command.
+  static final perioListening = ValueNotifier<bool>(false);
+
   static final _events = StreamController<VoiceEvent>.broadcast();
 
   /// The latest fill, so a form that opens a frame after the speech was

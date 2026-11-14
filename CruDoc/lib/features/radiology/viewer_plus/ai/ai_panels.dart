@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
+import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/chart_session_providers.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
+import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/radiology/ai/rad_ai.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
@@ -137,6 +141,69 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
     }
   }
 
+  static const _surfaceNames = {
+    'M': 'mesial',
+    'O': 'occlusal',
+    'D': 'distal',
+    'B': 'buccal',
+    'L': 'lingual',
+  };
+
+  /// Whether a finding can be written to the chart (needs a tooth).
+  bool _canChart(RadAiFinding f) => f.tooth.isNotEmpty;
+
+  /// Writes one accepted finding to the patient's chart, then marks it accepted.
+  Future<void> _accept(RadAiFinding f) async {
+    final patientId = widget.study.patientId;
+    if (patientId.isEmpty || !_canChart(f)) return;
+    try {
+      final visit = chartWriteVisit(ref, patientId);
+      final now = DateTime.now();
+      final cond = switch (f.kind) {
+        RadAiKind.caries => ToothCondition.caries,
+        RadAiKind.impacted => ToothCondition.impacted,
+        _ => null,
+      };
+      final surfaces = [
+        for (final ch in f.surface.toUpperCase().split(''))
+          if (_surfaceNames[ch] != null) _surfaceNames[ch]!,
+      ];
+      final mm = f.boneLossMm == null ? '' : ' (${f.boneLossMm} mm)';
+      final note = 'AI (reviewed): ${f.label}$mm';
+      await ref
+          .read(dentalRepositoryProvider)
+          .saveToothChartEntry(
+            ToothChartEntryModel(
+              id: const Uuid().v4(),
+              doctorId: ref.read(dentalDoctorIdProvider),
+              patientId: patientId,
+              toothNumber: f.tooth,
+              condition: cond?.name,
+              surface: surfaces.isEmpty ? null : surfaces.join(','),
+              visitId: visit?.id,
+              baseEntryId: chartBaseFor(ref, patientId, visit, f.tooth),
+              notes: note,
+              recordedAt: visit?.scheduledStart ?? now,
+              createdAt: now,
+              updatedAt: now,
+              syncStatus: 'pending',
+            ),
+          );
+      refreshDentalPatient(ref, patientId);
+      await _updateStatus(f.id, 'accepted');
+    } catch (_) {
+      if (mounted) radToast(context, "Couldn't add to the chart. Try again.");
+    }
+  }
+
+  Future<void> _acceptAllConfident(List<RadAiFinding> all) async {
+    for (final f in all) {
+      if (f.isPending && f.confidence >= 0.8 && _canChart(f)) {
+        await _accept(f);
+      }
+    }
+  }
+
   Future<void> _updateStatus(String findingId, String status) async {
     final aiReads = <Map<String, dynamic>>[];
     RadAiFinding? updatedFinding;
@@ -263,6 +330,7 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
     final showMarks = ref.watch(radShowAiMarksProvider);
     final latestRun = _latestRun();
     final findings = _findings(latestRun);
+    final linked = widget.study.patientId.isNotEmpty;
 
     return ListView(
       padding: const EdgeInsets.all(CruSpace.s16),
@@ -354,6 +422,27 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
               ],
             ),
             const SizedBox(height: CruSpace.s12),
+            if (linked)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CruCapsuleButton(
+                  label: 'Accept all above 80%',
+                  icon: CruIcons.check,
+                  onPressed:
+                      findings.any(
+                        (f) =>
+                            f.isPending && f.confidence >= 0.8 && _canChart(f),
+                      )
+                      ? () => _acceptAllConfident(findings)
+                      : null,
+                ),
+              )
+            else
+              Text(
+                'Link this image to a patient to add findings to the chart',
+                style: CruType.caption.tint(c.label2),
+              ),
+            const SizedBox(height: CruSpace.s12),
             for (final kind in RadAiKind.values)
               if (findings.any((f) => f.kind == kind)) ...[
                 Padding(
@@ -369,94 +458,107 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
                 for (final f in findings.where((f) => f.kind == kind))
                   Padding(
                     padding: const EdgeInsets.only(bottom: CruSpace.s8),
-                    child: CruCard(
-                      padding: const EdgeInsets.all(CruSpace.s12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              CruIcon(CruIcons.sparkle, size: 14, color: c.ai),
-                              const SizedBox(width: CruSpace.s4),
-                              Text(
-                                'AI suggestion',
-                                style: CruType.micro.w600.tint(c.ai),
-                              ),
-                              const Spacer(),
-                              CruPill(
-                                text: '${(f.confidence * 100).round()}%',
-                                background: c.aiTint,
-                                foreground: c.ai,
-                              ),
-                              const SizedBox(width: CruSpace.s4),
-                              if (f.isAccepted)
-                                CruPill(
-                                  text: 'Accepted',
-                                  background: c.greenTint,
-                                  foreground: c.greenText,
-                                )
-                              else if (f.isRejected)
-                                CruPill(
-                                  text: 'Rejected',
-                                  background: c.inset,
-                                  foreground: c.label3,
-                                )
-                              else if (f.isEdited)
-                                CruPill(
-                                  text: 'Edited',
-                                  background: c.amberTint,
-                                  foreground: c.amberText,
+                    child: Opacity(
+                      opacity: f.isRejected ? 0.5 : 1,
+                      child: CruCard(
+                        padding: const EdgeInsets.all(CruSpace.s12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CruIcon(
+                                  CruIcons.sparkle,
+                                  size: 14,
+                                  color: c.ai,
                                 ),
-                            ],
-                          ),
-                          const SizedBox(height: CruSpace.s8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (f.tooth.isNotEmpty) ...[
-                                CruPill(
-                                  text: toothLabel(f.tooth, numbering),
-                                  background: c.inset,
-                                  foreground: c.label,
+                                const SizedBox(width: CruSpace.s4),
+                                Text(
+                                  'AI suggestion',
+                                  style: CruType.micro.w600.tint(c.ai),
                                 ),
-                                const SizedBox(width: CruSpace.s8),
+                                const Spacer(),
+                                CruPill(
+                                  text: '${(f.confidence * 100).round()}%',
+                                  background: c.aiTint,
+                                  foreground: c.ai,
+                                ),
+                                const SizedBox(width: CruSpace.s4),
+                                if (f.isAccepted)
+                                  CruPill(
+                                    text: 'Accepted',
+                                    background: c.greenTint,
+                                    foreground: c.greenText,
+                                  )
+                                else if (f.isRejected)
+                                  CruPill(
+                                    text: 'Rejected',
+                                    background: c.inset,
+                                    foreground: c.label3,
+                                  )
+                                else if (f.isEdited)
+                                  CruPill(
+                                    text: 'Edited',
+                                    background: c.amberTint,
+                                    foreground: c.amberText,
+                                  ),
                               ],
-                              Expanded(
-                                child: Text(
-                                  f.label,
-                                  style: CruType.callout.w600.tint(c.label),
+                            ),
+                            const SizedBox(height: CruSpace.s8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (f.tooth.isNotEmpty) ...[
+                                  CruPill(
+                                    text: toothLabel(f.tooth, numbering),
+                                    background: c.inset,
+                                    foreground: c.label,
+                                  ),
+                                  const SizedBox(width: CruSpace.s8),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    f.label,
+                                    style: CruType.callout.w600.tint(c.label),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: CruSpace.s10),
-                          Row(
-                            children: [
-                              CruCapsuleButton(
-                                label: 'Accept',
-                                icon: CruIcons.check,
-                                onPressed: f.isAccepted
-                                    ? null
-                                    : () => _updateStatus(f.id, 'accepted'),
-                              ),
-                              const SizedBox(width: CruSpace.s6),
-                              CruCapsuleButton(
-                                label: 'Reject',
-                                icon: CruIcons.close,
-                                onPressed: f.isRejected
-                                    ? null
-                                    : () => _updateStatus(f.id, 'rejected'),
-                              ),
-                              const Spacer(),
-                              CruIconButton(
-                                icon: CruIcons.pen,
-                                semanticLabel: 'Edit',
-                                tooltip: 'Edit finding',
-                                onPressed: () => _editFinding(f),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                            const SizedBox(height: CruSpace.s10),
+                            Row(
+                              children: [
+                                if (linked)
+                                  Tooltip(
+                                    message: _canChart(f)
+                                        ? ''
+                                        : 'Not supported in chart yet (no tooth number)',
+                                    child: CruCapsuleButton(
+                                      label: 'Accept',
+                                      icon: CruIcons.check,
+                                      onPressed: f.isAccepted || !_canChart(f)
+                                          ? null
+                                          : () => _accept(f),
+                                    ),
+                                  ),
+                                if (linked) const SizedBox(width: CruSpace.s6),
+                                CruCapsuleButton(
+                                  label: 'Reject',
+                                  icon: CruIcons.close,
+                                  onPressed: f.isRejected
+                                      ? null
+                                      : () => _updateStatus(f.id, 'rejected'),
+                                ),
+                                const Spacer(),
+                                CruIconButton(
+                                  icon: CruIcons.pen,
+                                  semanticLabel: 'Edit',
+                                  tooltip: 'Edit finding',
+                                  onPressed: () => _editFinding(f),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

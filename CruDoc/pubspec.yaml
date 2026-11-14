@@ -156,6 +156,7 @@ flutter:
     - assets/muscle_viewer/vendor/addons/libs/
     - assets/muscle_viewer/vendor/addons/loaders/
     - assets/muscle_viewer/vendor/addons/utils/
+    - assets/scan_viewer/
     # CBCT 3D viewer (built from cbct_viewer/, see handoff/cbct_3d_viewer_build_guide.md).
     - assets/cbct_viewer/
     - assets/cbct_viewer/a/

@@ -16,7 +16,10 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/perio_staging.dart';
 import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
+import 'package:doctor_management_app/features/dental/records/perio_voice_parser.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
+import 'package:doctor_management_app/features/voice/services/speech_engine.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 // Sites per tooth are stored in this order: MB, B, DB, ML, L, DL.
@@ -236,6 +239,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    if (_voiceOn) _voiceCleanup();
     _notes.dispose();
     _focus.dispose();
     super.dispose();
@@ -469,6 +473,230 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     });
   }
 
+  // ---------------------------------------------------------------- voice
+
+  bool _voiceOn = false;
+  String? _heard;
+  String? _voiceMsg;
+  StreamSubscription<VoiceTranscript>? _voiceSub;
+  int _silentPieces = 0;
+
+  /// The site last filled by voice: bleeding and recession go there.
+  ({String tooth, bool lingual, int pos})? _lastFilled;
+  final _undo =
+      <
+        ({
+          String tooth,
+          Map<String, dynamic> json,
+          _Cursor? cursor,
+          ({String tooth, bool lingual, int pos})? last,
+        })
+      >[];
+
+  Future<void> _toggleVoice() async {
+    if (_voiceOn) {
+      _voiceCleanup();
+      setState(() {
+        _voiceOn = false;
+        _voiceMsg = null;
+      });
+      return;
+    }
+    if (_record == null) return;
+    final engine = SpeechEngine.instance;
+    setState(() {
+      _mode = _ChartMode.pockets;
+      _voiceMsg = null;
+      _heard = null;
+      _cursor ??= _order().where((o) => o.field == _Field.pd).firstOrNull;
+    });
+    try {
+      await engine.init();
+      if (!engine.isReady) throw StateError('not ready');
+      _voiceSub = engine.transcripts.listen(_onTranscript);
+      VoiceBus.perioListening.value = true;
+      if (mounted) setState(() => _voiceOn = true);
+      if (SpeechEngine.onPhone) {
+        await engine.listenOnce();
+      } else {
+        await engine.startDictation();
+      }
+    } catch (e) {
+      _voiceCleanup();
+      if (!mounted) return;
+      setState(() {
+        _voiceOn = false;
+        _voiceMsg = e.toString().toLowerCase().contains('permission')
+            ? 'Microphone permission is off. Allow it in settings. '
+                  'The chart still works by hand.'
+            : 'Voice is not ready: the speech model or server is not '
+                  'available. The chart still works by hand.';
+      });
+    }
+  }
+
+  void _voiceCleanup() {
+    _voiceSub?.cancel();
+    _voiceSub = null;
+    VoiceBus.perioListening.value = false;
+    final engine = SpeechEngine.instance;
+    if (SpeechEngine.onPhone) {
+      unawaited(engine.stop());
+    } else {
+      unawaited(engine.stopDictation(keepLast: false));
+    }
+  }
+
+  void _onTranscript(VoiceTranscript t) {
+    if (!_voiceOn) return;
+    // Windows dictates (sentence by sentence); phones listen piece by piece.
+    if (SpeechEngine.onPhone == t.dictation) return;
+    if (!t.isFinal) return;
+    final text = t.text.trim();
+    if (text.isNotEmpty) {
+      _silentPieces = 0;
+      setState(() => _heard = text);
+      _apply(PerioVoiceParser.parse(text));
+    } else {
+      _silentPieces++;
+    }
+    if (SpeechEngine.onPhone && _voiceOn) {
+      if (_silentPieces >= 5) {
+        _silentPieces = 0;
+        _toggleVoice().then((_) {
+          if (mounted) {
+            setState(() => _voiceMsg = 'No speech heard, so listening stopped.');
+          }
+        });
+        return;
+      }
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && _voiceOn) SpeechEngine.instance.listenOnce();
+      });
+    }
+  }
+
+  void _remember() {
+    final c = _cursor;
+    final key = c?.tooth ?? _lastFilled?.tooth;
+    if (key == null || _teeth[key] == null) return;
+    _undo.add((
+      tooth: key,
+      json: _teeth[key]!.toJson(),
+      cursor: c,
+      last: _lastFilled,
+    ));
+    if (_undo.length > 60) _undo.removeAt(0);
+  }
+
+  void _apply(List<PerioVoiceCommand> cmds) {
+    for (final cmd in cmds) {
+      if (!mounted || _record == null) return;
+      final c = _cursor;
+      final l =
+          _lastFilled ??
+          (c == null ? null : (tooth: c.tooth, lingual: c.lingual, pos: c.pos));
+      switch (cmd) {
+        case PerioStopListening():
+          _toggleVoice();
+          return;
+        case PerioUndo():
+          if (_undo.isEmpty) break;
+          final u = _undo.removeLast();
+          setState(() {
+            _teeth[u.tooth] = PerioTooth.fromJson(u.json);
+            _cursor = u.cursor;
+            _lastFilled = u.last;
+          });
+          _schedule();
+          _revealCursor();
+        case PerioDepth(:final mm):
+          if (c == null) break;
+          _remember();
+          _set(mm);
+          if (c.field == _Field.pd) {
+            _lastFilled = (tooth: c.tooth, lingual: c.lingual, pos: c.pos);
+            final pd = _order().where((o) => o.field == _Field.pd).toList();
+            final i = _indexOf(pd, c);
+            if (i >= 0 && i + 1 < pd.length) {
+              setState(() => _cursor = pd[i + 1]);
+            } else {
+              setState(() => _voiceMsg = 'Pocket depths are all filled.');
+            }
+          } else {
+            _move(1);
+          }
+          _revealCursor();
+          HapticFeedback.selectionClick();
+        case PerioBleeding() || PerioSuppuration():
+          final t = l == null ? null : _teeth[l.tooth];
+          if (l == null || t == null) break;
+          _remember();
+          final s = _site(l.tooth, l.lingual, l.pos);
+          setState(() {
+            if (cmd is PerioBleeding) {
+              t.bop[s] = true;
+            } else {
+              t.sup[s] = true;
+            }
+          });
+          _schedule();
+          HapticFeedback.selectionClick();
+        case PerioRecession(:final mm):
+          final t = l == null ? null : _teeth[l.tooth];
+          if (l == null || t == null) break;
+          _remember();
+          setState(() => t.rec[_site(l.tooth, l.lingual, l.pos)] = mm);
+          _schedule();
+          HapticFeedback.selectionClick();
+        case PerioSkip():
+          _step(1);
+        case PerioNextTooth() || PerioPreviousTooth():
+          if (c == null) break;
+          final order = _order();
+          final i = _indexOf(order, c);
+          if (i < 0) break;
+          final j = i - c.pos + (cmd is PerioNextTooth ? 3 : -3);
+          if (j >= 0 && j < order.length) {
+            setState(() => _cursor = order[j]);
+            _revealCursor();
+          }
+        case PerioGoToTooth(:final tooth):
+          if (c == null || _teeth[tooth] == null) break;
+          if (_teeth[tooth]!.missing) {
+            setState(() => _voiceMsg = 'Tooth $tooth is marked missing.');
+            break;
+          }
+          final hit = _order().where(
+            (o) =>
+                o.tooth == tooth &&
+                o.pos == 0 &&
+                o.lingual == c.lingual &&
+                o.field == c.field,
+          );
+          if (hit.isNotEmpty) {
+            setState(() => _cursor = hit.first);
+            _revealCursor();
+          }
+        case PerioMissing():
+          if (c == null) break;
+          _remember();
+          final order = _order();
+          final i = _indexOf(order, c);
+          final j = i - c.pos + 3;
+          final next = j >= 0 && j < order.length
+              ? order[j]
+              : (i - c.pos - 3 >= 0 ? order[i - c.pos - 3] : null);
+          setState(() {
+            _teeth[c.tooth]!.missing = true;
+            _cursor = next;
+          });
+          _schedule();
+          _revealCursor();
+      }
+    }
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -545,6 +773,32 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
       onPrevious: () => _step(-1),
       onNext: () => _step(1),
       onDone: () => setState(() => _cursor = null),
+    );
+  }
+
+  Widget _voiceStrip(dynamic c) {
+    final msg = _voiceMsg;
+    final text = _voiceOn
+        ? (_heard == null ? 'Listening' : 'Listening · heard "$_heard"')
+        : msg!;
+    return Row(
+      children: [
+        if (_voiceOn)
+          Container(
+            width: CruSpace.s8,
+            height: CruSpace.s8,
+            margin: const EdgeInsets.only(right: CruSpace.s8),
+            decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
+          ),
+        Expanded(
+          child: Text(
+            _voiceOn && msg != null ? '$text · $msg' : text,
+            style: CruType.caption.tint(c.label2),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -736,6 +990,13 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     final actions = <Widget>[
       if (_record != null)
         CruButton(
+          label: _voiceOn ? 'Stop voice' : 'Voice',
+          icon: CruIcons.mic,
+          kind: _voiceOn ? CruButtonKind.primary : CruButtonKind.secondary,
+          onPressed: _toggleVoice,
+        ),
+      if (_record != null)
+        CruButton(
           label: 'Stage and grade',
           icon: RecIcons.checklist,
           kind: CruButtonKind.secondary,
@@ -789,6 +1050,10 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (_voiceOn || _voiceMsg != null) ...[
+                      _voiceStrip(c),
+                      const SizedBox(height: CruSpace.s12),
+                    ],
                     Align(
                       alignment: Alignment.centerLeft,
                       child: CruSegmentedControl<_ChartMode>(

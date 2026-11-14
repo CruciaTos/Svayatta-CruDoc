@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +15,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Screen displayed when opening a 3D scan (.stl, .ply, .obj).
-/// Shows scan metadata and triangle count without attempting in-app 3D rendering.
+/// Renders the mesh in 3D (WebView + three.js, served from loopback; offline).
 class ScanViewerPlaceholderScreen extends StatelessWidget {
   const ScanViewerPlaceholderScreen({
     super.key,
@@ -66,24 +70,139 @@ class ScanViewerPlaceholderScreen extends StatelessWidget {
   }
 
   @override
+  Widget build(BuildContext context) => _ScanBody(
+    filePath: filePath,
+    fileName: fileName,
+    owner: this,
+  );
+}
+
+class _ScanBody extends StatefulWidget {
+  const _ScanBody({
+    required this.filePath,
+    required this.fileName,
+    required this.owner,
+  });
+  final String filePath;
+  final String fileName;
+  final ScanViewerPlaceholderScreen owner;
+
+  @override
+  State<_ScanBody> createState() => _ScanBodyState();
+}
+
+class _ScanBodyState extends State<_ScanBody> {
+  HttpServer? _server;
+  Uri? _url;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  @override
+  void dispose() {
+    _server?.close(force: true);
+    super.dispose();
+  }
+
+  Future<void> _start() async {
+    try {
+      if (!File(widget.filePath).existsSync()) {
+        throw 'File not found on disk';
+      }
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      _server = server;
+      server.listen(_handle);
+      final fmt = p.extension(widget.filePath).replaceFirst('.', '');
+      if (!mounted) return;
+      setState(() {
+        _url = Uri.parse('http://127.0.0.1:${server.port}/index.html?fmt=$fmt');
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  Future<void> _handle(HttpRequest req) async {
+    final res = req.response;
+    try {
+      final path = Uri.decodeComponent(req.uri.path);
+      if (path.contains('..')) {
+        res.statusCode = HttpStatus.forbidden;
+      } else if (path == '/mesh') {
+        res.headers.contentType = ContentType.binary;
+        await res.addStream(File(widget.filePath).openRead());
+      } else {
+        final asset = path.startsWith('/vendor/')
+            ? 'assets/muscle_viewer$path'
+            : 'assets/scan_viewer${path == '/' ? '/index.html' : path}';
+        final data = await rootBundle.load(asset);
+        res.headers.contentType = path.endsWith('.js')
+            ? ContentType('text', 'javascript', charset: 'utf-8')
+            : ContentType.html;
+        res.add(data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes));
+      }
+    } catch (_) {
+      res.statusCode = HttpStatus.notFound;
+    } finally {
+      await res.close();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final file = File(filePath);
+    final file = File(widget.filePath);
     final exists = file.existsSync();
-    final ext = p.extension(filePath).replaceFirst('.', '').toUpperCase();
-    final fileSize = exists ? formatBytes(file.lengthSync()) : 'Unknown';
+    final ext = p.extension(widget.filePath).replaceFirst('.', '').toUpperCase();
     final isStl = ext == 'STL';
-    final triangles = isStl && exists ? countStlTriangles(file) : null;
-    final formatter = NumberFormat('#,###');
+    final triangles =
+        isStl && exists ? ScanViewerPlaceholderScreen.countStlTriangles(file) : null;
+    final caption = [
+      if (ext.isNotEmpty) ext,
+      if (exists) ScanViewerPlaceholderScreen.formatBytes(file.lengthSync()),
+      if (triangles != null) '${NumberFormat('#,###').format(triangles)} triangles',
+    ].join('  ·  ');
+
+    Widget view;
+    if (_error != null) {
+      view = Center(
+        child: Text(_error!, style: CruType.callout.tint(c.label2)),
+      );
+    } else if (_url == null) {
+      view = const Center(child: CircularProgressIndicator());
+    } else {
+      view = ClipRRect(
+        borderRadius: BorderRadius.circular(CruRadius.control),
+        child: InAppWebView(
+          initialUrlRequest: URLRequest(url: WebUri.uri(_url!)),
+          initialSettings: InAppWebViewSettings(
+            disableContextMenu: true,
+            isInspectable: kDebugMode,
+            supportZoom: false,
+            disallowOverScroll: true,
+            overScrollMode: OverScrollMode.NEVER,
+          ),
+          gestureRecognizers: {
+            Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+          },
+          onConsoleMessage: kDebugMode
+              ? (_, m) => debugPrint('[scan web] ${m.message}')
+              : null,
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: c.canvas,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
           DentalPageHeader(
-            title: fileName.isNotEmpty ? fileName : '3D Scan',
+            title: widget.fileName.isNotEmpty ? widget.fileName : '3D Scan',
             subtitle: 'Optical scan file for CAD/CAM dental fabrication',
             actions: [
               CruButton(
@@ -96,136 +215,29 @@ class ScanViewerPlaceholderScreen extends StatelessWidget {
                 label: 'Open with default app',
                 icon: CruIcons.arrowUpRight,
                 kind: CruButtonKind.primary,
-                onPressed: () => launchUrl(Uri.file(filePath)),
+                onPressed: () => launchUrl(Uri.file(widget.filePath)),
               ),
             ],
           ),
-
           Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: Padding(
-                  padding: const EdgeInsets.all(CruSpace.s24),
-                  child: CruCard(
-                    padding: const EdgeInsets.all(CruSpace.s24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const CruIconTile(
-                          icon: CruIcons.box,
-                          tone: CruTileTone.accent,
-                        ),
-                        const SizedBox(height: CruSpace.s16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                fileName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: CruType.title2.tint(c.label),
-                              ),
-                            ),
-                            const SizedBox(width: CruSpace.s8),
-                            CruPill(
-                              text: ext.isNotEmpty ? ext : '3D',
-                              background: c.accentTint,
-                              foreground: c.accent,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: CruSpace.s20),
-
-                        // Scan metadata summary
-                        Container(
-                          padding: const EdgeInsets.all(CruSpace.s16),
-                          decoration: BoxDecoration(
-                            color: c.surface,
-                            borderRadius: BorderRadius.circular(
-                              CruRadius.control,
-                            ),
-                            border: Border.all(color: c.hairline),
-                          ),
-                          child: Column(
-                            children: [
-                              _metaRow('File type', '$ext 3D Mesh', c),
-                              const CruSeparator(),
-                              _metaRow('File size', fileSize, c),
-                              if (triangles != null) ...[
-                                const CruSeparator(),
-                                _metaRow(
-                                  'Triangles',
-                                  '${formatter.format(triangles)} facets',
-                                  c,
-                                ),
-                              ],
-                              const CruSeparator(),
-                              _metaRow(
-                                'Status',
-                                exists
-                                    ? 'Ready to open'
-                                    : 'File not found on disk',
-                                c,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: CruSpace.s20),
-
-                        // Honest placeholder note
-                        Container(
-                          padding: const EdgeInsets.all(CruSpace.s12),
-                          decoration: BoxDecoration(
-                            color: c.inset,
-                            borderRadius: BorderRadius.circular(
-                              CruRadius.control,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              CruIcon(CruIcons.help, size: 16, color: c.label2),
-                              const SizedBox(width: CruSpace.s8),
-                              Expanded(
-                                child: Text(
-                                  '3D view of scans isn\'t built yet. Open the file in your CAD or lab software.',
-                                  style: CruType.caption.tint(c.label2),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: CruSpace.s24),
-
-                        // Action button
-                        CruButton(
-                          label: 'Open with default app',
-                          icon: CruIcons.arrowUpRight,
-                          kind: CruButtonKind.primary,
-                          onPressed: () => launchUrl(Uri.file(filePath)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s16,
+                CruSpace.s8,
+                CruSpace.s16,
+                CruSpace.s8,
               ),
+              child: view,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _metaRow(String label, String value, CruColors c) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: CruType.callout.tint(c.label2)),
-          Text(value, style: CruType.callout.w600.tabular.tint(c.label)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: CruSpace.s12),
+            child: Text(
+              caption,
+              textAlign: TextAlign.center,
+              style: CruType.caption.tint(c.label2),
+            ),
+          ),
         ],
       ),
     );

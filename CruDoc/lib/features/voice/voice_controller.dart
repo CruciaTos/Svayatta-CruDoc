@@ -228,7 +228,7 @@ class VoiceController {
 
   Future<void> onTranscript(VoiceTranscript t) async {
     // A consultation the scribe is writing down, not a command.
-    if (t.dictation) return;
+    if (t.dictation || VoiceBus.perioListening.value) return;
     // An inventory item, payment or invoice form: everything said goes
     // into it, read once the doctor stops.
     final form = _fieldsForm;

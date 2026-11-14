@@ -39,6 +39,8 @@ class RadAiFinding {
     this.box,
     this.tooth = '',
     this.status = 'pending',
+    this.surface = '',
+    this.boneLossMm,
   });
 
   final String id;
@@ -48,6 +50,8 @@ class RadAiFinding {
   final Rect? box; // normalised 0..1 on the image, null if none
   final String tooth; // FDI or ''
   final String status; // 'pending' | 'accepted' | 'rejected' | 'edited'
+  final String surface; // M/O/D/B/L letters or ''
+  final double? boneLossMm;
 
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
@@ -62,6 +66,8 @@ class RadAiFinding {
     Rect? box,
     String? tooth,
     String? status,
+    String? surface,
+    double? boneLossMm,
   }) => RadAiFinding(
     id: id ?? this.id,
     kind: kind ?? this.kind,
@@ -70,6 +76,8 @@ class RadAiFinding {
     box: box ?? this.box,
     tooth: tooth ?? this.tooth,
     status: status ?? this.status,
+    surface: surface ?? this.surface,
+    boneLossMm: boneLossMm ?? this.boneLossMm,
   );
 
   Map<String, dynamic> toJson() => {
@@ -80,6 +88,8 @@ class RadAiFinding {
     'box': box == null ? null : [box!.left, box!.top, box!.right, box!.bottom],
     'tooth': tooth,
     'status': status,
+    'surface': surface,
+    'boneLossMm': boneLossMm,
   };
 
   factory RadAiFinding.fromJson(Map<String, dynamic> j) {
@@ -113,6 +123,8 @@ class RadAiFinding {
       box: parseBox(j['box']),
       tooth: j['tooth'] as String? ?? '',
       status: j['status'] as String? ?? 'pending',
+      surface: j['surface'] as String? ?? '',
+      boneLossMm: (j['boneLossMm'] as num?)?.toDouble(),
     );
   }
 }
@@ -204,7 +216,9 @@ Output ONLY valid JSON matching this schema:
     "label": "Concise description (e.g. Distal caries, Horizontal bone loss ~30%, Periapical radiolucency)",
     "confidence": 0.0 to 1.0,
     "box": [x0, y0, x1, y1],
-    "tooth": "FDI number (e.g. 16, 24, 38, 46) or empty string"
+    "tooth": "FDI number (e.g. 16, 24, 38, 46) or empty string",
+    "surface": "optional letters from M,O,D,B,L (caries only) or empty string",
+    "boneLossMm": optional number in mm (boneLoss only) or null
   }
 ]
 Note: Coordinates in "box" must be normalised floats from 0.0 to 1.0 representing [left, top, right, bottom].

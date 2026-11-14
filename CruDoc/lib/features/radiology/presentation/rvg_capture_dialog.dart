@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/radiology/data/radiology_cloud_sy
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_study.dart';
+import 'package:doctor_management_app/features/radiology/presentation/fmx_series_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/features/radiology/services/rvg_sensor_service.dart';
@@ -271,6 +272,21 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
               label: 'Close',
               kind: CruButtonKind.secondary,
               onPressed: () => Navigator.of(context).pop(),
+            ),
+            const SizedBox(width: CruSpace.s8),
+            CruButton(
+              label: 'Full-mouth series',
+              kind: CruButtonKind.secondary,
+              onPressed: _loadingDevices
+                  ? null
+                  : () {
+                      final nav = Navigator.of(context, rootNavigator: true);
+                      final patient = _patient;
+                      nav.pop();
+                      nav.push(
+                        radRoute<void>(FmxSeriesScreen(patient: patient)),
+                      );
+                    },
             ),
             const SizedBox(width: CruSpace.s8),
             CruButton(

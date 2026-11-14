@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/clinical_forms.dart';
 import 'package:doctor_management_app/features/dental/records/consent_dialog.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/dental/records/intraoral_camera_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
@@ -109,6 +110,12 @@ class DentalRecordsCard extends ConsumerWidget {
           context: context,
           builder: (_) => OrthoPhotosDialog(patient: patient),
         ),
+      ),
+      _RecTile(
+        icon: RecIcons.camera,
+        name: 'Intraoral camera',
+        status: null,
+        onTap: () => IntraoralCameraScreen.open(context, patient),
       ),
       _RecTile(
         icon: CruIcons.moon,

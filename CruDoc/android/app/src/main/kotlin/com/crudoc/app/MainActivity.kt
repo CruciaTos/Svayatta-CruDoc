@@ -27,23 +27,15 @@ class MainActivity : FlutterActivity() {
                     // bar the modern way, so it survives focus changes
                     // (speech recognizer, dialogs) and a swipe only peeks it.
                     "hideStatusBar" -> {
-                        // A swipe peeks the bar over the app: keep it clear
-                        // (just the clock and icons), with no dark scrim.
-                        @Suppress("DEPRECATION")
-                        window.statusBarColor = android.graphics.Color.TRANSPARENT
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            window.isStatusBarContrastEnforced = false
-                        }
-                        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
-                            systemBarsBehavior =
-                                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                            hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
-                        }
+                        wantBarHidden = true
+                        watchStatusBar()
+                        hideBar()
                         result.success(null)
                     }
                     "showStatusBar" -> {
-                        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-                            .show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                        wantBarHidden = false
+                        barHandler.removeCallbacks(rehideBar)
+                        insetsController().show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
                         result.success(null)
                     }
                     else -> result.notImplemented()
@@ -99,6 +91,44 @@ class MainActivity : FlutterActivity() {
      * person allow "install unknown apps" for CruDoc once: if that is off,
      * its settings page opens and the call fails with a message to try again.
      */
+    // The phone island hides the status bar so it owns the top strip. A
+    // "transient" swipe-peek would get Android's dark see-through scrim, so
+    // the default behaviour is used instead: a swipe shows the bar for real
+    // (clear, just the clock and icons, as when it was always on), and it is
+    // hidden again a few seconds later.
+    private var wantBarHidden = false
+    private var barWatcher: android.view.View? = null
+    private val barHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val rehideBar = Runnable { if (wantBarHidden) hideBar() }
+
+    private fun insetsController() =
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+
+    private fun hideBar() {
+        insetsController().apply {
+            systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+            hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+        }
+    }
+
+    /** A zero-size view beside Flutter's that hears every insets change. */
+    private fun watchStatusBar() {
+        if (barWatcher != null) return
+        val root = findViewById<android.view.ViewGroup>(android.R.id.content) ?: return
+        val v = android.view.View(this)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(v) { _, insets ->
+            val visible = insets.isVisible(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            if (visible && wantBarHidden) {
+                barHandler.removeCallbacks(rehideBar)
+                barHandler.postDelayed(rehideBar, 3000)
+            }
+            insets
+        }
+        root.addView(v, android.view.ViewGroup.LayoutParams(0, 0))
+        barWatcher = v
+    }
+
     /** Larger of the two top display-corner radii, px; -1 when unknown. */
     private fun topCornerRadius(): Int {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return -1

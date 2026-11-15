@@ -367,7 +367,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
 
     final shape = rest
         ? IslandShape(
-            width: geo.restWidth,
+            minWidth: geo.restWidth,
             minHeight: geo.h,
             top: geo.restTop,
             centerX: geo.restCenterX,
@@ -661,9 +661,8 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
     } else if (waiting > 0) {
       left = _dotText(_amber, '$waiting');
       right = _caption('waiting', _white, tabular: true);
-    } else if (widget.voice.available) {
-      right = CruIcon(CruIcons.mic, size: 15, strokeWidth: 2, color: _white60);
     }
+    // Nothing live: the bare pill over the camera (hold still talks).
 
     Widget ghost(Widget? w) => w == null
         ? const SizedBox.shrink()
@@ -674,13 +673,20 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
             maintainState: true,
             child: w,
           );
+    // Each half's cap, so the whole pill stays within restMaxWidth.
+    const margin = IslandGeometry.bandMargin - 2;
+    final halfMax = math.max(
+      0.0,
+      (geo.restMaxWidth - geo.cameraGap - geo.h * 0.6) / 2 - 2 * margin,
+    );
     Widget half(Widget? shown, Widget? other, Alignment a) {
       if (shown == null && other == null) return const SizedBox.shrink();
       return Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: IslandGeometry.bandMargin - 2,
+        padding: const EdgeInsets.symmetric(horizontal: margin),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: halfMax),
+          child: Stack(alignment: a, children: [ghost(other), ?shown]),
         ),
-        child: Stack(alignment: a, children: [ghost(other), ?shown]),
       );
     }
 
@@ -709,8 +715,7 @@ class _MobileIslandState extends ConsumerState<MobileIsland> {
     children: [
       _dot(dot),
       const SizedBox(width: 6),
-      ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 96),
+      Flexible(
         child: Text(
           text,
           maxLines: 1,

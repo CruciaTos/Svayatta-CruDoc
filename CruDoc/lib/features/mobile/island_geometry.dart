@@ -76,15 +76,19 @@ class IslandGeometry {
   /// height.
   static const double contentPadding = 24;
 
+  /// Taken off the concentric top radius (see [resolve]).
+  static const double cornerTrim = 2;
+
   /// Space between a band half and the camera.
   static const double bandMargin = 8;
 
-  /// The rest pill's width: the same width-to-height ratio as the shortest
-  /// grown shape on this phone, so the pill reads as that shape in small.
-  /// Never narrower than a bare pill around the camera.
-  double get restWidth => (h * grownWidth / grownMinHeight)
-      .clamp(cameraGap + h, grownWidth)
-      .toDouble();
+  /// The rest pill's smallest width: a bare pill just covering the camera.
+  /// It grows past this only to fit what it shows.
+  double get restWidth => cameraGap + h;
+
+  /// The rest pill never grows past this, however long the name: its text
+  /// ellipsizes instead.
+  double get restMaxWidth => math.max(restWidth, grownWidth * 0.6);
 
   /// The rest pill's rect.
   Rect get restRect => Rect.fromCenter(
@@ -146,7 +150,10 @@ class IslandGeometry {
     // below the status bar rather than over it.
     final top = wrap ? g : barTop + 6;
     final cameraGap = wrap ? c!.width : 0.0;
-    final rTop = math.max(cornerRadius - g, 12.0);
+    // Concentric with the display corner (outer = inner + gap), less a
+    // small trim: the reported radius reads a touch large against the real
+    // glass, so an exact match looks a pixel too round on the phone.
+    final rTop = math.max(cornerRadius - g - cornerTrim, 12.0);
     final rBot = math.min(rTop, 28.0);
 
     return IslandGeometry(

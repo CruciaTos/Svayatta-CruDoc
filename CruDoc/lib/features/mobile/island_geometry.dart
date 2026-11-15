@@ -76,8 +76,9 @@ class IslandGeometry {
   /// height.
   static const double contentPadding = 24;
 
-  /// Taken off the concentric top radius (see [resolve]).
-  static const double cornerTrim = 2;
+  /// Taken off the concentric top radius (see [resolve]); negative adds.
+  /// Pixel 8a: 48.8 − 6 + 2 = 44.8 dp, picked by eye.
+  static const double cornerTrim = -2;
 
   /// Space between a band half and the camera.
   static const double bandMargin = 8;
@@ -150,9 +151,8 @@ class IslandGeometry {
     // below the status bar rather than over it.
     final top = wrap ? g : barTop + 6;
     final cameraGap = wrap ? c!.width : 0.0;
-    // Concentric with the display corner (outer = inner + gap), less a
-    // small trim: the reported radius reads a touch large against the real
-    // glass, so an exact match looks a pixel too round on the phone.
+    // Concentric with the display corner (outer = inner + gap), plus a
+    // small optical adjustment tuned by eye on the Pixel 8a.
     final rTop = math.max(cornerRadius - g - cornerTrim, 12.0);
     final rBot = math.min(rTop, 28.0);
 

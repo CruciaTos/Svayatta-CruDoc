@@ -1027,7 +1027,9 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
   }
 
   void _end([DragEndDetails? _]) {
-    final commit = _armed ? (_dx > 0 ? widget.action : widget.leftAction) : null;
+    final commit = _armed
+        ? (_dx > 0 ? widget.action : widget.leftAction)
+        : null;
     _settleFrom = _dx;
     _armed = false;
     _settle.forward(from: 0);
@@ -1049,19 +1051,20 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
         : mobileTone(c, showing.tone);
     return RawGestureDetector(
       gestures: {
-        _SwipeRecognizer: GestureRecognizerFactoryWithHandlers<_SwipeRecognizer>(
-          () => _SwipeRecognizer(debugOwner: this),
-          (r) => r
-            // The device's touch slop, as the tab pager uses. Without it
-            // the row waits for Flutter's larger default and the pager
-            // always claims the swipe first.
-            ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
-            ..allowRight = right != null
-            ..allowLeft = left != null
-            ..onUpdate = _update
-            ..onEnd = _end
-            ..onCancel = _end,
-        ),
+        _SwipeRecognizer:
+            GestureRecognizerFactoryWithHandlers<_SwipeRecognizer>(
+              () => _SwipeRecognizer(debugOwner: this),
+              (r) => r
+                // The device's touch slop, as the tab pager uses. Without it
+                // the row waits for Flutter's larger default and the pager
+                // always claims the swipe first.
+                ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
+                ..allowRight = right != null
+                ..allowLeft = left != null
+                ..onUpdate = _update
+                ..onEnd = _end
+                ..onCancel = _end,
+            ),
       },
       child: Stack(
         children: [

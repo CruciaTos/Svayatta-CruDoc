@@ -163,7 +163,9 @@ class _MobileInvoicesScreenState extends State<MobileInvoicesScreen> {
                       body: _search.text.trim().isEmpty
                           ? 'No invoices fit this filter right now.'
                           : 'Try a different filter or search term.',
-                      action: _search.text.trim().isEmpty ? null : 'Clear search',
+                      action: _search.text.trim().isEmpty
+                          ? null
+                          : 'Clear search',
                       actionIcon: null,
                       onAction: () => setState(_search.clear),
                     );

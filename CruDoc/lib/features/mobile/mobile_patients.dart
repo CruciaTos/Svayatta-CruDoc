@@ -202,10 +202,7 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     );
   }
 
-  void _openFilterSheet(
-    PatientsListState state,
-    PatientsListView? view,
-  ) {
+  void _openFilterSheet(PatientsListState state, PatientsListView? view) {
     final root = mobileRoot(context);
     showModalBottomSheet<void>(
       context: root,
@@ -272,13 +269,17 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                             CruPressable(
                               onTap: () {
                                 ref
-                                    .read(patientsListControllerProvider.notifier)
+                                    .read(
+                                      patientsListControllerProvider.notifier,
+                                    )
                                     .setFilter(PatientFilter.all);
                               },
                               semanticLabel: 'Reset filters',
                               builder: (context, _) => Text(
                                 'Reset',
-                                style: MobileType.callout.w600.tint(c.accentText),
+                                style: MobileType.callout.w600.tint(
+                                  c.accentText,
+                                ),
                               ),
                             ),
                         ],
@@ -302,11 +303,15 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                               ),
                             ),
                             for (final f in PatientFilter.values)
-                              if (f == PatientFilter.all || (counts[f] ?? 0) > 0)
+                              if (f == PatientFilter.all ||
+                                  (counts[f] ?? 0) > 0)
                                 CruPressable(
                                   onTap: () {
                                     ref
-                                        .read(patientsListControllerProvider.notifier)
+                                        .read(
+                                          patientsListControllerProvider
+                                              .notifier,
+                                        )
                                         .setFilter(f);
                                     Navigator.of(sheetContext).pop();
                                   },
@@ -324,7 +329,9 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                                       decoration: ShapeDecoration(
                                         color: isSelected
                                             ? c.accentTint
-                                            : (hovered ? c.hoverFill : c.surface),
+                                            : (hovered
+                                                  ? c.hoverFill
+                                                  : c.surface),
                                         shape: cruShape(CruRadius.control),
                                       ),
                                       child: Row(
@@ -343,35 +350,42 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                                           Expanded(
                                             child: Text(
                                               f.label,
-                                              style: (isSelected
-                                                      ? MobileType.row.w600
-                                                      : MobileType.row)
-                                                  .tint(
-                                                    isSelected
-                                                        ? c.accentText
-                                                        : c.label,
-                                                  ),
+                                              style:
+                                                  (isSelected
+                                                          ? MobileType.row.w600
+                                                          : MobileType.row)
+                                                      .tint(
+                                                        isSelected
+                                                            ? c.accentText
+                                                            : c.label,
+                                                      ),
                                             ),
                                           ),
                                           if (count != null) ...[
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 2,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2,
+                                                  ),
                                               decoration: ShapeDecoration(
                                                 color: isSelected
-                                                    ? c.accent.withValues(alpha: 0.15)
+                                                    ? c.accent.withValues(
+                                                        alpha: 0.15,
+                                                      )
                                                     : c.inset,
                                                 shape: const StadiumBorder(),
                                               ),
                                               child: Text(
                                                 '$count',
-                                                style: MobileType.caption.tabular.tint(
-                                                  isSelected
-                                                      ? c.accentText
-                                                      : c.label2,
-                                                ),
+                                                style: MobileType
+                                                    .caption
+                                                    .tabular
+                                                    .tint(
+                                                      isSelected
+                                                          ? c.accentText
+                                                          : c.label2,
+                                                    ),
                                               ),
                                             ),
                                             const SizedBox(width: CruSpace.s8),
@@ -400,7 +414,9 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                               CruPressable(
                                 onTap: () {
                                   ref
-                                      .read(patientsListControllerProvider.notifier)
+                                      .read(
+                                        patientsListControllerProvider.notifier,
+                                      )
                                       .setSort(s);
                                   Navigator.of(sheetContext).pop();
                                 },
@@ -423,14 +439,15 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                                         Expanded(
                                           child: Text(
                                             s.label,
-                                            style: (isSelected
-                                                    ? MobileType.row.w600
-                                                    : MobileType.row)
-                                                .tint(
-                                                  isSelected
-                                                      ? c.accentText
-                                                      : c.label,
-                                                ),
+                                            style:
+                                                (isSelected
+                                                        ? MobileType.row.w600
+                                                        : MobileType.row)
+                                                    .tint(
+                                                      isSelected
+                                                          ? c.accentText
+                                                          : c.label,
+                                                    ),
                                           ),
                                         ),
                                         if (isSelected)

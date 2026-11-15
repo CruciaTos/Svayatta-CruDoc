@@ -53,6 +53,7 @@ import 'services/speech_engine.dart';
 import 'services/voice_form_ai.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/ai_tools/voice/voice_ai_bridge.dart';
 
 /// One answer the pill offers: said or tapped.
 class VoiceChoice {
@@ -97,6 +98,37 @@ class VoiceController {
 
   final WidgetRef _ref;
   final BuildContext Function() _context;
+
+  /// Speech the keyword rules and the meaning-matcher don't understand goes
+  /// to the AI tool agent.
+  late final _aiAgent = VoiceAiBridge(
+    ref: _ref,
+    context: _context,
+    say: (text) => understood.value = text,
+    askYesNo: _askYesNo,
+    openTarget: _navigate,
+    onPatientOpened: (p) => _focus = p,
+  );
+
+  /// A Yes / No card on the pill for the AI agent's confirm step. False
+  /// after 30 seconds without an answer.
+  Future<bool> _askYesNo(String text) {
+    final answer = Completer<bool>();
+    _ask(text, const [
+      VoiceChoice('Yes', words: ['yeah', 'yep', 'confirm', 'okay', 'ok']),
+      VoiceChoice('No', words: ['nope', 'cancel', 'dont', 'stop']),
+    ], (i) async {
+      if (!answer.isCompleted) answer.complete(i == 0);
+    });
+    final card = asking.value;
+    return answer.future.timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        if (card != null && identical(asking.value, card)) asking.value = null;
+        return false;
+      },
+    );
+  }
 
   /// What the app understood, for the on-screen strip. Shown instead of
   /// the raw transcript so mishearings don't distract.
@@ -558,7 +590,12 @@ class VoiceController {
         final knownName =
             cmd.name.isNotEmpty &&
             matchPatient(cmd.name, _patients).score >= 0.6;
-        if (t.isFinal && !knownName) await _semanticNavigate(t.text);
+        if (t.isFinal && !knownName) {
+          _acted = true;
+          if (!await _semanticNavigate(t.text)) {
+            unawaited(_aiAgent.handle(t.text));
+          }
+        }
         return;
       case VoiceIntent.confirm:
       case VoiceIntent.cancel:
@@ -3108,6 +3145,7 @@ class VoiceController {
       w.isEmpty ? w : w[0].toUpperCase() + w.substring(1);
 
   void dispose() {
+    _aiAgent.dispose();
     asking.dispose();
     VoiceBus.missing.removeListener(_onMissing);
     VoiceBus.refused.removeListener(_onRefused);

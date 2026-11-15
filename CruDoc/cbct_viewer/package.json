@@ -8,13 +8,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "phantom": "node tools/make_phantom.mjs dev/phantom",
-    "test": "node --test \"src/*.test.js\"",
+    "test": "node --test \"src/*.test.js\" \"src/mesh/*.test.js\"",
     "smoke": "node tests/smoke.mjs",
     "perf": "node tests/perf.mjs",
     "plan": "node tests/plan.mjs",
     "pano": "node tests/panoramic.mjs",
     "shot": "node tests/shot.mjs",
-    "responsive": "node tests/responsive.mjs"
+    "responsive": "node tests/responsive.mjs",
+    "phantom-mesh": "node tools/make_mesh.mjs dev/mesh",
+    "mesh": "node tests/mesh.mjs"
   },
   "dependencies": {
     "@cornerstonejs/core": "5.15.2",

@@ -61,28 +61,6 @@ class ToothChartPreviewCard extends ConsumerWidget {
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final counts = toothChartCounts(data);
-    // Phones: 3D opens on its own screen (a page that scrolls cannot give a
-    // WebView its drags), tablets and desktops embed it in the card.
-    final phone = MediaQuery.sizeOf(context).width < 600;
-
-    // One 3D page at a time: the card's own view is closed while the full
-    // screen is open and comes back (with the new state) afterwards.
-    Future<void> openFullScreen() async {
-      final was = _threeD;
-      setState(() => _threeD = false);
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => Theme(
-            data: Theme.of(context),
-            child: Dental3dScreen(
-              patientId: p.id,
-              patientName: p.fullName,
-            ),
-          ),
-        ),
-      );
-      if (mounted && was) setState(() => _threeD = true);
-    }
     void open([ChartingTab tab = ChartingTab.teeth]) =>
         openCharting(context, patient, tab: tab);
     final exam = data.perioExam;
@@ -231,6 +209,25 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         : _layer;
 
     final counts = toothChartCounts(data);
+    // Phones: 3D opens on its own screen (a page that scrolls cannot give a
+    // WebView its drags), tablets and desktops embed it in the card.
+    final phone = MediaQuery.sizeOf(context).width < 600;
+
+    // One 3D page at a time: the card's own view is closed while the full
+    // screen is open and comes back (with the new state) afterwards.
+    Future<void> openFullScreen() async {
+      final was = _threeD;
+      setState(() => _threeD = false);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: Theme.of(context),
+            child: Dental3dScreen(patientId: p.id, patientName: p.fullName),
+          ),
+        ),
+      );
+      if (mounted && was) setState(() => _threeD = true);
+    }
 
     final header = widget.fullScreen
         ? const SizedBox.shrink()

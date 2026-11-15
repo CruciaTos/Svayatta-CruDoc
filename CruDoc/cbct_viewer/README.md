@@ -1,6 +1,9 @@
 # CruDoc CBCT Viewer
 
-The four-panel CBCT viewer (Axial, 3D, Coronal, Sagittal) that CruDoc shows in a WebView on Windows PCs and tablets. Built with Vite and Cornerstone3D, it operates fully offline with instant poster pictures and progressive volume streaming.
+Two pages CruDoc shows in a WebView on Windows PCs and tablets, built with Vite and bundled together:
+
+- **`index.html`** — the four-panel CBCT viewer (Axial, 3D, Coronal, Sagittal), built on Cornerstone3D. It operates fully offline with instant poster pictures and progressive volume streaming.
+- **`mesh.html`** — the scan viewer: one surface mesh (`.stl`, `.ply`, `.obj`) from an intraoral scanner or a lab, drawn with vtk.js. Drag to rotate, scroll to zoom. Source in `src/mesh/`, contract in `handoff/cbct_protocol.md` §10.
 
 The whole brief and the step-by-step plan live in `handoff/cbct_3d_viewer_build_guide.md`; the look to match is `handoff/cbct_reference.png`.
 
@@ -10,9 +13,12 @@ The whole brief and the step-by-step plan live in `handoff/cbct_3d_viewer_build_
 cd cbct_viewer
 npm ci            # install the exact pinned versions from package-lock.json
 npm run phantom   # generate the synthetic jaw phantom in dev/phantom/
+npm run phantom-mesh # generate the synthetic arch scan in dev/mesh/ (STL, PLY, OBJ)
 npm run dev       # dev server; open http://localhost:5173/?base=/dev/phantom/&debug=1
-npm test          # runs node --test "src/*.test.js"
+                  # the scan viewer: http://localhost:5173/mesh.html?file=/dev/mesh/arch.ply&name=arch.ply&debug=1
+npm test          # runs node --test over "src/*.test.js" and "src/mesh/*.test.js"
 npm run smoke     # run the Playwright smoke test against the built assets
+npm run mesh      # browser check of the scan viewer (STL, PLY and OBJ)
 npm run plan      # browser check of the implant plan, automatic help and Copy summary
 npm run pano      # browser check of the panoramic view and cross-sections
 node tests/look.mjs # benchmark 3D looks render time
@@ -40,6 +46,12 @@ Or, from the project root: `powershell -File tool\build_cbct_viewer.ps1` (runs `
 - `icons.js`: Stroke icons from Lucide (ISC licence).
 - `lod.js`: Level of the ray-cast still picture; unused in surface mode.
 - `main.js`: Viewer entry point: mounts chrome, boots Cornerstone3D engine, bridges messages to Flutter, and handles URL query parameters.
+- `mesh/boot.js`: The scan viewer page: its chrome (top bar, looks, colour choice, status line), reading the file with progress, and the Flutter bridge.
+- `mesh/main.js`: Entry point of `mesh.html`.
+- `mesh/parse.js`: Reads STL (binary and ASCII), PLY (ASCII, binary little- and big-endian) and OBJ into flat typed arrays; welds an STL's loose corners and computes smooth normals. Pure functions, no browser.
+- `mesh/parse.test.js`: Unit tests for every format, the welding and the normals.
+- `mesh/parse.worker.js`: Runs `parse.js` off the main thread and hands the arrays over.
+- `mesh/view.js`: The vtk.js scene for one mesh: ivory or the scan's own colours, Front / Top / Side, rotate, zoom and pan.
 - `mesher.js` (+ `mesher.worker.js`): Surface mesh extraction via marching cubes on a background web worker.
 - `motion.js`: Camera animation helpers — `flyTo()` turns/zooms the camera along the shortest arc (used by gizmo letters and Reset), `smoothZoom()` replaces wheel notch-zoom with a glide that keeps the cursor point in place. Exports `slerp`, `basisOf`, `cameraQuat` for unit tests.
 - `orientation.js`: Orientation letters for a view's four edges (guide A3.8). World axes are DICOM LPS: +x Left, +y Posterior, +z Superior.
@@ -55,7 +67,8 @@ Or, from the project root: `powershell -File tool\build_cbct_viewer.ps1` (runs `
 - `shims/url.js`: Tiny stand-in for the Node module `url`, which vtk.js needs at load.
 - `state.js`: One small store. The UI writes what the user sets; the engine applies it and writes back what it learns (window/level drags, hovered position...); `set()` merges one level deep for object values and notifies once, synchronously.
 - `state.test.js`: Unit tests for store mutations, subscriptions, window presets, and preset matching.
-- `styles/tokens.css`: Design tokens (colors, typography, spacing).
+- `styles/tokens.css`: Design tokens (colors, typography, spacing), shared by both pages.
+- `styles/mesh.css`: All page styling for the scan viewer: top bar, the single 3D stage, progress and status line.
 - `styles/viewer.css`: All page styling for the viewer layout, chrome, viewports, panels, and overlays.
 - `steps.js`: `runSync` / `runAsync` drive a generator that yields now and then: the same code runs all at once (tests) or in ~10 ms slices (page).
 - `summary.js`: Plain-text clinical plan summary formatter for patient records (the Copy summary button in `planning.js` uses it).
@@ -111,5 +124,8 @@ A pack folder contains the pre-processed volume data and preview images for one 
   depends on (`npm ls @kitware/vtk.js` must show a single copy).
 - **No DICOM parsing here.** The app sends raw voxels, so there is no
   `dicom-image-loader`, `dicom-parser` or codec.
-- **Stable output names**, no hashes (`a/main.js`), because Flutter lists asset
-  folders and hashes would leave stale files.
+- **Stable output names**, no hashes (`a/main.js`, `a/mesh.js`), because Flutter
+  lists asset folders and hashes would leave stale files.
+- **Two entries, one bundle.** `index.html` and `mesh.html` are built together
+  and share the fonts and tokens. The scan viewer pulls in vtk.js only (about
+  0.7 MB), not Cornerstone, so it opens without waiting for the CBCT bundle.

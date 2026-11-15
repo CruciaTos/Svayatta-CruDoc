@@ -13,14 +13,17 @@ class CbctOpened {
 
   final Uri page;
 
-  /// e.g. `/v/<token>/`; the page fetches `meta.json` and `full.i16` from here.
+  /// For a CBCT pack, `/v/<token>/`: the page fetches `meta.json` and
+  /// `full.i16` from here. For one mesh file, `/m/<token>`: the whole path,
+  /// which the scan viewer page reads as its `file` parameter.
   final String base;
   final String token;
 }
 
-/// Serves the bundled CBCT viewer (`assets/cbct_viewer/`) and, behind a
-/// per-open token, one scan's pack folder, on 127.0.0.1 only. The WebView
-/// loads over plain HTTP because file:// would block ES modules and fetches.
+/// Serves the bundled viewer pages (`assets/cbct_viewer/`) and, behind a
+/// per-open token, one CBCT scan's pack folder or one surface mesh file
+/// (`.stl`, `.ply`, `.obj`), on 127.0.0.1 only. The WebView loads over plain
+/// HTTP because file:// would block ES modules and fetches.
 class CbctServer {
   /// [loadAsset] reads a bundled file by its asset key (tests pass a fake).
   CbctServer({Future<ByteData> Function(String key)? loadAsset})
@@ -62,6 +65,7 @@ class CbctServer {
   /// Stops the server and forgets every token.
   Future<void> close() async {
     _packs.clear();
+    _meshes.clear();
     final http = _http;
     _http = null;
     _port = null;
@@ -71,9 +75,17 @@ class CbctServer {
   static const _root = 'assets/cbct_viewer/';
 
   final Map<String, Directory> _packs = {};
+  final Map<String, File> _meshes = {};
   Future<int>? _port;
 
   Future<int> _ensureStarted() => _port ??= _start();
+
+  String _freshToken() {
+    final rng = math.Random.secure();
+    return base64Url
+        .encode(List<int>.generate(32, (_) => rng.nextInt(256)))
+        .replaceAll('=', '');
+  }
 
   Future<int> _start() async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -85,10 +97,7 @@ class CbctServer {
   /// Registers [pack] under a fresh token and returns the page to load.
   Future<CbctOpened> open(Directory pack) async {
     final port = await _ensureStarted();
-    final rng = math.Random.secure();
-    final token = base64Url
-        .encode(List<int>.generate(32, (_) => rng.nextInt(256)))
-        .replaceAll('=', '');
+    final token = _freshToken();
     _packs[token] = pack;
     return CbctOpened(
       page: Uri(scheme: 'http', host: '127.0.0.1', port: port, path: '/index.html'),
@@ -97,7 +106,24 @@ class CbctServer {
     );
   }
 
-  void revoke(String token) => _packs.remove(token);
+  /// Registers one surface mesh file under a fresh token and returns the scan
+  /// viewer page to load. Only this one file is readable through the token:
+  /// nothing else in its folder is reachable.
+  Future<CbctOpened> openMesh(File mesh) async {
+    final port = await _ensureStarted();
+    final token = _freshToken();
+    _meshes[token] = mesh;
+    return CbctOpened(
+      page: Uri(scheme: 'http', host: '127.0.0.1', port: port, path: '/mesh.html'),
+      base: '/m/$token',
+      token: token,
+    );
+  }
+
+  void revoke(String token) {
+    _packs.remove(token);
+    _meshes.remove(token);
+  }
 
   Future<void> _handle(HttpRequest req) async {
     final res = req.response;
@@ -120,6 +146,13 @@ class CbctServer {
           await _putPack(path, req, res);
         } else {
           await _servePack(path, res);
+        }
+      } else if (path.startsWith('/m/')) {
+        // One mesh file, read-only: the scan viewer never writes.
+        if (method == 'PUT') {
+          res.statusCode = HttpStatus.notFound;
+        } else {
+          await _serveMesh(path, res);
         }
       } else if (method == 'PUT') {
         res.statusCode = HttpStatus.notFound;
@@ -148,6 +181,19 @@ class CbctServer {
       return;
     }
     res.headers.contentType = _type(name);
+    res.contentLength = await file.length();
+    await res.addStream(file.openRead());
+  }
+
+  Future<void> _serveMesh(String path, HttpResponse res) async {
+    // /m/<token>
+    final parts = path.split('/');
+    final file = parts.length == 3 ? _meshes[parts[2]] : null;
+    if (file == null || !await file.exists()) {
+      res.statusCode = HttpStatus.notFound;
+      return;
+    }
+    res.headers.contentType = ContentType.binary;
     res.contentLength = await file.length();
     await res.addStream(file.openRead());
   }

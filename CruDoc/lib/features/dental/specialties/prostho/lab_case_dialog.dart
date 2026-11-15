@@ -17,7 +17,7 @@ import 'package:doctor_management_app/features/dental/referrals/referral_models.
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_export.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_rx_pdf.dart';
-import 'package:doctor_management_app/features/dental/specialties/prostho/scan_viewer_placeholder.dart';
+import 'package:doctor_management_app/features/radiology/cbct/scan_viewer_screen.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
@@ -619,9 +619,10 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                           if (f.is3dScan) {
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => ScanViewerPlaceholderScreen(
+                                builder: (_) => ScanViewerScreen(
                                   filePath: f.path,
                                   fileName: f.name,
+                                  title: _patient?.fullName,
                                 ),
                               ),
                             );

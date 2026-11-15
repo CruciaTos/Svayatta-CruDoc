@@ -16,6 +16,32 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // The screen's rounded-corner radius in pixels, so the phone island
+        // never gets cut by the display corners (lib/features/mobile/display_corners.dart).
+        // -1 when the phone can't say (Android 11 and older).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "crudoc/display")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "cornerRadius" -> result.success(topCornerRadius())
+                    // The phone island owns the top strip: hide the status
+                    // bar the modern way, so it survives focus changes
+                    // (speech recognizer, dialogs) and a swipe only peeks it.
+                    "hideStatusBar" -> {
+                        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                            systemBarsBehavior =
+                                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                            hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                        }
+                        result.success(null)
+                    }
+                    "showStatusBar" -> {
+                        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                            .show(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         // Settings → Call forwarding (lib/features/settings/data/call_forwarding_platform.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "crudoc/call_forwarding")
             .setMethodCallHandler { call, result ->
@@ -66,6 +92,15 @@ class MainActivity : FlutterActivity() {
      * person allow "install unknown apps" for CruDoc once: if that is off,
      * its settings page opens and the call fails with a message to try again.
      */
+    /** Larger of the two top display-corner radii, px; -1 when unknown. */
+    private fun topCornerRadius(): Int {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return -1
+        val insets = window?.decorView?.rootWindowInsets ?: return -1
+        val left = insets.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_LEFT)?.radius ?: 0
+        val right = insets.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_RIGHT)?.radius ?: 0
+        return maxOf(left, right)
+    }
+
     private fun installApk(path: String, result: MethodChannel.Result) {
         try {
             val file = File(path)

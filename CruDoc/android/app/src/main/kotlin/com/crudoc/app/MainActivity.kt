@@ -27,6 +27,13 @@ class MainActivity : FlutterActivity() {
                     // bar the modern way, so it survives focus changes
                     // (speech recognizer, dialogs) and a swipe only peeks it.
                     "hideStatusBar" -> {
+                        // A swipe peeks the bar over the app: keep it clear
+                        // (just the clock and icons), with no dark scrim.
+                        @Suppress("DEPRECATION")
+                        window.statusBarColor = android.graphics.Color.TRANSPARENT
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            window.isStatusBarContrastEnforced = false
+                        }
                         androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
                             systemBarsBehavior =
                                 androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

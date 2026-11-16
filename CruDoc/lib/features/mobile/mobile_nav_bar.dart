@@ -394,7 +394,9 @@ class _Item extends StatelessWidget {
                     style: MobileType.micro.copyWith(
                       fontSize: 10.5,
                       height: 1.1,
-                      fontWeight: focus > 0.5 ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: focus > 0.5
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                       color: color,
                     ),
                   ),

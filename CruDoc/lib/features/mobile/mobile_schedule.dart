@@ -202,7 +202,11 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
   }
 
   Future<void> _book(DateTime day) async {
-    if (!PlanModules.instance.require(context, 'appointments', 'Appointments')) {
+    if (!PlanModules.instance.require(
+      context,
+      'appointments',
+      'Appointments',
+    )) {
       return;
     }
     final root = mobileRoot(context);
@@ -1405,15 +1409,13 @@ class _ApptRow extends ConsumerWidget {
       title: item.name,
       status: _StatusPill(status, waitMinutes: item.waitMinutes),
       struck: item.status == ApptStatus.missed,
-      detail:
-          [
-            if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
-            if (item.durationMinutes > 0)
-              DashFormat.minutes(item.durationMinutes),
-            if (item.isHomeVisit) 'Home visit',
-            if (item.isNewPatient) 'New patient',
-            ?item.detailLine,
-          ].join(' · ').nullIfEmpty,
+      detail: [
+        if (item.tokenNumber != null) 'Token ${item.tokenNumber}',
+        if (item.durationMinutes > 0) DashFormat.minutes(item.durationMinutes),
+        if (item.isHomeVisit) 'Home visit',
+        if (item.isNewPatient) 'New patient',
+        ?item.detailLine,
+      ].join(' · ').nullIfEmpty,
       first: first,
       last: last,
       divider: divider,

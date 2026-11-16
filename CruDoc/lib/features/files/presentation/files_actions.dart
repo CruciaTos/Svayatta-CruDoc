@@ -26,7 +26,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/pat
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_dicom_file.dart';
-import 'package:doctor_management_app/features/dental/specialties/prostho/scan_viewer_placeholder.dart';
+import 'package:doctor_management_app/features/radiology/cbct/scan_viewer_screen.dart';
 import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
 import 'package:doctor_management_app/features/scan/presentation/scan_flow.dart';
 import 'package:doctor_management_app/features/files/presentation/send_sheet.dart';
@@ -126,10 +126,10 @@ abstract final class FilesActions {
           context.mounted) {
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => ScanViewerPlaceholderScreen(
+            builder: (_) => ScanViewerScreen(
               filePath: local.path,
               fileName: file.name,
-              patientId: file.patientId.isEmpty ? null : file.patientId,
+              title: patientName,
             ),
           ),
         );

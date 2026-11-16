@@ -322,9 +322,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Counted as received, and listed on the Received tab.
+      // Counted as received, and listed on the received tab (the glance card's
+      // "To see" stat opens it).
       expect(find.text('1 open · 1 urgent'), findsOneWidget);
-      await tester.tap(find.text('Received'));
+      await tester.tap(find.text('To see'));
       await tester.pumpAndSettle();
       expect(find.text('Ravi Kumar'), findsOneWidget);
       expect(find.text('From: Asha Rao'), findsOneWidget);

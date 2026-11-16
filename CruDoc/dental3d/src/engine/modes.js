@@ -61,32 +61,37 @@ export function createAppearance(registry, store, stage, gums) {
       obj.visible = t.present;
       const mat = toothMats.get(fdi);
       const pulp = registry.pulps.get(fdi);
+      // Nerves stay hidden everywhere, except in a tooth with a root-canal treatment or finding (soft tone).
+      const endo = t.rctDone
+        || (Array.isArray(t.conditions) && t.conditions.some((c) => c && /endo|pulp|periapical|abscess|rct/i.test(c.type || '')))
+        || (Array.isArray(s.treatments) && s.treatments.some((tr) => tr && tr.type === 'rct' && (tr.tooth == fdi || (Array.isArray(tr.teeth) && tr.teeth.includes(fdi)))));
+      const showPulp = !!endo && t.present;
       const wasTransparent = mat.transparent;
       mat.transparent = false; mat.opacity = 1; mat.depthWrite = true;
       mat.emissive.set('#000000'); mat.emissiveIntensity = 1;
-      let useGhost = false;
+      // X-ray sees through the gums, never through a tooth: enamel, dentine and
+      // roots stay solid in every mode, so their shape reads against the glass
+      // gums. Nothing here depends on `xray`.
       if (s.mode === 'heatmap') {
         setTint(mat, heatColor(t, sel, hov), 1);
-      } else if (xray && !sel) {
-        useGhost = true;
-      } else if (xray && sel) {
-        setTint(mat, HOVER, 0);
-        mat.transparent = true; mat.opacity = 0.5;   // glassy, so the pulp inside is visible
       } else {
         setTint(mat, HOVER, hov ? 0.3 : 0);
       }
       if (wasTransparent !== mat.transparent) mat.needsUpdate = true; // OPAQUE define depends on it
-      for (const m of obj.userData.meshes) m.material = useGhost ? ghost : mat;
-      if (useGhost) ghostActive = true;
+      for (const m of obj.userData.meshes) m.material = mat;
       if (pulp) {
-        // Nerves stay hidden everywhere, except in a tooth with a root-canal treatment or finding (soft tone).
-        const endo = t.rctDone
-          || (Array.isArray(t.conditions) && t.conditions.some((c) => c && /endo|pulp|periapical|abscess|rct/i.test(c.type || '')))
-          || (Array.isArray(s.treatments) && s.treatments.some((tr) => tr && tr.type === 'rct' && (tr.tooth == fdi || (Array.isArray(tr.teeth) && tr.teeth.includes(fdi)))));
-        pulp.visible = !!endo && t.present;
-        for (const m of pulp.userData.meshes) m.visible = pulp.visible;
+        pulp.visible = showPulp;
         const targetPulpMat = pulp.userData.matOverride || (sel ? pulpSel : (t.rctDone ? pulpRct : pulpMat));
-        for (const m of pulp.userData.meshes) m.material = targetPulpMat;
+        // The crown stays solid, so in x-ray the nerve is drawn over it instead
+        // of through it: depth test off and drawn last. Elsewhere it sits inside
+        // the tooth as before. Covers matOverride, which the RCT steps clone.
+        targetPulpMat.depthTest = !xray;
+        targetPulpMat.depthWrite = !xray;
+        for (const m of pulp.userData.meshes) {
+          m.visible = pulp.visible;
+          m.material = targetPulpMat;
+          m.renderOrder = xray ? 10 : 0;
+        }
       }
     }
 

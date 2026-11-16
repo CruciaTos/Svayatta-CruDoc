@@ -75,3 +75,43 @@ look: `handoff/cbct_reference.png`; web/Flutter contract: `handoff/cbct_protocol
   the 3D poster ray march, 16-bit GPU textures (Cornerstone may fall back to float).
 - iPad / Android tablet (touch gestures, memory, WebKit).
 - Angle and Ellipse tools by hand (Length was driven; the other two use the same wiring).
+
+## Done and tested (2026-11-14) — Scan viewer: STL, PLY and OBJ
+
+- **A second page**, `mesh.html` (`cbct_viewer/src/mesh/`), drawn with vtk.js and built
+  from the same project: one surface mesh full screen, drag to rotate, scroll to zoom,
+  middle-drag to move, Front / Top / Side, Reset (R), Esc or Back to leave. About 0.7 MB
+  of script, so it opens without the CBCT bundle.
+- **Reader** (`mesh/parse.js`, pure, 17 unit tests): STL binary and ASCII, PLY ASCII and
+  binary (little- and big-endian, per-point colour, properties and elements it does not
+  need stepped over), OBJ. The format comes from the bytes, not the name. An STL's loose
+  corners are welded (17 bits per axis) and normals averaged, so a scan is shaded
+  smoothly instead of faceted; above 1.5 M corners the weld is skipped. Parsing and
+  welding run in a worker (`mesh/parse.worker.js`).
+- **Colour**: a PLY's own colours are offered as "Scan colour" beside "Ivory"; files
+  without colour never show the choice.
+- **Server**: `CbctServer.openMesh(File)` serves that one file at `/m/<token>`, GET only.
+  Nothing else in its folder is reachable and a PUT is a 404 (5 Dart tests).
+- **Flutter**: `ScanViewerScreen` (`lib/features/radiology/cbct/scan_viewer_screen.dart`)
+  replaces the old "3D view of scans isn't built yet" placeholder, which is deleted. The
+  lab case dialog's file row opens it. It falls back to a details card with "Open with
+  default app" on a phone screen, on a platform without a WebView, for a missing file and
+  over 512 MB.
+- **Tests**: `npm run phantom-mesh` writes a synthetic arch (11,472 triangles) as
+  `arch.stl`, `arch.ply` and `arch.obj`; `npm run mesh` drives all three in headless Edge
+  — 33 checks, including that the surface is actually drawn, that the three formats agree
+  on triangle and point counts, that scan colours show, and that the CBCT page still boots.
+
+### Open next on the scan viewer
+
+1. **Measure on the surface**: pick a point on the mesh (ray against triangles) for
+   length and angle, in millimetres.
+2. **Cut a cross-section** through the mesh and cap the cut face — the same cap the CBCT
+   surface mode still needs (open item 3 above).
+3. **Colour by depth** from a chosen plane or the opposing arch.
+4. **Two scans side by side** (wear, recession, movement): needs alignment and a
+   mesh-to-mesh distance, which needs a spatial index. The biggest of the four.
+5. **Send the scan with the lab case**: the STL is attached to the case but
+   `sendLabCaseToLab` still sends only the prescription PDF and a WhatsApp message.
+6. **Real scans**: nothing here has met a scanner's own export yet — 3Shape, Medit and
+   iTero files, and how big they really are.

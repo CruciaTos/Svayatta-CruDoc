@@ -227,14 +227,38 @@ for (const m of ['pbr', 'xray', 'heatmap']) {
     const other = d.registry.get('tooth_11').userData.meshes[0].material;
     return {
       mode: window.App3DBridge.getState().mode, selGhost: sel === g, otherGhost: other === g,
+      selOpaque: !sel.transparent, otherOpaque: !other.transparent,
       pulpVisible: d.registry.pulps.get(26).visible, pulpOther: d.registry.pulps.get(11).visible,
       gumGhost: d.registry.get('gum_upper').material === g, tint: other.userData?.u?.uTint?.value?.w ?? -1,
     };
   });
   if (m === 'pbr') check('mode pbr: nothing ghosted, pulps hidden', r.mode === 'pbr' && !r.selGhost && !r.otherGhost && !r.gumGhost && !r.pulpVisible);
-  if (m === 'xray') check('mode xray: selected tooth solid, pulps hidden (no endo), others/gum ghosted', r.mode === 'xray' && !r.selGhost && r.otherGhost && r.gumGhost && !r.pulpVisible && !r.pulpOther);
+  // X-ray sees through the gums only: with no nerve on show every tooth stays solid and opaque.
+  if (m === 'xray') check('mode xray: teeth stay solid and opaque, only the gum is ghosted, pulps hidden (no endo)', r.mode === 'xray' && !r.selGhost && !r.otherGhost && r.selOpaque && r.otherOpaque && r.gumGhost && !r.pulpVisible && !r.pulpOther);
   if (m === 'heatmap') check('mode heatmap: teeth tinted by status', r.mode === 'heatmap' && r.tint > 0.9 && !r.otherGhost);
 }
+// A tooth with a root canal shows its nerve in x-ray, and its crown STILL stays
+// solid: the nerve is drawn OVER the tooth, never through a glass crown.
+await ev(page, () => {
+  window.__dental3d.store.set({ teeth: { 11: { conditions: [{ type: 'periapical' }] } } });
+  window.App3DBridge.setMode('xray');
+});
+await idle(page);
+const endo = await ev(page, () => {
+  const d = window.__dental3d; const g = d.appearance.ghost;
+  const tooth = d.registry.get('tooth_11').userData.meshes[0].material;
+  const pm = d.registry.pulps.get(11).userData.meshes[0];
+  return {
+    pulpVisible: d.registry.pulps.get(11).visible,
+    toothIsGhost: tooth === g, toothTransparent: !!tooth.transparent, toothOpacity: tooth.opacity,
+    pulpOverlaid: pm.material.depthTest === false && pm.renderOrder > 0,
+  };
+});
+check('x-ray endo tooth: nerve drawn over the crown, crown still solid and opaque',
+  endo.pulpVisible && !endo.toothIsGhost && !endo.toothTransparent && endo.toothOpacity === 1 && endo.pulpOverlaid,
+  JSON.stringify(endo));
+await ev(page, () => { window.__dental3d.store.set({ teeth: { 11: { conditions: [] } } }); });
+
 await ev(page, () => { window.App3DBridge.setMode('pbr'); window.App3DBridge.selectPart(null); });
 
 // 7. explode / jaw

@@ -286,3 +286,64 @@ When the page URL contains `?debug`, `window.__cbct` exposes:
 | `window.__cbct.lod` | number | Level of the STILL picture (0 = preview only, last = full shared volume). |
 | `window.__cbct.stillMs()` | function | Returns the render time of the last still (sharp) frame in milliseconds. |
 | `window.__cbct.foundBoxes()` | function | Returns array of automatically detected metal / very dense object bounding boxes. |
+
+---
+
+## 10. Scan viewer — `mesh.html` (2026-11-14)
+
+A second page in the same bundle shows **one surface mesh**: an intraoral scan,
+a lab design or a model to print. It is a mesh (triangles), not a volume, so it
+shares nothing with the CBCT page but the fonts, the tokens, the loopback
+server and the Flutter bridge. Source: `cbct_viewer/src/mesh/`.
+
+### Formats read
+
+| Format | Variants | Notes |
+|---|---|---|
+| STL | binary, ASCII | A heap of loose triangles: the reader welds corners that land on the same spot (17 bits per axis, about 1/1000 mm on a scan-sized mesh) so the surface can be shaded smoothly. Above 1,500,000 loose corners the weld is skipped and the mesh is drawn flat. |
+| PLY | ASCII, binary little- and big-endian | Per-point colour (`red/green/blue` or `r/g/b`, byte or float) is kept; properties the viewer does not need, and elements written between the points and the faces, are stepped over. Polygons are split into triangles around their first corner. |
+| OBJ | — | `v` and `f` only, with `a/b/c` and negative indices. |
+
+The format is decided from the file's own bytes first (a binary STL whose
+header starts with the word `solid` is still read as binary), and from the name
+only as a fallback. Positions stay in the file's own units: nothing is moved or
+scaled.
+
+### Page URL & query parameters
+
+`http://127.0.0.1:<port>/mesh.html?...`
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `file` | string | — | Where to read the mesh from, i.e. `/m/<token>`. Required. |
+| `name` | string | `''` | The file name, shown in the chip and used as a format hint. |
+| `title` | string | `''` | Patient or case name for the top bar. |
+| `badge` | string | `''` | `"On this device"` or `"Anonymized"`. |
+| `reduced` | `'0'` \| `'1'` | `'0'` | Reduced motion. |
+| `debug` | flag | *none* | Exposes `window.__mesh` = `{ scene, triangles, points, ... }`. |
+
+### Mesh route (`/m/<token>`)
+
+Registered by `CbctServer.openMesh(File)`, revoked with the same `revoke(token)`.
+**GET only**, and only that one file: nothing else in its folder is reachable,
+and a PUT through a mesh token is a 404. Served as `application/octet-stream`
+with the same `no-store` and `nosniff` headers as every other route.
+
+### Bridge messages
+
+The handler name is `cbct`, as on the CBCT page.
+
+| Type | Payload | When |
+|---|---|---|
+| `boot` | `{ version }` | The page's script ran. |
+| `shown` | `{ triangles, points, format, parseMs }` | The surface is on screen. |
+| `close` | — | Back or Esc: the page has nothing to save. |
+| `error` | `{ message }` | Said in plain words on the page too. |
+
+### Flutter side
+
+`scan_viewer_screen.dart` (`ScanViewerScreen`): opens the file through
+`CbctServer.openMesh`, covers the WebView with the page's own background colour
+until `shown`, and falls back to a card with the file's details and "Open with
+default app" when the screen is too small, the platform has no WebView, the
+file is gone, or it is over 512 MB.

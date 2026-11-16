@@ -110,4 +110,47 @@ void main() {
   test('listens on loopback only', () {
     expect(server.boundAddress, InternetAddress.loopbackIPv4);
   });
+
+  group('one mesh file behind its own token', () {
+    late File scan;
+    late CbctOpened mesh;
+
+    setUp(() async {
+      scan = File(p.join(pack.path, 'upper.stl'))..writeAsBytesSync([1, 2, 3, 4, 5]);
+      mesh = await server.openMesh(scan);
+    });
+
+    test('opens the scan viewer page and serves the file', () async {
+      expect(mesh.page.path, '/mesh.html');
+      expect(mesh.base, '/m/${mesh.token}');
+      final r = await send('GET', mesh.base);
+      expect(r.status, 200);
+      expect(r.body, [1, 2, 3, 4, 5]);
+      expect(r.res.headers.value('x-content-type-options'), 'nosniff');
+      expect(r.res.headers.value('cache-control'), 'no-store');
+    });
+
+    test('nothing else in the folder is reachable through the token', () async {
+      expect((await send('GET', '${mesh.base}/secret.txt')).status, 404);
+      expect((await send('GET', '/m/${mesh.token}/../secret.txt')).status, 404);
+      expect((await send('GET', '/m/wrong')).status, 404);
+      expect((await send('GET', '/m/')).status, 404);
+    });
+
+    test('the page can never write through a mesh token', () async {
+      expect((await send('PUT', mesh.base, body: [9])).status, 404);
+      expect(scan.readAsBytesSync(), [1, 2, 3, 4, 5]);
+    });
+
+    test('a revoked token stops serving, and the pack token is untouched', () async {
+      server.revoke(mesh.token);
+      expect((await send('GET', mesh.base)).status, 404);
+      expect((await send('GET', '${opened.base}meta.json')).status, 200);
+    });
+
+    test('a file deleted under the viewer answers 404, not a crash', () async {
+      scan.deleteSync();
+      expect((await send('GET', mesh.base)).status, 404);
+    });
+  });
 }

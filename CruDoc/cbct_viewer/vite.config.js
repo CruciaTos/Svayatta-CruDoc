@@ -48,13 +48,23 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     chunkSizeWarningLimit: 4000,
     rollupOptions: {
+      // Two pages: the CBCT viewer (a volume) and the scan viewer (a mesh:
+      // STL, PLY or OBJ). They share the fonts, the tokens and the server.
+      input: {
+        index: fileURLToPath(new URL('./index.html', import.meta.url)),
+        mesh: fileURLToPath(new URL('./mesh.html', import.meta.url)),
+      },
       output: {
-        // One HTML entry, so one entry script. Vite would name it after the
-        // HTML file (a/index.js); Flutter and the guide expect a/main.js.
-        entryFileNames: 'a/main.js',
+        // Vite would name each entry after its HTML file (a/index.js);
+        // Flutter and the guide expect a/main.js for the CBCT page.
+        entryFileNames: (chunk) => (chunk.name === 'mesh' ? 'a/mesh.js' : 'a/main.js'),
         chunkFileNames: 'a/[name].js',
-        assetFileNames: (asset) =>
-          (asset.names ?? [asset.name]).includes('index.css') ? 'a/main.css' : 'a/[name][extname]',
+        assetFileNames: (asset) => {
+          const names = asset.names ?? [asset.name];
+          if (names.includes('index.css')) return 'a/main.css';
+          if (names.includes('mesh.css')) return 'a/mesh.css';
+          return 'a/[name][extname]';
+        },
       },
     },
   },

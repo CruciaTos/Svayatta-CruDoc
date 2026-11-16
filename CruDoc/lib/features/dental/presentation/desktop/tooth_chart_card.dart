@@ -247,6 +247,22 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
 
     final counts = toothChartCounts(data);
 
+    // One 3D page at a time: the card's own view is closed while the full
+    // screen is open and comes back (with the new state) afterwards.
+    Future<void> openFullScreen() async {
+      final was = _threeD;
+      setState(() => _threeD = false);
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => Theme(
+            data: Theme.of(context),
+            child: Dental3dScreen(patientId: p.id, patientName: p.fullName),
+          ),
+        ),
+      );
+      if (mounted && was) setState(() => _threeD = true);
+    }
+
     final header = widget.fullScreen
         ? const SizedBox.shrink()
         : Column(

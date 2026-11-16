@@ -111,3 +111,31 @@ The CBCT 3D viewer is designed with privacy and reliability at its core:
 - The 3D data is a cache stored next to the study on this device (`<study folder>/.cbct/`).
 - It is rebuilt automatically if deleted.
 - The viewer page itself never uses the network.
+
+---
+
+## 9. Opening an intraoral scan or a lab file (.stl, .ply, .obj)
+
+A scan from an intraoral scanner, a lab's design or a model for printing is a
+**surface**, not a CBCT volume, so it opens in its own simpler viewer.
+
+Open a lab case and tap the **open** arrow on any file marked **3D** in its file
+list. The scan fills the screen:
+
+- **Drag** to turn it, **scroll** to zoom, **middle-drag** to move it.
+- **Front**, **Top** and **Side** frame it from one side; **Reset** (or `R`)
+  puts it back the way it opened. These are the file's own directions, not the
+  patient's left and right: an STL carries no patient orientation.
+- **Ivory / Scan colour** appears only for a file that carries the scanner's
+  own colours (usually a PLY). Ivory is the default, because surface detail
+  reads better without colour.
+- The line at the bottom gives the format, the file size, the triangle and
+  point counts, and the size of the scan in millimetres.
+- `Esc` or the back arrow leaves. Nothing is saved: the file is never changed.
+
+The scan is read on this computer only and is never sent anywhere. A file that
+is very large, or a screen too small for 3D, offers to open the file in your
+own CAD or lab software instead.
+
+Measuring on a scan, cutting a cross-section and comparing two scans of the
+same patient are not built yet.

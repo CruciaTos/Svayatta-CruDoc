@@ -840,15 +840,16 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
                   records: pick(['perio', 'endo', 'pain', 'ortho', 'eruption']),
                   perioKey: _perioTile,
                 ),
-              ToothChartCard(patient: p, fullScreen: true),
-              if (phone && needsCare.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _NeedsCarePill(
-                    count: needsCare.length,
-                    onTap: openNeedsCare,
-                  ),
-                ),
+              ToothChartCard(
+                patient: p,
+                fullScreen: true,
+                topTrailing: phone && needsCare.isNotEmpty
+                    ? _NeedsCarePill(
+                        count: needsCare.length,
+                        onTap: openNeedsCare,
+                      )
+                    : null,
+              ),
               if (!studio && !phone) needsCareCard,
             ]),
           ),

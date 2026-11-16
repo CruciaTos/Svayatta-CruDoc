@@ -174,6 +174,7 @@ class ToothChartCard extends ConsumerStatefulWidget {
     super.key,
     required this.patient,
     this.fullScreen = false,
+    this.topTrailing,
   });
 
   final Patient patient;
@@ -181,6 +182,9 @@ class ToothChartCard extends ConsumerStatefulWidget {
   /// On Charting's Teeth tab: the toolbar carries the counts, and the
   /// teeth grow with the window.
   final bool fullScreen;
+
+  /// Phone only: shown at the top-right of the card, beside the picked tooth.
+  final Widget? topTrailing;
 
   @override
   ConsumerState<ToothChartCard> createState() => _ToothChartCardState();
@@ -213,9 +217,6 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     );
     if (mounted && was) setState(() => _threeD = true);
   }
-
-  String? _lastTapTooth;
-  DateTime? _lastTapAt;
 
   Future<void> _open(String tooth) async {
     setState(() => _selected = tooth);
@@ -286,71 +287,12 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
             ],
           );
     final Widget controls;
+    Widget? phoneViewToggle;
+    var phoneTopRow = false;
     if (phone) {
-      final allowedLayers = _threeD
-          ? const [ChartLayer.dental, ChartLayer.plan]
-          : ChartLayer.values;
-      final layerMenu = MenuAnchor(
-        alignmentOffset: const Offset(0, CruSpace.s6),
-        style: MenuStyle(
-          backgroundColor: WidgetStatePropertyAll(c.surface),
-          surfaceTintColor: WidgetStatePropertyAll(
-            c.surface.withValues(alpha: 0),
-          ),
-          elevation: const WidgetStatePropertyAll(0),
-          shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.12)),
-          padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
-          shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              side: BorderSide(color: c.hairline),
-            ),
-          ),
-        ),
-        menuChildren: [
-          for (final l in allowedLayers)
-            MenuItemButton(
-              style: ButtonStyle(
-                textStyle: WidgetStatePropertyAll(CruType.text.w500),
-                foregroundColor: WidgetStatePropertyAll(c.label),
-                overlayColor: WidgetStatePropertyAll(c.hoverFill),
-                padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: CruSpace.s14),
-                ),
-                shape: WidgetStatePropertyAll(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(CruRadius.keycap),
-                  ),
-                ),
-              ),
-              onPressed: () => setState(() => _layer = l),
-              child: Text(l.label),
-            ),
-        ],
-        builder: (context, controller, _) => CruPressable(
-          onTap: () =>
-              controller.isOpen ? controller.close() : controller.open(),
-          builder: (context, hovered) => Container(
-            height: CruSize.control,
-            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-            decoration: ShapeDecoration(
-              color: c.inset,
-              shape: cruShape(CruRadius.control),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(layer.label, style: CruType.callout.w600.tint(c.label)),
-                const SizedBox(width: CruSpace.s6),
-                CruIcon(CruIcons.chevronDown, size: 14, color: c.label2),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      // One cube icon: 3D opens full screen (not for milk teeth).
-      final viewToggle = CruSquareButton(
+      // One cube icon: 3D opens full screen (not for milk teeth). It sits
+      // bottom-right over the chart.
+      phoneViewToggle = CruSquareButton(
         icon: RadIcons.cube,
         secondary: true,
         semanticLabel: '3D view',
@@ -358,13 +300,34 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         onPressed: child ? null : () => unawaited(openFullScreen()),
       );
 
-      controls = Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          layerMenu,
-          viewToggle,
-        ],
-      );
+      // Top row: the picked tooth on the left (tap opens it), the caller's
+      // trailing pill on the right. Nothing to show: no row, no space.
+      final sel = _selected;
+      final trailing = widget.topTrailing;
+      phoneTopRow = sel != null || trailing != null;
+      controls = !phoneTopRow
+          ? const SizedBox.shrink()
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: sel == null
+                      ? const SizedBox.shrink()
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: _Peek(
+                            tooth: sel,
+                            visual: data.of(sel),
+                            onOpen: () => _open(sel),
+                          ),
+                        ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: CruSpace.s12),
+                  trailing,
+                ],
+              ],
+            );
     } else {
       controls = Wrap(
         spacing: CruSpace.s8,
@@ -435,23 +398,28 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
             data: phone ? data : null,
           );
     void onToothSelect(String tooth) {
-      // Phone: a tap selects (shows the tooth's summary), a double tap on the
-      // same tooth (within 350 ms) opens its form. PC: a click opens it.
+      // Phone: a tap selects (shows the tooth's summary), a tap on the
+      // already-selected tooth opens its form. PC: a click opens it.
       if (!phone) {
         _open(tooth);
         return;
       }
-      final now = DateTime.now();
-      final again = _lastTapTooth == tooth &&
-          _lastTapAt != null &&
-          now.difference(_lastTapAt!) < const Duration(milliseconds: 350);
-      _lastTapTooth = tooth;
-      _lastTapAt = again ? null : now;
-      if (again) {
+      if (_selected == tooth) {
         _open(tooth);
-      } else if (_selected != tooth) {
+      } else {
         setState(() => _selected = tooth);
       }
+    }
+
+    Widget withToggle(Widget chart) {
+      final toggle = phoneViewToggle;
+      if (toggle == null) return chart;
+      return Stack(
+        children: [
+          chart,
+          Positioned(right: CruSpace.s8, bottom: CruSpace.s8, child: toggle),
+        ],
+      );
     }
 
     void onDeselect() {
@@ -477,7 +445,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                     header,
                     const SizedBox(height: CruSpace.s12),
                   ],
-                  controls,
+                  if (!phone || phoneTopRow) controls,
                 ] else
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -487,88 +455,96 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                       controls,
                     ],
                   ),
-                const SizedBox(height: CruSpace.s16),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: _threeD
-                        ? Colors.transparent
-                        : chartPaper(layer, c, base: c.surface),
-                    borderRadius: BorderRadius.circular(CruRadius.panel),
-                  ),
-                  child: AnimatedSwitcher(
-                    duration: CruMotion.of(context, CruMotion.fast),
-                    switchInCurve: CruMotion.curve,
-                    switchOutCurve: CruMotion.curve,
-                    child: _threeD
-                        ? SizedBox(
-                            key: const ValueKey('3d'),
-                            height: (constraints.maxWidth * 0.62).clamp(
-                              380.0,
-                              widget.fullScreen ? 760.0 : 540.0,
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(CruRadius.panel),
-                              child: Dental3dView(
-                                patientId: p.id,
-                                patientName: p.fullName,
-                                showPlan: layer == ChartLayer.plan,
-                                compact: true,
-                                selectedFdi: _selected != null
-                                    ? int.tryParse(_selected!)
-                                    : null,
-                                onToothSelected: (fdi) =>
-                                    setState(() => _selected = fdi?.toString()),
-                                onToothTapped: (fdi) => _open(fdi.toString()),
+                if (!narrow || !phone || phoneTopRow || !widget.fullScreen)
+                  const SizedBox(height: CruSpace.s16),
+                withToggle(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: _threeD
+                          ? Colors.transparent
+                          : chartPaper(layer, c, base: c.surface),
+                      borderRadius: BorderRadius.circular(CruRadius.panel),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: CruMotion.of(context, CruMotion.fast),
+                      switchInCurve: CruMotion.curve,
+                      switchOutCurve: CruMotion.curve,
+                      child: _threeD
+                          ? SizedBox(
+                              key: const ValueKey('3d'),
+                              height: (constraints.maxWidth * 0.62).clamp(
+                                380.0,
+                                widget.fullScreen ? 760.0 : 540.0,
                               ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.panel,
+                                ),
+                                child: Dental3dView(
+                                  patientId: p.id,
+                                  patientName: p.fullName,
+                                  showPlan: layer == ChartLayer.plan,
+                                  compact: true,
+                                  selectedFdi: _selected != null
+                                      ? int.tryParse(_selected!)
+                                      : null,
+                                  onToothSelected: (fdi) => setState(
+                                    () => _selected = fdi?.toString(),
+                                  ),
+                                  onToothTapped: (fdi) => _open(fdi.toString()),
+                                ),
+                              ),
+                            )
+                          : chartView == ToothChartView.arches
+                          ? (odontoStyle == OdontogramStyle.model3d
+                                ? ToothChartArches3d(
+                                    key: const ValueKey('arches3d'),
+                                    data: data,
+                                    child: child,
+                                    layer: layer,
+                                    selected: _selected,
+                                    onSelect: onToothSelect,
+                                    onDeselect: onDeselect,
+                                    numbering: numbering,
+                                  )
+                                : ToothChartArches(
+                                    key: const ValueKey('arches'),
+                                    data: data,
+                                    child: child,
+                                    layer: layer,
+                                    selected: _selected,
+                                    onSelect: onToothSelect,
+                                    onDeselect: onDeselect,
+                                    numbering: numbering,
+                                  ))
+                          : ToothChart2D(
+                              key: const ValueKey('2d'),
+                              data: data,
+                              child: child,
+                              layer: layer,
+                              selected: _selected,
+                              onSelect: onToothSelect,
+                              onDeselect: onDeselect,
+                              numbering: numbering,
+                              // Full screen: past the card's size cap.
+                              maxScale: widget.fullScreen ? 10 : null,
                             ),
-                          )
-                        : chartView == ToothChartView.arches
-                        ? (odontoStyle == OdontogramStyle.model3d
-                            ? ToothChartArches3d(
-                                key: const ValueKey('arches3d'),
-                                data: data,
-                                child: child,
-                                layer: layer,
-                                selected: _selected,
-                                onSelect: onToothSelect,
-                                onDeselect: onDeselect,
-                                numbering: numbering,
-                              )
-                            : ToothChartArches(
-                                key: const ValueKey('arches'),
-                                data: data,
-                                child: child,
-                                layer: layer,
-                                selected: _selected,
-                                onSelect: onToothSelect,
-                                onDeselect: onDeselect,
-                                numbering: numbering,
-                              ))
-                        : ToothChart2D(
-                            key: const ValueKey('2d'),
-                            data: data,
-                            child: child,
-                            layer: layer,
-                            selected: _selected,
-                            onSelect: onToothSelect,
-                            onDeselect: onDeselect,
-                            numbering: numbering,
-                            // Full screen: past the card's size cap.
-                            maxScale: widget.fullScreen ? 10 : null,
-                          ),
+                    ),
                   ),
                 ),
                 if (narrow) ...[
-                  if (!_threeD && layer.showsPerio && data.perioExam == null) ...[
+                  if (!_threeD &&
+                      layer.showsPerio &&
+                      data.perioExam == null) ...[
                     const SizedBox(height: CruSpace.s12),
                     const _PerioNotice(),
                   ],
                   const SizedBox(height: CruSpace.s12),
                   legend,
-                  if ((_threeD || phone) && _selected != null) ...[
+                  if (_threeD && !phone && _selected != null) ...[
                     const SizedBox(height: CruSpace.s12),
                     _Peek(
                       tooth: _selected!,
@@ -581,7 +557,9 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                     Align(alignment: Alignment.centerLeft, child: teeth),
                   ],
                 ] else ...[
-                  if (!_threeD && layer.showsPerio && data.perioExam == null) ...[
+                  if (!_threeD &&
+                      layer.showsPerio &&
+                      data.perioExam == null) ...[
                     const SizedBox(height: CruSpace.s12),
                     const _PerioNotice(),
                   ],

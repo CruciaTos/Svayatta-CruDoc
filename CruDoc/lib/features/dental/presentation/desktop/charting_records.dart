@@ -1015,8 +1015,9 @@ class RecordIconCell extends StatelessWidget {
           // card gives it and stops at 56, so a child's five exams still
           // fit across a phone.
           return CruCard(
+            radius: CruRadius.control,
             padding: const EdgeInsets.symmetric(
-              vertical: CruSpace.s12,
+              vertical: CruSpace.s8,
               horizontal: CruSpace.s4,
             ),
             child: LayoutBuilder(
@@ -1064,14 +1065,14 @@ class RecordIconGrid extends StatelessWidget {
           return Column(
             children: [
               for (var at = 0; at < records.length; at += cols) ...[
-                if (at > 0) const SizedBox(height: CruSpace.s8),
+                if (at > 0) const SizedBox(height: CruSpace.s4),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // A short last row keeps the column widths of a full
                     // one, so the cards stay in line down the grid.
                     for (var i = at; i < at + cols; i++) ...[
-                      if (i > at) const SizedBox(width: CruSpace.s8),
+                      if (i > at) const SizedBox(width: CruSpace.s4),
                       Expanded(
                         child: i < records.length
                             ? KeyedSubtree(
@@ -1156,11 +1157,12 @@ class RecentRecords extends ConsumerWidget {
         ),
         CruCard(
           semanticLabel: 'Recent records',
+          radius: CruRadius.control,
           padding: const EdgeInsets.all(CruSpace.s12),
           child: Column(
             children: [
               for (var i = 0; i < shown.length; i++) ...[
-                if (i > 0) const SizedBox(height: CruSpace.s12),
+                if (i > 0) const SizedBox(height: CruSpace.s8),
                 Builder(
                   builder: (context) {
                     final r = shown[i];

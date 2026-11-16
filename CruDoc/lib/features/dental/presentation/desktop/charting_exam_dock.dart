@@ -24,7 +24,7 @@ class ExamDock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < records.length; i++) ...[
-            if (i > 0) const SizedBox(width: CruSpace.s8),
+            if (i > 0) const SizedBox(width: CruSpace.s4),
             Expanded(
               child: KeyedSubtree(
                 key: records[i].id == 'perio' ? perioKey : null,

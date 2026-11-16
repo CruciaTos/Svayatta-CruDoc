@@ -18,11 +18,15 @@ class CruCard extends StatelessWidget {
     this.borderColor,
     this.borderWidth = 1,
     this.semanticLabel,
+    this.radius = CruRadius.card,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final Color? borderColor;
+
+  /// Corner radius; the card default unless a small cell asks for less.
+  final double radius;
   final double borderWidth;
 
   /// Region name for assistive tech (the reference's `aria-label`).
@@ -41,7 +45,7 @@ class CruCard extends StatelessWidget {
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: c.surface,
-          shape: cruShape(CruRadius.card, side: side),
+          shape: cruShape(radius, side: side),
           shadows: const [],
         ),
         // The border is painted inside the shape; inset the content

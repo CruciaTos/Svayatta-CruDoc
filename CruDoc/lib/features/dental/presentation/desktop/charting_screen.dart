@@ -885,17 +885,26 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
             studio
                 ? RecordGrid(records: pick(['forms', 'scan']))
                 : phone
-                ? RecordIconGrid(
-                    records: pick([
-                      'la',
-                      'srp',
-                      'consent',
-                      'checklist',
-                      'sedation',
-                      'forms',
-                      'scan',
-                      'behaviour',
-                    ]),
+                // The grid is short, so the space under it carries what
+                // was actually recorded for this patient lately.
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      RecordIconGrid(
+                        records: pick([
+                          'la',
+                          'srp',
+                          'consent',
+                          'checklist',
+                          'sedation',
+                          'forms',
+                          'scan',
+                          'behaviour',
+                        ]),
+                      ),
+                      const SizedBox(height: CruSpace.s8),
+                      RecentRecords(patient: p),
+                    ],
                   )
                 : DetailsStack([
                     _RecordSection(

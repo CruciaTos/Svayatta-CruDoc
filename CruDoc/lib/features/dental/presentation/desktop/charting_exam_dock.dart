@@ -4,8 +4,8 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/chart
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The exams in one row on Charting's Chart tab: Perio, Endo, Pain/TMD,
-/// Ortho (and Eruption for a child), round icons with their status under
-/// them. Fixed order, one tap to each exam.
+/// Ortho (and Eruption for a child). Each one is its own card with a round
+/// icon over its name and status. Fixed order, one tap to each exam.
 class ExamDock extends StatelessWidget {
   const ExamDock({super.key, required this.records, this.perioKey});
 
@@ -17,19 +17,21 @@ class ExamDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (records.isEmpty) return const SizedBox.shrink();
-    return CruCard(
-      semanticLabel: 'Exams',
-      padding: const EdgeInsets.all(CruSpace.s12),
+    return Semantics(
+      explicitChildNodes: true,
+      label: 'Exams',
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final r in records)
+          for (var i = 0; i < records.length; i++) ...[
+            if (i > 0) const SizedBox(width: CruSpace.s8),
             Expanded(
               child: KeyedSubtree(
-                key: r.id == 'perio' ? perioKey : null,
-                child: RecordIconCell(record: r, dock: true),
+                key: records[i].id == 'perio' ? perioKey : null,
+                child: RecordIconCell(record: records[i], dock: true),
               ),
             ),
+          ],
         ],
       ),
     );

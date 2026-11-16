@@ -888,15 +888,29 @@ class _RecordCard extends StatelessWidget {
   }
 }
 
-/// One round-icon cell for phone and tablet: 44 px circle, name, status
-/// in tone, and an amber dot when the record is waiting. With [dock] the
-/// short [ChartRecord.dockLabel] is the name and an empty record reads
-/// "New".
+/// One round-icon cell for phone and tablet: a circle, name, status in
+/// tone, and an amber dot when the record is waiting. With [dock] the cell
+/// is its own card, the short [ChartRecord.dockLabel] is the name and an
+/// empty record reads "New".
 class RecordIconCell extends StatelessWidget {
-  const RecordIconCell({super.key, required this.record, this.dock = false});
+  const RecordIconCell({
+    super.key,
+    required this.record,
+    this.dock = false,
+    this.boxed = false,
+  });
 
   final ChartRecord record;
+
+  /// Exam dock: short [ChartRecord.dockLabel] and "New" when empty. Implies
+  /// [boxed].
   final bool dock;
+
+  /// Draw the cell as its own card with a ringed circle, without the dock's
+  /// labelling.
+  final bool boxed;
+
+  bool get _asCard => dock || boxed;
 
   @override
   Widget build(BuildContext context) {
@@ -908,6 +922,75 @@ class RecordIconCell extends StatelessWidget {
         ? null
         : r.status ?? (dock ? 'New' : null);
     final statusInk = r.status == null ? c.label3 : _toneColor(c, r.tone);
+
+    Widget circle(double size, double iconSize, bool hovered) => SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: hovered ? c.hoverFill : c.inset,
+                // On a card the inset fill alone is almost the surface
+                // colour, so in the dock a ring is what makes it read as a
+                // circle. `hairline` is transparent in both themes; the
+                // card's own border colour is the one that shows.
+                border: _asCard ? Border.all(color: c.cardBorder) : null,
+              ),
+              child: Center(
+                child: CruIcon(
+                  r.icon,
+                  size: iconSize,
+                  strokeWidth: 1.8,
+                  color: lit ? c.label : c.label3,
+                ),
+              ),
+            ),
+          ),
+          if (r.tone == RecordTone.warn && r.status != null)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: c.amberText,
+                  border: Border.all(color: c.surface, width: 1.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    List<Widget> labels() => [
+      const SizedBox(height: CruSpace.s4),
+      // A long name ("Pain/TMD") in a five-exam child row would otherwise
+      // lose its tail; shrinking it a little reads better than "Pain/T...".
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: CruType.caption.w500.tint(c.label),
+        ),
+      ),
+      Text(
+        status ?? ' ',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: CruType.micro.tabular.tint(statusInk),
+      ),
+    ];
+
     return Tooltip(
       message: r.detail,
       waitDuration: const Duration(milliseconds: 600),
@@ -915,78 +998,51 @@ class RecordIconCell extends StatelessWidget {
         onTap: r.onOpen,
         scaleOnPress: false,
         semanticLabel: '$name. ${r.status ?? 'Nothing recorded yet'}',
-        builder: (context, hovered) => ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s2),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: hovered ? c.hoverFill : c.inset,
-                          ),
-                          child: Center(
-                            child: CruIcon(
-                              r.icon,
-                              size: 20,
-                              strokeWidth: 1.8,
-                              color: lit ? c.label : c.label3,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (r.tone == RecordTone.warn && r.status != null)
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: c.amberText,
-                              border: Border.all(color: c.surface, width: 1.5),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+        builder: (context, hovered) {
+          if (!_asCard) {
+            return ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [circle(44, 20, hovered), ...labels()],
                 ),
-                const SizedBox(height: CruSpace.s4),
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CruType.caption.w500.tint(c.label),
-                ),
-                Text(
-                  status ?? ' ',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: CruType.micro.tabular.tint(statusInk),
-                ),
-              ],
+              ),
+            );
+          }
+          // Each record is its own card. The circle takes the width the
+          // card gives it and stops at 56, so a child's five exams still
+          // fit across a phone.
+          return CruCard(
+            padding: const EdgeInsets.symmetric(
+              vertical: CruSpace.s12,
+              horizontal: CruSpace.s4,
             ),
-          ),
-        ),
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final d = box.maxWidth.isFinite
+                    ? box.maxWidth.clamp(28.0, 56.0)
+                    : 56.0;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    circle(d, (d * 0.42).clamp(16.0, 24.0), hovered),
+                    ...labels(),
+                  ],
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-/// Records as round icons in one card, for phone and tablet: four across
-/// on a phone, more when there is room. Always the order given.
+/// Records as round icons, each in its own card: four across on a phone,
+/// more when there is room, wrapping onto the next row. It never scrolls
+/// sideways. Always the order given.
 class RecordIconGrid extends StatelessWidget {
   const RecordIconGrid({super.key, required this.records, this.perioKey});
 
@@ -998,9 +1054,9 @@ class RecordIconGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (records.isEmpty) return const SizedBox.shrink();
-    return CruCard(
-      semanticLabel: 'Records',
-      padding: const EdgeInsets.all(CruSpace.s12),
+    return Semantics(
+      explicitChildNodes: true,
+      label: 'Records',
       child: LayoutBuilder(
         builder: (context, box) {
           final phone = MediaQuery.sizeOf(context).width < 600;
@@ -1012,15 +1068,22 @@ class RecordIconGrid extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (var i = at; i < at + cols; i++)
+                    // A short last row keeps the column widths of a full
+                    // one, so the cards stay in line down the grid.
+                    for (var i = at; i < at + cols; i++) ...[
+                      if (i > at) const SizedBox(width: CruSpace.s8),
                       Expanded(
                         child: i < records.length
                             ? KeyedSubtree(
                                 key: records[i].id == 'perio' ? perioKey : null,
-                                child: RecordIconCell(record: records[i]),
+                                child: RecordIconCell(
+                                  record: records[i],
+                                  boxed: true,
+                                ),
                               )
                             : const SizedBox.shrink(),
                       ),
+                    ],
                   ],
                 ),
               ],
@@ -1028,6 +1091,106 @@ class RecordIconGrid extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// What was recorded for this patient lately: the newest records across
+/// every kind, newest first, under the Records grid. Nothing recorded yet
+/// means no card at all rather than an empty one.
+class RecentRecords extends ConsumerWidget {
+  const RecentRecords({super.key, required this.patient, this.max = 5});
+
+  final Patient patient;
+
+  /// How many lines to show.
+  final int max;
+
+  /// The kinds a doctor records against a patient and how each one reads.
+  /// Clinic-wide and bookkeeping kinds are left out on purpose, so a kind
+  /// this list does not know never reaches the screen under a made-up name.
+  static const _known = <String, (String, CruIconData)>{
+    RecKind.perio: ('Perio exam', RecIcons.perio),
+    RecKind.srp: ('Root planing', RecIcons.srp),
+    RecKind.endo: ('Endo', RecIcons.endo),
+    RecKind.consent: ('Consent', RecIcons.consent),
+    RecKind.checklist: ('Checklist', RecIcons.checklist),
+    RecKind.sedationCase: ('Sedation', CruIcons.moon),
+    RecKind.pain: ('Pain score', RecIcons.pain),
+    RecKind.tmd: ('TMD screen', RecIcons.pain),
+    RecKind.frankl: ('Behaviour', RecIcons.frankl),
+    RecKind.eruption: ('Eruption', DentalIcons.tooth),
+    RecKind.photoSet: ('Ortho photos', RecIcons.camera),
+    RecKind.labCase: ('Lab case', CruIcons.box),
+    RecKind.referral: ('Referral', CruIcons.arrowUpRight),
+    RecKind.formResponse: ('Form', RecIcons.form),
+    RecKind.recall: ('Recall', RecIcons.recall),
+    RecKind.omHistory: ('Medical history', RecIcons.history),
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final byKind =
+        ref.watch(patientRecordsByKindProvider(patient.id)).value ??
+        const <String, List<DentalRecord>>{};
+    final items = <DentalRecord>[
+      for (final e in byKind.entries)
+        if (_known.containsKey(e.key)) ...e.value,
+    ]..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final shown = items.take(max).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            CruSpace.s4,
+            CruSpace.s8,
+            CruSpace.s4,
+            CruSpace.s8,
+          ),
+          child: Text('Recent', style: CruType.callout.w600.tint(c.label2)),
+        ),
+        CruCard(
+          semanticLabel: 'Recent records',
+          padding: const EdgeInsets.all(CruSpace.s12),
+          child: Column(
+            children: [
+              for (var i = 0; i < shown.length; i++) ...[
+                if (i > 0) const SizedBox(height: CruSpace.s12),
+                Builder(
+                  builder: (context) {
+                    final r = shown[i];
+                    final (name, icon) = _known[r.kind]!;
+                    return Row(
+                      children: [
+                        CruIconTile(icon: icon, tone: CruTileTone.neutral),
+                        const SizedBox(width: CruSpace.s12),
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.callout.tint(c.label),
+                          ),
+                        ),
+                        const SizedBox(width: CruSpace.s8),
+                        Text(
+                          DentalFormat.day(r.recordedAt, now),
+                          style: CruType.note.tabular.tint(c.label2),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

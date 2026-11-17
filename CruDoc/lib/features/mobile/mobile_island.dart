@@ -1188,8 +1188,11 @@ class _ShimmerState extends State<_Shimmer>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Reduced motion and Low-end mode (which the app reports the same way)
+    // show the resting frame: the line alone, no highlight.
     if (MediaQuery.disableAnimationsOf(context)) {
       _c.stop();
+      _c.value = 0;
     } else if (!_c.isAnimating) {
       _c.repeat();
     }
@@ -1202,8 +1205,11 @@ class _ShimmerState extends State<_Shimmer>
   }
 
   @override
-  Widget build(BuildContext context) =>
-      SizedBox(height: 2, child: CustomPaint(painter: _ShimmerPainter(_c)));
+  Widget build(BuildContext context) => SizedBox(
+    height: 2,
+    // Its own layer, so each frame repaints this line and not the island.
+    child: RepaintBoundary(child: CustomPaint(painter: _ShimmerPainter(_c))),
+  );
 }
 
 class _ShimmerPainter extends CustomPainter {
@@ -1211,29 +1217,30 @@ class _ShimmerPainter extends CustomPainter {
 
   final Animation<double> t;
 
+  // Built once, not every frame.
+  static final _trackPaint = Paint()..color = _violet.withValues(alpha: 0.18);
+  static final _glowPaint = Paint();
+  static final _glow = LinearGradient(
+    colors: [
+      _violet.withValues(alpha: 0),
+      _violet,
+      _violet.withValues(alpha: 0),
+    ],
+  );
+
   @override
   void paint(Canvas canvas, Size size) {
     final track = RRect.fromRectAndRadius(
       Offset.zero & size,
       const Radius.circular(1),
     );
-    canvas.drawRRect(track, Paint()..color = _violet.withValues(alpha: 0.18));
+    canvas.drawRRect(track, _trackPaint);
     canvas.save();
     canvas.clipRRect(track);
     final w = size.width * 0.4;
     final x = t.value * (size.width + w) - w;
     final r = Rect.fromLTWH(x, 0, w, size.height);
-    canvas.drawRect(
-      r,
-      Paint()
-        ..shader = LinearGradient(
-          colors: [
-            _violet.withValues(alpha: 0),
-            _violet,
-            _violet.withValues(alpha: 0),
-          ],
-        ).createShader(r),
-    );
+    canvas.drawRect(r, _glowPaint..shader = _glow.createShader(r));
     canvas.restore();
   }
 

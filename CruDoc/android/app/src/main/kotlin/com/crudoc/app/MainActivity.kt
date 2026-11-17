@@ -41,6 +41,15 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        // Low-end mode (lib/core/services/low_end_mode.dart): true when this
+        // phone has little memory, so heavy animations can be skipped.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "crudoc/device")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isLowEnd" -> result.success(isLowEndDevice())
+                    else -> result.notImplemented()
+                }
+            }
         // Settings → Call forwarding (lib/features/settings/data/call_forwarding_platform.dart).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "crudoc/call_forwarding")
             .setMethodCallHandler { call, result ->
@@ -127,6 +136,16 @@ class MainActivity : FlutterActivity() {
         }
         root.addView(v, android.view.ViewGroup.LayoutParams(0, 0))
         barWatcher = v
+    }
+
+    /** Android's own low-RAM flag, or 3.5 GB of memory or less. */
+    private fun isLowEndDevice(): Boolean = try {
+        val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+        val info = android.app.ActivityManager.MemoryInfo()
+        am.getMemoryInfo(info)
+        am.isLowRamDevice || info.totalMem <= 3_758_096_384L
+    } catch (e: Exception) {
+        false
     }
 
     /** Larger of the two top display-corner radii, px; -1 when unknown. */

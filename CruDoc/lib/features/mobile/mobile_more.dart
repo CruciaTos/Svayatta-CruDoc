@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/core/services/low_end_mode.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/core/widgets/legal_links_row.dart';
 import 'package:doctor_management_app/features/settings/presentation/delete_account_dialog.dart';
@@ -591,6 +592,39 @@ class _AppearanceRow extends ConsumerWidget {
   }
 }
 
+/// Low-end mode: the switch shows what is in effect; flipping it stores an
+/// explicit On or Off (without a stored choice, the phone decides).
+class _LowEndRow extends StatelessWidget {
+  const _LowEndRow();
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([LowEndMode.enabled, LowEndMode.mode]),
+    builder: (context, _) {
+      final on = LowEndMode.enabled.value;
+      final auto = on && LowEndMode.mode.value == null;
+      return MergeSemantics(
+        child: Semantics(
+          toggled: on,
+          child: MobileRow(
+            leading: const MobileIconTile(
+              icon: CruIcons.clock,
+              tone: MobileTone.slate,
+            ),
+            title: 'Low-end mode',
+            titleStyle: MobileType.row.copyWith(fontWeight: FontWeight.w500),
+            subtitle: auto
+                ? 'On automatically for this phone'
+                : 'Fewer animations, less memory',
+            trailing: CruSwitch(value: on),
+            onTap: () => LowEndMode.setMode(on ? 'off' : 'on'),
+          ),
+        ),
+      );
+    },
+  );
+}
+
 /// Every shortcut the phone has, in one place.
 Future<void> showMobileGestureGuide(BuildContext context) =>
     showMobileActionSheet(
@@ -677,6 +711,7 @@ class _MobileSettingsList extends ConsumerWidget {
         MobileRowGroup(
           children: [
             const _AppearanceRow(),
+            const _LowEndRow(),
             MobileRow(
               leading: const MobileIconTile(
                 icon: CruIcons.help,

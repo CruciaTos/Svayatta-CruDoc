@@ -86,34 +86,46 @@ class MobileBackdrop extends StatelessWidget {
       );
     }
     const light = Color(0xFF2A47B0);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [..._eve, c.canvas],
-              stops: _stops,
+    // Static, but in its own layer so a scrolling or animating sibling
+    // never repaints the gradients.
+    return RepaintBoundary(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [..._eve, c.canvas],
+                stops: _stops,
+              ),
             ),
           ),
-        ),
-        // The soft light at the top right.
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: const Alignment(0.6, -1),
-              radius: 0.6,
-              colors: [
-                for (final a in const [1.0, 0.95, 0.85, 0.44, 0.17, 0.07, 0.0])
-                  light.withValues(alpha: a * 0.6),
-              ],
-              stops: const [0, 0.19, 0.40, 0.66, 0.77, 0.885, 1],
+          // The soft light at the top right.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.6, -1),
+                radius: 0.6,
+                colors: [
+                  for (final a in const [
+                    1.0,
+                    0.95,
+                    0.85,
+                    0.44,
+                    0.17,
+                    0.07,
+                    0.0,
+                  ])
+                    light.withValues(alpha: a * 0.6),
+                ],
+                stops: const [0, 0.19, 0.40, 0.66, 0.77, 0.885, 1],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -174,6 +186,15 @@ class _CobaltPainter extends CustomPainter {
   /// 1 above the edge, 0 below, along a step blurred by a Gaussian:
   /// [x] is the distance below the edge in standard deviations.
   static double _blurredStep(double x) => 0.5 * (1 - _erf(x / math.sqrt2));
+
+  /// The blurred edge's fade, one colour per step: it depends only on the
+  /// step, not on the screen, so it is worked out once.
+  static final List<Color> _edgeColors = [
+    for (var i = 0; i <= 24; i++)
+      const Color(
+        0xFF000000,
+      ).withValues(alpha: _blurredStep((i * soft / 4 - 3 * soft) / soft)),
+  ];
 
   /// The error function (Abramowitz and Stegun 7.1.26, to 1.5e-7).
   static double _erf(double x) {
@@ -267,17 +288,11 @@ class _CobaltPainter extends CustomPainter {
       );
       // The blurred edge: keep the layer where the step is 1, let it go
       // where it falls to 0.
-      final stops = <double>[];
-      final colors = <Color>[];
-      for (var i = 0; i <= 24; i++) {
-        final y = edge - 3 * soft + i * soft / 4;
-        stops.add((y / h).clamp(0.0, 1.0));
-        colors.add(
-          const Color(
-            0xFF000000,
-          ).withValues(alpha: _blurredStep((y - edge) / soft)),
-        );
-      }
+      final stops = <double>[
+        for (var i = 0; i <= 24; i++)
+          ((edge - 3 * soft + i * soft / 4) / h).clamp(0.0, 1.0),
+      ];
+      final colors = _edgeColors;
       canvas.drawRect(
         rect,
         Paint()
@@ -463,8 +478,12 @@ class _DotsBackdropState extends State<_DotsBackdrop>
   /// Seconds since start: about 15 steps a second at rest, 30
   /// while a touch effect plays.
   final _time = ValueNotifier<double>(0);
+
+  /// Where the clock stood when the ticker last started, so a restart
+  /// (after animations were off) carries on instead of freezing.
+  double _base = 0;
   late final Ticker _ticker = createTicker((elapsed) {
-    final t = elapsed.inMilliseconds / 1000;
+    final t = _base + elapsed.inMilliseconds / 1000;
     // About 15 steps a second at rest, 30 while a touch effect plays.
     if (t - _time.value >= (_fx.busy ? 0.033 : 0.066)) _time.value = t;
   });
@@ -476,7 +495,10 @@ class _DotsBackdropState extends State<_DotsBackdrop>
     final still = MediaQuery.disableAnimationsOf(context);
     _fx.enabled = !still;
     if (still && _ticker.isActive) _ticker.stop();
-    if (!still && !_ticker.isActive) _ticker.start();
+    if (!still && !_ticker.isActive) {
+      _base = _time.value;
+      _ticker.start();
+    }
   }
 
   @override
@@ -512,6 +534,32 @@ class _DotsPainter extends CustomPainter {
     (0.70, 0.62, 0.80, Color(0xFF9CC3FF), 0.52),
     (0.15, 0.95, 0.75, Color(0xFFADCDFF), 0.54),
   ];
+
+  // Gradients and paints built once; only the shader's rect changes
+  // per frame.
+  static final List<RadialGradient> _cloudGradients = [
+    for (final (_, _, _, color, a) in _clouds)
+      RadialGradient(
+        colors: [
+          color.withValues(alpha: a),
+          color.withValues(alpha: a * 0.45),
+          color.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.45, 1],
+      ),
+  ];
+  static final RadialGradient _hazeGradient = RadialGradient(
+    colors: [
+      Colors.white.withValues(alpha: 0.7),
+      Colors.white.withValues(alpha: 0),
+    ],
+  );
+  static final Paint _skyPaint = Paint()..color = const Color(0xFFF1F6FF);
+  static final Paint _washPaint = Paint();
+  static final Paint _dotPaint = Paint()..strokeCap = StrokeCap.round;
+  static final Float64List _cx = Float64List(4);
+  static final Float64List _cy = Float64List(4);
+  static final Float64List _cr = Float64List(4);
 
   static const double _gap = 13;
   static const Color _blue = Color(0xFF4F7BF7);
@@ -596,15 +644,12 @@ class _DotsPainter extends CustomPainter {
 
     // Pale blue, and the clouds on their wide, slow loops (sliding a
     // little with the tabs).
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFFF1F6FF),
-    );
-    final cx = Float64List(4);
-    final cy = Float64List(4);
-    final cr = Float64List(4);
+    canvas.drawRect(Offset.zero & size, _skyPaint);
+    final cx = _cx;
+    final cy = _cy;
+    final cr = _cr;
     for (var k = 0; k < _clouds.length; k++) {
-      final (dx, dy, r, color, a) = _clouds[k];
+      final (dx, dy, r, _, _) = _clouds[k];
       cx[k] = w * (dx + 0.32 * math.sin(t * 0.23 + k * 1.9) - page * 0.06);
       cy[k] = h * (dy + 0.14 * math.cos(t * 0.19 + k * 2.6));
       cr[k] = w * r;
@@ -612,15 +657,10 @@ class _DotsPainter extends CustomPainter {
       canvas.drawCircle(
         centre,
         cr[k],
-        Paint()
-          ..shader = RadialGradient(
-            colors: [
-              color.withValues(alpha: a),
-              color.withValues(alpha: a * 0.45),
-              color.withValues(alpha: 0),
-            ],
-            stops: const [0, 0.45, 1],
-          ).createShader(Rect.fromCircle(center: centre, radius: cr[k])),
+        _washPaint
+          ..shader = _cloudGradients[k].createShader(
+            Rect.fromCircle(center: centre, radius: cr[k]),
+          ),
       );
     }
     final haze = Offset(
@@ -630,13 +670,10 @@ class _DotsPainter extends CustomPainter {
     canvas.drawCircle(
       haze,
       w * 0.55,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            Colors.white.withValues(alpha: 0.7),
-            Colors.white.withValues(alpha: 0),
-          ],
-        ).createShader(Rect.fromCircle(center: haze, radius: w * 0.55)),
+      _washPaint
+        ..shader = _hazeGradient.createShader(
+          Rect.fromCircle(center: haze, radius: w * 0.55),
+        ),
     );
 
     // The hold's halo: in while held, out after release.
@@ -751,7 +788,7 @@ class _DotsPainter extends CustomPainter {
       _fill[bucket] = at + 2;
     }
 
-    final paint = Paint()..strokeCap = StrokeCap.round;
+    final paint = _dotPaint;
     for (var b = 0; b < _steps * 2; b++) {
       if (_fill[b] == 0) continue;
       final lit = b >= _steps;

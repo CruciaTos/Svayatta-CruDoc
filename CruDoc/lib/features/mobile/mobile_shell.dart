@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/services/feature_usage_service.dart';
+import 'package:doctor_management_app/core/services/low_end_mode.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
@@ -34,6 +35,9 @@ class MobileShell extends ConsumerStatefulWidget {
 
 class _MobileShellState extends ConsumerState<MobileShell> {
   final _pages = PageController();
+
+  // Keeps the tabs' state when Low-end mode swaps the fade on or off.
+  final _tabsKey = GlobalKey();
 
   /// Created once so rebuilds don't resubscribe to Firestore.
   final Stream<List<String>> _enabledModules =
@@ -205,60 +209,72 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                       Positioned.fill(child: MobileBackdrop(pages: _pages)),
                       // Content fades out as it scrolls up under the status
                       // bar, so text never runs into the clock or island.
-                      ShaderMask(
-                        blendMode: BlendMode.dstIn,
-                        shaderCallback: (rect) {
-                          final top = MediaQuery.paddingOf(context).top;
-                          double at(double y) =>
-                              (y / rect.height).clamp(0.0, 1.0);
-                          return LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: const [
-                              Colors.transparent,
-                              Colors.transparent,
-                              Colors.black,
-                            ],
-                            stops: [0, at(top - 6), at(top + 10)],
-                          ).createShader(rect);
-                        },
-                        child: MobileTabSurface(
-                          child: PageView.builder(
-                            controller: _pages,
-                            // Revenue (inside More) holds the screen: no
-                            // swiping to other tabs until it closes.
-                            physics: revenueOpen
-                                ? const NeverScrollableScrollPhysics()
-                                : null,
-                            itemCount: MobileTab.count,
-                            onPageChanged: (i) {
-                              setState(() => _index = i);
-                              FeatureUsageService.log(
-                                const [
-                                  'Home',
-                                  'Schedule',
-                                  'Patients',
-                                  'Tasks',
-                                  'More',
-                                ][i],
-                              );
-                              ref
-                                      .read(mobileCurrentTabProvider.notifier)
-                                      .state =
-                                  i;
-                              FocusManager.instance.primaryFocus?.unfocus();
-                            },
-                            itemBuilder: (context, i) => MobileKeepAlive(
-                              // A search field rises to the top; the
-                              // keyboard overlays this scaffold, so
-                              // the page makes room for it.
-                              child: SearchLift(
-                                top:
-                                    MediaQuery.paddingOf(context).top +
-                                    CruSpace.s16,
-                                avoidKeyboard: true,
-                                handleBack: false,
-                                child: _tab(i, modules),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: LowEndMode.enabled,
+                        // Low-end mode skips the fade (an offscreen layer
+                        // and a shader every frame); the keyed child keeps
+                        // the tabs' state when it flips.
+                        builder: (context, lowEnd, tabs) => lowEnd
+                            ? tabs!
+                            : ShaderMask(
+                                blendMode: BlendMode.dstIn,
+                                shaderCallback: (rect) {
+                                  final top = MediaQuery.paddingOf(context).top;
+                                  double at(double y) =>
+                                      (y / rect.height).clamp(0.0, 1.0);
+                                  return LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: const [
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      Colors.black,
+                                    ],
+                                    stops: [0, at(top - 6), at(top + 10)],
+                                  ).createShader(rect);
+                                },
+                                child: tabs,
+                              ),
+                        child: KeyedSubtree(
+                          key: _tabsKey,
+                          child: MobileTabSurface(
+                            child: PageView.builder(
+                              controller: _pages,
+                              // Revenue (inside More) holds the screen: no
+                              // swiping to other tabs until it closes.
+                              physics: revenueOpen
+                                  ? const NeverScrollableScrollPhysics()
+                                  : null,
+                              itemCount: MobileTab.count,
+                              onPageChanged: (i) {
+                                setState(() => _index = i);
+                                FeatureUsageService.log(
+                                  const [
+                                    'Home',
+                                    'Schedule',
+                                    'Patients',
+                                    'Tasks',
+                                    'More',
+                                  ][i],
+                                );
+                                ref
+                                        .read(mobileCurrentTabProvider.notifier)
+                                        .state =
+                                    i;
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
+                              itemBuilder: (context, i) => MobileKeepAlive(
+                                // A search field rises to the top; the
+                                // keyboard overlays this scaffold, so
+                                // the page makes room for it.
+                                child: SearchLift(
+                                  top:
+                                      MediaQuery.paddingOf(context).top +
+                                      CruSpace.s16,
+                                  avoidKeyboard: true,
+                                  handleBack: false,
+                                  child: _tab(i, modules),
+                                ),
                               ),
                             ),
                           ),

@@ -114,12 +114,24 @@ export const createDoctor = functions.region("asia-south1").https.onCall(
 
     try {
     // Step 1: Create Firebase Auth user
-      const userRecord = await auth.createUser({
+      const newUser = {
         email,
         password,
         displayName: name,
         disabled: false,
-      });
+      };
+      let userRecord: admin.auth.UserRecord;
+      try {
+        userRecord = await auth.createUser(newUser);
+      } catch (createError) {
+        // A deleted doctor's login is only switched off, so it still holds
+        // the email. Free it for a fresh account; anything else is refused.
+        if ((createError as {code?: string}).code !== "auth/email-already-exists" ||
+            !(await releaseDeletedDoctorLogin(context, email))) {
+          throw createError;
+        }
+        userRecord = await auth.createUser(newUser);
+      }
 
       const doctorId = userRecord.uid;
 
@@ -214,6 +226,47 @@ export const createDoctor = functions.region("asia-south1").https.onCall(
       throw new functions.https.HttpsError("internal", errorMessage);
     }
   });
+
+/**
+ * Frees the email held by a doctor who was deleted (or never finished being
+ * created) so the same email can sign up again as a brand-new account.
+ * Deleting a doctor only switches the login off, so without this the email
+ * stays taken. The old profile is kept (it stays soft-deleted, with all its
+ * data under the old id); only the dead login is removed. Returns false, and
+ * touches nothing, when the email belongs to an active doctor, a Super Admin,
+ * or any other kind of login.
+ */
+async function releaseDeletedDoctorLogin(
+  context: AuditCaller,
+  email: string
+): Promise<boolean> {
+  const existing = await auth.getUserByEmail(email).catch(() => null);
+  // Gone since the first attempt: nothing holds the email any more.
+  if (!existing) return true;
+
+  const role = existing.customClaims?.role;
+  if (role === "superAdmin") return false;
+
+  const profileRef = db.collection("users").doc(existing.uid);
+  const profile = await profileRef.get();
+  if (profile.exists) {
+    if (profile.data()?.isDeleted !== true) return false;
+  } else if (role !== "doctor") {
+    // No profile and not marked as a doctor: not ours to remove.
+    return false;
+  }
+
+  await auth.deleteUser(existing.uid);
+  if (profile.exists) {
+    await profileRef.set({
+      loginReleasedAt: admin.firestore.FieldValue.serverTimestamp(),
+      loginReleasedBy: context.auth?.token.email ?? null,
+    }, {merge: true});
+  }
+  await logAudit(context, "deletedDoctor", existing.uid, undefined, email,
+    {reason: "Login removed so the email could be used for a new doctor"});
+  return true;
+}
 
 function encryptDoctorValue(value: string, doctorId: string): string {
   const key = crypto.createHash("sha256").update(`crudoc-doctor-profile::${doctorId}`).digest();

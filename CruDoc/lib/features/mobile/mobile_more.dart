@@ -575,11 +575,6 @@ class _AppearanceRow extends ConsumerWidget {
                       .tint(c.label),
                 ),
               ),
-              if (mode == AppearanceMode.auto)
-                Text(
-                  'Evening from 5 PM',
-                  style: MobileType.caption.tint(c.label3),
-                ),
             ],
           ),
           const SizedBox(height: CruSpace.s12),

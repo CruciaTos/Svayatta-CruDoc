@@ -169,28 +169,21 @@ class _StorageSectionState extends State<StorageSection> {
           if (report != null) ...[
             _Row(
               title: 'Files and scans also in the cloud',
-              detail:
-                  'Removed oldest first when over the limit, once the cloud '
-                  'copy is confirmed. They download again when opened.',
               value: formatBytes(report.cloudCopyBytes),
             ),
             const CruSeparator(),
             _Row(
               title: 'Previews and viewing files',
-              detail: 'Fetched again when needed. Removed first.',
               value: formatBytes(report.cacheBytes),
             ),
             const CruSeparator(),
             _Row(
               title: 'Always kept on this device',
-              detail:
-                  'Patient names and details, records, uploads still waiting, '
-                  'and files that are never uploaded. Never removed.',
               value: formatBytes(report.keptBytes),
             ),
           ],
           const SizedBox(height: CruSpace.s16),
-          // A wrap: on a phone the note drops under the button.
+          // A wrap: on a phone the status drops under the button.
           Wrap(
             spacing: CruSpace.s12,
             runSpacing: CruSpace.s8,
@@ -201,14 +194,11 @@ class _StorageSectionState extends State<StorageSection> {
                 kind: CruButtonKind.secondary,
                 onPressed: _freeing || !over ? null : _freeUp,
               ),
-              Text(
-                _limit <= 0
-                    ? 'No limit set: nothing is removed.'
-                    : over
-                    ? 'Over the limit. Space is also freed automatically.'
-                    : 'Within the limit.',
-                style: CruType.caption.tint(c.label2),
-              ),
+              if (_limit > 0)
+                Text(
+                  over ? 'Over the limit.' : 'Within the limit.',
+                  style: CruType.caption.tint(c.label2),
+                ),
             ],
           ),
         ],
@@ -220,10 +210,9 @@ class _StorageSectionState extends State<StorageSection> {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.title, required this.detail, required this.value});
+  const _Row({required this.title, required this.value});
 
   final String title;
-  final String detail;
   final String value;
 
   @override
@@ -239,8 +228,6 @@ class _Row extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: CruType.row.tint(c.label)),
-                const SizedBox(height: CruSpace.s2),
-                Text(detail, style: CruType.caption.tint(c.label2)),
               ],
             ),
           ),

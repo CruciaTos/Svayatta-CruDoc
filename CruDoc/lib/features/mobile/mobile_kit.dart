@@ -972,9 +972,16 @@ class MobileSwipeRow extends StatefulWidget {
     required this.child,
     this.action,
     this.leftAction,
+    this.edgeFraction,
   });
 
   final Widget child;
+
+  /// When set (e.g. 0.2), a swipe only starts the row's actions if the touch
+  /// begins in that outer share of the row's width: the left edge for the
+  /// right swipe, the right edge for the left swipe. A touch in the middle
+  /// passes through, so the tabs change normally. Null: the whole row.
+  final double? edgeFraction;
 
   /// Runs on a right swipe. Null: right swipes pass through.
   final MobileSwipeAction? action;
@@ -1072,6 +1079,8 @@ class _MobileSwipeRowState extends State<MobileSwipeRow>
                 ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
                 ..allowRight = right != null
                 ..allowLeft = left != null
+                ..edgeFraction = widget.edgeFraction
+                ..rowWidth = (() => context.size?.width)
                 ..onUpdate = _update
                 ..onEnd = _end
                 ..onCancel = _end,
@@ -1141,11 +1150,30 @@ class _SwipeRecognizer extends HorizontalDragGestureRecognizer {
   bool allowRight = true;
   bool allowLeft = false;
 
+  /// See [MobileSwipeRow.edgeFraction]. Null: no edge limit.
+  double? edgeFraction;
+  double? Function()? rowWidth;
+
+  // Which swipes this touch may start, decided where it lands.
+  bool _rightOk = true;
+  bool _leftOk = true;
+
   Offset? _down;
   double _dx = 0;
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
+    _rightOk = true;
+    _leftOk = true;
+    final edge = edgeFraction;
+    final width = rowWidth?.call();
+    if (edge != null && width != null && width > 0) {
+      final x = event.localPosition.dx;
+      _rightOk = x <= width * edge;
+      _leftOk = x >= width * (1 - edge);
+      // Middle of the row: never enter the arena, the pager takes it.
+      if (!_rightOk && !_leftOk) return;
+    }
     _down = event.position;
     _dx = 0;
     super.addAllowedPointer(event);
@@ -1164,7 +1192,8 @@ class _SwipeRecognizer extends HorizontalDragGestureRecognizer {
     PointerDeviceKind pointerDeviceKind,
     double? deviceTouchSlop,
   ) =>
-      ((allowRight && _dx > 0) || (allowLeft && _dx < 0)) &&
+      ((allowRight && _rightOk && _dx > 0) ||
+          (allowLeft && _leftOk && _dx < 0)) &&
       super.hasSufficientGlobalDistanceToAccept(
         pointerDeviceKind,
         deviceTouchSlop,

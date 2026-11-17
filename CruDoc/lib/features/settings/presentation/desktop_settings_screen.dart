@@ -28,7 +28,6 @@ import 'package:doctor_management_app/core/update/models/update_check_result.dar
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
-import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/doctor_loyalty_card.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
@@ -601,11 +600,6 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
     final specialty = ref.watch(activeDoctorSpecialtyProvider).value;
     final providers =
         user?.providerData.map((p) => p.providerId).toSet() ?? const {};
-    final signIn = providers.contains('google.com')
-        ? 'Google'
-        : providers.contains('phone')
-        ? 'phone number'
-        : 'email and password';
     final email = user?.email;
     final canResetPassword =
         providers.contains('password') && email != null && email.isNotEmpty;
@@ -616,20 +610,17 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
         title: 'Specialty',
         child: _ActionRow(
           title: specialty?.label ?? 'Loading…',
-          detail: specialty?.tagline,
         ),
       ),
       const CrudocIdCard(),
       _SettingsCard(
         title: 'Sign-in',
-        description: 'You sign in with your $signIn.',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (canResetPassword) ...[
               _ActionRow(
                 title: 'Password',
-                detail: 'We email a link to $email to set a new one.',
                 action: CruCapsuleButton(
                   label: 'Send reset link',
                   kind: CruCapsuleKind.surface,
@@ -643,7 +634,6 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
             ],
             _ActionRow(
               title: 'Sign out',
-              detail: 'Ends your session on this computer.',
               action: CruButton(
                 label: 'Sign out',
                 kind: CruButtonKind.inset,
@@ -656,7 +646,6 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
             const SizedBox(height: CruSpace.s16),
             _ActionRow(
               title: 'Delete account',
-              detail: 'Permanently deletes your account and clinic data.',
               action: CruButton(
                 label: 'Delete account',
                 kind: CruButtonKind.inset,
@@ -740,7 +729,6 @@ class _PlanSectionState extends State<_PlanSection> {
         return _Stack([
           _SettingsCard(
             title: 'Plan & billing',
-            description: 'Your subscription status and billing settings.',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -850,8 +838,6 @@ class _AccountsSection extends ConsumerWidget {
     return _Stack([
       _SettingsCard(
         title: 'Gmail',
-        description:
-            'Email bills, prescriptions and reports to patients from your own address.',
         child: _ActionRow(
           leading: const CruIconTile(
             icon: CruIcons.arrowUpRight,
@@ -934,7 +920,6 @@ class _DevicesSection extends StatelessWidget {
 
         final card = _SettingsCard(
           title: 'Signed-in devices',
-          description: 'Where CruDoc is signed in to your account right now.',
           trailing: others > 0
               ? CruButton(
                   label: 'Sign out others',
@@ -1036,28 +1021,13 @@ class _DeviceRow extends StatelessWidget {
 class _AppearanceSection extends ConsumerWidget {
   const _AppearanceSection();
 
-  static String _explain(AppearanceMode m) => switch (m) {
-    AppearanceMode.auto =>
-      'Light during the day, dark from ${_hour(kEveningSessionStartHour)} '
-          'to ${_hour(kDaySessionStartHour)}.',
-    AppearanceMode.day => 'Always light.',
-    AppearanceMode.evening => 'Always dark.',
-  };
-
-  /// 17 → "5 PM".
-  static String _hour(int h) =>
-      DateFormat('h a').format(DateTime(2000, 1, 1, h));
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
     final mode = ref.watch(appearanceModeProvider);
     final textSize = ref.watch(textSizePreferenceProvider);
     return _Stack([
       _SettingsCard(
         title: 'Appearance',
-        description:
-            'Evening is a dark palette that is easier on the eyes after hours.',
         child: Row(
           children: [
             CruSegmentedControl<AppearanceMode>(
@@ -1068,19 +1038,11 @@ class _AppearanceSection extends ConsumerWidget {
               selected: mode,
               onChanged: ref.read(appearanceModeProvider.notifier).select,
             ),
-            const SizedBox(width: CruSpace.s16),
-            Expanded(
-              child: Text(
-                _explain(mode),
-                style: CruType.caption.tint(c.label2),
-              ),
-            ),
           ],
         ),
       ),
       _SettingsCard(
         title: 'Text size',
-        description: 'Choose a text size used throughout CruDoc.',
         child: Row(
           children: [
             CruSegmentedControl<TextSizePreference>(
@@ -1097,8 +1059,6 @@ class _AppearanceSection extends ConsumerWidget {
       ),
       _SettingsCard(
         title: 'Day background',
-        description:
-            'Choose a preset or enter a custom hex color. Evening mode stays unchanged.',
         child: const _DayBackgroundColorControl(),
       ),
     ]);
@@ -1315,9 +1275,6 @@ class _DentalSection extends ConsumerWidget {
       if (tabs.contains(DesktopTab.procedures))
         _SettingsCard(
           title: 'Procedures & fees',
-          description:
-              'What can be picked when logging a procedure or planning '
-              'treatment, and what each costs.',
           trailing: CruButton(
             label: 'Open',
             kind: CruButtonKind.secondary,
@@ -1329,9 +1286,6 @@ class _DentalSection extends ConsumerWidget {
       if (tabs.contains(DesktopTab.oralMedForms))
         _SettingsCard(
           title: 'Form templates',
-          description:
-              'Questionnaires to fill for a patient from their record '
-              '(Forms in the dental record).',
           trailing: CruButton(
             label: 'Open',
             kind: CruButtonKind.secondary,
@@ -1342,10 +1296,6 @@ class _DentalSection extends ConsumerWidget {
         ),
       _SettingsCard(
         title: 'Tooth numbering',
-        description:
-            'FDI is the two-digit system the clinic records in: 18–11, '
-            '21–28, 38–31, 41–48 (55–51 … for milk teeth). Universal runs '
-            '1–32 for permanent teeth and A–T for milk teeth.',
         child: Row(
           children: [
             CruSegmentedControl<ToothNumbering>(
@@ -1356,23 +1306,11 @@ class _DentalSection extends ConsumerWidget {
               selected: numbering,
               onChanged: (n) => setToothNumbering(ref, n),
             ),
-            const SizedBox(width: CruSpace.s16),
-            Expanded(
-              child: Text(
-                numbering == ToothNumbering.fdi
-                    ? 'Charts, plans and reports show FDI numbers.'
-                    : 'Charts, plans and reports show Universal numbers '
-                          '(1–32) and letters (A–T).',
-                style: CruType.caption.tint(c.label2),
-              ),
-            ),
           ],
         ),
       ),
       _SettingsCard(
         title: 'Tooth chart view',
-        description:
-            'How the 2D tooth chart is laid out: parallel rows or dental arches (odontogram).',
         child: Row(
           children: [
             CruSegmentedControl<ToothChartView>(
@@ -1383,23 +1321,12 @@ class _DentalSection extends ConsumerWidget {
               selected: chartView,
               onChanged: (v) => setToothChartView(ref, v),
             ),
-            const SizedBox(width: CruSpace.s16),
-            Expanded(
-              child: Text(
-                chartView == ToothChartView.rows
-                    ? 'Cheek-side and biting-surface rows.'
-                    : 'Upper and lower dental arches (odontogram).',
-                style: CruType.caption.tint(c.label2),
-              ),
-            ),
           ],
         ),
       ),
       if (kOdontogram3dEnabled)
         _SettingsCard(
           title: 'Odontogram style',
-          description:
-              'How the teeth look in the arches chart: a clean 2D line drawing or a 3D clay-style picture.',
           child: Row(
             children: [
               CruSegmentedControl<OdontogramStyle>(
@@ -1411,23 +1338,11 @@ class _DentalSection extends ConsumerWidget {
                 selected: odontoStyle,
                 onChanged: (v) => setOdontogramStyle(ref, v),
               ),
-              const SizedBox(width: CruSpace.s16),
-              Expanded(
-                child: Text(
-                  odontoStyle == OdontogramStyle.flat2d
-                      ? 'Black line drawing of the teeth.'
-                      : 'Grey clay-style picture of the teeth.',
-                  style: CruType.caption.tint(c.label2),
-                ),
-              ),
             ],
           ),
         ),
       _SettingsCard(
         title: 'Larger text and icons (chairside)',
-        description:
-            'Enlarges the dentist work area for chairside viewing. The '
-            'Appearance text-size setting still applies across all specialties.',
         child: Row(
           children: [
             CruSegmentedControl<bool>(
@@ -1517,7 +1432,7 @@ class _AboutSectionState extends ConsumerState<_AboutSection> {
         ].join(' · '),
         child: _ActionRow(
           title: 'Updates',
-          detail: _status ?? 'See whether a newer version is out.',
+          detail: _status,
           action: CruButton(
             label: _checking ? 'Checking…' : 'Check for updates',
             kind: CruButtonKind.secondary,
@@ -1533,7 +1448,6 @@ class _AboutSectionState extends ConsumerState<_AboutSection> {
             tone: CruTileTone.neutral,
           ),
           title: 'Take the tour again',
-          detail: 'A 1-minute look at the essentials, from the Dashboard.',
           action: CruButton(
             label: 'Start tour',
             kind: CruButtonKind.secondary,
@@ -1552,7 +1466,6 @@ class _AboutSectionState extends ConsumerState<_AboutSection> {
             tone: CruTileTone.neutral,
           ),
           title: 'Learn to use voice',
-          detail: 'Hold Space to talk, hands-free, and filling forms by voice.',
           action: CruButton(
             label: 'Start tour',
             kind: CruButtonKind.secondary,

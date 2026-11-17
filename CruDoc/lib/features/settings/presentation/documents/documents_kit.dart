@@ -32,15 +32,9 @@ abstract final class DocIcons {
 /// A card's title, a short line under it and an optional control at the
 /// right (below the text on a phone).
 class DocCardHeader extends StatelessWidget {
-  const DocCardHeader({
-    super.key,
-    required this.title,
-    this.description,
-    this.trailing,
-  });
+  const DocCardHeader({super.key, required this.title, this.trailing});
 
   final String title;
-  final String? description;
   final Widget? trailing;
 
   @override
@@ -53,17 +47,17 @@ class DocCardHeader extends StatelessWidget {
           header: true,
           child: Text(title, style: CruType.headline.tint(c.label)),
         ),
-        if (description != null) ...[
-          const SizedBox(height: CruSpace.s4),
-          Text(description!, style: CruType.subhead.tint(c.label2)),
-        ],
       ],
     );
     if (trailing == null) return text;
     if (cruIsPhone(context)) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [text, const SizedBox(height: CruSpace.s16), trailing!],
+        children: [
+          text,
+          const SizedBox(height: CruSpace.s16),
+          trailing!,
+        ],
       );
     }
     return Row(
@@ -92,7 +86,10 @@ class DocFieldPair extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           first,
-          if (second != null) ...[const SizedBox(height: CruSpace.s16), second!],
+          if (second != null) ...[
+            const SizedBox(height: CruSpace.s16),
+            second!,
+          ],
         ],
       );
     }
@@ -190,11 +187,9 @@ class DocToggleRow extends StatelessWidget {
     required this.title,
     required this.value,
     required this.onChanged,
-    this.subtitle,
   });
 
   final String title;
-  final String? subtitle;
   final bool value;
 
   /// Null makes it read-only.
@@ -224,13 +219,6 @@ class DocToggleRow extends StatelessWidget {
                           enabled ? c.label : c.label2,
                         ),
                       ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: CruSpace.s2),
-                        Text(
-                          subtitle!,
-                          style: CruType.subhead.tint(c.label2),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -294,7 +282,6 @@ class DocImageSlot extends StatelessWidget {
   const DocImageSlot({
     super.key,
     required this.title,
-    required this.caption,
     required this.bytes,
     required this.emptyIcon,
     required this.actions,
@@ -303,7 +290,6 @@ class DocImageSlot extends StatelessWidget {
   });
 
   final String title;
-  final String caption;
   final Uint8List? bytes;
   final CruIconData emptyIcon;
 
@@ -365,8 +351,6 @@ class DocImageSlot extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: CruSpace.s2),
-              Text(caption, style: CruType.subhead.tint(c.label2)),
               if (actions.isNotEmpty) ...[
                 const SizedBox(height: CruSpace.s12),
                 Wrap(

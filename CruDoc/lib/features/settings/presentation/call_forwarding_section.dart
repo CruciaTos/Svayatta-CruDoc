@@ -50,12 +50,7 @@ class _CallForwardingSectionState extends ConsumerState<CallForwardingSection> {
         ),
       ),
       data: (line) => line == null
-          ? const _Card(
-              title: 'No AI number yet',
-              description:
-                  'Your AI receptionist number shows here once CruDoc sets '
-                  'it up. Then you can forward your calls to it in one tap.',
-            )
+          ? const _Card(title: 'No AI number yet')
           : _body(line),
     );
   }
@@ -63,7 +58,6 @@ class _CallForwardingSectionState extends ConsumerState<CallForwardingSection> {
   Widget _body(VoiceLine line) {
     final sim = ref.watch(callingSimProvider).value;
     final network = _network ?? sim?.network ?? PhoneNetwork.other;
-    final detected = _network == null && sim != null;
     final method = forwardMethod(
       platform: _platform,
       network: network,
@@ -81,9 +75,6 @@ class _CallForwardingSectionState extends ConsumerState<CallForwardingSection> {
         const SizedBox(height: CruSpace.cardGap),
         _Card(
           title: 'Turn on forwarding',
-          description: _platform == ForwardPlatform.other
-              ? 'Do this on the phone whose calls should reach the AI.'
-              : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -93,13 +84,6 @@ class _CallForwardingSectionState extends ConsumerState<CallForwardingSection> {
                 labelOf: (m) => m.label,
                 selected: _mode,
                 onChanged: (m) => setState(() => _mode = m),
-                caption: switch (_mode) {
-                  ForwardMode.all =>
-                    'The AI answers every call. Your phone does not ring.',
-                  ForwardMode.missed =>
-                    'Your phone rings first. The AI answers when you are '
-                        'busy, do not pick up, or are out of reach.',
-                },
               ),
               const SizedBox(height: CruSpace.s20),
               _Choice<PhoneNetwork>(
@@ -108,12 +92,6 @@ class _CallForwardingSectionState extends ConsumerState<CallForwardingSection> {
                 labelOf: (n) => n.label,
                 selected: network,
                 onChanged: (n) => setState(() => _network = n),
-                caption: detected
-                    ? (sim.sure
-                          ? 'Picked from the SIM this phone calls from.'
-                          : 'Picked from this phone. Change it if you call '
-                                'from your other SIM.')
-                    : null,
               ),
               const SizedBox(height: CruSpace.s20),
               const CruSeparator(),
@@ -155,13 +133,8 @@ class _LineCard extends StatelessWidget {
         : line.waitingForTestCall
         ? ('Waiting for test call', c.amberTint, c.amberText)
         : ('Active', c.greenTint, c.greenText);
-    final from = line.publishedNumber;
     return _Card(
       title: 'AI receptionist',
-      description: from == null
-          ? 'Forwarded calls are answered by your AI receptionist.'
-          : 'Calls to ${formatIndianNumber(from)} that you forward are '
-                'answered by your AI receptionist.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -215,13 +188,8 @@ class _TestCallCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final from = line.publishedNumber;
     return _Card(
       title: 'First, a test call',
-      description:
-          'Call your AI number once from '
-          '${from == null ? 'your own number' : formatIndianNumber(from)}. '
-          'It confirms your number and hangs up. Then turn on forwarding.',
       child: platform == ForwardPlatform.other
           ? const SizedBox.shrink()
           : Align(
@@ -278,12 +246,6 @@ class _TurnOn extends StatelessWidget {
               large: true,
               kind: primary ? CruButtonKind.primary : CruButtonKind.secondary,
               onPressed: () => _dial(context, code),
-            ),
-            const SizedBox(height: CruSpace.s12),
-            Text(
-              'Your dialler opens with $code filled in. Press call once. '
-              'A dual-SIM phone asks which SIM: pick the one patients call.',
-              style: CruType.caption.tint(c.label2),
             ),
           ],
         );
@@ -375,9 +337,9 @@ class _TurnOff extends StatelessWidget {
     final code = forwardOffCode(mode);
     switch (method) {
       case ForwardMethod.dial:
-        return _OffRow(
-          detail: 'Opens your dialler with $code. Press call once.',
-          action: CruButton(
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: CruButton(
             label: 'Turn off',
             kind: CruButtonKind.inset,
             onPressed: () => _dial(context, code),
@@ -462,10 +424,9 @@ Future<void> _openCallSettings(BuildContext context) async {
 // =============================================================================
 
 class _Card extends StatelessWidget {
-  const _Card({required this.title, this.description, this.child});
+  const _Card({required this.title, this.child});
 
   final String title;
-  final String? description;
   final Widget? child;
 
   @override
@@ -478,10 +439,6 @@ class _Card extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(title, style: CruType.headline.tint(c.label)),
-          if (description != null) ...[
-            const SizedBox(height: CruSpace.s4),
-            Text(description!, style: CruType.text.tint(c.label2)),
-          ],
           if (child != null) ...[const SizedBox(height: CruSpace.s20), child!],
         ],
       ),
@@ -489,7 +446,7 @@ class _Card extends StatelessWidget {
   }
 }
 
-/// A labelled segmented choice with an optional caption under it.
+/// A labelled segmented choice .
 class _Choice<T> extends StatelessWidget {
   const _Choice({
     required this.label,
@@ -497,7 +454,6 @@ class _Choice<T> extends StatelessWidget {
     required this.labelOf,
     required this.selected,
     required this.onChanged,
-    this.caption,
   });
 
   final String label;
@@ -505,7 +461,6 @@ class _Choice<T> extends StatelessWidget {
   final String Function(T) labelOf;
   final T selected;
   final ValueChanged<T> onChanged;
-  final String? caption;
 
   @override
   Widget build(BuildContext context) {
@@ -521,10 +476,6 @@ class _Choice<T> extends StatelessWidget {
           selected: selected,
           onChanged: onChanged,
         ),
-        if (caption != null) ...[
-          const SizedBox(height: CruSpace.s8),
-          Text(caption!, style: CruType.caption.tint(c.label2)),
-        ],
       ],
     );
   }

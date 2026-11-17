@@ -7,6 +7,8 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/charting_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
@@ -180,8 +182,26 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     );
   }
 
-  /// Right swipe: call. Left swipe: book a visit.
-  MobileSwipeAction? _callSwipe(PatientSummary s) {
+  /// Right swipe: the front desk rings the patient; anyone who holds their
+  /// clinical records opens the tooth chart instead, which is the thing
+  /// they came to this row for. Left swipe: book a visit.
+  ///
+  /// [toothChart] is the reason, not the role: it is clinical access on a
+  /// dentist's login. Reading it that way keeps the chart away from an
+  /// assistant or a manager, who are no more entitled to it than the
+  /// receptionist is, and keeps a physiotherapist from opening teeth.
+  MobileSwipeAction? _rightSwipe(
+    PatientSummary s, {
+    required bool toothChart,
+  }) {
+    if (toothChart) {
+      return MobileSwipeAction(
+        label: 'Tooth chart',
+        icon: DentalIcons.tooth,
+        tone: MobileTone.blue,
+        onCommit: () => openCharting(mobileRoot(context), s.patient),
+      );
+    }
     if (s.patient.phone.trim().isEmpty) return null;
     return MobileSwipeAction(
       label: 'Call',
@@ -484,6 +504,9 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     final now = ref.watch(dashboardNowProvider);
     final view = async.value;
     final canBook = ref.watch(clinicCanProvider(ClinicPermission.schedule));
+    final canChart =
+        ref.watch(isDentalProvider) &&
+        ref.watch(clinicCanProvider(ClinicPermission.clinicalView));
     // Recalls left More for an icon here, for those whose sidebar has it.
     final recalls = sidebarTabs(
       dental: ref.watch(dentalFeaturesProvider),
@@ -609,7 +632,7 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                       for (final s in g.rows)
                         MobileSwipeRow(
                           key: ValueKey(s.id),
-                          action: _callSwipe(s),
+                          action: _rightSwipe(s, toothChart: canChart),
                           leftAction: _bookSwipe(s, canBook: canBook),
                           child: _PatientRow(
                             summary: s,

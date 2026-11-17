@@ -134,7 +134,10 @@ class RevenueRepository {
         if (data['amount'] is num) {
           final plainVal = (data['amount'] as num).toDouble();
           final encryptedVal = FieldCipher.encrypt(plainVal.toString());
-          await doc.reference.update({'amount': encryptedVal});
+          await doc.reference.update({
+            'amount': encryptedVal,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
       }
 
@@ -148,7 +151,10 @@ class RevenueRepository {
         if (data['amount'] is num) {
           final plainVal = (data['amount'] as num).toDouble();
           final encryptedVal = FieldCipher.encrypt(plainVal.toString());
-          await doc.reference.update({'amount': encryptedVal});
+          await doc.reference.update({
+            'amount': encryptedVal,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
       }
     } catch (_) {}

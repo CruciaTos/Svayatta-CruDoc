@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:doctor_management_app/core/services/encryption_key_manager.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
+import 'package:doctor_management_app/core/services/sync_row_mapper.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
@@ -65,16 +68,63 @@ class FirestoreSyncService {
     'visitations': 'home',
   };
 
-  /// How far around now the live visit listener reaches: from this far back
-  /// to this far ahead of the scheduled start.
-  static const Duration _liveVisitWindowBack = Duration(days: 60);
-  static const Duration _liveVisitWindowAhead = Duration(days: 365);
+  /// Documents per page when catching up or comparing ids.
+  static const int _pageSize = 300;
 
-  /// Page size for the first-ever download of a clinic's visits.
-  static const int _visitPageSize = 500;
+  /// How far behind the saved cursor each catch-up and live listener
+  /// starts. A server timestamp is assigned before its write becomes
+  /// visible, so a write stamped just before the cursor can show up after a
+  /// later one; the overlap re-reads that stretch, and versions already held
+  /// are skipped.
+  static const Duration _cursorOverlap = Duration(minutes: 10);
 
-  final List<StreamSubscription> _liveSubscriptions = [];
+  /// How often every server id is compared with this device's rows even
+  /// when the counts agree: catches what a count can't (a delete and an
+  /// add that cancel out, documents without a usable updatedAt).
+  static const Duration _fullReconcileEvery = Duration(days: 7);
+
+  /// The same for a doctor narrowed to assigned patients, where a swapped
+  /// assignment leaves the count unchanged. Replaces the reconcile that ran
+  /// on every snapshot of the old unbounded listener.
+  static const Duration _scopedReconcileEvery = Duration(hours: 6);
+
+  /// Count checks run on launch, reconnect and access change (post-write
+  /// syncs skip them), at most this often, and at least hourly.
+  static const Duration _countCheckMinGap = Duration(minutes: 15);
+  static const Duration _countCheckMaxGap = Duration(hours: 1);
+
+  /// Pages smaller than this are decrypted here: spawning a worker isolate
+  /// costs more than they do.
+  static const int _workerMinDocs = 16;
+
+  /// One live listener per collection, attached once it has caught up.
+  final Map<String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
+  _liveByCollection = {};
   String? _subscribedDoctorId;
+
+  /// Collections whose catch-up finished in this session.
+  final Set<String> _caughtUpThisSession = {};
+
+  /// Serializes writes into each table (catch-up pages, live snapshots,
+  /// reconciles), so an older answer is never written over a newer one.
+  final Map<String, Future<void>> _tableLocks = {};
+
+  /// Collections to compare id by id on the next pass, and those whose rows
+  /// must be rewritten even when the version matches (see
+  /// [_noteAccessShape]).
+  final Set<String> _forceReconcile = {};
+  final Set<String> _forceRewrite = {};
+  String? _pendingAccessShape;
+
+  /// Bumped by [stop]: a catch-up, reconcile or live snapshot started under
+  /// an older generation (or another doctor) stops before writing rows or
+  /// moving a cursor into whichever database is open now.
+  int _generation = 0;
+
+  bool _countCheckDue = true;
+  DateTime? _lastCountCheckRun;
+  bool _syncAgain = false;
+  bool _decryptWorkerFailed = false;
 
   /// Permission needed to read each synced collection (firestore.rules).
   static const Map<String, ClinicPermission> _readPermission = {
@@ -162,6 +212,8 @@ class FirestoreSyncService {
       for (final table in targets.tables) {
         await db.delete(table);
       }
+      // Downloaded from scratch if the permission comes back.
+      _caughtUpThisSession.removeAll(targets.watermarks);
       for (final name in targets.watermarks) {
         await db.delete(
           'sync_state',
@@ -185,33 +237,34 @@ class FirestoreSyncService {
   Future<void> start() async {
     if (_isStarted) return;
     _isStarted = true;
+    _countCheckDue = true;
+    _lastCountCheckRun = null;
 
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       dynamic result,
     ) {
       try {
         if (result is ConnectivityResult) {
-          if (result != ConnectivityResult.none) unawaited(synchronize());
+          if (result != ConnectivityResult.none) _syncAfterReconnect();
           return;
         }
         if (result is List<ConnectivityResult>) {
           if (result.any((r) => r != ConnectivityResult.none)) {
-            unawaited(synchronize());
+            _syncAfterReconnect();
           }
           return;
         }
         // Unknown payload shape — conservatively attempt synchronization.
-        unawaited(synchronize());
+        _syncAfterReconnect();
       } catch (_) {
         // Swallow listener errors to avoid crashing the subscription.
       }
     });
 
     await _scrubClinicalFields();
-    final doctorId = _currentDoctorId;
-    if (doctorId != null) {
-      _startLiveSubscriptions(doctorId);
-    }
+    // Live listeners attach inside synchronize(), once each collection has
+    // caught up: listening to a collection never downloaded here would pull
+    // all of it at once.
 
     // A role change in the same clinic changes what may be read: listen
     // again with the new set.
@@ -229,7 +282,8 @@ class FirestoreSyncService {
         _purgeUnreadableCollections().then((_) => _scrubClinicalFields()).then((
           _,
         ) {
-          _startLiveSubscriptions(id);
+          _countCheckDue = true;
+          _lastCountCheckRun = null;
           return synchronize();
         }),
       );
@@ -238,7 +292,13 @@ class FirestoreSyncService {
     unawaited(synchronize());
   }
 
+  void _syncAfterReconnect() {
+    _countCheckDue = true;
+    unawaited(synchronize());
+  }
+
   Future<void> stop() async {
+    _generation++;
     await _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
     await _accessSubscription?.cancel();
@@ -249,6 +309,11 @@ class FirestoreSyncService {
     // Phase 19: reset the sync-in-progress flag so the next doctor's
     // first synchronize() call is never silently dropped.
     _isSyncing = false;
+    _syncAgain = false;
+    _caughtUpThisSession.clear();
+    _forceReconcile.clear();
+    _forceRewrite.clear();
+    _pendingAccessShape = null;
   }
 
   /// The tenant query for [collection], narrowed to the signed-in person's
@@ -369,182 +434,277 @@ class FirestoreSyncService {
     return const {};
   }
 
-  /// Applies [rowsToDropAfterScopedAnswer] to [collection]'s table.
-  Future<void> _reconcileScopedCollection(
+  /// Applies [rowsToDropAfterScopedAnswer] to [collection]'s table, given
+  /// every id the server holds for this doctor. Returns how many rows went.
+  Future<int> _reconcileScopedCollection(
     String collection,
     String doctorId,
-    Set<String> serverIds,
-  ) async {
+    Set<String> serverIds, {
+    required int syncedBefore,
+  }) async {
     final table = _tableFor(collection);
     final db = await _databaseService.localDatabase;
     final local = await db.query(
       table,
       columns: ['id', 'syncStatus'],
-      where: 'doctorId = ?',
-      whereArgs: [doctorId],
+      // Only rows that came from (or reached) the server before the ids
+      // were read.
+      where: 'doctorId = ? AND lastSyncedAt IS NOT NULL AND lastSyncedAt < ?',
+      whereArgs: [doctorId, syncedBefore],
     );
     final drop = rowsToDropAfterScopedAnswer(
       localRows: local,
       serverIds: serverIds,
     );
-    if (drop.isEmpty) return;
-    for (final id in drop) {
-      await db.delete(table, where: 'id = ?', whereArgs: [id]);
-    }
-    _notifyTableChanged(table);
+    if (drop.isEmpty) return 0;
+    return _dropSyncedRows(table, drop);
   }
 
-  void _startLiveSubscriptions(String doctorId) {
-    if (_subscribedDoctorId == doctorId && _liveSubscriptions.isNotEmpty) {
+  /// Deletes the synced rows among [ids] from [table] (rows waiting to
+  /// upload stay), one change notification for all. A row something else
+  /// still points at (a patient with visits) is kept, not fatal.
+  Future<int> _dropSyncedRows(String table, Set<String> ids) async {
+    final db = await _databaseService.localDatabase;
+    var dropped = 0;
+    for (final id in ids) {
+      try {
+        dropped += await db.delete(
+          table,
+          where: 'id = ? AND syncStatus = ?',
+          whereArgs: [id, 'synced'],
+        );
+      } catch (e) {
+        debugPrint('[FirestoreSync] could not drop $table/$id: $e');
+      }
+    }
+    if (dropped > 0) _notifyTableChanged(table);
+    return dropped;
+  }
+
+  /// Attaches a live listener to every readable collection that has caught
+  /// up and has none yet. Each listens only to documents changed since its
+  /// cursor (less [_cursorOverlap]), not to the whole collection: everything
+  /// older is already in SQLite.
+  Future<void> _attachLiveListeners(String doctorId) async {
+    // Not before start() (a write can sync during the first pull), and never
+    // for a session that has since stopped or switched.
+    if (!_isStarted || _currentDoctorId != doctorId) return;
+    if (_subscribedDoctorId != doctorId) {
+      _stopLiveSubscriptions();
+      _subscribedDoctorId = doctorId;
+    }
+    for (final collection in _allSyncedCollections) {
+      if (!canReadCollection(collection)) continue;
+      if (_liveByCollection.containsKey(collection)) continue;
+      // Only after a catch-up finished in this session: a cursor left
+      // mid-collection by an interrupted first pull, or one months old,
+      // would make the listener the unbounded download that catch-up pages
+      // through. The next successful catch-up attaches it.
+      if (!_caughtUpThisSession.contains(collection)) continue;
+      final cursor = await _readCursor(collection);
+      // Stopped, re-scoped or attached elsewhere while reading the cursor.
+      if (!_isStarted ||
+          _subscribedDoctorId != doctorId ||
+          _liveByCollection.containsKey(collection) ||
+          !canReadCollection(collection)) {
+        continue;
+      }
+      // Caught up with nothing on the server: only what's written from now.
+      final fromMs = cursor.ms > 0
+          ? _overlapStart(cursor.ms)
+          : _overlapStart(DateTime.now().millisecondsSinceEpoch);
+      _liveByCollection[collection] = _listen(collection, doctorId, fromMs);
+    }
+  }
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>> _listen(
+    String collection,
+    String doctorId,
+    int fromMs,
+  ) {
+    // Decided when the listener starts; a role or scope change restarts
+    // every listener (see the access subscription in start()).
+    final narrowed = _narrowsToAssignment(
+      collection,
+      ClinicSession.instance.access,
+    );
+    final table = _tableFor(collection);
+    final generation = _generation;
+    final query = _scopedQuery(collection, doctorId).where(
+      'updatedAt',
+      isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(fromMs),
+    );
+    late final StreamSubscription<QuerySnapshot<Map<String, dynamic>>> sub;
+    sub = query.snapshots().listen(
+      (snapshot) => unawaited(
+        _locked(
+          table,
+          () => _onLiveSnapshot(
+            collection,
+            doctorId,
+            narrowed,
+            snapshot,
+            generation,
+          ),
+        ),
+      ),
+      onError: (Object e) {
+        debugPrint('Live listener on $collection: $e');
+        // The stream has ended; the next sync pass attaches a new one.
+        if (identical(_liveByCollection[collection], sub)) {
+          _liveByCollection.remove(collection);
+        }
+      },
+    );
+    return sub;
+  }
+
+  Future<void> _onLiveSnapshot(
+    String collection,
+    String doctorId,
+    bool narrowed,
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+    int generation,
+  ) async {
+    bool current() =>
+        _generation == generation && _subscribedDoctorId == doctorId;
+    if (!current()) return;
+    final changed = <DocumentSnapshot<Map<String, dynamic>>>[];
+    final removed = <String>[];
+    for (final change in snapshot.docChanges) {
+      if (change.type == DocumentChangeType.removed) {
+        // This device's own write still waiting for the server: its
+        // serverTimestamp placeholder fails the updatedAt filter locally, so
+        // the document leaves the query until the write is acknowledged and
+        // it comes back. Not a delete.
+        if (snapshot.metadata.hasPendingWrites ||
+            change.doc.metadata.hasPendingWrites) {
+          continue;
+        }
+        removed.add(change.doc.id);
+      } else {
+        changed.add(change.doc);
+      }
+    }
+    try {
+      for (var i = 0; i < changed.length; i += _pageSize) {
+        await _applyDocs(
+          collection,
+          doctorId,
+          changed.sublist(i, math.min(i + _pageSize, changed.length)),
+          stillCurrent: current,
+        );
+      }
+    } catch (e, st) {
+      // The cursor stays put, so the next catch-up fetches these again.
+      debugPrint('Live sync update failed in $collection: $e\n$st');
       return;
     }
-    _stopLiveSubscriptions();
-    _subscribedDoctorId = doctorId;
-
-    for (final collection in _collections) {
-      if (!canReadCollection(collection)) continue;
-      // Decided when the listener starts; a role or scope change restarts
-      // every listener (see the access subscription in start()).
-      final narrowed = _narrowsToAssignment(
-        collection,
-        ClinicSession.instance.access,
-      );
-      final sub = _scopedQuery(collection, doctorId).snapshots().listen((
-        snapshot,
-      ) async {
-        for (final change in snapshot.docChanges) {
-          try {
-            final doc = change.doc;
-            if (change.type == DocumentChangeType.removed) {
-              if (narrowed) {
-                // Leaving a narrowed query usually means "no longer
-                // yours", not "deleted": the reconcile below takes it off
-                // the device rather than archiving a copy on it.
-                continue;
-              }
-              await _applyRemoteDeletion(collection, doc.id, doctorId);
-            } else {
-              final data = doc.data();
-              if (data == null) continue;
-              await _upsertDownloadedRow(collection, doc.id, data, doctorId);
-            }
-          } catch (e, st) {
-            // Swallow individual doc handling errors so the listener continues.
-            debugPrint('Live sync doc update failed in $collection: $e\n$st');
-          }
-        }
-        // A server answer to a narrowed query is the complete list of
-        // what this doctor may hold. Anything else cached locally — a
-        // patient reassigned while this device was off, which no change
-        // event would ever report — comes off the device now. A cache
-        // answer can be partial, so it is never used for this.
-        if (narrowed && !snapshot.metadata.isFromCache) {
-          try {
-            await _reconcileScopedCollection(collection, doctorId, {
-              for (final d in snapshot.docs) d.id,
-            });
-          } catch (e) {
-            debugPrint('Scoped reconcile of $collection failed: $e');
-          }
-        }
-      });
-      _liveSubscriptions.add(sub);
-    }
-
-    for (final firestoreCollection in _visitFirestoreToType.keys) {
-      if (!canReadCollection(firestoreCollection)) continue;
-      // Live only for the visits around now. Everything older is already in
-      // SQLite from earlier syncs, and a first sync on a new device pulls it
-      // in pages (see _downloadChangedRows). A visit edited elsewhere that
-      // sits outside this window still arrives through that incremental
-      // catch-up, which is keyed on updatedAt rather than the visit date.
-      final now = DateTime.now();
-      final windowStart = Timestamp.fromDate(
-        now.subtract(_liveVisitWindowBack),
-      );
-      final windowEnd = Timestamp.fromDate(now.add(_liveVisitWindowAhead));
-      Future<void> handle(QuerySnapshot<Map<String, dynamic>> snapshot) async {
-        for (final change in snapshot.docChanges) {
-          try {
-            final doc = change.doc;
-            if (change.type == DocumentChangeType.removed) {
-              // With a date window, "removed" also means "rescheduled out
-              // of the window". Look the document up: still there means
-              // keep it (and take its new date); gone means deleted.
-              final current = await _firestore
-                  .collection(firestoreCollection)
-                  .doc(doc.id)
-                  .get();
-              final currentData = current.data();
-              if (current.exists && currentData != null) {
-                await _upsertDownloadedRow(
-                  firestoreCollection,
-                  doc.id,
-                  currentData,
-                  doctorId,
-                  sqliteTable: 'visits',
-                );
-              } else {
-                await _applyRemoteDeletion(
-                  firestoreCollection,
-                  doc.id,
-                  doctorId,
-                  sqliteTable: 'visits',
-                );
-              }
-            } else {
-              final data = doc.data();
-              if (data == null) continue;
-              await _upsertDownloadedRow(
-                firestoreCollection,
-                doc.id,
-                data,
-                doctorId,
-                sqliteTable: 'visits',
-              );
-            }
-          } catch (e, st) {
-            // Swallow per-doc errors so listener stays alive.
-            debugPrint('Live sync doc update failed in visits: $e\n$st');
-          }
-        }
+    for (final id in removed) {
+      if (!current()) return;
+      try {
+        await _applyLiveRemoval(collection, doctorId, narrowed, id, current);
+      } catch (e, st) {
+        // Swallow per-doc errors so the listener stays alive.
+        debugPrint('Live sync removal failed in $collection: $e\n$st');
       }
-
-      void subscribe(bool windowed) {
-        var query = _firestore
-            .collection(firestoreCollection)
-            .where('doctorId', isEqualTo: doctorId);
-        if (windowed) {
-          query = query
-              .where('scheduledStart', isGreaterThanOrEqualTo: windowStart)
-              .where('scheduledStart', isLessThanOrEqualTo: windowEnd);
-        }
-        late final StreamSubscription<QuerySnapshot<Map<String, dynamic>>> sub;
-        sub = query.snapshots().listen(
-          handle,
-          onError: (Object e) {
-            debugPrint('Live visit listener on $firestoreCollection: $e');
-            if (!windowed) return;
-            // Most likely the doctorId + scheduledStart index is not deployed
-            // yet: listen to everything rather than to nothing.
-            _liveSubscriptions.remove(sub);
-            sub.cancel();
-            subscribe(false);
-          },
-        );
-        _liveSubscriptions.add(sub);
-      }
-
-      subscribe(true);
     }
+    // Only from a server answer, and only after its rows committed.
+    if (snapshot.metadata.isFromCache) return;
+    final newest = _newestOf(changed);
+    if (newest == null || !current()) return;
+    try {
+      await _saveCursor(collection, newest.ms, newest.id);
+    } catch (e) {
+      debugPrint('[FirestoreSync] saving the $collection cursor failed: $e');
+    }
+  }
+
+  /// A document left a live query. Under the updatedAt filter that is
+  /// normally a delete; a narrowed query also loses a patient (and their
+  /// records) reassigned to someone else, and a visit used to leave its old
+  /// date window. Looked up on the server to tell which.
+  Future<void> _applyLiveRemoval(
+    String collection,
+    String doctorId,
+    bool narrowed,
+    String id,
+    bool Function() stillCurrent,
+  ) async {
+    final table = _tableFor(collection);
+    // An edit made here and not yet uploaded wins; the upload settles it.
+    if (await _isPendingLocally(table, id, doctorId)) return;
+    DocumentSnapshot<Map<String, dynamic>>? fetched;
+    try {
+      fetched = await _firestore
+          .collection(collection)
+          .doc(id)
+          .get(const GetOptions(source: Source.server));
+    } on FirebaseException catch (e) {
+      if (!(narrowed && e.code == 'permission-denied')) {
+        // Couldn't ask (offline, a blip): never delete on a guess. The next
+        // reconcile settles it.
+        return;
+      }
+      // Refused: no longer this doctor's to read.
+      fetched = null;
+    }
+    if (!stillCurrent()) return;
+    final doc = fetched;
+    final data = doc?.data();
+    if (doc != null &&
+        doc.exists &&
+        data != null &&
+        (!narrowed ||
+            Patient.assignedFromStored(
+              data['assignedDoctorUids'],
+            ).contains(ClinicSession.instance.access?.uid))) {
+      // Still there (and still this doctor's): keep it, with its new data.
+      await _applyDocs(collection, doctorId, [doc], stillCurrent: stillCurrent);
+    } else if (narrowed) {
+      // Leaving a narrowed query usually means "no longer yours", not
+      // "deleted": it comes off the device rather than being archived on it.
+      await _dropSyncedRows(table, {id});
+    } else {
+      await _applyRemoteDeletion(collection, id, doctorId, sqliteTable: table);
+    }
+  }
+
+  Future<bool> _isPendingLocally(
+    String table,
+    String id,
+    String doctorId,
+  ) async {
+    final db = await _databaseService.localDatabase;
+    final rows = await db.query(
+      table,
+      columns: ['syncStatus'],
+      where: 'id = ? AND doctorId = ?',
+      whereArgs: [id, doctorId],
+      limit: 1,
+    );
+    return rows.isNotEmpty && rows.first['syncStatus'] == 'pending';
   }
 
   void _stopLiveSubscriptions() {
-    for (final sub in _liveSubscriptions) {
+    for (final sub in _liveByCollection.values) {
       sub.cancel();
     }
-    _liveSubscriptions.clear();
+    _liveByCollection.clear();
     _subscribedDoctorId = null;
+  }
+
+  /// Runs [body] after every earlier write into [table] has finished.
+  Future<T> _locked<T>(String table, Future<T> Function() body) {
+    final previous = _tableLocks[table] ?? Future<void>.value();
+    final done = Completer<void>();
+    _tableLocks[table] = done.future;
+    return previous.then((_) => body()).whenComplete(done.complete);
+  }
+
+  static int _overlapStart(int cursorMs) {
+    final start = cursorMs - _cursorOverlap.inMilliseconds;
+    return start < 0 ? 0 : start;
   }
 
   Future<void> triggerPostWriteSync() => synchronize();
@@ -556,19 +716,35 @@ class FirestoreSyncService {
   String? get _currentDoctorId => ClinicSession.instance.tenantId;
 
   Future<void> synchronize() async {
-    if (_isSyncing) return;
+    if (_isSyncing) {
+      // Run once more when the current pass ends, so a write or an access
+      // change made meanwhile is not left waiting for the next trigger.
+      _syncAgain = true;
+      return;
+    }
     final doctorId = _currentDoctorId;
     if (doctorId == null) return; // nothing to sync without a signed-in doctor
     _isSyncing = true;
 
     try {
-      _startLiveSubscriptions(doctorId);
-      await _uploadPendingRows(doctorId);
-      await _downloadChangedRows(doctorId);
-    } catch (e, st) {
-      // Leave pending rows untouched; the next startup/connectivity/write trigger
-      // retries the same simple sync pass.
-      debugPrint('Sync pass failed: $e\n$st');
+      do {
+        _syncAgain = false;
+        try {
+          await _uploadPendingRows(doctorId);
+          await _downloadChangedRows(doctorId);
+        } catch (e, st) {
+          // Leave pending rows untouched; the next startup/connectivity/write
+          // trigger retries the same simple sync pass.
+          debugPrint('Sync pass failed: $e\n$st');
+        }
+        try {
+          // Collections that caught up in this session listen; the rest wait
+          // for their next successful catch-up (reconnect retries it).
+          await _attachLiveListeners(doctorId);
+        } catch (e) {
+          debugPrint('Attaching live listeners failed: $e');
+        }
+      } while (_syncAgain && _isSyncing && _currentDoctorId == doctorId);
     } finally {
       _isSyncing = false;
     }
@@ -763,93 +939,346 @@ class FirestoreSyncService {
     await commitCurrentBatch();
   }
 
+  /// Brings every readable collection up to date: the documents changed
+  /// since each one's cursor, then — on launch, reconnect and access change —
+  /// the delete safety net ([_verifyCollection]).
   Future<void> _downloadChangedRows(String doctorId) async {
-    // ── non-visit collections ────────────────────────────────────────────────
-    for (final collection in _collections) {
+    final now = DateTime.now();
+    final last = _lastCountCheckRun;
+    final sinceLast = last == null ? null : now.difference(last);
+    final checkCounts =
+        sinceLast == null ||
+        sinceLast >= _countCheckMaxGap ||
+        (_countCheckDue && sinceLast >= _countCheckMinGap);
+    if (checkCounts) {
+      _countCheckDue = false;
+      _lastCountCheckRun = now;
+    }
+    await _noteAccessShape();
+
+    for (final collection in _allSyncedCollections) {
       if (!canReadCollection(collection)) continue;
-      final lastSyncTime = await _lastSyncTime(collection);
-      Query<Map<String, dynamic>> query = _scopedQuery(collection, doctorId);
-      if (lastSyncTime > 0) {
-        query = query.where(
-          'updatedAt',
-          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
-        );
-      }
-      final snapshot = await query.get();
-
-      var newestSyncTime = lastSyncTime;
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final updatedAtMillis = _timestampToMillis(data['updatedAt']);
-        if (updatedAtMillis > newestSyncTime) {
-          newestSyncTime = updatedAtMillis;
+      try {
+        await catchUpCollection(collection, doctorId);
+        if (checkCounts || _forceReconcile.contains(collection)) {
+          await _verifyCollection(collection, doctorId);
         }
-        await _upsertDownloadedRow(collection, doc.id, data, doctorId);
-      }
-
-      if (newestSyncTime > lastSyncTime) {
-        await _setLastSyncTime(collection, newestSyncTime);
+      } on _SessionChanged {
+        // Signed out or switched mid-pass: write nothing more.
+        return;
+      } on FirebaseException catch (e) {
+        if (e.code == 'unavailable') {
+          // Offline: every other collection would fail the same way.
+          _countCheckDue = true;
+          _lastCountCheckRun = null;
+          rethrow;
+        }
+        // Refused or failed for this collection only; the rest carry on.
+        debugPrint('[FirestoreSync] syncing $collection failed: $e');
+      } catch (e, st) {
+        debugPrint('[FirestoreSync] syncing $collection failed: $e\n$st');
       }
     }
 
-    // ── visit Firestore collections → visits SQLite table ────────────────────
-    for (final firestoreCollection in _visitFirestoreToType.keys) {
-      if (!canReadCollection(firestoreCollection)) continue;
-      final lastSyncTime = await _lastSyncTime(firestoreCollection);
-      final base = _firestore
-          .collection(firestoreCollection)
-          .where('doctorId', isEqualTo: doctorId);
-      var newestSyncTime = lastSyncTime;
+    _forceReconcile.removeWhere((c) => !canReadCollection(c));
+    final shape = _pendingAccessShape;
+    if (shape != null && _forceReconcile.isEmpty) {
+      await _writeMeta(_accessShapeKey, shape);
+      _pendingAccessShape = null;
+    }
+  }
 
-      Future<void> apply(QuerySnapshot<Map<String, dynamic>> snapshot) async {
-        for (final doc in snapshot.docs) {
-          final data = doc.data();
-          final updatedAtMillis = _timestampToMillis(data['updatedAt']);
-          if (updatedAtMillis > newestSyncTime) {
-            newestSyncTime = updatedAtMillis;
-          }
-          await _upsertDownloadedRow(
-            firestoreCollection,
-            doc.id,
-            data,
-            doctorId,
-            sqliteTable: 'visits',
-          );
-        }
-      }
+  /// Downloads [collection]'s documents changed since its cursor, a page at
+  /// a time in (updatedAt, document id) order, and saves the cursor after
+  /// each page's rows have committed — an interrupted run resumes from the
+  /// last saved page. A first run is simply cursor 0.
+  ///
+  /// Public for InitialFirestoreMigrationService, whose first pull is this.
+  Future<void> catchUpCollection(String collection, String doctorId) async {
+    final watch = Stopwatch()..start();
+    final table = _tableFor(collection);
+    final current = _sessionGuard(doctorId);
+    final cursor = await _readCursor(collection);
+    _ensureCurrent(current);
+    var query = _scopedQuery(collection, doctorId);
+    if (cursor.ms > 0) {
+      query = query.where(
+        'updatedAt',
+        isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(
+          _overlapStart(cursor.ms),
+        ),
+      );
+    }
+    query = query
+        .orderBy('updatedAt')
+        .orderBy(FieldPath.documentId)
+        .limit(_pageSize);
 
-      if (lastSyncTime > 0) {
-        await apply(
-          await base
-              .where(
-                'updatedAt',
-                isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(
-                  lastSyncTime,
-                ),
-              )
-              .get(),
+    var pages = 0;
+    var docs = 0;
+    QueryDocumentSnapshot<Map<String, dynamic>>? last;
+    while (true) {
+      // From the server only: a cache answer can be partial, and a cursor
+      // moved past documents it left out would never fetch them.
+      final page = await (last == null ? query : query.startAfterDocument(last))
+          .get(const GetOptions(source: Source.server));
+      _ensureCurrent(current);
+      pages++;
+      docs += page.docs.length;
+      await _locked(table, () async {
+        _ensureCurrent(current);
+        await _applyDocs(
+          collection,
+          doctorId,
+          page.docs,
+          stillCurrent: current,
         );
-      } else {
-        // First sync on this device: a page at a time, by document id so no doc
-        // (even one without a scheduledStart) is skipped, and memory stays
-        // flat. The watermark is only set after every page, so an interrupted
-        // run starts over rather than skipping the rest.
-        final paged = base.orderBy(FieldPath.documentId).limit(_visitPageSize);
-        QueryDocumentSnapshot<Map<String, dynamic>>? last;
-        while (true) {
-          final snapshot =
-              await (last == null ? paged : paged.startAfterDocument(last))
-                  .get();
-          await apply(snapshot);
-          if (snapshot.docs.length < _visitPageSize) break;
-          last = snapshot.docs.last;
-        }
-      }
+      });
+      final newest = _newestOf(page.docs);
+      _ensureCurrent(current);
+      if (newest != null) await _saveCursor(collection, newest.ms, newest.id);
+      if (page.docs.length < _pageSize) break;
+      last = page.docs.last;
+    }
+    _caughtUpThisSession.add(collection);
+    debugPrint(
+      '[FirestoreSync] catch-up $collection: $pages pages, $docs docs, '
+      '${watch.elapsedMilliseconds} ms',
+    );
+  }
 
-      if (newestSyncTime > lastSyncTime) {
-        await _setLastSyncTime(firestoreCollection, newestSyncTime);
+  /// The delete safety net. A listener filtered on updatedAt never hears of
+  /// an older document being deleted, so compare the server's count for the
+  /// same query with the rows this device believes the server holds; on a
+  /// mismatch, or when the periodic comparison is due, compare every id.
+  /// A count that fails (offline, refused) is skipped silently.
+  Future<void> _verifyCollection(String collection, String doctorId) async {
+    final current = _sessionGuard(doctorId);
+    final cursor = await _readCursor(collection);
+    final narrowed = _narrowsToAssignment(
+      collection,
+      ClinicSession.instance.access,
+    );
+    final every = narrowed ? _scopedReconcileEvery : _fullReconcileEvery;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final due =
+        _forceReconcile.contains(collection) ||
+        (cursor.lastCountCheckAt > 0 &&
+            nowMs - cursor.lastCountCheckAt >= every.inMilliseconds);
+    if (!due) {
+      int? server;
+      try {
+        server = (await _scopedQuery(collection, doctorId).count().get()).count;
+      } catch (_) {
+        return;
+      }
+      if (server == null) return;
+      final local = await _localServerHeldCount(collection, doctorId);
+      _ensureCurrent(current);
+      if (server == local) {
+        // First check on this device: start the periodic clock now rather
+        // than comparing every id straight away.
+        if (cursor.lastCountCheckAt <= 0) {
+          await _setLastCountCheckAt(collection, nowMs);
+        }
+        return;
+      }
+      // The last reconcile already left exactly this mismatch: running it
+      // again would re-read the whole collection for nothing.
+      if (await _readMeta(_mismatchKey(collection)) == '$server:$local') {
+        return;
+      }
+      debugPrint(
+        '[FirestoreSync] $collection: server holds $server, this device '
+        'expects $local; comparing ids',
+      );
+    }
+    await _reconcileIds(collection, doctorId);
+  }
+
+  /// Rows of [collection] the server should still hold: ones it sent or
+  /// accepted (lastSyncedAt set, whether or not edited here since), minus
+  /// those known to be gone from it. Soft-deleted rows (isDeleted,
+  /// isArchived) still count: their documents are still there. A row that
+  /// never synced (no lastSyncedAt) is never counted — nor, below, touched.
+  Future<int> _localServerHeldCount(String collection, String doctorId) async {
+    final db = await _databaseService.localDatabase;
+    final visitType = _visitFirestoreToType[collection];
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS n FROM ${_tableFor(collection)} '
+      'WHERE doctorId = ? AND remoteGone = 0 AND lastSyncedAt IS NOT NULL'
+      '${visitType == null ? '' : ' AND visitType = ?'}',
+      [doctorId, ?visitType],
+    );
+    return (rows.first['n'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Compares every server id of [collection] with this device: downloads
+  /// whatever is missing or out of date, and treats synced rows the server
+  /// no longer returns as removed there (dropped instead, for a doctor
+  /// narrowed to their own patients). Rows waiting to upload are never
+  /// touched.
+  Future<void> _reconcileIds(String collection, String doctorId) async {
+    final watch = Stopwatch()..start();
+    // Rows synced after this (a live update, this device's own upload) may
+    // be missing from pages already read; they are left out of the removal
+    // step below.
+    final startedAt = DateTime.now().millisecondsSinceEpoch;
+    final table = _tableFor(collection);
+    final narrowed = _narrowsToAssignment(
+      collection,
+      ClinicSession.instance.access,
+    );
+    final rewrite = _forceRewrite.contains(collection);
+    final current = _sessionGuard(doctorId);
+    final query = _scopedQuery(
+      collection,
+      doctorId,
+    ).orderBy(FieldPath.documentId).limit(_pageSize);
+    final serverIds = <String>{};
+    var pages = 0;
+    QueryDocumentSnapshot<Map<String, dynamic>>? last;
+    while (true) {
+      final page = await (last == null ? query : query.startAfterDocument(last))
+          .get(const GetOptions(source: Source.server));
+      _ensureCurrent(current);
+      pages++;
+      for (final d in page.docs) {
+        serverIds.add(d.id);
+      }
+      await _locked(table, () async {
+        _ensureCurrent(current);
+        await _applyDocs(
+          collection,
+          doctorId,
+          page.docs,
+          rewrite: rewrite,
+          stillCurrent: current,
+        );
+      });
+      if (page.docs.length < _pageSize) break;
+      last = page.docs.last;
+    }
+
+    // Every page arrived, so serverIds is the complete answer.
+    final gone = await _locked(table, () async {
+      _ensureCurrent(current);
+      if (narrowed) {
+        return _reconcileScopedCollection(
+          collection,
+          doctorId,
+          serverIds,
+          syncedBefore: startedAt,
+        );
+      }
+      final db = await _databaseService.localDatabase;
+      final visitType = _visitFirestoreToType[collection];
+      final local = await db.query(
+        table,
+        columns: ['id'],
+        where:
+            "doctorId = ? AND syncStatus = 'synced' AND remoteGone = 0 "
+            'AND lastSyncedAt IS NOT NULL AND lastSyncedAt < ?'
+            '${visitType == null ? '' : ' AND visitType = ?'}',
+        whereArgs: [doctorId, startedAt, ?visitType],
+      );
+      var removed = 0;
+      for (final row in local) {
+        final id = row['id']! as String;
+        if (serverIds.contains(id)) continue;
+        final changed = await _applyRemoteDeletion(
+          collection,
+          id,
+          doctorId,
+          sqliteTable: table,
+          notify: false,
+        );
+        if (changed) removed++;
+      }
+      if (removed > 0) _notifyTableChanged(table);
+      return removed;
+    });
+
+    _ensureCurrent(current);
+    _forceReconcile.remove(collection);
+    _forceRewrite.remove(collection);
+    // A mismatch the reconcile could not fix (a document that never lands
+    // here) is remembered, so the count check does not page the whole
+    // collection again until either count moves or the periodic run is due.
+    final local = await _localServerHeldCount(collection, doctorId);
+    _ensureCurrent(current);
+    await _writeMeta(
+      _mismatchKey(collection),
+      local == serverIds.length ? '' : '${serverIds.length}:$local',
+    );
+    await _setLastCountCheckAt(
+      collection,
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    debugPrint(
+      '[FirestoreSync] id reconcile $collection: $pages pages, '
+      '${serverIds.length} on the server, $gone removed here, '
+      '${watch.elapsedMilliseconds} ms',
+    );
+  }
+
+  static const String _accessShapeKey = 'sync.accessShape';
+
+  static String _mismatchKey(String collection) =>
+      'sync.reconcileMismatch.$collection';
+
+  /// Whether the session that called this is still the one signed in: the
+  /// same [stop] generation and the same doctor.
+  bool Function() _sessionGuard(String doctorId) {
+    final generation = _generation;
+    return () => _generation == generation && _currentDoctorId == doctorId;
+  }
+
+  static void _ensureCurrent(bool Function() current) {
+    if (!current()) throw const _SessionChanged();
+  }
+
+  /// Notices a change, since the last pass and across restarts, in what this
+  /// person's rows hold or which rows they get: clinical fields becoming
+  /// readable, or a collection narrowed to (or widened from) assigned
+  /// patients. The delta catch-up never re-sends a version the device
+  /// already has, and the old unbounded listeners did, so such a change is
+  /// now settled by comparing every id — rewriting patients, so their
+  /// clinical fields fill in.
+  Future<void> _noteAccessShape() async {
+    final access = ClinicSession.instance.access;
+    final holds = ClinicSession.instance.holdsClinicalFields;
+    final narrowed = [
+      for (final c in _assignmentScopedCollections)
+        if (_narrowsToAssignment(c, access)) c,
+    ]..sort();
+    final shape = '${holds ? 1 : 0}|${narrowed.join(',')}';
+    final stored = await _readMeta(_accessShapeKey);
+    if (stored == shape) {
+      _pendingAccessShape = null;
+      return;
+    }
+    if (stored == null) {
+      // First pass with this check: nothing earlier to compare with.
+      await _writeMeta(_accessShapeKey, shape);
+      return;
+    }
+    final parts = stored.split('|');
+    final heldBefore = parts.first == '1';
+    final narrowedBefore = parts.length > 1 && parts[1].isNotEmpty
+        ? parts[1].split(',').toSet()
+        : <String>{};
+    if (holds && !heldBefore && canReadCollection('patients')) {
+      _forceReconcile.add('patients');
+      _forceRewrite.add('patients');
+    }
+    for (final c in _assignmentScopedCollections) {
+      if (narrowedBefore.contains(c) != narrowed.contains(c) &&
+          canReadCollection(c)) {
+        _forceReconcile.add(c);
       }
     }
+    _pendingAccessShape = shape;
   }
 
   Map<String, dynamic> _firestoreDataFor(
@@ -1067,72 +1496,265 @@ class FirestoreSyncService {
     }
   }
 
-  /// Inserts or replaces a downloaded Firestore document into SQLite.
+  /// Writes a page of downloaded documents of [collection] into SQLite.
   ///
-  /// [firestoreCollection] drives the data mapping (which fields to extract
-  /// and how to coerce types). [sqliteTable] is the actual table to write to;
-  /// when omitted it defaults to [firestoreCollection]. Pass `sqliteTable:
-  /// 'visits'` when downloading from `appointments` or `visitations` so both
-  /// Firestore collections land in the single `visits` SQLite table.
-  String _decryptDiagnosisForSqlite(dynamic rawDiagnosis) {
-    if (rawDiagnosis == null) return '';
-    if (rawDiagnosis is String) {
-      return FieldCipher.decrypt(rawDiagnosis);
-    }
-    if (rawDiagnosis is List) {
-      final decryptedList = rawDiagnosis
-          .map((d) => FieldCipher.decrypt(d.toString()))
-          .where((d) => d.isNotEmpty)
-          .toList();
-      return Patient.diagnosisToStored(decryptedList);
-    }
-    return rawDiagnosis.toString();
-  }
-
-  Future<void> _ensurePatientExists(String patientId, String doctorId) async {
-    if (patientId.trim().isEmpty) return;
+  /// The rules of the old per-document upsert hold: a row with local changes
+  /// waiting to upload is never overwritten, nor is a synced row newer than
+  /// the download (a stale answer arriving after a fresher one), an
+  /// un-synced stub always is, and a visit's patient is made to exist first.
+  /// What changed: a row already holding this exact version is skipped
+  /// (catch-up overlaps re-read a few) unless [rewrite]; decrypting runs on
+  /// a worker isolate; and the page is written in one transaction with one
+  /// change notification per table instead of one per document.
+  ///
+  /// Callers hold the table's lock ([_locked]). Returns rows written.
+  Future<int> _applyDocs(
+    String collection,
+    String doctorId,
+    List<DocumentSnapshot<Map<String, dynamic>>> docs, {
+    bool rewrite = false,
+    bool Function()? stillCurrent,
+  }) async {
+    if (docs.isEmpty) return 0;
+    final table = _tableFor(collection);
     final db = await _databaseService.localDatabase;
-    final existing = await db.query(
-      'patients',
-      columns: ['id'],
-      where: 'id = ?',
-      whereArgs: [patientId],
-      limit: 1,
-    );
-    if (existing.isNotEmpty) return;
+    final existing = await _existingRows(db, table, [
+      for (final d in docs) d.id,
+    ]);
 
-    try {
-      final doc = await _firestore
-          .collection('patients')
-          .doc(patientId)
-          .get(const GetOptions(source: Source.server));
-      if (doc.exists && doc.data() != null) {
-        final patientRow = _sqliteRowFor(
-          'patients',
-          doc.id,
-          doc.data()!,
-          doctorId,
-        );
-        await db.insert(
-          'patients',
-          patientRow,
-          conflictAlgorithm: LocalConflictAlgorithm.replace,
-        );
-        unawaited(PatientLocalService.instance.notifyPatientsChanged());
-        return;
+    final ids = <String>[];
+    final data = <Map<String, Object?>>[];
+    for (final doc in docs) {
+      final raw = doc.data();
+      if (raw == null) continue;
+      final local = existing[doc.id];
+      if (local != null &&
+          !_remoteMayReplace(
+            table,
+            local,
+            raw['updatedAt'],
+            rewrite: rewrite,
+          )) {
+        continue;
       }
-    } catch (e) {
+      ids.add(doc.id);
+      data.add(_plainData(raw));
+    }
+    if (ids.isEmpty) return 0;
+
+    final mapped = await _mapRows(collection, doctorId, ids, data);
+    final rows = mapped.whereType<Map<String, Object?>>().toList();
+    if (rows.isEmpty) return 0;
+
+    // Foreign key safety: a visit's patient must exist before the visit.
+    final parents = table == 'visits'
+        ? await _missingParentPatients(db, doctorId, rows)
+        : const <Map<String, Object?>>[];
+    // Mapping can take a while (a worker isolate): don't write another
+    // session's rows into whichever database is open now.
+    if (stillCurrent != null && !stillCurrent()) return 0;
+
+    final results = await db.writeBatch((batch) {
+      for (final parent in parents) {
+        batch.insert(
+          'patients',
+          parent,
+          conflictAlgorithm: LocalConflictAlgorithm.ignore,
+        );
+      }
+      for (final row in rows) {
+        final id = row['id']! as String;
+        if (existing.containsKey(id)) {
+          batch.update(
+            table,
+            row,
+            // Re-checked as it writes: an edit made on this device since the
+            // read above still wins.
+            where: 'id = ? AND syncStatus != ?',
+            whereArgs: [id, 'pending'],
+          );
+        } else {
+          // Ignore, not replace: a replace deletes the old row first, which
+          // the visits' patient reference refuses.
+          batch.insert(
+            table,
+            row,
+            conflictAlgorithm: LocalConflictAlgorithm.ignore,
+          );
+        }
+      }
+    }, continueOnError: true);
+
+    final failed = results.whereType<Exception>().length;
+    if (failed > 0) {
       debugPrint(
-        '[FirestoreSync] Could not fetch missing parent patient $patientId from Firestore: $e',
+        '[FirestoreSync] $failed of ${results.length} writes into $table '
+        'failed; the next count check fetches them again',
       );
     }
+    if (parents.isNotEmpty) _notifyTableChanged('patients');
+    _notifyTableChanged(table);
+    return rows.length - failed;
+  }
 
-    // Fallback: If patient document cannot be fetched from Firestore, create an archived minimal stub
-    // to satisfy the SQLite foreign key constraint without displaying dummy data in the UI.
+  /// Whether a downloaded version (its `updatedAt` [remoteUpdatedAtRaw])
+  /// may overwrite the [local] row of [table] it matches by id.
+  static bool _remoteMayReplace(
+    String table,
+    Map<String, Object?> local,
+    Object? remoteUpdatedAtRaw, {
+    bool rewrite = false,
+  }) {
+    // Pending local changes win.
+    if (local['syncStatus'] == 'pending') return false;
+    final localUpdatedAt = (local['updatedAt'] as num?)?.toInt() ?? 0;
+    final remoteUpdatedAt = _millisOf(remoteUpdatedAtRaw);
+    // An un-synced stub (a visit's placeholder patient) is always replaced.
+    final isStub =
+        localUpdatedAt <= 0 ||
+        (table == 'patients' &&
+            local['isArchived'] == 1 &&
+            local['firstName'] == 'Patient');
+    if (isStub || remoteUpdatedAt <= 0) return true;
+    // Local is newer — keep it.
+    if (localUpdatedAt > remoteUpdatedAt) return false;
+    // Already holds this very version.
+    final remoteGone = (local['remoteGone'] as num?)?.toInt() ?? 0;
+    if (!rewrite && localUpdatedAt == remoteUpdatedAt && remoteGone == 0) {
+      return false;
+    }
+    return true;
+  }
+
+  /// The local rows of [table] among [ids], with what [_remoteMayReplace]
+  /// reads. One query per 500 ids (SQLite caps bound parameters).
+  Future<Map<String, Map<String, Object?>>> _existingRows(
+    LocalDatabaseExecutor db,
+    String table,
+    List<String> ids,
+  ) async {
+    final found = <String, Map<String, Object?>>{};
+    for (var i = 0; i < ids.length; i += 500) {
+      final chunk = ids.sublist(i, math.min(i + 500, ids.length));
+      final rows = await db.query(
+        table,
+        columns: [
+          'id',
+          'syncStatus',
+          'updatedAt',
+          'remoteGone',
+          if (table == 'patients') ...['isArchived', 'firstName'],
+        ],
+        where: 'id IN (${List.filled(chunk.length, '?').join(',')})',
+        whereArgs: chunk,
+      );
+      for (final r in rows) {
+        found[r['id']! as String] = r;
+      }
+    }
+    return found;
+  }
+
+  static Map<String, Object?> _plainData(Map<String, dynamic> raw) =>
+      plainFirestoreValue(raw)! as Map<String, Object?>;
+
+  /// Decrypts and maps documents into rows on a worker isolate, given the
+  /// raw clinic key; on this isolate for a few documents, or if the worker
+  /// can't be used.
+  Future<List<Map<String, Object?>?>> _mapRows(
+    String collection,
+    String doctorId,
+    List<String> ids,
+    List<Map<String, Object?>> data,
+  ) async {
+    final job = syncRowJob(
+      collection: collection,
+      doctorId: doctorId,
+      holdsClinicalFields: ClinicSession.instance.holdsClinicalFields,
+      keyBytes: EncryptionKeyManager.instance.currentKey?.bytes,
+      ids: ids,
+      data: data,
+    );
+    if (!_decryptWorkerFailed && ids.length >= _workerMinDocs) {
+      try {
+        return await compute(mapSyncRows, job, debugLabel: 'sync-decrypt');
+      } catch (e) {
+        _decryptWorkerFailed = true;
+        debugPrint(
+          '[FirestoreSync] decrypt worker unavailable, decrypting here: $e',
+        );
+      }
+    }
+    return mapSyncRows(job);
+  }
+
+  /// Patient rows to insert ahead of the visits in [rows] whose patient
+  /// this device lacks: fetched from the server, or an archived stub when
+  /// that fails, so the visit still saves without showing a made-up
+  /// patient in the list.
+  Future<List<Map<String, Object?>>> _missingParentPatients(
+    LocalDatabaseExecutor db,
+    String doctorId,
+    List<Map<String, Object?>> rows,
+  ) async {
+    final wanted = <String>{
+      for (final r in rows)
+        if ((r['patientId'] as String? ?? '').trim().isNotEmpty)
+          r['patientId']! as String,
+    };
+    if (wanted.isEmpty) return const [];
+    final have = await _existingRows(db, 'patients', wanted.toList());
+    final missing = [
+      for (final id in wanted)
+        if (!have.containsKey(id)) id,
+    ];
+    if (missing.isEmpty) return const [];
+
+    final found = <DocumentSnapshot<Map<String, dynamic>>>[];
+    // Someone who can't read patients would only be refused.
+    if (canReadCollection('patients')) {
+      for (var i = 0; i < missing.length; i += 20) {
+        final batch = missing.sublist(i, math.min(i + 20, missing.length));
+        final docs = await Future.wait(
+          batch.map((id) async {
+            try {
+              final doc = await _firestore
+                  .collection('patients')
+                  .doc(id)
+                  .get(const GetOptions(source: Source.server));
+              return doc.exists && doc.data() != null ? doc : null;
+            } catch (e) {
+              debugPrint(
+                '[FirestoreSync] Could not fetch missing parent patient $id '
+                'from Firestore: $e',
+              );
+              return null;
+            }
+          }),
+        );
+        found.addAll(docs.whereType<DocumentSnapshot<Map<String, dynamic>>>());
+      }
+    }
+
+    final parents = <Map<String, Object?>>[];
+    if (found.isNotEmpty) {
+      final mapped = await _mapRows(
+        'patients',
+        doctorId,
+        [for (final d in found) d.id],
+        [for (final d in found) _plainData(d.data()!)],
+      );
+      parents.addAll(mapped.whereType<Map<String, Object?>>());
+    }
+    final fetched = {for (final p in parents) p['id']};
     final now = DateTime.now().millisecondsSinceEpoch;
-    try {
-      await db.insert('patients', {
-        'id': patientId,
+    for (final id in missing) {
+      if (fetched.contains(id)) continue;
+      // An archived minimal stub: satisfies the foreign key without showing
+      // dummy data in the UI. remoteGone, as the server is not known to hold
+      // it; a later download of the real patient replaces it.
+      parents.add({
+        'id': id,
         'doctorId': doctorId,
         'firstName': 'Patient',
         'lastName': '',
@@ -1150,360 +1772,30 @@ class FirestoreSyncService {
         'syncStatus': 'synced',
         'pendingDelete': 0,
         'lastSyncedAt': 0,
-      }, conflictAlgorithm: LocalConflictAlgorithm.ignore);
-    } catch (_) {}
+        'remoteGone': 1,
+      });
+    }
+    return parents;
   }
 
-  Future<void> _upsertDownloadedRow(
-    String firestoreCollection,
-    String id,
-    Map<String, dynamic> data,
-    String doctorId, {
-    String? sqliteTable,
-  }) async {
-    final db = await _databaseService.localDatabase;
-    final table = sqliteTable ?? firestoreCollection;
-    // Preserve any locally-pending edits: if a local row exists and has
-    // `syncStatus = 'pending'`, do not overwrite it with the remote copy.
-    // Phase 16: additionally, if the local row is already 'synced' but
-    // locally newer than the remote document (e.g. a stale batch download
-    // arriving after a live-listener write), keep the newer local copy.
-    final existing = await db.query(
-      table,
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
-    if (existing.isNotEmpty) {
-      final local = existing.first;
-      if (local['syncStatus'] == 'pending') {
-        // Pending local changes win — do nothing.
-        return;
-      }
-      // For synced rows, only overwrite if the remote data is at least as
-      // recent as the local copy. This prevents an older batch download from
-      // clobbering a fresher live-listener write.
-      // Exception: If local row is an un-synced stub (updatedAt <= 0), always overwrite.
-      final localUpdatedAt = (local['updatedAt'] as num?)?.toInt() ?? 0;
-      final remoteUpdatedAt = _timestampToMillis(data['updatedAt']);
-      final isStub =
-          localUpdatedAt <= 0 ||
-          (table == 'patients' &&
-              local['isArchived'] == 1 &&
-              local['firstName'] == 'Patient');
-      if (!isStub && remoteUpdatedAt > 0 && localUpdatedAt > remoteUpdatedAt) {
-        // Local is newer — keep it.
-        return;
-      }
-    }
-    final row = _sqliteRowFor(firestoreCollection, id, data, doctorId);
-
-    // Foreign key safety: ensure parent patient exists locally before writing to visits
-    if (table == 'visits') {
-      final patientId = row['patientId'] as String?;
-      if (patientId != null && patientId.isNotEmpty) {
-        await _ensurePatientExists(patientId, doctorId);
-      }
-    }
-
-    if (existing.isNotEmpty) {
-      await db.update(table, row, where: 'id = ?', whereArgs: [id]);
-    } else {
-      await db.insert(
-        table,
-        row,
-        conflictAlgorithm: LocalConflictAlgorithm.replace,
-      );
-    }
-
-    if (table == 'patients') {
-      unawaited(PatientLocalService.instance.notifyPatientsChanged());
-    } else if (table == 'visits') {
-      unawaited(VisitLocalService.instance.notifyVisitsChanged());
-    } else if (table == 'medicines') {
-      unawaited(InventoryLocalService.instance.notifyMedicinesChanged());
-    } else if (table == 'stock_transactions') {
-      unawaited(InventoryLocalService.instance.notifyTransactionsChanged());
-    } else if (table == 'revenue_entries') {
-      unawaited(RevenueLocalService.instance.notifyRevenueEntriesChanged());
-    } else if (table == 'pending_payments') {
-      unawaited(RevenueLocalService.instance.notifyPendingPaymentsChanged());
-    } else if (table == 'dental_records') {
-      DentalRecordsRepository.notifyRecordsChanged();
-    } else if (table == 'radiology_docs') {
-      RadiologyRepository.notifyDocsChanged();
-    }
-  }
-
-  Map<String, dynamic> _sqliteRowFor(
-    String collection,
-    String id,
-    Map<String, dynamic> data,
-    String doctorId,
+  /// The newest server `updatedAt` among [docs] and that document's id, the
+  /// cursor they advance to. Documents without a Timestamp there (a write
+  /// still pending, a legacy string) don't move it.
+  static ({int ms, String id})? _newestOf(
+    Iterable<DocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    switch (collection) {
-      case 'patients':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
-          'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
-          'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
-          'email': data['email'] as String? ?? '',
-          'gender': data['gender'] as String? ?? '',
-          'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          // Kept off the device of anyone without clinical access.
-          'diagnosis': ClinicSession.instance.holdsClinicalFields
-              ? _decryptDiagnosisForSqlite(data['diagnosis'])
-              : '[]',
-          'notes': ClinicSession.instance.holdsClinicalFields
-              ? FieldCipher.decrypt(data['notes'] as String? ?? '')
-              : '',
-          'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
-          'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
-          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-          // Without this the device always believed every patient was
-          // unassigned, whatever the server said.
-          'assignedDoctorUids': Patient.assignedToStored(
-            Patient.assignedFromStored(data['assignedDoctorUids']),
-          ),
-        };
-      // appointments → visits table with visitType = 'clinic'
-      // visitations  → visits table with visitType = 'home'
-      // visitType is authoritative from the collection name, not the document
-      // field, so a misfiled document is corrected on download.
-      case 'appointments':
-      case 'visitations':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'patientId': data['patientId'] as String? ?? '',
-          'scheduledStart': _timestampToMillis(
-            data['scheduledStart'],
-            fallback: now,
-          ),
-          'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
-          'address': FieldCipher.decrypt(data['address'] as String? ?? ''),
-          'latitude': (data['latitude'] as num?)?.toDouble(),
-          'longitude': (data['longitude'] as num?)?.toDouble(),
-          'mapsLink': data['mapsLink'] as String?,
-          // Derive visitType from which collection this document came from,
-          // overriding whatever the document field says.
-          'visitType': _visitFirestoreToType[collection]!,
-          'status': data['status'] as String? ?? 'scheduled',
-          'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
-          'amountCharged': (data['amountCharged'] as num?)?.toDouble(),
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
-          'invoiceId': data['invoiceId'] as String?,
-          'packageId': data['packageId'] as String?,
-          'groupId': data['groupId'] as String?,
-          'treatmentType': data['treatmentType'] as String?,
-          'therapistNotes': data['therapistNotes'] == null
-              ? null
-              : FieldCipher.decrypt(data['therapistNotes'] as String?),
-          'reminderStatus': data['reminderStatus'] as String?,
-          'calendarEventId': data['calendarEventId'] as String?,
-          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
-          'createdByUid': data['createdByUid'] as String? ?? '',
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'revenue_entries':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(
-            data['description'] as String? ?? '',
-          ),
-          'amount': data['amount'] is String
-              ? (double.tryParse(
-                      FieldCipher.decrypt(data['amount'] as String),
-                    ) ??
-                    0)
-              : ((data['amount'] as num?)?.toDouble() ?? 0),
-          'type': data['type'] as String? ?? 'miscellaneous',
-          'kind': data['kind'] as String? ?? 'income',
-          'payer': data['payer'] == null
-              ? null
-              : FieldCipher.decrypt(data['payer'] as String?),
-          'patientId': data['patientId'] as String?,
-          'visitId': data['visitId'] as String?,
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'isActive': 1,
-          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
-          'createdByUid': data['createdByUid'] as String? ?? '',
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'pending_payments':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(
-            data['description'] as String? ?? '',
-          ),
-          'amount': data['amount'] is String
-              ? (double.tryParse(
-                      FieldCipher.decrypt(data['amount'] as String),
-                    ) ??
-                    0)
-              : ((data['amount'] as num?)?.toDouble() ?? 0),
-          'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
-          'payer': data['payer'] == null
-              ? null
-              : FieldCipher.decrypt(data['payer'] as String?),
-          'patientId': data['patientId'] as String?,
-          'visitId': data['visitId'] as String?,
-          'notes': data['notes'] == null
-              ? null
-              : FieldCipher.decrypt(data['notes'] as String?),
-          'isActive': 1,
-          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
-          'createdByUid': data['createdByUid'] as String? ?? '',
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'medicines':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'name': data['name'] as String? ?? '',
-          'category': data['category'] as String? ?? '',
-          'unit': data['unit'] as String? ?? '',
-          'currentStock': (data['currentStock'] as num?)?.toInt() ?? 0,
-          'reorderThreshold': (data['reorderThreshold'] as num?)?.toInt() ?? 10,
-          'goodStockLevel': (data['goodStockLevel'] as num?)?.toInt(),
-          'unitPrice': (data['unitPrice'] as num?)?.toDouble(),
-          'supplierName': data['supplierName'] as String?,
-          'batchNumber': data['batchNumber'] as String?,
-          'receiptStoragePath': data['receiptStoragePath'] as String?,
-          'expiryDate': data['expiryDate'] == null
-              ? null
-              : _timestampToMillis(data['expiryDate'], fallback: now),
-          'lowStockNotifiedAt': data['lowStockNotifiedAt'] == null
-              ? null
-              : _timestampToMillis(data['lowStockNotifiedAt'], fallback: now),
-          'expiryNotifiedAt': data['expiryNotifiedAt'] == null
-              ? null
-              : _timestampToMillis(data['expiryNotifiedAt'], fallback: now),
-          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'stock_transactions':
-        return {
-          'id': id,
-          'medicineId': data['medicineId'] as String? ?? '',
-          'doctorId': doctorId,
-          'type': data['type'] as String? ?? 'restock',
-          'quantity': (data['quantity'] as num?)?.toInt() ?? 0,
-          'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,
-          'note': data['note'] as String?,
-          'linkedVisitId': data['linkedVisitId'] as String?,
-          'batchNumber': data['batchNumber'] as String?,
-          'expiryDate': data['expiryDate'] == null
-              ? null
-              : _timestampToMillis(data['expiryDate'], fallback: now),
-          'unitCost': (data['unitCost'] as num?)?.toDouble(),
-          'supplierName': data['supplierName'] as String?,
-          'billKey': data['billKey'] as String?,
-          'groupId': data['groupId'] as String?,
-          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'walk_in_queue':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'patientId': data['patientId'] as String?,
-          'walkInName': data['walkInName'] as String?,
-          'walkInPhone': data['walkInPhone'] as String?,
-          'tokenNumber': (data['tokenNumber'] as num?)?.toInt() ?? 0,
-          'queueDate': data['queueDate'] as String? ?? '',
-          'status': data['status'] as String? ?? 'waiting',
-          'priority': data['priority'] as String? ?? 'normal',
-          'reason': data['reason'] as String?,
-          'checkedInAt': _timestampToMillis(data['checkedInAt'], fallback: now),
-          'calledAt': data['calledAt'] == null
-              ? null
-              : _timestampToMillis(data['calledAt'], fallback: now),
-          'consultationStartedAt': data['consultationStartedAt'] == null
-              ? null
-              : _timestampToMillis(
-                  data['consultationStartedAt'],
-                  fallback: now,
-                ),
-          'completedAt': data['completedAt'] == null
-              ? null
-              : _timestampToMillis(data['completedAt'], fallback: now),
-          'linkedVisitId': data['linkedVisitId'] as String?,
-          'groupId': data['groupId'] as String?,
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
-          'createdByUid': data['createdByUid'] as String? ?? '',
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'dental_records':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'patientId': data['patientId'] as String? ?? '',
-          'kind': data['kind'] as String? ?? '',
-          'data': FieldCipher.decrypt(data['data'] as String? ?? '{}'),
-          'recordedAt': _timestampToMillis(data['recordedAt'], fallback: now),
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'radiology_docs':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'kind': data['kind'] as String? ?? '',
-          'patientId': data['patientId'] as String? ?? '',
-          'data': FieldCipher.decrypt(data['data'] as String? ?? '{}'),
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      default:
-        throw ArgumentError('Unsupported sync collection: $collection');
+    ({int ms, String id})? newest;
+    for (final d in docs) {
+      final value = d.data()?['updatedAt'];
+      if (value is! Timestamp) continue;
+      final ms = value.millisecondsSinceEpoch;
+      if (newest == null ||
+          ms > newest.ms ||
+          (ms == newest.ms && d.id.compareTo(newest.id) > 0)) {
+        newest = (ms: ms, id: d.id);
+      }
     }
+    return newest;
   }
 
   /// Marks the uploaded [rows] synced, except any changed while they were
@@ -1521,45 +1813,117 @@ class FirestoreSyncService {
     for (final row in rows) {
       await db.update(
         collection,
-        {'syncStatus': 'synced', 'pendingDelete': 0, 'lastSyncedAt': now},
+        {
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+          // A pushed delete took the document off the server; any other
+          // upload put it there.
+          'remoteGone': row.pendingDelete ? 1 : 0,
+        },
         where: row.stamped ? 'id = ? AND updatedAt IS ?' : 'id = ?',
         whereArgs: [row.id, if (row.stamped) row.updatedAt],
       );
     }
   }
 
-  Future<int> _lastSyncTime(String collection) async {
+  /// [collection]'s delta cursor: the newest server `updatedAt` applied (and
+  /// that document's id), plus when its ids were last compared with the
+  /// server. Installs from before the cursor columns only kept
+  /// `lastSyncTime`, a strict watermark; it carries over as the cursor.
+  Future<({int ms, String docId, int lastCountCheckAt})> _readCursor(
+    String collection,
+  ) async {
     final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'sync_state',
-      columns: ['lastSyncTime'],
+      columns: [
+        'lastSyncTime',
+        'cursorUpdatedAtMs',
+        'cursorDocId',
+        'lastCountCheckAt',
+      ],
       where: 'collectionName = ?',
       whereArgs: [collection],
       limit: 1,
     );
-    if (rows.isEmpty) return 0;
-    return (rows.first['lastSyncTime'] as num?)?.toInt() ?? 0;
+    if (rows.isEmpty) return (ms: 0, docId: '', lastCountCheckAt: 0);
+    final row = rows.first;
+    final cursor = (row['cursorUpdatedAtMs'] as num?)?.toInt() ?? 0;
+    final legacy = (row['lastSyncTime'] as num?)?.toInt() ?? 0;
+    return (
+      ms: cursor > legacy ? cursor : legacy,
+      docId: row['cursorDocId'] as String? ?? '',
+      lastCountCheckAt: (row['lastCountCheckAt'] as num?)?.toInt() ?? 0,
+    );
   }
 
-  Future<void> _setLastSyncTime(String collection, int millis) async {
+  /// Moves [collection]'s cursor forward to ([ms], [docId]); never back.
+  /// Called only once the rows it covers have committed. `lastSyncTime`
+  /// follows, for anything still reading it.
+  Future<void> _saveCursor(String collection, int ms, String docId) async {
     final db = await _databaseService.localDatabase;
+    final now = DateTime.now().millisecondsSinceEpoch;
     final updated = await db.update(
       'sync_state',
       {
-        'lastSyncTime': millis,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        'cursorUpdatedAtMs': ms,
+        'cursorDocId': docId,
+        'lastSyncTime': ms,
+        'updatedAt': now,
       },
+      where:
+          'collectionName = ? AND (cursorUpdatedAtMs < ? OR '
+          '(cursorUpdatedAtMs = ? AND cursorDocId < ?))',
+      whereArgs: [collection, ms, ms, docId],
+    );
+    if (updated > 0) return;
+    // No row yet (or one already further on, which this leaves alone).
+    await db.insert('sync_state', {
+      'collectionName': collection,
+      'lastSyncTime': ms,
+      'cursorUpdatedAtMs': ms,
+      'cursorDocId': docId,
+      'hasCompletedInitialMigration': 0,
+      'lastCountCheckAt': 0,
+      'updatedAt': now,
+    }, conflictAlgorithm: LocalConflictAlgorithm.ignore);
+  }
+
+  Future<void> _setLastCountCheckAt(String collection, int millis) async {
+    final db = await _databaseService.localDatabase;
+    await db.insert('sync_state', {
+      'collectionName': collection,
+      'lastSyncTime': 0,
+      'hasCompletedInitialMigration': 0,
+      'updatedAt': millis,
+    }, conflictAlgorithm: LocalConflictAlgorithm.ignore);
+    await db.update(
+      'sync_state',
+      {'lastCountCheckAt': millis},
       where: 'collectionName = ?',
       whereArgs: [collection],
     );
-    if (updated > 0) return;
+  }
 
-    await db.insert('sync_state', {
-      'collectionName': collection,
-      'lastSyncTime': millis,
-      'hasCompletedInitialMigration': 0,
-      'updatedAt': DateTime.now().millisecondsSinceEpoch,
-    });
+  Future<String?> _readMeta(String key) async {
+    final db = await _databaseService.localDatabase;
+    final rows = await db.query(
+      'app_meta',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first['value'] as String?;
+  }
+
+  Future<void> _writeMeta(String key, String value) async {
+    final db = await _databaseService.localDatabase;
+    await db.insert('app_meta', {
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: LocalConflictAlgorithm.replace);
   }
 
   Timestamp _timestampFromMillis(Object? value) {
@@ -1568,11 +1932,11 @@ class FirestoreSyncService {
     return Timestamp.fromMillisecondsSinceEpoch(millis);
   }
 
-  int _timestampToMillis(Object? value, {int? fallback}) {
+  static int _millisOf(Object? value) {
     if (value is Timestamp) return value.millisecondsSinceEpoch;
     if (value is DateTime) return value.millisecondsSinceEpoch;
     if (value is num) return value.toInt();
-    return fallback ?? 0;
+    return 0;
   }
 
   /// Apply a remote deletion (Firestore remove) into the local SQLite cache.
@@ -1580,12 +1944,16 @@ class FirestoreSyncService {
   /// Tries to mark rows soft-deleted (set `isDeleted=1` or `isArchived=1`) and
   /// mark them `syncStatus='synced'`. If the table has no suitable soft-delete
   /// column, falls back to deleting the local row. Notifies local services
-  /// after changes so UI updates.
-  Future<void> _applyRemoteDeletion(
+  /// after changes so UI updates (unless [notify] is false: the caller
+  /// notifies once for many). Every outcome marks the row `remoteGone`, so
+  /// the delete safety net stops expecting it on the server. Returns whether
+  /// a row changed.
+  Future<bool> _applyRemoteDeletion(
     String firestoreCollection,
     String id,
     String doctorId, {
     String? sqliteTable,
+    bool notify = true,
   }) async {
     final db = await _databaseService.localDatabase;
     final table = sqliteTable ?? firestoreCollection;
@@ -1611,13 +1979,26 @@ class FirestoreSyncService {
       // re-upload the deleted document.
       await db.update(
         table,
-        {'syncStatus': 'synced', 'pendingDelete': 0, 'lastSyncedAt': now},
+        {
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+          'remoteGone': 1,
+        },
         where: 'id = ? AND doctorId = ?',
         whereArgs: [id, doctorId],
       );
-      _notifyTableChanged(table);
-      return;
+      if (notify) _notifyTableChanged(table);
+      return true;
     }
+    // A pending local edit wins: its upload settles the document, and a
+    // removal that was real comes back on the next reconcile.
+    if (pendingRows.isNotEmpty &&
+        pendingRows.first['syncStatus'] == 'pending') {
+      return false;
+    }
+    // Re-checked as each write runs, for an edit made since the read above.
+    const notPending = "id = ? AND doctorId = ? AND syncStatus != 'pending'";
 
     // Try marking as soft-deleted via commonly used columns.
     // Order: isDeleted, isArchived. If neither affects a row, delete it.
@@ -1628,13 +2009,14 @@ class FirestoreSyncService {
       'syncStatus': 'synced',
       'pendingDelete': 0,
       'lastSyncedAt': now,
+      'remoteGone': 1,
     };
     var updatedIsDeleted = 0;
     try {
       updatedIsDeleted = await db.update(
         table,
         isDeletedPayload,
-        where: 'id = ? AND doctorId = ?',
+        where: notPending,
         whereArgs: [id, doctorId],
       );
     } catch (_) {
@@ -1644,18 +2026,22 @@ class FirestoreSyncService {
       // the device as though nothing had happened.
     }
     if (updatedIsDeleted > 0) {
-      _notifyTableChanged(table);
-      return;
+      if (notify) _notifyTableChanged(table);
+      return true;
     }
 
     if (hasIsActive) {
-      const synced = {'syncStatus': 'synced', 'pendingDelete': 0};
+      const synced = {
+        'syncStatus': 'synced',
+        'pendingDelete': 0,
+        'remoteGone': 1,
+      };
       var updated = 0;
       try {
         updated = await db.update(
           table,
           {'isArchived': 1, 'isActive': 0, ...synced, 'lastSyncedAt': now},
-          where: 'id = ? AND doctorId = ?',
+          where: notPending,
           whereArgs: [id, doctorId],
         );
       } catch (_) {
@@ -1663,25 +2049,24 @@ class FirestoreSyncService {
         updated = await db.update(
           table,
           {'isActive': 0, ...synced, 'lastSyncedAt': now},
-          where: 'id = ? AND doctorId = ?',
+          where: notPending,
           whereArgs: [id, doctorId],
         );
       }
       if (updated > 0) {
-        _notifyTableChanged(table);
-        return;
+        if (notify) _notifyTableChanged(table);
+        return true;
       }
     }
 
     // No soft-delete column matched; remove the row entirely.
     final deleted = await db.delete(
       table,
-      where: 'id = ? AND doctorId = ?',
+      where: notPending,
       whereArgs: [id, doctorId],
     );
-    if (deleted > 0) {
-      _notifyTableChanged(table);
-    }
+    if (deleted > 0 && notify) _notifyTableChanged(table);
+    return deleted > 0;
   }
 
   void _notifyTableChanged(String table) {
@@ -1719,15 +2104,22 @@ class FirestoreSyncService {
   }
 }
 
+/// Thrown when the session a sync step started under has ended or switched.
+class _SessionChanged implements Exception {
+  const _SessionChanged();
+}
+
 /// A row as it was uploaded: its id and, when its table has one, its
 /// `updatedAt` then, to tell whether it changed while uploading.
 class _UploadedRow {
   _UploadedRow.of(Map<String, Object?> row)
     : id = row['id'] as String,
       stamped = row.containsKey('updatedAt'),
-      updatedAt = row['updatedAt'];
+      updatedAt = row['updatedAt'],
+      pendingDelete = row['pendingDelete'] == 1;
 
   final String id;
+  final bool pendingDelete;
   final bool stamped;
   final Object? updatedAt;
 }

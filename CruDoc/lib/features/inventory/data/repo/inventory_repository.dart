@@ -167,7 +167,7 @@ class InventoryRepository {
           .doc(medicineId)
           .update({
             'isActive': false,
-            'updatedAt': DateTime.now().toIso8601String(),
+            'updatedAt': FieldValue.serverTimestamp(),
           });
       return;
     }

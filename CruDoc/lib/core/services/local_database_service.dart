@@ -169,6 +169,22 @@ class LocalDatabaseService extends ChangeNotifier {
     }
   }
 
+  /// The folder holding the records database files ([isRecordsFileName]),
+  /// for Settings → Storage. Null on the web.
+  Future<Directory?> recordsDirectory() async {
+    if (kIsWeb) return null;
+    if (Platform.isWindows) {
+      return Directory(p.dirname(await _windowsDatabasePath('_')));
+    }
+    return Directory(await sqlcipher.getDatabasesPath());
+  }
+
+  /// Whether [fileName] is one of the records database files: a
+  /// `crudoc_<scope>.db` cache or its -wal / -shm / -journal companion.
+  static bool isRecordsFileName(String fileName) => RegExp(
+    '^${RegExp.escape(_databaseNamePrefix)}_.*\\.db(-wal|-shm|-journal)?\$',
+  ).hasMatch(fileName);
+
   Future<sqflite_common.Database> _openSqlCipherDatabaseWithRecovery(
     String fileName,
   ) async {
@@ -1098,6 +1114,10 @@ class LocalDatabaseService extends ChangeNotifier {
     // JSON array of doctor uids; '' means nobody in particular. Only
     // meaningful in a clinic that scopes doctors to assigned patients.
     'assignedDoctorUids': "assignedDoctorUids TEXT NOT NULL DEFAULT ''",
+    // 1 once the server is known not to hold this row any more (removed
+    // there, or deleted from here and pushed). The delete safety net in
+    // FirestoreSyncService compares a count of the others with the server.
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   static const Map<String, String> _visitsColumns = {
@@ -1130,6 +1150,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   static const Map<String, String> _revenueEntriesColumns = {
@@ -1152,6 +1173,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   static const Map<String, String> _pendingPaymentsColumns = {
@@ -1173,6 +1195,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   static const Map<String, String> _medicinesColumns = {
@@ -1198,6 +1221,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   static const Map<String, String> _stockTransactionsColumns = {
@@ -1224,6 +1248,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   static const Map<String, String> _syncStateColumns = {
@@ -1232,6 +1257,12 @@ class LocalDatabaseService extends ChangeNotifier {
     'hasCompletedInitialMigration':
         'hasCompletedInitialMigration INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    // Delta-sync cursor (FirestoreSyncService): the newest server updatedAt
+    // applied and that document's id, saved only after its rows committed.
+    'cursorUpdatedAtMs': 'cursorUpdatedAtMs INTEGER NOT NULL DEFAULT 0',
+    'cursorDocId': "cursorDocId TEXT NOT NULL DEFAULT ''",
+    // When the last full id reconcile against the server finished.
+    'lastCountCheckAt': 'lastCountCheckAt INTEGER NOT NULL DEFAULT 0',
   };
 
   Future<void> _createConsultationNotesTable(LocalDatabaseExecutor db) async {
@@ -1400,6 +1431,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   Future<void> _createHomeopathySessionNotesTable(
@@ -1752,6 +1784,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   Future<void> _createRadiologyDocsTable(LocalDatabaseExecutor db) async {
@@ -1789,6 +1822,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+    'remoteGone': 'remoteGone INTEGER NOT NULL DEFAULT 0',
   };
 
   /// The Files screen: patient files and the folders people keep them in

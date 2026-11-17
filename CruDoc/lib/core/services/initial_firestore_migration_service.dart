@@ -1,11 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
-import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
@@ -22,7 +18,6 @@ class InitialFirestoreMigrationService {
       InitialFirestoreMigrationService._();
 
   final LocalDatabaseService _databaseService = LocalDatabaseService.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static const List<String> _collections = [
     'patients',
@@ -39,9 +34,6 @@ class InitialFirestoreMigrationService {
     'appointments': 'clinic',
     'visitations': 'home',
   };
-
-  /// Page size for the first download of a clinic's visits.
-  static const int _visitPageSize = 500;
 
   /// Whether [runIfNeeded] still has a collection to pull from the cloud.
   ///
@@ -112,97 +104,14 @@ class InitialFirestoreMigrationService {
   }
 
   Future<void> _migrateCollection(String collection, String doctorId) async {
-    // CRITICAL: scoped to this doctor only. Without this `.where(...)`,
-    // this call would download every doctor's patients/visits/revenue onto
-    // this device — which is exactly the cross-doctor leak this migration
-    // is being patched to prevent.
-    //
-    // Narrowed to the doctor's own patients the same way as the live sync,
-    // or the rules refuse it. From the server only: answered from the
-    // cache, this once saved the previous person's patients on this device.
-    final query = FirestoreSyncService.scopedQueryFor(
-      _firestore,
-      collection,
-      doctorId,
-    );
-    var newestUpdatedAt = 0;
-
-    // Visit Firestore collections (appointments, visitations) both land in
-    // the `visits` SQLite table; every other collection maps 1-to-1.
-    final sqliteTable = _visitFirestoreToType.containsKey(collection)
-        ? 'visits'
-        : collection;
-
-    Future<void> apply(QuerySnapshot<Map<String, dynamic>> snapshot) async {
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final row = _sqliteRowFor(collection, doc.id, data, doctorId);
-        final updatedAt = (row['updatedAt'] as num?)?.toInt() ?? 0;
-        if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
-
-        final db = await _databaseService.localDatabase;
-
-        // Foreign key safety: ensure parent patient exists locally before writing to visits
-        if (sqliteTable == 'visits') {
-          final patientId = row['patientId'] as String?;
-          if (patientId != null && patientId.isNotEmpty) {
-            await _ensurePatientExists(patientId, doctorId);
-          }
-        }
-
-        // If a local row exists and is locally modified (pending), preserve
-        // the local change instead of overwriting it with the cloud copy.
-        final existing = await db.query(
-          sqliteTable,
-          where: 'id = ?',
-          whereArgs: [doc.id],
-          limit: 1,
-        );
-        if (existing.isNotEmpty &&
-            (existing.first['syncStatus'] == 'pending')) {
-          // Skip replacing a locally-pending row to avoid losing unsynced edits.
-          continue;
-        }
-
-        if (existing.isNotEmpty) {
-          await db.update(
-            sqliteTable,
-            row,
-            where: 'id = ?',
-            whereArgs: [doc.id],
-          );
-        } else {
-          await db.insert(
-            sqliteTable,
-            row,
-            conflictAlgorithm: LocalConflictAlgorithm.replace,
-          );
-        }
-      }
-    }
-
-    const server = GetOptions(source: Source.server);
-    if (sqliteTable == 'visits') {
-      // A page at a time, ordered by document id rather than by date: a date
-      // order would silently leave out any doc without a scheduledStart, and
-      // every doc must arrive. The completion mark below is only written
-      // after the last page, so an interrupted run starts over.
-      final paged = query.orderBy(FieldPath.documentId).limit(_visitPageSize);
-      QueryDocumentSnapshot<Map<String, dynamic>>? last;
-      while (true) {
-        final page =
-            await (last == null ? paged : paged.startAfterDocument(last)).get(
-              server,
-            );
-        await apply(page);
-        if (page.docs.length < _visitPageSize) break;
-        last = page.docs.last;
-      }
-    } else {
-      await apply(await query.get(server));
-    }
-
-    await _markInitialMigrationComplete(collection, newestUpdatedAt);
+    // The first pull is the sync service's paged catch-up from cursor 0:
+    // scoped to this clinic (and narrowed to a scoped doctor's own patients,
+    // or the rules refuse it), from the server only, a page at a time with
+    // the cursor saved after each page, so an interrupted run resumes
+    // instead of starting over. Rows land with the same mapping and the
+    // same "a pending local edit wins" rule as every later sync.
+    await FirestoreSyncService.instance.catchUpCollection(collection, doctorId);
+    await _markInitialMigrationComplete(collection);
   }
 
   Future<bool> _hasCompletedInitialMigration(String collection) async {
@@ -218,19 +127,14 @@ class InitialFirestoreMigrationService {
     return rows.first['hasCompletedInitialMigration'] == 1;
   }
 
-  Future<void> _markInitialMigrationComplete(
-    String collection,
-    int lastSyncTime,
-  ) async {
+  Future<void> _markInitialMigrationComplete(String collection) async {
     final db = await _databaseService.localDatabase;
     final now = DateTime.now().millisecondsSinceEpoch;
+    // The catch-up already saved the cursor (and lastSyncTime); only the
+    // completion flag changes here.
     final updated = await db.update(
       'sync_state',
-      {
-        'lastSyncTime': lastSyncTime,
-        'hasCompletedInitialMigration': 1,
-        'updatedAt': now,
-      },
+      {'hasCompletedInitialMigration': 1, 'updatedAt': now},
       where: 'collectionName = ?',
       whereArgs: [collection],
     );
@@ -238,233 +142,9 @@ class InitialFirestoreMigrationService {
 
     await db.insert('sync_state', {
       'collectionName': collection,
-      'lastSyncTime': lastSyncTime,
+      'lastSyncTime': 0,
       'hasCompletedInitialMigration': 1,
       'updatedAt': now,
     });
-  }
-
-  String _decryptDiagnosisForSqlite(dynamic rawDiagnosis) {
-    if (rawDiagnosis == null) return '';
-    if (rawDiagnosis is String) {
-      return FieldCipher.decrypt(rawDiagnosis);
-    }
-    if (rawDiagnosis is List) {
-      final decryptedList = rawDiagnosis
-          .map((d) => FieldCipher.decrypt(d.toString()))
-          .where((d) => d.isNotEmpty)
-          .toList();
-      return Patient.diagnosisToStored(decryptedList);
-    }
-    return rawDiagnosis.toString();
-  }
-
-  Future<void> _ensurePatientExists(String patientId, String doctorId) async {
-    if (patientId.trim().isEmpty) return;
-    final db = await _databaseService.localDatabase;
-    final existing = await db.query(
-      'patients',
-      columns: ['id'],
-      where: 'id = ?',
-      whereArgs: [patientId],
-      limit: 1,
-    );
-    if (existing.isNotEmpty) return;
-
-    try {
-      final doc = await _firestore
-          .collection('patients')
-          .doc(patientId)
-          .get(const GetOptions(source: Source.server));
-      if (doc.exists && doc.data() != null) {
-        final patientRow = _sqliteRowFor(
-          'patients',
-          doc.id,
-          doc.data()!,
-          doctorId,
-        );
-        await db.insert(
-          'patients',
-          patientRow,
-          conflictAlgorithm: LocalConflictAlgorithm.replace,
-        );
-        return;
-      }
-    } catch (e) {
-      debugPrint(
-        '[InitialMigration] Could not fetch parent patient $patientId: $e',
-      );
-    }
-
-    // Fallback: create an archived stub patient so FK constraint is satisfied without polluting the active patient UI.
-    final now = DateTime.now().millisecondsSinceEpoch;
-    try {
-      await db.insert('patients', {
-        'id': patientId,
-        'doctorId': doctorId,
-        'firstName': 'Patient',
-        'lastName': '',
-        'phone': '',
-        'email': '',
-        'gender': '',
-        'dateOfBirth': now,
-        'diagnosis': '[]',
-        'notes': '',
-        'packageBalance': 0.0,
-        'isArchived': 1,
-        'isActive': 1,
-        'createdAt': now,
-        'updatedAt': 0,
-        'syncStatus': 'synced',
-        'pendingDelete': 0,
-        'lastSyncedAt': 0,
-      }, conflictAlgorithm: LocalConflictAlgorithm.ignore);
-    } catch (_) {}
-  }
-
-  Map<String, dynamic> _sqliteRowFor(
-    String collection,
-    String id,
-    Map<String, dynamic> data,
-    String doctorId,
-  ) {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    switch (collection) {
-      case 'patients':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
-          'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
-          'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
-          'email': data['email'] as String? ?? '',
-          'gender': data['gender'] as String? ?? '',
-          'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          // Kept off the device of anyone without clinical access.
-          'diagnosis': ClinicSession.instance.holdsClinicalFields
-              ? _decryptDiagnosisForSqlite(data['diagnosis'])
-              : '[]',
-          'notes': ClinicSession.instance.holdsClinicalFields
-              ? FieldCipher.decrypt(data['notes'] as String? ?? '')
-              : '',
-          'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
-          'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
-          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
-          // Without it a scoped doctor's purge can't tell this row is theirs.
-          'assignedDoctorUids': Patient.assignedToStored(
-            Patient.assignedFromStored(data['assignedDoctorUids']),
-          ),
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      // appointments → visits table with visitType = 'clinic'
-      // visitations  → visits table with visitType = 'home'
-      // visitType is set from the collection name (authoritative), not the
-      // document field, so misfiled documents are self-correcting on load.
-      case 'appointments':
-      case 'visitations':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'patientId': data['patientId'] as String? ?? '',
-          'scheduledStart': _timestampToMillis(
-            data['scheduledStart'],
-            fallback: now,
-          ),
-          'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
-          'address': FieldCipher.decrypt(data['address'] as String? ?? ''),
-          'latitude': (data['latitude'] as num?)?.toDouble(),
-          'longitude': (data['longitude'] as num?)?.toDouble(),
-          'mapsLink': data['mapsLink'] as String?,
-          'visitType': _visitFirestoreToType[collection]!,
-          'status': data['status'] as String? ?? 'scheduled',
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
-          'invoiceId': data['invoiceId'] as String?,
-          'packageId': data['packageId'] as String?,
-          'treatmentType': data['treatmentType'] as String?,
-          'therapistNotes': data['therapistNotes'] == null
-              ? null
-              : FieldCipher.decrypt(data['therapistNotes'] as String?),
-          'reminderStatus': data['reminderStatus'] as String?,
-          'calendarEventId': data['calendarEventId'] as String?,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'revenue_entries':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(
-            data['description'] as String? ?? '',
-          ),
-          'amount': _amountFrom(data['amount']),
-          'type': data['type'] as String? ?? 'miscellaneous',
-          'kind': data['kind'] as String? ?? 'income',
-          'payer': data['payer'] == null
-              ? null
-              : FieldCipher.decrypt(data['payer'] as String?),
-          'patientId': data['patientId'] as String?,
-          'visitId': data['visitId'] as String?,
-          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
-          'isActive': 1,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      case 'pending_payments':
-        return {
-          'id': id,
-          'doctorId': doctorId,
-          'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(
-            data['description'] as String? ?? '',
-          ),
-          'amount': _amountFrom(data['amount']),
-          'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
-          'payer': data['payer'] == null
-              ? null
-              : FieldCipher.decrypt(data['payer'] as String?),
-          'patientId': data['patientId'] as String?,
-          'visitId': data['visitId'] as String?,
-          'notes': data['notes'] == null
-              ? null
-              : FieldCipher.decrypt(data['notes'] as String?),
-          'isActive': 1,
-          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
-          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': now,
-        };
-      default:
-        throw ArgumentError('Unsupported migration collection: $collection');
-    }
-  }
-
-  /// `amount` as stored in Firestore: encrypted text (what the sync service
-  /// writes, see FirestoreSyncService) or, on records from before amounts
-  /// were encrypted, a plain number.
-  double _amountFrom(Object? value) {
-    if (value is String) {
-      return double.tryParse(FieldCipher.decrypt(value)) ?? 0;
-    }
-    return (value as num?)?.toDouble() ?? 0;
-  }
-
-  int _timestampToMillis(Object? value, {required int fallback}) {
-    if (value is Timestamp) return value.millisecondsSinceEpoch;
-    if (value is DateTime) return value.millisecondsSinceEpoch;
-    if (value is num) return value.toInt();
-    return fallback;
   }
 }

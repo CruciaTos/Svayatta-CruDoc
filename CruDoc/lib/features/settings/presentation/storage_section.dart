@@ -178,6 +178,11 @@ class _StorageSectionState extends State<StorageSection> {
             ),
             const CruSeparator(),
             _Row(
+              title: 'Patient records',
+              value: formatBytes(report.recordsBytes),
+            ),
+            const CruSeparator(),
+            _Row(
               title: 'Always kept on this device',
               value: formatBytes(report.keptBytes),
             ),

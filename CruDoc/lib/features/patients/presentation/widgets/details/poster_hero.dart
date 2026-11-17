@@ -19,11 +19,16 @@ class PatientAvatar extends StatelessWidget {
     required this.name,
     required this.size,
     this.allergic = false,
+    this.detailsPending = false,
   });
 
   final String name;
   final double size;
   final bool allergic;
+
+  /// The record is still missing details: an amber ring, the same "waiting"
+  /// colour as the capsule under the name.
+  final bool detailsPending;
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +40,19 @@ class PatientAvatar extends StatelessWidget {
       foreground: c.label2,
       showRing: false,
     );
-    if (!allergic) return monogram;
+    // Allergy comes first: red is for safety, and a half-filled record must
+    // never hide it.
+    final ring = allergic
+        ? c.redText
+        : detailsPending
+        ? c.amber
+        : null;
+    if (ring == null) return monogram;
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: c.redText, width: 2),
+        border: Border.all(color: ring, width: 2),
       ),
       child: monogram,
     );
@@ -83,7 +95,12 @@ class PatientPosterHero extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          PatientAvatar(name: p.fullName, size: 72, allergic: allergic),
+          PatientAvatar(
+            name: p.fullName,
+            size: 72,
+            allergic: allergic,
+            detailsPending: patientDetailsPending(p),
+          ),
           const SizedBox(height: CruSpace.s12),
           Semantics(
             header: true,

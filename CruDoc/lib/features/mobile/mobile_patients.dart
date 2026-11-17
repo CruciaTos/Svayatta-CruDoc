@@ -16,6 +16,7 @@ import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
+import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
@@ -88,7 +89,11 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
         if (next != null)
           'Next ${PatientFormat.dayTimeInline(next.scheduledStart, now)}',
       ].where((t) => t.isNotEmpty).join(' · '),
-      leading: MobileAvatar(name: s.name, size: 34),
+      leading: MobileAvatar(
+        name: s.name,
+        size: 34,
+        pending: patientDetailsPending(s.patient),
+      ),
       actions: [
         if (hasPhone) ...[
           MobileSheetAction(
@@ -766,7 +771,11 @@ class _PatientRow extends StatelessWidget {
     }
 
     return MobileRow(
-      leading: MobileAvatar(name: s.name, size: 34),
+      leading: MobileAvatar(
+        name: s.name,
+        size: 34,
+        pending: patientDetailsPending(s.patient),
+      ),
       title: s.name,
       subtitle: sub.isEmpty ? null : sub,
       trailing: trailing,

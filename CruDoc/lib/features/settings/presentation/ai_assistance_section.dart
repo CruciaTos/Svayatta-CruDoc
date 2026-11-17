@@ -42,8 +42,6 @@ class AiAssistanceSection extends ConsumerWidget {
         // Medical Scribe & Consultation AI
         _Card(
           title: 'Medical Scribe & Rx Generator',
-          description:
-              'Voice clinical dictation, SOAP progress notes generation, and automated prescription drafting.',
           trailing: CruPill(
             text: isScribeEnabled ? 'Active' : 'AI Add-on',
             icon: isScribeEnabled ? CruIcons.check : CruIcons.sparkleSingle,
@@ -56,22 +54,16 @@ class AiAssistanceSection extends ConsumerWidget {
               _FeatureRow(
                 icon: CruIcons.mic,
                 title: 'Ambient consultation scribe',
-                detail:
-                    'Listens to doctor-patient conversation and creates structured Subjective, Objective, Assessment & Plan notes in real time.',
               ),
               const CruSeparator(),
               _FeatureRow(
                 icon: CruIcons.pen,
                 title: 'Digital Rx pre-filling',
-                detail:
-                    'Extracts medication names, dosages, timings, and durations mentioned during the consultation into prescription cards.',
               ),
               const CruSeparator(),
               _FeatureRow(
                 icon: CruIcons.sparkle,
                 title: 'Clinical differentials & red flags',
-                detail:
-                    'Surfaces relevant ICD-10 differential diagnosis considerations and alerts for drug-allergy contraindications.',
               ),
             ],
           ),
@@ -81,8 +73,6 @@ class AiAssistanceSection extends ConsumerWidget {
         // Autonomous AI Receptionist & Voice Calling
         _Card(
           title: 'Autonomous AI Receptionist',
-          description:
-              'Autonomous phone agent to call patients for automated confirmations & follow-ups.',
           trailing: CruPill(
             text: isCallingEnabled ? 'Connected' : 'AI Add-on',
             icon: isCallingEnabled ? CruIcons.check : CruIcons.phone,
@@ -95,8 +85,6 @@ class AiAssistanceSection extends ConsumerWidget {
               _FeatureRow(
                 icon: CruIcons.phone,
                 title: 'Call forwarding integration',
-                detail:
-                    'Forward missed or clinic calls to your AI receptionist with one tap. Patients speak naturally to book appointments.',
               ),
               const SizedBox(height: CruSpace.s12),
               Align(
@@ -126,32 +114,24 @@ class AiAssistanceSection extends ConsumerWidget {
         // Imaging & Radiology AI Switches
         _Card(
           title: 'Imaging & Diagnostic AI',
-          description:
-              'Multi-modal computer vision tools for dental X-rays, CBCT volumes, and cephalometric analysis.',
           child: const RadAiSwitches(),
         ),
         gap,
 
         // Privacy & HIPAA Compliance
         _Card(
-          title: 'Privacy & Security Guarantee',
-          description:
-              'Patient health records and imaging are protected under enterprise healthcare compliance standards.',
+          title: 'Privacy & Security',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _FeatureRow(
                 icon: CruIcons.check,
-                title: 'Zero public training retention',
-                detail:
-                    'Patient audio, notes, and radiographs are never used to train or refine public AI models.',
+                title: 'Never used to train public models',
               ),
               const CruSeparator(),
               _FeatureRow(
                 icon: CruIcons.sparkleSingle,
-                title: 'Local PHI de-identification',
-                detail:
-                    'Personal identifiers (names, contacts, government IDs) are stripped on-device before any model evaluation.',
+                title: 'Identifiers stripped on this device',
               ),
             ],
           ),
@@ -192,14 +172,12 @@ class _SafetyBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Assistive Clinical Intelligence',
+                  'You confirm every suggestion',
                   style: CruType.headline.tint(c.label),
                 ),
                 const SizedBox(height: CruSpace.s4),
                 Text(
-                  'CruDoc AI features are designed to support and accelerate your practice. '
-                  'Every suggestion, drafted note, and detection requires your review and confirmation; '
-                  'it is never an autonomous diagnosis on its own.',
+                  'Every suggestion needs your confirmation. It is not a diagnosis.',
                   style: CruType.text.tint(c.label2),
                 ),
                 const SizedBox(height: CruSpace.s12),
@@ -231,15 +209,13 @@ class _SafetyBanner extends StatelessWidget {
 }
 
 class _FeatureRow extends StatelessWidget {
-  const _FeatureRow({
-    required this.icon,
-    required this.title,
-    required this.detail,
-  });
+  const _FeatureRow({required this.icon, required this.title, this.detail});
 
   final CruIconData icon;
   final String title;
-  final String detail;
+
+  /// A second line, only where the title cannot carry the meaning on its own.
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -256,8 +232,10 @@ class _FeatureRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: CruType.callout.w600.tint(c.label)),
-                const SizedBox(height: CruSpace.s2),
-                Text(detail, style: CruType.caption.tint(c.label2)),
+                if (detail case final d?) ...[
+                  const SizedBox(height: CruSpace.s2),
+                  Text(d, style: CruType.caption.tint(c.label2)),
+                ],
               ],
             ),
           ),
@@ -357,8 +335,7 @@ class _CloudAiSwitchCardState extends State<_CloudAiSwitchCard> {
     final c = context.cru;
     return _Card(
       title: 'Cloud AI',
-      description:
-          'CruDoc uses Google Gemini AI for consultation notes, voice commands, form filling, and scan reading.',
+      description: 'Notes, voice and scans are sent to Google Gemini.',
       trailing: _loaded
           ? Semantics(
               toggled: _granted,
@@ -394,9 +371,7 @@ class _CloudAiSwitchCardState extends State<_CloudAiSwitchCard> {
       child: _FeatureRow(
         icon: CruIcons.sparkle,
         title: 'Use cloud AI',
-        detail: _granted
-            ? 'Cloud AI features are enabled.'
-            : 'Turn on to enable ambient scribe notes, voice commands, and scan reading.',
+        detail: _granted ? 'On' : 'Off',
       ),
     );
   }

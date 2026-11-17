@@ -639,15 +639,26 @@ class MobileCard extends StatelessWidget {
 /// then a ring in the person's own colour that sweeps into a lighter
 /// tint of it. [size] is the monogram's own size; the rings add 9 px.
 class MobileAvatar extends StatelessWidget {
-  const MobileAvatar({super.key, required this.name, this.size = 40});
+  const MobileAvatar({
+    super.key,
+    required this.name,
+    this.size = 40,
+    this.pending = false,
+  });
 
   final String name;
   final double size;
 
+  /// The record is still missing details: the ring turns amber (waiting)
+  /// instead of carrying the name's own colour.
+  final bool pending;
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final (base, _) = CruMonogram.vibrantColorsOf(name, c.isEvening);
+    final (base, _) = pending
+        ? (c.amber, c.amber)
+        : CruMonogram.vibrantColorsOf(name, c.isEvening);
     final hsl = HSLColor.fromColor(base);
     final vivid = hsl
         .withSaturation((hsl.saturation + 0.2).clamp(0.0, 1.0))

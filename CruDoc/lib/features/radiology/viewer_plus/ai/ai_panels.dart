@@ -378,10 +378,7 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
         else if (!connected) ...[
           const RadNotConnected(
             title: 'No AI key connected',
-            body:
-                'Once a key is connected, this image is de-identified and checked for '
-                'the findings below, for you to confirm or reject. Nothing leaves this '
-                'computer until then.',
+            body: 'Nothing leaves this computer until a key is connected.',
           ),
           const SizedBox(height: CruSpace.s12),
           const RadAiActionButton(label: 'Run AI second read', expand: true),

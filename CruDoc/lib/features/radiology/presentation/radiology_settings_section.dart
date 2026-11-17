@@ -143,8 +143,7 @@ class RadSettingsSection extends ConsumerWidget {
               'Suggestions you confirm or reject; never a diagnosis on its own.',
           child: _ActionRow(
             title: 'AI assistance settings',
-            detail:
-                'Manage imaging second read, CBCT segmentation & clinical AI tools',
+            detail: 'Turn each tool on or off.',
             action: 'Configure',
             onTap: () {
               ref.read(settingsSectionProvider.notifier).state =

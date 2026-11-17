@@ -45,11 +45,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AiAssistanceSection), findsOneWidget);
-    expect(find.text('Assistive Clinical Intelligence'), findsOneWidget);
+    expect(find.text('You confirm every suggestion'), findsOneWidget);
     expect(find.text('Medical Scribe & Rx Generator'), findsOneWidget);
     expect(find.text('Autonomous AI Receptionist'), findsOneWidget);
     expect(find.text('Imaging & Diagnostic AI'), findsOneWidget);
-    expect(find.text('Privacy & Security Guarantee'), findsOneWidget);
+    expect(find.text('Privacy & Security'), findsOneWidget);
   });
 
   testWidgets('RadSettingsSection does not contain Turnaround times card', (tester) async {

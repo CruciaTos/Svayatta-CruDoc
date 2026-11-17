@@ -61,12 +61,10 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
           confirmLabel: 'Allow',
           onConfirm: () => Navigator.of(ctx).pop(true),
           body: Text(
-            'CruDoc can use Google\'s Gemini AI to write session notes from '
-            'your recordings, understand voice commands, read scanned pages '
-            'and fill forms. When you use these, the audio, text or image you '
-            'give it, which can include patient details, is sent to Google to '
-            'be processed. Google does not use it to train its models. You can '
-            'change this any time in Settings > AI assistance.',
+            'To write session notes, take voice commands and read scans, '
+            'CruDoc sends what you give it (audio, text or images, which can '
+            'include patient details) to Google Gemini. Google does not train '
+            'its models on it. Change this in Settings > AI assistance.',
             style: CruType.text.tint(ctx.cru.label2),
           ),
         ),

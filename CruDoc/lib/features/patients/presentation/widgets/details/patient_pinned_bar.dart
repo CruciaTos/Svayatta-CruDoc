@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
+import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/poster_hero.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -90,6 +91,7 @@ class PatientPinnedBar extends StatelessWidget {
                                   name: p.fullName,
                                   size: 28,
                                   allergic: allergic,
+                                  detailsPending: patientDetailsPending(p),
                                 ),
                                 const SizedBox(width: CruSpace.s8),
                                 Flexible(

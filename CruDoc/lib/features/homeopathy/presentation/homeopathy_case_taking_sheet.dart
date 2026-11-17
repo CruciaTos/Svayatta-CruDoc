@@ -6,6 +6,8 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_remedy_field.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_potency_chips.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_icons.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_extended_form_sections.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_scribe_modal.dart';
@@ -2478,27 +2480,13 @@ class _HomeopathyCaseTakingSheetState
                     }).toList(),
               ),
               const SizedBox(height: CruSpace.s14),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: _buildTextField(
-                      controller: _remedyCtrl,
-                      label: 'Prescribed remedy (Simillimum) *',
-                      hint: 'e.g. Lycopodium, Natrum Mur, Pulsatilla',
-                    ),
-                  ),
-                  const SizedBox(width: CruSpace.s10),
-                  Expanded(
-                    flex: 1,
-                    child: _buildTextField(
-                      controller: _potencyCtrl,
-                      label: 'Potency',
-                      hint: '30C, 200C, 1M, 0/1 LM',
-                    ),
-                  ),
-                ],
+              HomeopathyRemedyField(
+                controller: _remedyCtrl,
+                label: 'Prescribed remedy (Simillimum) *',
+                hint: 'e.g. Lycopodium, Natrum Mur, Pulsatilla',
               ),
+              const SizedBox(height: CruSpace.s12),
+              HomeopathyPotencyChips(controller: _potencyCtrl),
               const SizedBox(height: CruSpace.s12),
               _buildTextField(
                 controller: _totalityRubricsCtrl,

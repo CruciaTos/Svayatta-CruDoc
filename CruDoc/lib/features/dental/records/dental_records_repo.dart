@@ -69,6 +69,22 @@ abstract final class RecKind {
   /// Files added from a visit's session pop-up: one record per visit,
   /// `{visitId, fileIds}` (any specialty).
   static const visitFiles = 'visitFiles';
+
+  /// Physiotherapy exercises the physio added, or media attached to a bundled
+  /// exercise: `{exerciseId, custom?, ...}` (patientId = '').
+  static const physioExercise = 'physioExercise';
+
+  /// Physiotherapy home exercise program (patientId = patient).
+  static const physioHep = 'physioHep';
+
+  /// Physiotherapy pain and function score `{pain, worst, function, note}`
+  /// (patientId = patient).
+  static const physioProgress = 'physioProgress';
+
+  /// Physiotherapy ROM and strength assessment
+  /// `{region, rows: [{move, lDeg, rDeg, lMmt, rMmt}], note}`
+  /// (patientId = patient).
+  static const physioRom = 'physioRom';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

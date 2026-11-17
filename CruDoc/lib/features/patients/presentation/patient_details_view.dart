@@ -35,6 +35,9 @@ import 'package:doctor_management_app/features/scribe/data/providers/scribe_prov
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visit_session_dialog.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/hep_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
@@ -608,7 +611,15 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
               return DetailsColumns(
                 wide: wide,
                 left: [MuscleChartCard(patient: p)],
-                right: [PhysioPhotosCard(patient: p)],
+                right: [
+                  ProgressCard(patient: p),
+                  const SizedBox(height: CruSpace.cardGap),
+                  RomCard(patient: p),
+                  const SizedBox(height: CruSpace.cardGap),
+                  HepCard(patient: p),
+                  const SizedBox(height: CruSpace.cardGap),
+                  PhysioPhotosCard(patient: p),
+                ],
               );
             }
             return _CaseSheetCard(

@@ -16,7 +16,10 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// whether they can find this person by the number, and the invites waiting
 /// (Later ones included).
 class ClinicInvitesSection extends ConsumerStatefulWidget {
-  const ClinicInvitesSection({super.key});
+  const ClinicInvitesSection({super.key, this.between});
+
+  /// Shown between the waiting invites and the personal cards.
+  final Widget? between;
 
   @override
   ConsumerState<ClinicInvitesSection> createState() =>
@@ -81,13 +84,11 @@ class _ClinicInvitesSectionState extends ConsumerState<ClinicInvitesSection> {
     final invites = ref.watch(clinicInviteInboxProvider).value ?? const [];
     final warning = clinicInviteWarning(profile);
 
-    return Column(
+    final personal = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const CrudocIdCard(
-          description: 'Give your clinic admin your phone number or CruDoc ID.',
-        ),
-        const SizedBox(height: CruSpace.s12),
+        const CrudocIdCard(description: null),
+        const SizedBox(height: CruSpace.cardGap),
         CruCard(
           child: Row(
             children: [
@@ -118,74 +119,72 @@ class _ClinicInvitesSectionState extends ConsumerState<ClinicInvitesSection> {
             ],
           ),
         ),
-        const SizedBox(height: CruSpace.s12),
+        const SizedBox(height: CruSpace.cardGap),
         CheckListCard(
           items: [
             CheckItem(
               label: 'Let clinics find me by my phone number',
-              detail: findable
-                  ? 'Clinics that have your number see you’re on CruDoc and '
-                        'can invite you in the app. This covers your number '
-                        'only: your exact CruDoc ID always finds you.'
-                  : 'Clinics can still invite your number; you’ll see it '
-                        'when you sign in. This covers your number only: '
-                        'your exact CruDoc ID always finds you.',
               checked: findable,
               enabled: !_savingFindable,
               onToggle: _savingFindable ? null : () => _setFindable(!findable),
             ),
           ],
         ),
-        const SizedBox(height: CruSpace.s20),
-        Text('Invites', style: CruType.headline.tint(c.label)),
-        const SizedBox(height: CruSpace.s8),
-        if (invites.isEmpty)
-          Text(
-            phone == null
-                ? 'No invites. Give your clinic admin your CruDoc ID, or '
-                      'confirm your phone number above.'
-                : 'No invites. Ask your clinic admin to invite $phone or '
-                      'your CruDoc ID.',
-            style: CruType.text.tint(c.label2),
-          )
-        else ...[
-          if (warning != null) ...[
-            Text(warning, style: CruType.text.tint(c.label2)),
-            const SizedBox(height: CruSpace.s8),
-          ],
-          TeamGroupCard(
-            title: 'Waiting for you',
-            rows: [
-              for (final i in invites)
-                TeamRow(
-                  monogram: i.clinicName.isEmpty ? '?' : i.clinicName,
-                  title: i.clinicName.isEmpty ? 'A clinic' : i.clinicName,
-                  detail: [
-                    if (i.roleName.isNotEmpty) i.roleName,
-                    if (i.invitedByName.isNotEmpty)
-                      'Invited by ${i.invitedByName}',
-                  ].join(' · '),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CruCapsuleButton(
-                        label: 'Decline',
-                        onPressed: _busy == null
-                            ? () => _act(i, join: false)
-                            : null,
+      ],
+    );
+
+    final waiting = invites.isEmpty
+        ? null
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (warning != null) ...[
+                Text(warning, style: CruType.text.tint(c.label2)),
+                const SizedBox(height: CruSpace.s8),
+              ],
+              TeamGroupCard(
+                title: 'Waiting for you',
+                rows: [
+                  for (final i in invites)
+                    TeamRow(
+                      monogram: i.clinicName.isEmpty ? '?' : i.clinicName,
+                      title: i.clinicName.isEmpty ? 'A clinic' : i.clinicName,
+                      detail: [
+                        if (i.roleName.isNotEmpty) i.roleName,
+                        if (i.invitedByName.isNotEmpty)
+                          'Invited by ${i.invitedByName}',
+                      ].join(' · '),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CruCapsuleButton(
+                            label: 'Decline',
+                            onPressed: _busy == null
+                                ? () => _act(i, join: false)
+                                : null,
+                          ),
+                          const SizedBox(width: CruSpace.s8),
+                          CruCapsuleButton(
+                            label: _busy == i.id ? 'Joining…' : 'Join',
+                            onPressed: _busy == null
+                                ? () => _act(i, join: true)
+                                : null,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: CruSpace.s8),
-                      CruCapsuleButton(
-                        label: _busy == i.id ? 'Joining…' : 'Join',
-                        onPressed: _busy == null
-                            ? () => _act(i, join: true)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
+              ),
             ],
-          ),
+          );
+
+    final blocks = <Widget>[?waiting, ?widget.between, personal];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < blocks.length; i++) ...[
+          if (i > 0) const SizedBox(height: CruSpace.cardGap),
+          blocks[i],
         ],
       ],
     );

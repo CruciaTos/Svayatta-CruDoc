@@ -361,7 +361,8 @@ class CrudocIdCard extends ConsumerWidget {
         "or invite you to their clinic, even if they don't have your number.",
   });
 
-  final String description;
+  /// Null hides the line.
+  final String? description;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -399,9 +400,11 @@ class CrudocIdCard extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('Your CruDoc ID', style: CruType.headline.tint(c.label)),
-          const SizedBox(height: CruSpace.s4),
-          Text(description, style: CruType.text.tint(c.label2)),
-          const SizedBox(height: CruSpace.s20),
+          if (description != null) ...[
+            const SizedBox(height: CruSpace.s4),
+            Text(description!, style: CruType.text.tint(c.label2)),
+          ],
+          SizedBox(height: description != null ? CruSpace.s20 : CruSpace.s12),
           Row(
             children: [
               Expanded(

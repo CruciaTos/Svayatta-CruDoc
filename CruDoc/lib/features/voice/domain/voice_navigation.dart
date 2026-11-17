@@ -50,13 +50,11 @@ const voiceSpots = <VoiceSpot>[
     'clinic address',
     'prescription header',
   ]),
-  VoiceSpot('settings.accounts', DesktopTab.settings, 'Connected accounts', [
+  VoiceSpot('settings.accounts', DesktopTab.settings, 'Accounts & devices', [
     'connected accounts',
     'gmail',
     'google account',
     'linked accounts',
-  ]),
-  VoiceSpot('settings.devices', DesktopTab.settings, 'Devices', [
     'devices',
     'device settings',
     'logged in devices',

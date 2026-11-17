@@ -2353,8 +2353,6 @@ class VoiceController {
         section(SettingsSection.clinic);
       case 'settings.accounts':
         section(SettingsSection.accounts);
-      case 'settings.devices':
-        section(SettingsSection.devices);
       case 'settings.appearance':
         section(SettingsSection.appearance);
       case 'settings.dental':

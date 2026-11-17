@@ -34,11 +34,11 @@ import 'package:doctor_management_app/features/subscription/data/doctor_subscrip
 import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
-import 'package:doctor_management_app/features/team/presentation/clinic_invites_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/import_export_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/storage_section.dart';
 import 'package:doctor_management_app/features/settings/presentation/call_forwarding_section.dart';
 import 'package:doctor_management_app/features/files/presentation/nearby_sharing_settings.dart';
+import 'package:doctor_management_app/features/team/presentation/team_and_invites_section.dart';
 import 'package:doctor_management_app/features/team/presentation/team_section.dart';
 import 'package:doctor_management_app/features/tutorial/domain/tutorial_step.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_controller.dart';
@@ -58,16 +58,13 @@ enum SettingsSection {
   plan('Plan & billing', CruIcons.wallet),
   clinic('Clinic & documents', CruIcons.pen),
 
-  /// People who can manage the clinic's team.
-  team('Team', CruIcons.patients),
+  /// Everyone: their own invites; the clinic's team for those who manage it.
+  team('Team & invites', CruIcons.patients),
 
   /// Someone working in another person's clinic.
   myFeatures('My features', CruIcons.check),
 
-  /// Everyone: the number clinics invite, being findable, open invites.
-  invites('Clinic invites', CruIcons.userPlus),
-  accounts('Connected accounts', CruIcons.arrowUpRight),
-  devices('Devices', CruIcons.sidebar),
+  accounts('Accounts & devices', CruIcons.arrowUpRight),
   appearance('Appearance', CruIcons.sun),
 
   /// AI assistance features, dictation, intelligence tools & safety.
@@ -107,7 +104,6 @@ bool showSettingsSection(WidgetRef ref, SettingsSection s) {
           (access == null || access.can(ClinicPermission.clinicalView)),
     // Clinic & documents moved to the Documents page in the sidebar.
     SettingsSection.clinic => false,
-    SettingsSection.team => access != null && access.can(ClinicPermission.team),
     SettingsSection.myFeatures => !isOwner,
     SettingsSection.storage => !kIsWeb,
     SettingsSection.importExport =>
@@ -158,11 +154,9 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.profile => _ProfileSection(user: user, profile: profile),
       SettingsSection.plan => const _PlanSection(),
       SettingsSection.clinic => const DocumentsSettingsSection(),
-      SettingsSection.team => const TeamSection(),
+      SettingsSection.team => const TeamAndInvitesSection(),
       SettingsSection.myFeatures => const MyFeaturesSection(),
-      SettingsSection.invites => const ClinicInvitesSection(),
-      SettingsSection.accounts => const _AccountsSection(),
-      SettingsSection.devices => _DevicesSection(user: user),
+      SettingsSection.accounts => _AccountsDevicesSection(user: user),
       SettingsSection.appearance => const _AppearanceSection(),
       SettingsSection.importExport => const ImportExportSection(),
       SettingsSection.storage => const StorageSection(),
@@ -377,7 +371,7 @@ class _SectionItem extends StatelessWidget {
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({
     required this.title,
-    required this.child,
+    this.child,
     this.description,
     this.trailing,
   });
@@ -385,7 +379,10 @@ class _SettingsCard extends StatelessWidget {
   final String title;
   final String? description;
   final Widget? trailing;
-  final Widget child;
+
+  /// Null: a header-only card (title and optional trailing action), with no
+  /// gap below.
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +394,9 @@ class _SettingsCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: child == null
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -417,8 +416,10 @@ class _SettingsCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: CruSpace.s20),
-          child,
+          if (child != null) ...[
+            const SizedBox(height: CruSpace.s16),
+            child!,
+          ],
         ],
       ),
     );
@@ -796,7 +797,7 @@ class _PlanSectionState extends State<_PlanSection> {
 }
 
 // =============================================================================
-// CONNECTED ACCOUNTS
+// GMAIL
 // =============================================================================
 
 class _AccountsSection extends ConsumerWidget {
@@ -810,22 +811,22 @@ class _AccountsSection extends ConsumerWidget {
     final email = gmail.value;
 
     final Widget action;
-    final String detail;
+    final String status;
     if (gmail.isLoading) {
-      detail = 'Checking…';
+      status = 'Checking…';
       action = SizedBox.square(
         dimension: CruSpace.s20,
         child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
       );
     } else if (email != null) {
-      detail = 'Connected as $email';
+      status = email;
       action = CruButton(
         label: 'Disconnect',
         kind: CruButtonKind.inset,
         onPressed: notifier.disconnect,
       );
     } else {
-      detail = gmail.hasError
+      status = gmail.hasError
           ? 'Could not connect. Try again.'
           : 'Not connected';
       action = CruButton(
@@ -835,20 +836,36 @@ class _AccountsSection extends ConsumerWidget {
       );
     }
 
-    return _Stack([
-      _SettingsCard(
-        title: 'Gmail',
-        child: _ActionRow(
-          leading: const CruIconTile(
-            icon: CruIcons.arrowUpRight,
-            tone: CruTileTone.neutral,
-          ),
-          title: email != null ? 'Connected' : 'Gmail',
-          detail: detail,
-          action: action,
+    return _SettingsCard(
+      title: 'Gmail',
+      child: _ActionRow(
+        leading: const CruIconTile(
+          icon: CruIcons.arrowUpRight,
+          tone: CruTileTone.neutral,
         ),
+        title: status,
+        action: action,
       ),
-    ]);
+    );
+  }
+}
+
+/// Settings → Accounts & devices: the Gmail card, then the signed-in devices.
+class _AccountsDevicesSection extends StatelessWidget {
+  const _AccountsDevicesSection({required this.user});
+
+  final User? user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _AccountsSection(),
+        const SizedBox(height: CruSpace.cardGap),
+        _DevicesSection(user: user),
+      ],
+    );
   }
 }
 
@@ -901,7 +918,7 @@ class _DevicesSection extends StatelessWidget {
     final c = context.cru;
     final uid = user?.uid;
     if (uid == null) {
-      return const _SettingsCard(title: 'Devices', child: SizedBox.shrink());
+      return const _SettingsCard(title: 'Devices');
     }
     return StreamBuilder<List<DeviceSession>>(
       stream: DeviceSessionService.instance.watchActiveSessions(uid),
@@ -960,7 +977,7 @@ class _DevicesSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             card,
-            const SizedBox(height: CruSpace.s20),
+            const SizedBox(height: CruSpace.cardGap),
             const NearbySharingSettingsCard(),
           ],
         );
@@ -1281,7 +1298,6 @@ class _DentalSection extends ConsumerWidget {
             onPressed: () =>
                 _openDentalPage(context, ref, DesktopTab.procedures),
           ),
-          child: const SizedBox.shrink(),
         ),
       if (tabs.contains(DesktopTab.oralMedForms))
         _SettingsCard(
@@ -1292,7 +1308,6 @@ class _DentalSection extends ConsumerWidget {
             onPressed: () =>
                 _openDentalPage(context, ref, DesktopTab.oralMedForms),
           ),
-          child: const SizedBox.shrink(),
         ),
       _SettingsCard(
         title: 'Tooth numbering',

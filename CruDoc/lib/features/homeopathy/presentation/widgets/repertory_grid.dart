@@ -21,6 +21,8 @@ class RepertoryGrid extends StatelessWidget {
     required this.onChoose,
     required this.onOpenRemedy,
     required this.hasEntry,
+    this.compare = const {},
+    this.onToggleCompare,
   });
 
   final RepertorizationResult result;
@@ -38,6 +40,12 @@ class RepertoryGrid extends StatelessWidget {
   /// a Materia medica page.
   final ValueChanged<String> onOpenRemedy;
   final bool Function(String abbr) hasEntry;
+
+  /// Remedy abbreviations picked (press and hold on the header) for compare.
+  final Set<String> compare;
+
+  /// Long press on a column header; null turns the gesture off.
+  final ValueChanged<String>? onToggleCompare;
 
   @override
   Widget build(BuildContext context) {
@@ -129,22 +137,35 @@ class RepertoryGrid extends StatelessWidget {
                   semanticLabel: hasEntry(s.abbr)
                       ? 'Open ${s.abbr} in Materia medica'
                       : s.abbr,
-                  builder: (context, hovered) => Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: CruSpace.s4,
-                    ),
-                    child: Text(
-                      s.abbr,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CruType.caption.w600.tint(
-                        hasEntry(s.abbr) ? c.accentText : c.label,
+                  builder: (context, hovered) => GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onLongPress: hasEntry(s.abbr) && onToggleCompare != null
+                        ? () => onToggleCompare!(s.abbr)
+                        : null,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CruSpace.s4,
+                      ),
+                      child: Text(
+                        s.abbr,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.caption.w600
+                            .tint(hasEntry(s.abbr) ? c.accentText : c.label)
+                            .copyWith(
+                              decoration: compare.contains(s.abbr)
+                                  ? TextDecoration.underline
+                                  : null,
+                              decorationColor: c.accentText,
+                            ),
                       ),
                     ),
                   ),
                 ),
                 _headH,
-                fill: s.abbr == chosen ? c.greenTint : null,
+                fill: s.abbr == chosen
+                    ? c.greenTint
+                    : (compare.contains(s.abbr) ? c.inset : null),
               ),
           ],
         ),

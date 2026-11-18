@@ -38,6 +38,8 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/ass
 import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/hep_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/sessions_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/special_tests_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
@@ -617,6 +619,10 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                   RomCard(patient: p),
                   const SizedBox(height: CruSpace.cardGap),
                   HepCard(patient: p),
+                  const SizedBox(height: CruSpace.cardGap),
+                  SessionsCard(patient: p),
+                  const SizedBox(height: CruSpace.cardGap),
+                  SpecialTestsCard(patient: p),
                   const SizedBox(height: CruSpace.cardGap),
                   PhysioPhotosCard(patient: p),
                 ],

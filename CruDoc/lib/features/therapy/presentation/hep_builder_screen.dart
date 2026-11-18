@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/data/exercise_library.dart';
@@ -106,6 +107,21 @@ class _HepBuilderScreenState extends ConsumerState<HepBuilderScreen> {
     }
   }
 
+  Future<void> _deleteProgram() async {
+    final saved = _saved;
+    if (saved == null) return;
+    final ok = await confirmDental(
+      context,
+      title: 'Delete this program?',
+      body:
+          '"${saved.title.isEmpty ? 'Home exercise program' : saved.title}" and its ${saved.items.length} exercise${saved.items.length == 1 ? '' : 's'} will be removed.',
+      action: 'Delete',
+    );
+    if (!ok || !mounted) return;
+    await deleteDentalRecord(ref, saved.record);
+    if (mounted) Navigator.of(context).pop();
+  }
+
   Future<void> _share(bool whatsapp) async {
     setState(() => _busy = true);
     final p = await _save();
@@ -146,6 +162,12 @@ class _HepBuilderScreenState extends ConsumerState<HepBuilderScreen> {
       appBar: AppBar(
         title: Text(widget.patient.fullName),
         actions: [
+          if (_saved != null)
+            IconButton(
+              tooltip: 'Delete program',
+              icon: Icon(Icons.delete_outline, color: c.label2),
+              onPressed: _busy ? null : _deleteProgram,
+            ),
           CruCapsuleButton(
             label: 'PDF',
             icon: CruIcons.fileText,

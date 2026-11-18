@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/utils/app_notice.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_potency_chips.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_prescription_slip.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_remedy_field.dart';
+import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// How a remedy is to be taken. [needsDays] patterns ask for a duration.
@@ -51,6 +55,14 @@ class HomeoDosePlan {
   DateTime? get reviewOn => record.date('reviewOn');
   String get note => record.str('note');
   String get recallId => record.str('recallId');
+
+  /// "Twice daily for 7 days", in plain words for the patient.
+  String get dosingText {
+    final d = days;
+    return pattern.needsDays && d != null
+        ? '${pattern.label} for $d day${d == 1 ? '' : 's'}'
+        : pattern.label;
+  }
 
   /// "Nux vomica 200C · Twice daily, 7 days".
   String get summary {
@@ -104,6 +116,46 @@ class HomeopathyDosePlanCard extends ConsumerWidget {
         initialPotency: sheet?.prescriptionNotes.potency ?? '',
       ),
     );
+  }
+
+  Future<void> _slip(
+    BuildContext context,
+    WidgetRef ref,
+    HomeoDosePlan plan,
+  ) async {
+    try {
+      final identity = ref.read(doctorIdentityProvider);
+      final patient = ref
+          .read(patientsStreamProvider)
+          .value
+          ?.where((p) => p.id == patientId)
+          .firstOrNull;
+      final name = patient?.fullName ?? patientName;
+      final bytes = await buildHomeoPrescriptionSlip(
+        clinicName: identity.clinicName ?? '',
+        doctorName: identity.fullName ?? '',
+        patientName: name,
+        patientAge: patient?.age,
+        date: plan.date,
+        remedy: plan.remedy,
+        potency: plan.potency,
+        dosing: plan.dosingText,
+        reviewOn: plan.reviewOn,
+        instructions: plan.note,
+        antidoteLine:
+            'Avoid ${_antidotes.join(', ')} while on the remedy, as per the '
+            'usual classical advice.',
+      );
+      await shareHomeoPrescriptionSlip(bytes, patientName: name);
+    } catch (e) {
+      if (context.mounted) {
+        AppNotice.error(
+          context,
+          "Couldn't make the prescription slip.",
+          error: e,
+        );
+      }
+    }
   }
 
   Future<void> _removeRecall(WidgetRef ref, HomeoDosePlan plan) async {
@@ -232,14 +284,20 @@ class HomeopathyDosePlanCard extends ConsumerWidget {
           ],
           if (active != null) ...[
             const SizedBox(height: CruSpace.s4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: CruIconButton(
-                icon: FileIcons.trash,
-                iconSize: 16,
-                onPressed: () => _delete(context, ref, active),
-                semanticLabel: 'Delete dose plan',
-              ),
+            Row(
+              children: [
+                CruLink(
+                  label: 'Prescription slip',
+                  onPressed: () => _slip(context, ref, active),
+                ),
+                const Spacer(),
+                CruIconButton(
+                  icon: FileIcons.trash,
+                  iconSize: 16,
+                  onPressed: () => _delete(context, ref, active),
+                  semanticLabel: 'Delete dose plan',
+                ),
+              ],
             ),
           ],
         ],

@@ -231,7 +231,35 @@ class ExerciseDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: c.canvas,
-      appBar: AppBar(title: Text(e.name)),
+      appBar: AppBar(
+        title: Text(e.name),
+        actions: [
+          if (e.isCustom && e.recordId != null)
+            IconButton(
+              tooltip: 'Delete exercise',
+              icon: Icon(Icons.delete_outline, color: c.label2),
+              onPressed: () async {
+                final rec = (ref
+                            .read(clinicRecordsProvider(RecKind.physioExercise))
+                            .value ??
+                        const <DentalRecord>[])
+                    .where((r) => r.id == e.recordId)
+                    .firstOrNull;
+                if (rec == null) return;
+                final ok = await confirmDental(
+                  context,
+                  title: 'Delete this exercise?',
+                  body:
+                      '"${e.name}" will be removed from your library. Programs already made keep their copy.',
+                  action: 'Delete',
+                );
+                if (!ok) return;
+                await deleteDentalRecord(ref, rec);
+                if (context.mounted) Navigator.of(context).pop();
+              },
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(CruSpace.s16),
         children: [

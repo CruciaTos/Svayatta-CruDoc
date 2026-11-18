@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/homeopathy/data/materia_medica_data.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/remedy_compare_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Widest the page grows on desktop; it reads as a column.
@@ -24,6 +25,17 @@ class MateriaMedicaScreen extends StatefulWidget {
 class _MateriaMedicaScreenState extends State<MateriaMedicaScreen> {
   final _search = TextEditingController();
   RemedyGroup? _group;
+
+  /// Up to two remedies picked for the side-by-side compare page.
+  final List<MateriaMedicaEntry> _compare = [];
+
+  void _toggleCompare(MateriaMedicaEntry e) => setState(() {
+    if (_compare.contains(e)) {
+      _compare.remove(e);
+    } else if (_compare.length < 2) {
+      _compare.add(e);
+    }
+  });
 
   @override
   void dispose() {
@@ -171,6 +183,10 @@ class _MateriaMedicaScreenState extends State<MateriaMedicaScreen> {
                           padding: const EdgeInsets.only(bottom: CruSpace.s8),
                           child: _EntryRow(
                             entry: e,
+                            compared: _compare.contains(e),
+                            canCompare:
+                                _compare.length < 2 || _compare.contains(e),
+                            onCompare: () => _toggleCompare(e),
                             onTap: () =>
                                 MateriaMedicaDetailScreen.open(context, e),
                           ),
@@ -184,6 +200,44 @@ class _MateriaMedicaScreenState extends State<MateriaMedicaScreen> {
                     ],
                   ),
                 ),
+                if (_compare.isNotEmpty)
+                  Container(
+                    padding: EdgeInsets.fromLTRB(
+                      CruSpace.s20,
+                      CruSpace.s12,
+                      CruSpace.s20,
+                      CruSpace.s12 + MediaQuery.of(context).padding.bottom,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      border: Border(top: BorderSide(color: c.hairline)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: CruButton(
+                            label: _compare.length == 2
+                                ? 'Compare ${_compare[0].abbr} and '
+                                      '${_compare[1].abbr}'
+                                : 'Pick one more remedy to compare',
+                            onPressed: _compare.length == 2
+                                ? () => RemedyComparePage.open(
+                                    context,
+                                    _compare[0],
+                                    _compare[1],
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(width: CruSpace.s8),
+                        CruIconButton(
+                          icon: CruIcons.close,
+                          onPressed: () => setState(_compare.clear),
+                          semanticLabel: 'Clear compare selection',
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -194,10 +248,19 @@ class _MateriaMedicaScreenState extends State<MateriaMedicaScreen> {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry, required this.onTap});
+  const _EntryRow({
+    required this.entry,
+    required this.onTap,
+    required this.compared,
+    required this.canCompare,
+    required this.onCompare,
+  });
 
   final MateriaMedicaEntry entry;
   final VoidCallback onTap;
+  final bool compared;
+  final bool canCompare;
+  final VoidCallback onCompare;
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +298,45 @@ class _EntryRow extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(width: CruSpace.s8),
+            CruPressable(
+              onTap: canCompare ? onCompare : null,
+              semanticLabel: compared
+                  ? 'Remove ${entry.name} from compare'
+                  : 'Compare ${entry.name}',
+              builder: (context, hovered) => Container(
+                height: CruSize.pill,
+                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+                decoration: ShapeDecoration(
+                  color: c.inset,
+                  shape: StadiumBorder(
+                    side: compared
+                        ? BorderSide(color: c.accent)
+                        : BorderSide.none,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CruIcon(
+                      compared ? CruIcons.check : CruIcons.plus,
+                      size: CruSpace.s14,
+                      color: compared ? c.accentText : c.label2,
+                    ),
+                    const SizedBox(width: CruSpace.s4),
+                    Text(
+                      'Compare',
+                      style: CruType.caption.w600.tint(
+                        !canCompare
+                            ? c.label3
+                            : (compared ? c.accentText : c.label2),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: CruSpace.s4),
             CruIcon(CruIcons.chevronRight, size: CruSpace.s18, color: c.label3),
           ],
         ),

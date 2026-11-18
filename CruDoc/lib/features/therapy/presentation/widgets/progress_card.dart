@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_assess_models.dart';
+import 'package:doctor_management_app/features/therapy/presentation/progress_report.dart';
 import 'package:doctor_management_app/features/therapy/presentation/progress_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -75,6 +76,23 @@ class ProgressCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+                if (last != null) ...[
+                  CruCapsuleButton(
+                    label: 'Report',
+                    icon: CruIcons.fileText,
+                    onPressed: () async {
+                      try {
+                        await shareProgressReport(context, ref, patient);
+                      } catch (e) {
+                        debugPrint('progress report failed: $e');
+                        if (context.mounted) {
+                          recToast(context, "Couldn't build the report.");
+                        }
+                      }
+                    },
+                  ),
+                  const SizedBox(width: CruSpace.s8),
+                ],
                 CruCapsuleButton(
                   label: last == null ? 'Log first score' : 'Log',
                   icon: CruIcons.plus,

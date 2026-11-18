@@ -6,12 +6,14 @@ import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/homeopathy/data/materia_medica_data.dart';
+import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/data/repertory/repertorization.dart';
 import 'package:doctor_management_app/features/homeopathy/data/repertory/repertory_engine.dart';
 import 'package:doctor_management_app/features/homeopathy/data/repertory/repertory_registry.dart';
 import 'package:doctor_management_app/features/homeopathy/data/repertory/rubric.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/materia_medica_screen.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/remedy_compare_page.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/repertory_grid.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/repertory_suggest_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -31,7 +33,8 @@ enum _Tab { rubrics, result, saved }
 const _weightNames = {1: 'Normal', 2: 'Important', 3: 'Characteristic'};
 
 /// Mini repertory for one patient: pick rubrics, see the remedy grid, save
-/// the repertorization. Nothing is written to the case sheet.
+/// the repertorization. The case sheet is only changed when the physician
+/// confirms "Use this remedy" (prescribed remedy field only).
 class RepertoryScreen extends ConsumerStatefulWidget {
   const RepertoryScreen({
     super.key,
@@ -68,6 +71,9 @@ class _RepertoryScreenState extends ConsumerState<RepertoryScreen> {
   String? _chosen;
   Repertorization? _editing;
   bool _saving = false;
+
+  /// Remedy abbreviations held on the result grid for the compare page.
+  final List<String> _compare = [];
 
   @override
   void dispose() {
@@ -216,6 +222,75 @@ class _RepertoryScreenState extends ConsumerState<RepertoryScreen> {
     await deleteDentalRecord(ref, r.record);
     if (!mounted) return;
     if (_editing?.id == r.id) setState(() => _editing = null);
+  }
+
+  void _toggleCompare(String abbr) => setState(() {
+    if (!_compare.remove(abbr)) {
+      if (_compare.length == 2) _compare.removeAt(0);
+      _compare.add(abbr);
+    }
+  });
+
+  void _openCompare() {
+    if (_compare.length != 2) return;
+    final a = materiaMedicaFor(_compare[0]);
+    final b = materiaMedicaFor(_compare[1]);
+    if (a != null && b != null) RemedyComparePage.open(context, a, b);
+  }
+
+  /// Marks the remedy as chosen; when the patient has a case sheet, also
+  /// offers to write it as the prescribed remedy (potency is never touched).
+  Future<void> _choose(String abbr) async {
+    if (_chosen == abbr) {
+      setState(() => _chosen = null);
+      return;
+    }
+    setState(() => _chosen = abbr);
+    final name = materiaMedicaFor(abbr)?.name ?? abbr;
+    final repo = ref.read(homeopathyRepositoryProvider);
+    try {
+      final sheet = await repo.getCaseSheetForPatient(widget.patientId);
+      if (sheet == null || !mounted) return;
+      if (sheet.prescriptionNotes.prescribedRemedy.trim() == name) return;
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => CruFormDialog(
+          title: 'Set $name as the prescribed remedy?',
+          leading: const CruIconTile(
+            icon: CruIcons.check,
+            tone: CruTileTone.neutral,
+          ),
+          submitLabel: 'Set remedy',
+          onSubmit: () => Navigator.of(ctx).pop(true),
+          body: Padding(
+            padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+            child: Text(
+              'Set $name as the prescribed remedy in the case sheet? '
+              'The potency is not changed.',
+              style: CruType.text.tint(ctx.cru.label2),
+            ),
+          ),
+        ),
+      );
+      if (confirm != true || !mounted) return;
+      await repo.saveCaseSheet(
+        sheet.copyWith(
+          prescriptionNotes: sheet.prescriptionNotes.copyWith(
+            prescribedRemedy: name,
+          ),
+        ),
+      );
+      ref.invalidate(homeopathyCaseSheetProvider(widget.patientId));
+      if (mounted) _notice('Case sheet updated: prescribed remedy $name.');
+    } catch (e) {
+      if (mounted) {
+        AppNotice.error(
+          context,
+          "Couldn't update the case sheet.",
+          error: e,
+        );
+      }
+    }
   }
 
   void _openRemedy(String abbr) {
@@ -389,14 +464,28 @@ class _RepertoryScreenState extends ConsumerState<RepertoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Characteristic symptoms (from the totality)',
+                  'Characteristic symptoms (tap to search rubrics)',
                   style: CruType.subhead.w600.tint(c.label2),
                 ),
                 const SizedBox(height: CruSpace.s8),
                 for (final t in totality)
                   Padding(
                     padding: const EdgeInsets.only(bottom: CruSpace.s4),
-                    child: Text(t, style: CruType.text.tint(c.label)),
+                    child: CruPressable(
+                      onTap: () => setState(() {
+                        _search.text = t;
+                        _search.selection = TextSelection.collapsed(
+                          offset: t.length,
+                        );
+                      }),
+                      semanticLabel: 'Search rubrics for $t',
+                      builder: (context, hovered) => Text(
+                        t,
+                        style: CruType.text.tint(
+                          hovered ? c.accentText : c.label,
+                        ),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -570,8 +659,25 @@ class _RepertoryScreenState extends ConsumerState<RepertoryScreen> {
             chosen: _chosen,
             hasEntry: (a) => materiaMedicaFor(a) != null,
             onOpenRemedy: _openRemedy,
-            onChoose: (a) => setState(() => _chosen = _chosen == a ? null : a),
+            onChoose: _choose,
+            compare: _compare.toSet(),
+            onToggleCompare: _toggleCompare,
           ),
+        ),
+        const SizedBox(height: CruSpace.s8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _compare.length == 2
+                    ? 'Comparing ${_compare[0]} and ${_compare[1]}'
+                    : 'Press and hold two remedy headers to compare them.',
+                style: CruType.caption.tint(c.label2),
+              ),
+            ),
+            if (_compare.length == 2)
+              CruCapsuleButton(label: 'Compare', onPressed: _openCompare),
+          ],
         ),
         if (_chosen != null) ...[
           const SizedBox(height: CruSpace.s12),
@@ -581,8 +687,7 @@ class _RepertoryScreenState extends ConsumerState<RepertoryScreen> {
               const SizedBox(width: CruSpace.s6),
               Expanded(
                 child: Text(
-                  'Chosen remedy: $_chosen. Saved with this repertorization '
-                  'only; the case sheet is not changed.',
+                  'Chosen remedy: $_chosen. Saved with this repertorization.',
                   style: CruType.text.tint(c.label),
                 ),
               ),

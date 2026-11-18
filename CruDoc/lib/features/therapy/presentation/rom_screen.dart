@@ -59,6 +59,31 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
   final _note = TextEditingController();
   bool _busy = false;
 
+  /// The saved assessment being edited, or null for a new one.
+  DentalRecord? _editing;
+
+  void _load(RomAssessment a) {
+    for (final c in _ctl.values) {
+      c.clear();
+    }
+    for (final r in a.rows) {
+      _c(r.move, 'lDeg').text = r.lDeg?.toString() ?? '';
+      _c(r.move, 'rDeg').text = r.rDeg?.toString() ?? '';
+      _c(r.move, 'lMmt').text = r.lMmt?.toString() ?? '';
+      _c(r.move, 'rMmt').text = r.rMmt?.toString() ?? '';
+    }
+    _note.text = a.note;
+    setState(() => _editing = a.record);
+  }
+
+  void _stopEditing() {
+    for (final c in _ctl.values) {
+      c.clear();
+    }
+    _note.clear();
+    setState(() => _editing = null);
+  }
+
   TextEditingController _c(String move, String field) =>
       _ctl.putIfAbsent('$move|$field', () => TextEditingController());
   FocusNode _f(String move, String field) =>
@@ -95,16 +120,23 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
       return;
     }
     setState(() => _busy = true);
+    final data = {
+      'region': widget.region.id,
+      'rows': [for (final r in rows) r.toJson()],
+      'note': _note.text.trim(),
+    };
+    final editing = _editing;
     await saveDentalRecord(
       ref,
-      DentalRecord.create(widget.patient.id, RecKind.physioRom, {
-        'region': widget.region.id,
-        'rows': [for (final r in rows) r.toJson()],
-        'note': _note.text.trim(),
-      }),
+      editing != null
+          ? editing.copyWith(data: data)
+          : DentalRecord.create(widget.patient.id, RecKind.physioRom, data),
     );
     if (!mounted) return;
-    recToast(context, '${widget.region.label} saved');
+    recToast(
+      context,
+      '${widget.region.label} ${editing != null ? 'updated' : 'saved'}',
+    );
     Navigator.of(context).pop();
   }
 
@@ -120,7 +152,14 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
     final history = romAssessments(
       recs.value ?? const <DentalRecord>[],
     ).where((a) => a.regionId == widget.region.id).toList();
-    final prev = history.firstOrNull;
+    // The assessment before the one being edited (or the latest, for a new one).
+    final editDate = history
+        .where((a) => a.record.id == _editing?.id)
+        .firstOrNull
+        ?.date;
+    final prev = history
+        .where((a) => editDate == null || a.date.isBefore(editDate))
+        .firstOrNull;
     final since = prev == null ? '' : DentalFormat.shortDate(prev.date);
     final moves = widget.region.moves;
 
@@ -219,6 +258,23 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                   'ACTIVE ROM (degrees) AND STRENGTH (MMT 0-5)',
                   style: CruType.micro.w600.tint(c.label2),
                 ),
+                if (_editing != null) ...[
+                  const SizedBox(height: CruSpace.s8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Editing the assessment from ${DentalFormat.date(_editing!.recordedAt)}',
+                          style: CruType.caption.tint(c.label2),
+                        ),
+                      ),
+                      CruCapsuleButton(
+                        label: 'New instead',
+                        onPressed: _stopEditing,
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: CruSpace.s8),
                 for (final m in moves)
                   Padding(
@@ -285,7 +341,7 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                 if (history.isNotEmpty) ...[
                   const SizedBox(height: CruSpace.s24),
                   Text(
-                    'EARLIER ASSESSMENTS',
+                    'EARLIER ASSESSMENTS (TAP TO EDIT)',
                     style: CruType.micro.w600.tint(c.label2),
                   ),
                   const SizedBox(height: CruSpace.s8),
@@ -303,7 +359,12 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: Column(
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
+                                onTap: () => _load(a),
+                                child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
@@ -323,6 +384,7 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                                     ),
                                 ],
                               ),
+                              ),
                             ),
                             IconButton(
                               tooltip: 'Delete',
@@ -331,8 +393,20 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                                 size: 20,
                                 color: c.label2,
                               ),
-                              onPressed: () =>
-                                  deleteDentalRecord(ref, a.record),
+                              onPressed: () async {
+                                final ok = await confirmDental(
+                                  context,
+                                  title: 'Delete this assessment?',
+                                  body:
+                                      'The ${widget.region.label.toLowerCase()} assessment from ${DentalFormat.date(a.date)} will be removed.',
+                                  action: 'Delete',
+                                );
+                                if (!ok) return;
+                                if (_editing?.id == a.record.id) {
+                                  _stopEditing();
+                                }
+                                await deleteDentalRecord(ref, a.record);
+                              },
                             ),
                           ],
                         ),
@@ -347,7 +421,7 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
             child: Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
               child: CruButton(
-                label: 'Save assessment',
+                label: _editing != null ? 'Update assessment' : 'Save assessment',
                 expand: true,
                 onPressed: _busy ? null : _save,
               ),

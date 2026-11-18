@@ -383,7 +383,16 @@ class ProgressScreen extends ConsumerWidget {
                         size: 20,
                         color: c.label2,
                       ),
-                      onPressed: () => deleteDentalRecord(ref, e.record),
+                      onPressed: () async {
+                        final ok = await confirmDental(
+                          context,
+                          title: 'Delete this score?',
+                          body:
+                              'The score from ${DentalFormat.date(e.date)} will be removed.',
+                          action: 'Delete',
+                        );
+                        if (ok) await deleteDentalRecord(ref, e.record);
+                      },
                     ),
                   ],
                 ),

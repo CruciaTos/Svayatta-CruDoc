@@ -86,6 +86,15 @@ abstract final class RecKind {
   /// (patientId = patient).
   static const physioRom = 'physioRom';
 
+  /// Physiotherapy session package
+  /// `{name, total, price?, validUntil?, note, used: [epochMs]}`
+  /// (patientId = patient).
+  static const physioPackage = 'physioPackage';
+
+  /// Physiotherapy special test result `{testId, side, result, note}`
+  /// (patientId = patient).
+  static const physioTestResult = 'physioTestResult';
+
   /// Homeopathy dose plan `{remedy, potency, pattern, days?, reviewOn, note,
   /// recallId?}` (patientId = patient).
   static const homeoDosePlan = 'homeoDosePlan';

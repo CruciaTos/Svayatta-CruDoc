@@ -85,6 +85,27 @@ abstract final class RecKind {
   /// `{region, rows: [{move, lDeg, rDeg, lMmt, rMmt}], note}`
   /// (patientId = patient).
   static const physioRom = 'physioRom';
+
+  /// Homeopathy dose plan `{remedy, potency, pattern, days?, reviewOn, note,
+  /// recallId?}` (patientId = patient).
+  static const homeoDosePlan = 'homeoDosePlan';
+
+  /// Homeopathy totality (one per patient, updated in place)
+  /// `{items: [{source, text, tier, miasm, skip}], miasmCase: [...]}`.
+  static const homeoTotality = 'homeoTotality';
+
+  /// Homeopathy repertorization `{rubrics: [{id, weight}], note,
+  /// chosenRemedy?}` (patientId = patient).
+  static const homeoRepertorization = 'homeoRepertorization';
+
+  /// Homeopathy remedy dispensed to a patient
+  /// `{remedy, potency, form, qty, unit, note, stockId?, stockTaken?}`
+  /// (patientId = patient).
+  static const homeoDispense = 'homeoDispense';
+
+  /// Homeopathy remedy stock line `{remedy, potency, form, qty, unit, low?}`
+  /// (patientId = '', clinic-wide).
+  static const homeoStock = 'homeoStock';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

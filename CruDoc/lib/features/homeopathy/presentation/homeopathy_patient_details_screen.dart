@@ -21,7 +21,11 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_icons.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_follow_up_timeline.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_dose_plan_card.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_totality_card.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_repertory_entry.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/materia_medica_screen.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_dispensed_card.dart';
 
 /// Widest the page grows on desktop; it reads as a column, not a sheet.
 const double _maxWidth = 760;
@@ -261,6 +265,23 @@ class _HomeopathyPatientDetailsScreenState
                         ),
                         const SizedBox(height: CruSpace.cardGap),
                         HomeopathyFollowUpTimeline(patientId: patient.id),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyDosePlanCard(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyTotalityCard(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyRepertoryEntry(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyDispensedCard(patientId: patient.id),
                         const SizedBox(height: CruSpace.cardGap),
                         // Consultations recorded with the AI scribe.
                         if (sessions.isNotEmpty) ...[

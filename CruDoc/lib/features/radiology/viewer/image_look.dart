@@ -17,6 +17,7 @@ class RadImageLook {
     this.flipH = false,
     this.flipV = false,
     this.filters = const RadFilterSettings(),
+    this.lastSlice,
   });
 
   /// Study `extras` key: image (or stack) key → look.
@@ -32,6 +33,30 @@ class RadImageLook {
   final bool flipV;
   final RadFilterSettings filters;
 
+  /// The slice (image id) of a stack the doctor was last looking at, so the
+  /// stack reopens there.
+  final String? lastSlice;
+
+  RadImageLook copyWith({
+    double? center,
+    double? width,
+    bool? invert,
+    int? quarterTurns,
+    bool? flipH,
+    bool? flipV,
+    RadFilterSettings? filters,
+    String? lastSlice,
+  }) => RadImageLook(
+    center: center ?? this.center,
+    width: width ?? this.width,
+    invert: invert ?? this.invert,
+    quarterTurns: quarterTurns ?? this.quarterTurns,
+    flipH: flipH ?? this.flipH,
+    flipV: flipV ?? this.flipV,
+    filters: filters ?? this.filters,
+    lastSlice: lastSlice ?? this.lastSlice,
+  );
+
   Map<String, dynamic> toJson() => {
     'center': center,
     'width': width,
@@ -40,6 +65,7 @@ class RadImageLook {
     if (flipH) 'flipH': true,
     if (flipV) 'flipV': true,
     'filters': filters.toJson(),
+    if (lastSlice != null) 'lastSlice': lastSlice,
   };
 
   static RadImageLook? fromJson(Object? j) {
@@ -58,6 +84,7 @@ class RadImageLook {
       filters: f is Map
           ? RadFilterSettings.fromJson(Map<String, dynamic>.from(f))
           : const RadFilterSettings(),
+      lastSlice: m['lastSlice'] is String ? m['lastSlice'] as String : null,
     );
   }
 

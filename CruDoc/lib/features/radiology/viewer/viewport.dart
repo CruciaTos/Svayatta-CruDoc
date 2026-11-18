@@ -45,11 +45,32 @@ abstract interface class RadViewportHost {
   /// Shows slice (of a stack) or frame (of a multi-frame file) [index].
   void setFrame(RadPane pane, int index);
 
+  /// Locked: a one-finger swipe pages between slices and touches don't
+  /// draw or edit. Unlocked: one finger uses the tool.
+  bool get sliceLock;
+
   /// Upgrades [imageId] to full quality.
   void upgradeToFull(String imageId);
 }
 
-enum _Drag { none, pan, zoom, window, draw, angleArm, freehand, edit, pinch }
+enum _Drag {
+  none,
+  pan,
+  zoom,
+  window,
+  draw,
+  angleArm,
+  freehand,
+  edit,
+  pinch,
+  slice,
+
+  /// Offset + Length: the finger only aims a crosshair; Register drops points.
+  aim,
+}
+
+/// Horizontal finger travel that turns one slice.
+const _sliceSwipeStep = 24.0;
 
 /// One dark image pane: the image through its window, annotations,
 /// corner read-outs, the loupe and the frame slider. Left-drag uses the
@@ -179,6 +200,9 @@ class _RadViewportState extends State<RadViewport>
   double _panZoomScale = 1;
   double _wheelAcc = 0;
 
+  // Swipe paging (slice lock): finger travel not yet turned into a slice.
+  double _sliceAccum = 0;
+
   // Touch: fingers on the screen, and the pinch they make.
   final Map<int, Offset> _touches = {};
   Offset _pinchFocal = Offset.zero;
@@ -197,7 +221,12 @@ class _RadViewportState extends State<RadViewport>
   int _editHandle = -1;
   Offset _editStart = Offset.zero;
 
-  static const _touchCursorOffset = Offset(0, -48.0);
+  Offset get _touchCursorOffset =>
+      Offset(0, -widget.host.prefs.cursorOffsetDistance);
+
+  /// Offset + Length on touch: aim only, points are placed by Register.
+  bool get _registerMode =>
+      widget.host.prefs.cursorOffset && widget.tool == RadTool.length;
   Offset? _touchPos;
 
   RadPane get pane => widget.pane;
@@ -236,6 +265,32 @@ class _RadViewportState extends State<RadViewport>
     }
     widget.host.activatePane(pane);
     final isTouch = e.kind == PointerDeviceKind.touch;
+    if (isTouch &&
+        widget.host.sliceLock &&
+        pane.sliceCount > 1 &&
+        !_registerMode) {
+      _drag = _Drag.slice;
+      _sliceAccum = 0;
+      _downPos = _lastPos = e.localPosition;
+      _moved = false;
+      _touchPos = null;
+      return;
+    }
+    if (isTouch && _registerMode && pane.hasImage) {
+      _drag = _Drag.aim;
+      _touchPos = e.localPosition;
+      pane.cursor = e.localPosition + _touchCursorOffset;
+      _downPos = _lastPos = pane.cursor!;
+      _moved = false;
+      final d = pane.draft;
+      if (d != null && d.kind == RadAnnoKind.length) {
+        pane.draft = d.copyWith(
+          points: [d.points.first, _imagePoint(pane.cursor!)],
+        );
+      }
+      pane.touch();
+      return;
+    }
     final useOffset = isTouch && widget.host.prefs.cursorOffset;
     final pos = useOffset ? e.localPosition + _touchCursorOffset : e.localPosition;
     _touchPos = isTouch && useOffset ? e.localPosition : null;
@@ -384,6 +439,29 @@ class _RadViewportState extends State<RadViewport>
       if (_ignoreUntilUp) return;
     }
     final isTouch = e.kind == PointerDeviceKind.touch;
+    if (_drag == _Drag.slice) {
+      // Swipe right = next slice, left = previous. Never pans.
+      _sliceAccum += e.localPosition.dx - _lastPos.dx;
+      _lastPos = e.localPosition;
+      if ((e.localPosition - _downPos).distance > 3) _moved = true;
+      while (_sliceAccum.abs() >= _sliceSwipeStep) {
+        widget.host.step(pane, _sliceAccum > 0 ? 1 : -1);
+        _sliceAccum -= _sliceAccum.sign * _sliceSwipeStep;
+      }
+      return;
+    }
+    if (_drag == _Drag.aim) {
+      _touchPos = e.localPosition;
+      pane.cursor = e.localPosition + _touchCursorOffset;
+      final d = pane.draft;
+      if (d != null && d.kind == RadAnnoKind.length) {
+        pane.draft = d.copyWith(
+          points: [d.points.first, _imagePoint(pane.cursor!)],
+        );
+      }
+      pane.touch();
+      return;
+    }
     final useOffset = isTouch && widget.host.prefs.cursorOffset;
     final pos = useOffset ? e.localPosition + _touchCursorOffset : e.localPosition;
     _touchPos = isTouch && useOffset ? e.localPosition : null;
@@ -396,7 +474,9 @@ class _RadViewportState extends State<RadViewport>
       case _Drag.none:
         pane.touch();
       case _Drag.pinch:
-        // Handled above; a pinch never reaches the tools.
+      case _Drag.slice:
+      case _Drag.aim:
+        // Handled above; a pinch, slice swipe or aim never reaches the tools.
         break;
       case _Drag.pan:
         pane.pan += delta;
@@ -459,6 +539,11 @@ class _RadViewportState extends State<RadViewport>
     final useOffset = isTouch && widget.host.prefs.cursorOffset;
     final pos = useOffset ? e.localPosition + _touchCursorOffset : e.localPosition;
     switch (_drag) {
+      case _Drag.slice:
+        _sliceAccum = 0;
+      case _Drag.aim:
+        // Keep the half-finished line; only the crosshair goes (below).
+        break;
       case _Drag.draw:
         pane.draft = null;
         pane.touch();
@@ -506,6 +591,9 @@ class _RadViewportState extends State<RadViewport>
         widget.host.endEdit();
       case _Drag.window:
         pane.requestRender(progressive: true);
+      case _Drag.aim:
+        // The pending first point stays through a pinch.
+        break;
       default:
         // A tap that added a point to an area or path: take it back.
         if (widget.tool.draws) pane.draft = _draftBeforeTouch;
@@ -936,7 +1024,7 @@ class _OverlayPainter extends CustomPainter {
   void _paintCursorOffsetGuide(Canvas canvas, Offset touch, Offset cur) {
     // Connector line between touch point and offset cursor
     final linePaint = Paint()
-      ..color = const Color(0x66FFFFFF)
+      ..color = RadInk.overlayQuiet
       ..strokeWidth = 1.0;
     canvas.drawLine(touch + const Offset(0, -6), cur + const Offset(0, 6), linePaint);
 
@@ -945,21 +1033,21 @@ class _OverlayPainter extends CustomPainter {
       touch,
       4.0,
       Paint()
-        ..color = const Color(0x33FFFFFF)
+        ..color = RadInk.overlayBorder
         ..style = PaintingStyle.fill,
     );
     canvas.drawCircle(
       touch,
       4.0,
       Paint()
-        ..color = const Color(0x80FFFFFF)
+        ..color = RadInk.overlayQuiet
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.0,
     );
 
     // Crosshair shadow + stroke at offset target
     final shadowPaint = Paint()
-      ..color = const Color(0x80000000)
+      ..color = RadInk.overlayFill
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

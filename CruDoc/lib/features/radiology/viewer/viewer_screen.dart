@@ -28,6 +28,7 @@ import 'package:doctor_management_app/features/radiology/viewer/image_render.dar
 import 'package:doctor_management_app/features/radiology/viewer/measure.dart';
 import 'package:doctor_management_app/features/radiology/viewer/save_status.dart';
 import 'package:doctor_management_app/features/radiology/viewer/side_panel.dart';
+import 'package:doctor_management_app/features/radiology/viewer/slice_layers_panel.dart';
 import 'package:doctor_management_app/features/radiology/viewer/thumbnail_strip.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_export.dart';
@@ -193,6 +194,13 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   RadTool _toolBeforeCalibrate = RadTool.select;
   bool _link = false;
   bool _loupe = false;
+
+  /// Phone: locked, a one-finger swipe pages between slices and touches
+  /// don't draw; unlocked, touches draw and edit.
+  bool _sliceLock = true;
+
+  /// Phone: the panel listing the slices that have marks is open.
+  bool _sliceLayersOpen = false;
 
   /// The phone bar's open group, if any.
   _PhoneGroup? _phoneGroup;
@@ -360,7 +368,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     for (final e in bySeries.entries) {
       final st = stacks[e.key];
       if (st != null) {
-        out.add(st[st.length ~/ 2]);
+        final last = _lastSliceOf(s, st);
+        out.add(last ?? st[st.length ~/ 2]);
         continue;
       }
       final list = [...e.value]
@@ -368,6 +377,21 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       out.addAll(list.map((i) => i.id));
     }
     return out;
+  }
+
+  /// The slice of stack [st] the doctor last looked at (unsaved change
+  /// first), if it is still in the stack.
+  String? _lastSliceOf(RadStudy s, List<String> st) {
+    final key = st.first;
+    final RadImageLook? look;
+    if (s.id == _study?.id && _lookEdits.containsKey(key)) {
+      look = _lookEdits[key];
+    } else {
+      final all = s.extras[RadImageLook.extrasKey];
+      look = all is Map ? RadImageLook.fromJson(all[key]) : null;
+    }
+    final last = look?.lastSlice;
+    return last != null && st.contains(last) ? last : null;
   }
 
   RadImageRef? _imageRef(RadPane p) =>
@@ -499,7 +523,33 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   void _lookChanged(RadPane p) {
     final s = _study;
     if (s == null || p.studyId != s.id || !p.hasImage) return;
-    _lookEdits[_lookKey(p)] = p.look;
+    final look = p.look;
+    final st = p.stack;
+    // A stack's look keeps the slice it was left on.
+    _lookEdits[_lookKey(p)] = st == null
+        ? look
+        : (look ?? _plainLook(p))?.copyWith(lastSlice: p.imageId);
+    _scheduleSave();
+  }
+
+  /// [p]'s image as it opens (no changes), or null before it has loaded.
+  RadImageLook? _plainLook(RadPane p) {
+    final px = p.px;
+    if (px == null) return null;
+    final (c, w) = px.defaultWindow;
+    return RadImageLook(center: c, width: w, filters: p.baseFilters);
+  }
+
+  /// A stack slice was shown: reopen on it next time, without touching the
+  /// window and filters kept for the stack.
+  void _rememberSlice(RadPane p) {
+    final s = _study;
+    if (s == null || p.studyId != s.id || p.stack == null || !p.hasImage) {
+      return;
+    }
+    final base = _lookFor(s.id, p) ?? p.look ?? _plainLook(p);
+    if (base == null) return;
+    _lookEdits[_lookKey(p)] = base.copyWith(lastSlice: p.imageId);
     _scheduleSave();
   }
 
@@ -560,6 +610,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     final tool = RadTool.fromName(st['tool']);
     _tool = tool == RadTool.calibrate ? RadTool.select : tool;
     _link = st['link'] == true;
+    _sliceLock = st['sliceLock'] != false;
     _tab = RadPanelTab.fromName(st['tab']);
     final f = st['filters'];
     final filters = f is Map
@@ -712,6 +763,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       'layout': _layout.name,
       'tool': (_tool == RadTool.calibrate ? _toolBeforeCalibrate : _tool).name,
       'link': _link,
+      'sliceLock': _sliceLock,
       'tab': _tab.name,
       'filters': _pane.filters.toJson(),
     };
@@ -873,8 +925,118 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     radToast(
       context,
       next
-          ? 'Cursor offset enabled (48 px above touch)'
+          ? 'Cursor offset enabled'
           : 'Cursor offset disabled',
+    );
+  }
+
+  void _setCursorOffsetDistance(double v) {
+    setState(() => _prefs = _prefs.copyWith(cursorOffsetDistance: v));
+    _savePrefs({RadViewerPrefs.cursorOffsetDistKey: v});
+  }
+
+  /// Drops the start or end of a length at the crosshair. Needs a finger
+  /// down (the other thumb aims), so it does nothing without a crosshair.
+  void _registerPoint() {
+    final p = _pane;
+    final cur = p.cursor;
+    if (cur == null || !p.hasImage) return;
+    final img = p.toImage(cur);
+    final pt = RadPoint(img.dx, img.dy);
+    final d = p.draft;
+    if (d == null || d.kind != RadAnnoKind.length) {
+      setState(() {
+        p.draft = RadAnnotation(
+          id: radId('ann_'),
+          kind: RadAnnoKind.length,
+          points: [pt, pt],
+        );
+        p.touch();
+      });
+    } else {
+      final fin = d.copyWith(points: [d.points.first, pt]);
+      setState(() {
+        p.draft = null;
+        p.draftHover = null;
+        p.touch();
+      });
+      commitDraft(p, fin, RadTool.length);
+    }
+  }
+
+  /// Abandons a half-placed length.
+  void _clearRegister() {
+    if (_pane.draft == null) return;
+    setState(() {
+      _pane.draft = null;
+      _pane.draftHover = null;
+      _pane.touch();
+    });
+  }
+
+  /// Offset slider, Clear and Register, just above the phone tool bar.
+  Widget _offsetControls() {
+    final c = context.cru;
+    final pending = _pane.draft?.kind == RadAnnoKind.length;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border(top: BorderSide(color: c.separator)),
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s16,
+        vertical: CruSpace.s8,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cursor offset · ${_prefs.cursorOffsetDistance.round()} px',
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 2,
+                    activeTrackColor: c.label2,
+                    inactiveTrackColor: c.separator,
+                    thumbColor: c.label,
+                    overlayShape: SliderComponentShape.noOverlay,
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 8,
+                    ),
+                  ),
+                  child: Slider(
+                    value: _prefs.cursorOffsetDistance.clamp(16.0, 160.0),
+                    min: 16,
+                    max: 160,
+                    onChanged: _setCursorOffsetDistance,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (pending) ...[
+            const SizedBox(width: CruSpace.s8),
+            CruButton(
+              label: 'Clear',
+              kind: CruButtonKind.inset,
+              large: true,
+              onPressed: _clearRegister,
+            ),
+          ],
+          const SizedBox(width: CruSpace.s8),
+          CruButton(
+            label: pending ? 'Register end' : 'Register start',
+            icon: RadViewerIcons.cursorOffset,
+            large: true,
+            onPressed: _registerPoint,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1239,6 +1401,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   }
 
   @override
+  bool get sliceLock => _sliceLock;
+
+  @override
   void step(RadPane pane, int delta) {
     if (pane.sliceCount > 1) {
       setFrame(pane, (pane.sliceIndex + delta).clamp(0, pane.sliceCount - 1));
@@ -1253,7 +1418,11 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     if (st != null) {
       if (index < 0 || index >= st.length || st[index] == pane.imageId) return;
       setState(() {
-        unawaited(_show(pane, pane.studyId, st[index], keepView: true));
+        unawaited(
+          _show(pane, pane.studyId, st[index], keepView: true).then((_) {
+            if (mounted) _rememberSlice(pane);
+          }),
+        );
       });
       return;
     }
@@ -1929,6 +2098,78 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       title: _paneTitle(p),
       aiFindings: _aiFindingsFor(p),
       showAiMarks: ref.watch(radShowAiMarksProvider),
+    );
+  }
+
+  /// Slices of [p]'s stack that have marks, in stack order.
+  List<RadLayerEntry> _layerEntries(RadPane p) {
+    final st = p.stack;
+    if (st == null) return const [];
+    return [
+      for (var i = 0; i < st.length; i++)
+        if (_annos[st[i]]?.isNotEmpty ?? false)
+          RadLayerEntry(
+            sliceIndex: i,
+            imageId: st[i],
+            markCount: _annos[st[i]]!.length,
+            current: st[i] == p.imageId,
+          ),
+    ];
+  }
+
+  /// Phone: top-right of the image, under the W · L read-out. The layers
+  /// button (stacks only), the swipe/draw lock, and the layers panel. It
+  /// sits outside the viewport's pointer listener, so taps never draw.
+  Widget _sliceControls(RadPane p) {
+    final hasStack = p.stack != null;
+    final layers = _sliceLayersOpen && hasStack;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (hasStack) ...[
+          _SliceChip(
+            icon: RadSliceIcons.layers,
+            label: 'Layers',
+            active: layers,
+            onTap: () => setState(() => _sliceLayersOpen = !_sliceLayersOpen),
+          ),
+          const SizedBox(height: CruSpace.s8),
+        ],
+        _SliceChip(
+          icon: _sliceLock ? RadSliceIcons.lock : RadSliceIcons.unlock,
+          label: _sliceLock
+              ? 'Locked: swipe to change slice. Tap to draw.'
+              : 'Unlocked: touch to draw. Tap to swipe slices.',
+          active: _sliceLock,
+          onTap: () {
+            setState(() => _sliceLock = !_sliceLock);
+            _rememberState();
+          },
+        ),
+        Flexible(
+          child: AnimatedSwitcher(
+            duration: CruMotion.of(context, CruMotion.fast),
+            switchInCurve: CruMotion.curve,
+            switchOutCurve: CruMotion.curve,
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
+            child: layers
+                ? Padding(
+                    key: const ValueKey('layers'),
+                    padding: const EdgeInsets.only(top: CruSpace.s8),
+                    child: RadSliceLayers(
+                      entries: _layerEntries(p),
+                      onJump: (id) {
+                        final i = p.stack?.indexOf(id) ?? -1;
+                        if (i >= 0) setFrame(p, i);
+                      },
+                      onClose: () => setState(() => _sliceLayersOpen = false),
+                    ),
+                  )
+                : const SizedBox.shrink(key: ValueKey('none')),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2889,6 +3130,14 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                                 ),
                               ),
                             ),
+                          if (phone && !_reading && p.sliceCount > 1)
+                            Positioned(
+                              // Below the W · L read-out the viewport draws.
+                              top: CruSpace.s10 + CruSpace.s20,
+                              right: CruSpace.s12,
+                              bottom: CruSpace.s12,
+                              child: _sliceControls(p),
+                            ),
                           if (_reading)
                             Positioned(
                               top: CruSpace.s12,
@@ -2937,9 +3186,53 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                   ],
                 ),
               ),
-              if (!_reading && phone) _phoneBar(s, others),
+              if (!_reading && phone) ...[
+                if (_prefs.cursorOffset) _offsetControls(),
+                _phoneBar(s, others),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A round dark icon button on top of the image (layers, slice lock);
+/// ringed while [active].
+class _SliceChip extends StatelessWidget {
+  const _SliceChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final CruIconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: label,
+      builder: (context, _) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        width: CruSize.control,
+        height: CruSize.control,
+        decoration: ShapeDecoration(
+          color: RadInk.overlayFill,
+          shape: CircleBorder(
+            side: BorderSide(
+              color: active ? RadInk.overlay : RadInk.overlayBorder,
+            ),
+          ),
+        ),
+        child: Center(
+          child: CruIcon(icon, size: 18, strokeWidth: 2, color: RadInk.overlay),
         ),
       ),
     );

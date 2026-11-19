@@ -13,12 +13,22 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
+import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
+import 'package:doctor_management_app/features/therapy/domain/package_drop_off.dart';
+import 'package:doctor_management_app/features/therapy/domain/physio_extras_models.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 const _defaultMessage =
     'Hello {name}, this is a reminder from {clinic} that your {reason} is due on {date}. '
     'Reply to confirm, or call us to pick another time.';
+
+/// Sent for a recall raised from a stalled package. The default reminder is
+/// written around a treatment that has come due again on a date; a package
+/// has no due date, it simply has sessions still on it.
+const _packageMessage =
+    'Hello {name}, this is a reminder from {clinic} about your {reason}. '
+    'Reply to book your next visit, or call us to pick a time.';
 
 /// Recall rules a new clinic starts with (all editable).
 const _defaultRules = <(String, int, List<String>)>[
@@ -210,6 +220,43 @@ final recallSuggestionsProvider =
         );
       }).toList()..sort((a, b) => a.due.compareTo(b.due));
     });
+
+/// Patients whose session package stalled with sessions still on it.
+///
+/// The sibling of [recallSuggestionsProvider]: that one works forward from a
+/// treatment that is due again, this one works back from a package nobody
+/// came back to finish. Dental treatments raise their recall from a rule and
+/// a homeopathy dose plan writes its own, so physiotherapy packages were the
+/// one commitment in CruDoc that nothing chased.
+final packageDropOffProvider = FutureProvider<List<PackageDropOff>>((
+  ref,
+) async {
+  final packages = sessionPackages(
+    await ref.watch(clinicRecordsProvider(RecKind.physioPackage).future),
+  );
+  if (packages.isEmpty) return const [];
+  final recalls = await ref.watch(
+    clinicRecordsProvider(RecKind.recall).future,
+  );
+  final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+  final upcoming = ref.watch(upcomingVisitsProvider).value;
+  // Until the booked visits are known, a suggestion could ask the clinic to
+  // chase someone who is coming in tomorrow. Better to show nothing yet.
+  if (upcoming == null) return const [];
+  return packageDropOffs(
+    packages: packages,
+    activePatientIds: {
+      for (final p in patients)
+        if (!p.isArchived) p.id,
+    },
+    patientsWithUpcomingVisit: {for (final v in upcoming) v.patientId},
+    patientsWithOpenRecall: {
+      for (final r in recalls)
+        if (recallStatusOf(r).isOpen) r.patientId,
+    },
+    now: DateTime.now(),
+  );
+});
 
 String _fill(
   String template, {
@@ -629,11 +676,42 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
     }
   }
 
+  /// Saves stalled packages as ordinary recalls, due today: the patient is
+  /// already overdue, and from here they go through the same reminders and
+  /// replies as every other recall.
+  Future<void> _addDropOffs(
+    List<PackageDropOff> list,
+    Map<String, Patient> patients,
+  ) async {
+    final today = DateTime.now();
+    for (final d in list) {
+      await saveDentalRecord(
+        ref,
+        DentalRecord.create(d.patientId, RecKind.recall, {
+          'patientName': patients[d.patientId]?.fullName ?? '',
+          'reason': d.reasonLine,
+          'ruleId': '',
+          'notes': d.summary(today),
+          'status': RecallStatus.pending.name,
+          'source': 'package',
+        }, at: today),
+      );
+    }
+    ref.invalidate(packageDropOffProvider);
+    if (mounted) {
+      recToast(
+        context,
+        list.length == 1 ? 'Recall added' : '${list.length} recalls added',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     final recalls = ref.watch(clinicRecordsProvider(RecKind.recall)).value;
     final suggestions = ref.watch(recallSuggestionsProvider).value ?? const [];
+    final dropOffs = ref.watch(packageDropOffProvider).value ?? const [];
     final patients = {
       for (final p
           in ref.watch(patientsStreamProvider).value ?? const <Patient>[])
@@ -792,6 +870,56 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
               ),
             ),
           ],
+          if (dropOffs.isNotEmpty) ...[
+            const SizedBox(height: CruSpace.cardGap),
+            CruCard(
+              semanticLabel: 'Unfinished packages',
+              padding: const EdgeInsets.symmetric(
+                horizontal: CruSpace.s16,
+                vertical: CruSpace.s12,
+              ),
+              child: Row(
+                children: [
+                  const CruIconTile(
+                    icon: RecIcons.recall,
+                    tone: CruTileTone.amber,
+                  ),
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${DashFormat.plural(dropOffs.length, 'patient')} '
+                          'stopped partway through a package',
+                          style: CruType.callout.w600.tabular.tint(c.label),
+                        ),
+                        Text(
+                          dropOffs
+                              .take(3)
+                              .map(
+                                (d) =>
+                                    '${patients[d.patientId]?.fullName ?? 'Patient'} · '
+                                    '${d.summary(now)}',
+                              )
+                              .join('   '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          // Session counts and day counts sit in this line.
+                          style: CruType.subhead.tabular.tint(c.label2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CruButton(
+                    label: dropOffs.length == 1 ? 'Add recall' : 'Add all',
+                    kind: CruButtonKind.tinted,
+                    onPressed: () => _addDropOffs(dropOffs, patients),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: CruSpace.cardGap),
           DentalFilterBar(
             filters: [
@@ -871,8 +999,11 @@ class _RecallRow extends ConsumerWidget {
     final rule = rules
         .where((r) => r.record.id == recall.str('ruleId'))
         .firstOrNull;
+    final fallback = recall.str('source') == 'package'
+        ? _packageMessage
+        : _defaultMessage;
     return _fill(
-      rule?.message ?? _defaultMessage,
+      rule?.message ?? fallback,
       name: patient?.fullName ?? recall.str('patientName'),
       clinic: ref.read(doctorIdentityProvider).clinicName ?? 'our clinic',
       reason: recall.str('reason'),

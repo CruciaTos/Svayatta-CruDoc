@@ -81,6 +81,10 @@ class PatientDetailsHeader extends StatelessWidget {
         final meta = [
           phone ? PatientFormat.ageSex(p) : PatientFormat.ageSexLong(p),
           if (hasPhone) PatientFormat.phone(p.phone),
+          // A clinic that moved from other software looks patients up by the
+          // file number they have always used, so it is shown where there is
+          // room for it.
+          if (!phone && p.oldId.trim().isNotEmpty) 'ID ${p.oldId.trim()}',
           if (!phone) 'Patient since ${PatientFormat.longDate(p.createdAt)}',
         ].join(' · ');
 

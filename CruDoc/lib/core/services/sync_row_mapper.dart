@@ -154,6 +154,7 @@ Map<String, Object?> syncSqliteRowFor(
         'notes': holdsClinicalFields
             ? decrypt(data['notes'] as String? ?? '')
             : '',
+        'oldId': decrypt(data['oldId'] as String? ?? ''),
         'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
         'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
         'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

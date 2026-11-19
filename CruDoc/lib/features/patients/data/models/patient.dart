@@ -30,6 +30,13 @@ class Patient {
   /// edited from the patient details screen.
   final String notes;
 
+  /// The patient's id in whatever software the clinic used before CruDoc,
+  /// as captured by the patient import. Kept as its own field (rather than a
+  /// line inside [notes]) so imported visit history and case data can be
+  /// matched back to the right patient reliably. Empty for a patient added
+  /// in CruDoc itself.
+  final String oldId;
+
   final double packageBalance;
   final bool isArchived;
   final DateTime createdAt;
@@ -59,6 +66,7 @@ class Patient {
     required this.dateOfBirth,
     required this.diagnosis,
     this.notes = '',
+    this.oldId = '',
     required this.packageBalance,
     required this.isArchived,
     required this.createdAt,
@@ -104,6 +112,7 @@ class Patient {
       dateOfBirth: _timestampToDate(map['dateOfBirth']),
       diagnosis: diagnosisFromStored(map['diagnosis']),
       notes: map['notes'] as String? ?? '',
+      oldId: map['oldId'] as String? ?? '',
       packageBalance: (map['packageBalance'] as num?)?.toDouble() ?? 0.0,
       isArchived: map['isArchived'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
@@ -157,6 +166,7 @@ class Patient {
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
       'diagnosis': diagnosisToStored(diagnosis),
       'notes': notes,
+      'oldId': oldId,
       'packageBalance': packageBalance,
       'isArchived': isArchived,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -174,6 +184,7 @@ class Patient {
     DateTime? dateOfBirth,
     List<String>? diagnosis,
     String? notes,
+    String? oldId,
     double? packageBalance,
     bool? isArchived,
     DateTime? createdAt,
@@ -192,6 +203,7 @@ class Patient {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       diagnosis: diagnosis ?? this.diagnosis,
       notes: notes ?? this.notes,
+      oldId: oldId ?? this.oldId,
       packageBalance: packageBalance ?? this.packageBalance,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,

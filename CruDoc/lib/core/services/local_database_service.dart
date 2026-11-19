@@ -538,6 +538,7 @@ class LocalDatabaseService extends ChangeNotifier {
         dateOfBirth INTEGER NOT NULL,
         diagnosis TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
+        oldId TEXT NOT NULL DEFAULT '',
         packageBalance REAL NOT NULL DEFAULT 0,
         isArchived INTEGER NOT NULL DEFAULT 0,
         isActive INTEGER NOT NULL DEFAULT 1,
@@ -1103,6 +1104,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'dateOfBirth': 'dateOfBirth INTEGER NOT NULL DEFAULT 0',
     'diagnosis': "diagnosis TEXT NOT NULL DEFAULT ''",
     'notes': "notes TEXT NOT NULL DEFAULT ''",
+    // The patient's id in the software the clinic used before CruDoc, kept
+    // so imported visit history can be matched to the right patient.
+    'oldId': "oldId TEXT NOT NULL DEFAULT ''",
     'packageBalance': 'packageBalance REAL NOT NULL DEFAULT 0',
     'isArchived': 'isArchived INTEGER NOT NULL DEFAULT 0',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',

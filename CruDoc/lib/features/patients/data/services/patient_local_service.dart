@@ -224,6 +224,7 @@ class PatientLocalService {
       'dateOfBirth': _dateTimeToMillis(patient.dateOfBirth),
       'diagnosis': Patient.diagnosisToStored(patient.diagnosis),
       'notes': patient.notes,
+      'oldId': patient.oldId,
       'packageBalance': patient.packageBalance,
       'isArchived': patient.isArchived ? 1 : 0,
       'isActive': pendingDelete ? 0 : 1,
@@ -265,6 +266,7 @@ class PatientLocalService {
         case 'email':
         case 'gender':
         case 'notes':
+        case 'oldId':
           row[entry.key] = entry.value;
           break;
         case 'diagnosis':
@@ -301,6 +303,7 @@ class PatientLocalService {
       dateOfBirth: _millisToDateTime(row['dateOfBirth']),
       diagnosis: Patient.diagnosisFromStored(row['diagnosis'] as String?),
       notes: row['notes'] as String? ?? '',
+      oldId: row['oldId'] as String? ?? '',
       packageBalance: (row['packageBalance'] as num?)?.toDouble() ?? 0,
       isArchived: row['isArchived'] == 1,
       createdAt: _millisToDateTime(row['createdAt']),

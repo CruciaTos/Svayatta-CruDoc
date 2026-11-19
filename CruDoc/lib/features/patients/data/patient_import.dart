@@ -291,6 +291,7 @@ class ImportRow {
     this.dateOfBirth,
     this.diagnosis = const [],
     this.notes = '',
+    this.oldId = '',
     this.warnings = const [],
     this.reason,
   });
@@ -316,6 +317,11 @@ class ImportRow {
 
   /// Notes before the "Imported from" tag.
   final String notes;
+
+  /// The patient's id in the clinic's previous software, as written in the
+  /// file. Stored on the patient itself so imported visit history can be
+  /// matched back to them.
+  final String oldId;
   final List<String> warnings;
 
   /// Why the row is a duplicate or an error.
@@ -396,7 +402,10 @@ DateTime? parseImportDate(String raw, DateTime now) {
     return t.isAfter(now) ? null : t;
   }
 
-  var m = RegExp(r'^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})').firstMatch(s);
+  // Four digits before two: the alternation is tried left to right and the
+  // pattern is not anchored at the end, so (\d{2}|\d{4}) matched only the
+  // "20" of "2025" and read that year as 2020.
+  var m = RegExp(r'^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4}|\d{2})').firstMatch(s);
   if (m != null) {
     return make(
       int.parse(m.group(3)!),
@@ -510,7 +519,6 @@ ImportPlan buildImportPlan({
     final address = cell(r, ImportField.address);
     if (address.isNotEmpty) notes.add('Address: $address');
     final oldId = cell(r, ImportField.oldId);
-    if (oldId.isNotEmpty) notes.add('Old ID: $oldId');
     if (addOtherColumns) {
       for (var c = 0; c < table.headers.length; c++) {
         if (mappedCols.contains(c) || c >= r.length || r[c].isEmpty) continue;
@@ -553,6 +561,7 @@ ImportPlan buildImportPlan({
         dateOfBirth: dob,
         diagnosis: diagnosis,
         notes: notes.join('\n'),
+        oldId: oldId,
         warnings: warnings,
         reason: reason,
       ),
@@ -593,6 +602,7 @@ Patient patientForRow(
     dateOfBirth: dob,
     diagnosis: row.diagnosis,
     notes: notes.join('\n'),
+    oldId: row.oldId,
     packageBalance: 0,
     isArchived: false,
     createdAt: now,

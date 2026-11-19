@@ -1298,6 +1298,10 @@ class FirestoreSyncService {
           'dateOfBirth': _timestampFromMillis(row['dateOfBirth']),
           'diagnosis': FieldCipher.encrypt(row['diagnosis'] as String?),
           'notes': FieldCipher.encrypt(row['notes'] as String?),
+          // An identifier from the clinic's previous software: encrypted
+          // like the phone number, and not gated on clinical access, since
+          // the front desk looks patients up by it after a migration.
+          'oldId': FieldCipher.encrypt(row['oldId'] as String?),
           'packageBalance': (row['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': row['isArchived'] == 1,
           'isActive': row['isActive'] == 1,

@@ -66,6 +66,9 @@ class PatientRepository {
     if (out.containsKey('notes')) {
       out['notes'] = FieldCipher.encrypt(out['notes'] as String?);
     }
+    if (out.containsKey('oldId')) {
+      out['oldId'] = FieldCipher.encrypt(out['oldId'] as String?);
+    }
     return out;
   }
 
@@ -90,6 +93,9 @@ class PatientRepository {
     }
     if (out['notes'] is String) {
       out['notes'] = FieldCipher.decrypt(out['notes'] as String);
+    }
+    if (out['oldId'] is String) {
+      out['oldId'] = FieldCipher.decrypt(out['oldId'] as String);
     }
     return out;
   }
@@ -126,6 +132,7 @@ class PatientRepository {
       dateOfBirth: patient.dateOfBirth,
       diagnosis: patient.diagnosis,
       notes: patient.notes,
+      oldId: patient.oldId,
       packageBalance: patient.packageBalance,
       isArchived: patient.isArchived,
       createdAt: now,

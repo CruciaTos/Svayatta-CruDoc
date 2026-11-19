@@ -393,6 +393,60 @@ class VisitRepository {
     return id;
   }
 
+  /// Saves one past visit brought in by the visit-history import.
+  ///
+  /// Deliberately not [createVisit], which is built for booking a visit that
+  /// is still to happen and does three things that are wrong for history:
+  ///
+  /// * it checks the slot for overlaps, and a day of old records would hit
+  ///   [kMaxOverlappingVisits] and be refused;
+  /// * it geocodes the address, which an imported visit does not have;
+  /// * it sends the patient an appointment confirmation — these visits
+  ///   already happened, often years ago, and nobody may be messaged about
+  ///   them.
+  ///
+  /// The visit is still validated, so a bad duration or a missing patient is
+  /// refused here as anywhere else.
+  Future<String> importVisit(Visit visit) async {
+    _validate(visit);
+    final now = DateTime.now();
+    final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
+    final visitWithId = Visit(
+      id: id,
+      doctorId: _currentDoctorId,
+      patientId: visit.patientId,
+      scheduledStart: visit.scheduledStart,
+      durationMinutes: visit.durationMinutes,
+      address: visit.address,
+      visitType: visit.visitType,
+      status: visit.status,
+      isPaid: visit.isPaid,
+      amountCharged: visit.amountCharged,
+      treatmentType: visit.treatmentType,
+      therapistNotes: visit.therapistNotes,
+      createdByUid: FirebaseAuth.instance.currentUser?.uid ?? '',
+      // The visit happened before CruDoc: createdAt is when it was recorded
+      // here, scheduledStart is when the patient was actually seen.
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    if (kIsWeb) {
+      final collection = visitWithId.visitType == VisitType.home
+          ? 'visitations'
+          : 'appointments';
+      await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(id)
+          .set(_encryptedForFirestore(visitWithId.toMap()));
+      return id;
+    }
+
+    await _localService.upsertVisit(visitWithId);
+    unawaited(_syncService.triggerPostWriteSync());
+    return id;
+  }
+
   /// Updates arbitrary fields on an existing visit. Prefer
   /// [rescheduleVisit], [updateStatus], [cancelVisit], or
   /// [softDeleteVisit] for those specific operations — they carry the

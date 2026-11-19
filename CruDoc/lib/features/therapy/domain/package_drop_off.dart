@@ -8,6 +8,27 @@ import 'package:doctor_management_app/features/therapy/domain/physio_extras_mode
 /// alongside treatment the patient never finished. Nothing else in CruDoc
 /// notices: a dental treatment due again raises a recall from its rule, and a
 /// homeopathy dose plan writes its own recall for the review date, but a
+/// package that simply stops being used raises nothing. This lists them so
+/// the clinic can chase them.
+
+/// Days with no session used, with sessions left, before a package counts as
+/// stalled.
+const int kPackageStallDays = 21;
+
+/// A patient with a package that has stalled.
+class PackageDropOff {
+  const PackageDropOff({
+    required this.patientId,
+    required this.package,
+    required this.since,
+    required this.expired,
+  });
+
+  final String patientId;
+  final SessionPackage package;
+
+  /// When the package was last used, or sold if it was never started.
+  final DateTime since;
 
   /// The package ran past its validity date with sessions still on it, so
   /// this is a refund conversation as much as a booking one.

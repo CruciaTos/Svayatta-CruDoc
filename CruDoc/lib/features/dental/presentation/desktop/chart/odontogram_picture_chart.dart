@@ -228,10 +228,44 @@ class _PictureLayout {
     this.upperLabel,
     this.lowerLabel,
     this.gapY,
+    this.source,
   );
 
   static const double pad = 10;
   static const double maxWidth = 440;
+
+  /// A hair of slack around the teeth, so an outline never sits on the edge.
+  static const double _bleed = 6;
+
+  /// The teeth's own bounds inside the artwork's canvas. The canvas is a
+  /// plain export box with ~15% empty margin on each side; drawing that
+  /// margin left the arches floating in the middle of the card and ate the
+  /// height a phone has. Cropping to this makes the teeth fill the panel at
+  /// the same card height. Measured once per art, from the outlines.
+  static final Map<OdontogramArt, Rect> _bounds = {};
+
+  static Rect _boundsOf(OdontogramArt art) {
+    final hit = _bounds[art];
+    if (hit != null) return hit;
+    var l = double.infinity, t = double.infinity;
+    var r = -double.infinity, b = -double.infinity;
+    for (final region in art.regions.values) {
+      final pts = region.points;
+      for (var i = 0; i + 1 < pts.length; i += 2) {
+        l = math.min(l, pts[i]);
+        r = math.max(r, pts[i]);
+        t = math.min(t, pts[i + 1]);
+        b = math.max(b, pts[i + 1]);
+      }
+    }
+    final size = art.size;
+    return _bounds[art] = Rect.fromLTRB(
+      math.max(0, l - _bleed),
+      math.max(0, t - _bleed),
+      math.min(size.width, r + _bleed),
+      math.min(size.height, b + _bleed),
+    );
+  }
 
   final double width;
   final double height;
@@ -245,6 +279,9 @@ class _PictureLayout {
   final Offset lowerLabel;
   final double gapY;
 
+  /// The part of the artwork that is drawn, in the art's own pixels.
+  final Rect source;
+
   static final Map<(OdontogramArt, double), _PictureLayout> _cache = {};
 
   factory _PictureLayout.of(OdontogramArt art, double width) {
@@ -256,10 +293,10 @@ class _PictureLayout {
   }
 
   static _PictureLayout _build(OdontogramArt art, double width) {
-    final size = art.size;
+    final source = _boundsOf(art);
     final panelW = math.min(width, maxWidth);
-    final scale = (panelW - 2 * pad) / size.width;
-    final pic = Size(size.width * scale, size.height * scale);
+    final scale = (panelW - 2 * pad) / source.width;
+    final pic = Size(source.width * scale, source.height * scale);
     final panel = Rect.fromLTWH(
       (width - panelW) / 2,
       0,
@@ -273,7 +310,7 @@ class _PictureLayout {
     var upperMax = 0.0, lowerMin = double.infinity;
     for (final e in art.regions.entries) {
       final r = e.value;
-      Offset map(Offset p) => picture.topLeft + p * scale;
+      Offset map(Offset p) => picture.topLeft + (p - source.topLeft) * scale;
       final path = _smoothClosed([for (final p in r.outline) map(p)]);
       teeth.add(_Tooth('${e.key}', path, map(r.center), r.radius * scale));
       final upper = e.key < 30;
@@ -299,6 +336,7 @@ class _PictureLayout {
       Offset(midX, upperY / nu),
       Offset(midX, lowerY / nl),
       (upperMax + lowerMin) / 2,
+      source,
     );
   }
 
@@ -376,9 +414,19 @@ class _PicturePainter extends CustomPainter {
         canvas.save();
         canvas.clipPath(teeth, doAntiAlias: true);
       }
+      // The bitmap is the whole canvas, so take the same crop from it.
+      final art = this.art.size;
+      final kx = img.width / art.width;
+      final ky = img.height / art.height;
+      final src = layout.source;
       canvas.drawImageRect(
         img,
-        Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+        Rect.fromLTRB(
+          src.left * kx,
+          src.top * ky,
+          src.right * kx,
+          src.bottom * ky,
+        ),
         layout.picture,
         Paint()
           ..isAntiAlias = true

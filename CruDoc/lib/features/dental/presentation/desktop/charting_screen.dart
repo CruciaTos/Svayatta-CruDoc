@@ -33,6 +33,8 @@ import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
 import 'package:doctor_management_app/features/dental/specialties/publichealth/dmft.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/poster_hero.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
@@ -514,21 +516,31 @@ class _ChartingScreenState extends ConsumerState<ChartingScreen>
             children: [
               backLink,
               const SizedBox(width: CruSpace.s8),
+              PatientAvatar(
+                name: p.fullName,
+                size: 40,
+                allergic: allergies != null && !allergies.none,
+                detailsPending: patientDetailsPending(p),
+              ),
+              const SizedBox(width: CruSpace.s10),
               Expanded(
+                // The patient is who this screen is about, so the name
+                // carries it and age/sex drop back to a quiet second line.
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       p.fullName,
-                      style: CruType.callout.w600.tint(c.label),
+                      style: CruType.title2.tint(c.label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       PatientFormat.ageSexLong(p),
-                      style: CruType.caption.tint(c.label2),
+                      style: CruType.micro.tint(c.label2),
                       maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

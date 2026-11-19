@@ -82,9 +82,11 @@ abstract final class MobileMetrics {
       math.max(MediaQuery.paddingOf(context).bottom, CruSpace.s10) +
       CruSpace.s6;
 
-  /// Scroll padding so the last row clears the floating nav.
+  /// Scroll padding so the last row clears the floating nav. Only what the
+  /// nav itself needs plus a small breath: more than this reads as a dead
+  /// band under the content once you scroll to the end.
   static double bottom(BuildContext context) =>
-      navHeight + navBottom(context) + CruSpace.s24;
+      navHeight + navBottom(context) + CruSpace.s8;
 }
 
 /// The phone's type scale: Geist, kept light like the reference. Titles

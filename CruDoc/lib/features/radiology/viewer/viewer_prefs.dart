@@ -195,9 +195,13 @@ class RadViewerPrefs {
     this.thumbs = true,
     this.fullQuality = true,
     this.cursorOffset = false,
+    this.cursorOffsetDistance = defaultCursorOffsetDistance,
     this.states = const {},
   });
 
+  static const defaultCursorOffsetDistance = 48.0;
+  static const minCursorOffsetDistance = 16.0;
+  static const maxCursorOffsetDistance = 200.0;
   static const defaultPanelWidth = 320.0;
   static const minPanelWidth = 280.0;
   static const maxPanelWidth = 560.0;
@@ -216,6 +220,9 @@ class RadViewerPrefs {
   /// Whether to offset the drawing cursor/magnifier 48 px above the finger on touch.
   final bool cursorOffset;
 
+  /// How far above the fingertip the crosshair sits, in logical px.
+  final double cursorOffsetDistance;
+
   /// Last state by study type name: layout, tool, link, tab.
   final Map<String, Map<String, dynamic>> states;
 
@@ -232,6 +239,7 @@ class RadViewerPrefs {
   static const thumbsKey = 'v2d.thumbs';
   static const fullQualityKey = 'v2d.fullQuality';
   static const cursorOffsetKey = 'v2d.cursorOffset';
+  static const cursorOffsetDistKey = 'v2d.cursorOffsetDist';
   static String stateKey(RadModality m) => 'v2d.state.${m.name}';
 
   factory RadViewerPrefs.from(Map<String, dynamic> v) {
@@ -269,6 +277,12 @@ class RadViewerPrefs {
       thumbs: v[thumbsKey] != false,
       fullQuality: v.containsKey(fullQualityKey) ? (v[fullQualityKey] == true) : defaultFullQuality(),
       cursorOffset: v[cursorOffsetKey] == true,
+      cursorOffsetDistance: v[cursorOffsetDistKey] is num
+          ? (v[cursorOffsetDistKey] as num).toDouble().clamp(
+              minCursorOffsetDistance,
+              maxCursorOffsetDistance,
+            )
+          : defaultCursorOffsetDistance,
       states: states,
     );
   }
@@ -305,6 +319,7 @@ class RadViewerPrefs {
     bool? thumbs,
     bool? fullQuality,
     bool? cursorOffset,
+    double? cursorOffsetDistance,
     Map<String, Map<String, dynamic>>? states,
   }) => RadViewerPrefs(
     keys: keys ?? this.keys,
@@ -317,6 +332,7 @@ class RadViewerPrefs {
     thumbs: thumbs ?? this.thumbs,
     fullQuality: fullQuality ?? this.fullQuality,
     cursorOffset: cursorOffset ?? this.cursorOffset,
+    cursorOffsetDistance: cursorOffsetDistance ?? this.cursorOffsetDistance,
     states: states ?? this.states,
   );
 }

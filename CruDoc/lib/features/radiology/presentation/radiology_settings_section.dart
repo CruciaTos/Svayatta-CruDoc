@@ -36,7 +36,6 @@ class RadSettingsSection extends ConsumerWidget {
         gap,
         _Card(
           title: 'Work',
-          description: 'What you charge, where scans come from.',
           child: Column(
             children: [
               _ActionRow(
@@ -59,9 +58,13 @@ class RadSettingsSection extends ConsumerWidget {
               const CruSeparator(),
               _ActionRow(
                 title: 'Receive from scanners',
-                detail:
-                    'AE title ${settings.aeTitle} · port ${settings.dicomPort} · '
-                    '${!settings.dicomReceiverOn ? 'off' : receiver.error != null ? 'not listening' : receiver.listening ? 'listening' : 'starting'}',
+                detail: !settings.dicomReceiverOn
+                    ? 'Off'
+                    : receiver.error != null
+                    ? 'Not listening'
+                    : receiver.listening
+                    ? 'Listening'
+                    : 'Starting',
                 action: 'Set up',
                 onTap: () => showRadDicomReceiverDialog(context),
               ),
@@ -139,11 +142,8 @@ class RadSettingsSection extends ConsumerWidget {
         gap,
         _Card(
           title: 'AI assistance',
-          description:
-              'Suggestions you confirm or reject; never a diagnosis on its own.',
           child: _ActionRow(
             title: 'AI assistance settings',
-            detail: 'Turn each tool on or off.',
             action: 'Configure',
             onTap: () {
               ref.read(settingsSectionProvider.notifier).state =
@@ -162,10 +162,9 @@ class RadSettingsSection extends ConsumerWidget {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.child, this.description});
+  const _Card({required this.title, required this.child});
 
   final String title;
-  final String? description;
   final Widget child;
 
   @override
@@ -178,10 +177,6 @@ class _Card extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(title, style: CruType.headline.tint(c.label)),
-          if (description != null) ...[
-            const SizedBox(height: CruSpace.s4),
-            Text(description!, style: CruType.text.tint(c.label2)),
-          ],
           const SizedBox(height: CruSpace.s20),
           child,
         ],
@@ -193,13 +188,13 @@ class _Card extends StatelessWidget {
 class _ActionRow extends StatelessWidget {
   const _ActionRow({
     required this.title,
-    required this.detail,
+    this.detail,
     required this.action,
     required this.onTap,
   });
 
   final String title;
-  final String detail;
+  final String? detail;
   final String action;
   final VoidCallback onTap;
 
@@ -215,12 +210,13 @@ class _ActionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: CruType.callout.tint(c.label)),
-                Text(
-                  detail,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.subhead.tabular.tint(c.label2),
-                ),
+                if (detail != null)
+                  Text(
+                    detail!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.subhead.tabular.tint(c.label2),
+                  ),
               ],
             ),
           ),
@@ -286,7 +282,6 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
 
     return _Card(
       title: 'Report signature',
-      description: 'Printed under every report you sign.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -354,9 +349,6 @@ class _StorageCardState extends ConsumerState<_StorageCard> {
     final studies = ref.watch(radStudiesProvider).value ?? const <RadStudy>[];
     return _Card(
       title: 'Storage and records',
-      description:
-          'Scans of a patient are backed up to the cloud. Settings → Storage '
-          'sets how much this computer keeps.',
       child: Column(
         children: [
           _ActionRow(
@@ -373,15 +365,12 @@ class _StorageCardState extends ConsumerState<_StorageCard> {
           const CruSeparator(),
           _ActionRow(
             title: 'Radiation dose log',
-            detail: "Exposure values read from each scan's files",
             action: 'View',
             onTap: () => showRadDoseLogDialog(context),
           ),
           const CruSeparator(),
           _ActionRow(
             title: 'Audit log',
-            detail:
-                'Who opened, changed, signed, exported or shared each study',
             action: 'View',
             onTap: () => showRadAuditDialog(context),
           ),

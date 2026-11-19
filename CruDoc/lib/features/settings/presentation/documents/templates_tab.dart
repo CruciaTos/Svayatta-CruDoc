@@ -290,10 +290,6 @@ class _TemplatesTabState extends ConsumerState<TemplatesTab> {
         children: [
           DocCardHeader(
             title: 'Default templates',
-            description: forClinic
-                ? 'Picked for everyone in the clinic who hasn\'t chosen '
-                      'their own.'
-                : 'Picked automatically when you create a document.',
             trailing: both
                 ? CruSegmentedControl<bool>(
                     semanticLabel: 'Whose defaults',
@@ -489,11 +485,7 @@ class _TemplateThumbState extends State<_TemplateThumb> {
               ),
       );
       final pdfBytes = await DocRenderer.render(t, ctx);
-      await for (final page in Printing.raster(
-        pdfBytes,
-        pages: [0],
-        dpi: 40,
-      )) {
+      await for (final page in Printing.raster(pdfBytes, pages: [0], dpi: 40)) {
         final thumb = _Thumb(
           await page.toPng(),
           page.height == 0 ? _fallbackAspect : page.width / page.height,
@@ -739,7 +731,6 @@ class _NewTemplateDialogState extends State<_NewTemplateDialog> {
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: 'New template',
-      subtitle: 'Start from a ready-made layout, then make it yours.',
       leading: const CruIconTile(
         icon: CruIcons.fileText,
         tone: CruTileTone.neutral,

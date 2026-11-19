@@ -85,6 +85,25 @@ abstract class LocalDatabaseExecutor {
   ]);
 }
 
+/// Writes queued for [LocalDatabase.writeBatch]. Nothing runs until the
+/// batch is committed, so these return nothing.
+abstract class LocalBatch {
+  void insert(
+    String table,
+    Map<String, Object?> values, {
+    LocalConflictAlgorithm? conflictAlgorithm,
+  });
+
+  void update(
+    String table,
+    Map<String, Object?> values, {
+    String? where,
+    List<Object?>? whereArgs,
+  });
+
+  void delete(String table, {String? where, List<Object?>? whereArgs});
+}
+
 /// A single database transaction. Every operation performed through a
 /// [LocalDatabaseTransaction] commits or rolls back atomically together
 /// with the rest of the block passed to [LocalDatabase.transaction].
@@ -104,6 +123,19 @@ abstract class LocalDatabase implements LocalDatabaseExecutor {
   Future<T> transaction<T>(
     Future<T> Function(LocalDatabaseTransaction txn) action,
   );
+
+  /// Queues the writes [build] adds and commits them in one transaction and
+  /// one round trip to the database, instead of one per row.
+  ///
+  /// Returns one result per queued write, in order: the row id or changed
+  /// row count, or — with [continueOnError] — the error that write raised
+  /// (the rest still commit; a failed write changes nothing). Without
+  /// [continueOnError] the first failure rolls the whole batch back and is
+  /// thrown.
+  Future<List<Object?>> writeBatch(
+    void Function(LocalBatch batch) build, {
+    bool continueOnError = false,
+  });
 
   /// Closes the underlying connection. Mirrors the existing
   /// `sqflite_sqlcipher` `Database.close()` call already used by

@@ -78,6 +78,8 @@ class _MuscleChartViewState extends State<MuscleChartView> {
   late final Future<Uri> _url = MuscleAssetServer.ensureStarted();
   InAppWebViewController? _web;
   bool _ready = false;
+  String? _error;
+  int _attempt = 0;
   String _lastSynced = '';
 
   String _encode(List<MuscleFinding> f) =>
@@ -116,8 +118,22 @@ class _MuscleChartViewState extends State<MuscleChartView> {
         widget.onFindingsChanged?.call(all);
       case 'error':
         debugPrint('Muscle chart: ${msg['message']}');
+        _fail('${msg['message']}');
     }
   }
+
+  /// Show a visible message instead of a blank box when the model can't load.
+  void _fail(String why) {
+    if (!mounted || _ready) return;
+    setState(() => _error = why);
+  }
+
+  void _retry() => setState(() {
+    _error = null;
+    _ready = false;
+    _web = null;
+    _attempt++;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +151,19 @@ class _MuscleChartViewState extends State<MuscleChartView> {
           path: '/index.html',
           query: widget.embed ? 'embed=1' : null,
         );
+        if (_error != null) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('The 3D muscle chart could not load.'),
+                TextButton(onPressed: _retry, child: const Text('Try again')),
+              ],
+            ),
+          );
+        }
         return InAppWebView(
+          key: ValueKey(_attempt),
           initialUrlRequest: URLRequest(url: WebUri.uri(url)),
           initialSettings: InAppWebViewSettings(
             transparentBackground: true,
@@ -150,6 +178,9 @@ class _MuscleChartViewState extends State<MuscleChartView> {
           onWebViewCreated: (c) {
             _web = c;
             c.addJavaScriptHandler(handlerName: 'muscleChart', callback: _onMessage);
+          },
+          onReceivedError: (_, request, error) {
+            if (request.isForMainFrame ?? false) _fail(error.description);
           },
           onConsoleMessage: kDebugMode
               ? (_, m) => debugPrint('[muscle viewer] ${m.message}')

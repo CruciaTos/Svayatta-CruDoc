@@ -574,9 +574,6 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
             const SizedBox(height: CruSpace.s12),
             CruSwitchRow(
               title: 'Import possible duplicates anyway',
-              subtitle:
-                  'Off: rows with a phone number you already have, or that '
-                  'repeats in the file, are skipped.',
               value: _importAnyway,
               onChanged: (v) => setState(() => _importAnyway = v),
             ),

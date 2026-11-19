@@ -202,7 +202,7 @@ class PatientRepository {
           .doc(patientId)
           .update({
             'isArchived': true,
-            'updatedAt': DateTime.now().toIso8601String(),
+            'updatedAt': FieldValue.serverTimestamp(),
           });
       return;
     }

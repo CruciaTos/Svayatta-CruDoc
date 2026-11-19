@@ -21,6 +21,7 @@
     <application
         android:label="CruDoc"
         android:name="${applicationName}"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:icon="@mipmap/ic_launcher">
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -67,7 +68,7 @@
             android:value="2" />
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="false" />
+            android:value="true" />
         <!-- Pushes about referrals between doctors land in this channel
              (created by ReferralNotifications at start-up). -->
         <meta-data

@@ -84,9 +84,9 @@ class RadPhoneBarItem {
   final bool selected;
 }
 
-/// The viewer's tools on a phone, laid out like a photo editor: a row of
-/// labelled buttons along the bottom; a group (Measure, Draw…) opens its
-/// own labelled row above it. Over both, a line saying how to use the
+/// The viewer's tools on a phone, laid out like a photo editor: one
+/// swipeable row of labelled buttons along the bottom; a group (Measure,
+/// Draw…) opens its own swipeable row above it. Over both, a line saying how to use the
 /// current tool, with undo and redo.
 class RadPhoneToolBar extends StatelessWidget {
   const RadPhoneToolBar({
@@ -103,6 +103,7 @@ class RadPhoneToolBar extends StatelessWidget {
 
   /// The open group's tools, or null when no group is open.
   final List<RadPhoneBarItem>? subItems;
+
   final VoidCallback? onUndo;
   final VoidCallback? onRedo;
 
@@ -168,6 +169,8 @@ class RadPhoneToolBar extends StatelessWidget {
   }
 }
 
+/// One row of buttons. When they all fit they share the width; when they
+/// don't, the row keeps one line and scrolls sideways.
 class _Row extends StatelessWidget {
   const _Row({required this.items, required this.compact});
 
@@ -179,43 +182,31 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final height = compact ? 64.0 : 68.0;
-    return LayoutBuilder(
-      builder: (context, box) {
-        // Every button stays on screen: when they don't fit on one line they
-        // wrap onto more rows instead of scrolling out of sight.
-        const pad = CruSpace.s8;
-        final room = box.maxWidth - pad * 2;
-        final rows = (items.length * _Button.width / room).ceil().clamp(
-          1,
-          items.length,
-        );
-        final perRow = (items.length / rows).ceil();
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: pad),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    const pad = CruSpace.s8;
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          if (items.length * _Button.width <= box.maxWidth - pad * 2) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: pad),
+              child: Row(
+                children: [
+                  for (final i in items) Expanded(child: _Button(item: i)),
+                ],
+              ),
+            );
+          }
+          return ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: pad),
             children: [
-              for (var r = 0; r * perRow < items.length; r++)
-                SizedBox(
-                  height: height,
-                  child: Row(
-                    children: [
-                      for (final i in items.skip(r * perRow).take(perRow))
-                        Expanded(child: _Button(item: i)),
-                      // Keep a short last row's buttons the same width.
-                      for (
-                        var k = items.skip(r * perRow).take(perRow).length;
-                        k < perRow;
-                        k++
-                      )
-                        const Spacer(),
-                    ],
-                  ),
-                ),
+              for (final i in items)
+                SizedBox(width: _Button.width, child: _Button(item: i)),
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

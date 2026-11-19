@@ -139,11 +139,6 @@ class _NearbySharingSettingsCardState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Nearby Sharing (Wi-Fi)', style: CruType.title),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Direct peer-to-peer file transfer on clinic Wi-Fi without uploading to the cloud.',
-                      style: CruType.caption.tint(c.label2),
-                    ),
                   ],
                 ),
               ),

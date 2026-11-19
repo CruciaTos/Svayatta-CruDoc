@@ -237,7 +237,6 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
       context: context,
       builder: (ctx) => CruFormDialog(
         title: 'Draw your signature',
-        subtitle: 'Sign with your finger, a pen or the mouse.',
         leading: const CruIconTile(
           icon: CruIcons.pen,
           tone: CruTileTone.neutral,
@@ -305,7 +304,6 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setDialogState) => CruFormDialog(
             title: 'Check your signature',
-            subtitle: 'This is how it prints on your documents.',
             leading: const CruIconTile(
               icon: CruIcons.pen,
               tone: CruTileTone.neutral,
@@ -338,7 +336,6 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
                   const SizedBox(height: CruSpace.s16),
                   DocToggleRow(
                     title: 'Keep the original background',
-                    subtitle: 'Turn on if the lines look too faint.',
                     value: keepBg,
                     onChanged: (v) async {
                       setDialogState(() => keepBg = v);
@@ -516,12 +513,7 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const DocCardHeader(
-                title: 'Doctor details',
-                description:
-                    'Printed on the prescriptions, certificates, referrals '
-                    'and bills you issue.',
-              ),
+              const DocCardHeader(title: 'Doctor details'),
               const SizedBox(height: CruSpace.s20),
               CruTextField(
                 label: 'Name on documents',
@@ -606,17 +598,11 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const DocCardHeader(
-                title: 'Signature & stamp',
-                description:
-                    'Only you can change these. They print only on documents '
-                    'you create.',
-              ),
+              const DocCardHeader(title: 'Signature & stamp'),
               const SizedBox(height: CruSpace.s20),
               DocSplit(
                 first: DocImageSlot(
                   title: 'Your signature',
-                  caption: 'Draw it, or upload a photo of it on white paper.',
                   bytes: _signatureBytes,
                   emptyIcon: CruIcons.pen,
                   previewWidth: 120,
@@ -640,7 +626,6 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
                 ),
                 second: DocImageSlot(
                   title: 'Personal stamp',
-                  caption: 'Your registration stamp, if you use one.',
                   bytes: _stampBytes,
                   emptyIcon: DocIcons.stamp,
                   previewWidth: 120,

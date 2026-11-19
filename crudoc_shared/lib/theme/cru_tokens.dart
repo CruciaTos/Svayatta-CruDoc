@@ -253,7 +253,14 @@ abstract final class CruMotion {
   /// Summary strips fading in above a list.
   static const Duration strip = Duration(milliseconds: 220);
 
-  /// [standard], or zero when the platform asks for reduced motion.
+  /// Set by the app's Low-end mode: [of] then answers zero everywhere, as
+  /// if the platform asked for reduced motion.
+  static bool forceReduced = false;
+
+  /// [standard], or zero when the platform asks for reduced motion (or
+  /// Low-end mode is on).
   static Duration of(BuildContext context, [Duration d = standard]) =>
-      MediaQuery.maybeDisableAnimationsOf(context) ?? false ? Duration.zero : d;
+      forceReduced || (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+      ? Duration.zero
+      : d;
 }

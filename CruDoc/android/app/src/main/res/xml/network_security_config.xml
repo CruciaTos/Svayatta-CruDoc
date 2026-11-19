@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release (and every other build type) network policy.
+
+  Android blocks plain-HTTP traffic by default. Several in-app WebViews (the
+  3D muscle chart, the CBCT viewer, the dental 3D viewer) load their bundled
+  pages from a tiny server that listens on this phone only (127.0.0.1) and
+  needs plain HTTP, because file:// would break ES modules and fetches. That
+  traffic never leaves the device.
+
+  So cleartext is allowed for the loopback addresses ONLY. Everything else
+  keeps Android's default: no cleartext, HTTPS only.
+
+  Debug builds override this file with src/debug/res/xml/network_security_config.xml,
+  which also allows the Android emulator's host address for the Firebase emulators.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

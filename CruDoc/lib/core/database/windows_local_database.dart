@@ -25,7 +25,47 @@ class WindowsDatabase extends _WindowsExecutor implements LocalDatabase {
   }
 
   @override
+  Future<List<Object?>> writeBatch(
+    void Function(LocalBatch batch) build, {
+    bool continueOnError = false,
+  }) {
+    final batch = _db.batch();
+    build(_WindowsBatch(batch));
+    return batch.commit(continueOnError: continueOnError);
+  }
+
+  @override
   Future<void> close() => _db.close();
+}
+
+/// Adapts a backend batch to [LocalBatch].
+class _WindowsBatch implements LocalBatch {
+  _WindowsBatch(this._batch);
+
+  final sqflite_common.Batch _batch;
+
+  @override
+  void insert(
+    String table,
+    Map<String, Object?> values, {
+    LocalConflictAlgorithm? conflictAlgorithm,
+  }) => _batch.insert(
+    table,
+    values,
+    conflictAlgorithm: _toWindowsConflictAlgorithm(conflictAlgorithm),
+  );
+
+  @override
+  void update(
+    String table,
+    Map<String, Object?> values, {
+    String? where,
+    List<Object?>? whereArgs,
+  }) => _batch.update(table, values, where: where, whereArgs: whereArgs);
+
+  @override
+  void delete(String table, {String? where, List<Object?>? whereArgs}) =>
+      _batch.delete(table, where: where, whereArgs: whereArgs);
 }
 
 /// Adapts a single FFI transaction handle to [LocalDatabaseTransaction].

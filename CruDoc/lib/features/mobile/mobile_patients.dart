@@ -639,6 +639,9 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                           key: ValueKey(s.id),
                           action: _rightSwipe(s, toothChart: canChart),
                           leftAction: _bookSwipe(s, canBook: canBook),
+                          // Only the outer fifths swipe the row; the middle
+                          // 60% changes tabs as usual.
+                          edgeFraction: 0.2,
                           child: _PatientRow(
                             summary: s,
                             now: now,

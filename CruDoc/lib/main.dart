@@ -30,6 +30,7 @@ import 'core/services/firestore_account_reset.dart';
 import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
+import 'core/services/low_end_mode.dart';
 import 'core/services/maps_key.dart';
 import 'core/pdf/services/generated_document_sync.dart';
 import 'core/services/storage_sync_queue.dart';
@@ -134,6 +135,11 @@ Future<void> main() async {
   StorageSyncQueue.instance.start();
 
   IncomingOpenIn.start();
+
+  // One prefs read and one channel call; a failure leaves Low-end mode off.
+  try {
+    await LowEndMode.init();
+  } catch (_) {}
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));
 }
@@ -530,13 +536,21 @@ class MoodyDashboardApp extends ConsumerWidget {
             ),
           ),
         );
-        return MediaQuery(
-          data: mediaQuery.copyWith(
-            textScaler: TextScaler.linear(systemScale * textSize.scale),
+        // Low-end mode reads as "animations off" to everything below, the
+        // backdrop, island and CruMotion.of included.
+        return ValueListenableBuilder<bool>(
+          valueListenable: LowEndMode.enabled,
+          builder: (context, lowEnd, _) => MediaQuery(
+            data: mediaQuery.copyWith(
+              textScaler: TextScaler.linear(systemScale * textSize.scale),
+              disableAnimations: lowEnd || mediaQuery.disableAnimations,
+            ),
+            // Tablets and PCs get the PC layout; narrower than 1024 it is
+            // scaled down, routes, dialogs and sheets included.
+            child: usesDesktopLayout(context)
+                ? ScaleToMinWidth(child: app)
+                : app,
           ),
-          // Tablets and PCs get the PC layout; narrower than 1024 it is
-          // scaled down, routes, dialogs and sheets included.
-          child: usesDesktopLayout(context) ? ScaleToMinWidth(child: app) : app,
         );
       },
     );

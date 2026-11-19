@@ -20,6 +20,12 @@ import 'package:doctor_management_app/features/files/presentation/widgets/files_
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/session_history_card.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_icons.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_follow_up_timeline.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_dose_plan_card.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_totality_card.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_repertory_entry.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/materia_medica_screen.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_dispensed_card.dart';
 
 /// Widest the page grows on desktop; it reads as a column, not a sheet.
 const double _maxWidth = 760;
@@ -206,6 +212,7 @@ class _HomeopathyPatientDetailsScreenState
           children: [
             centred(
               _HomeopathyTopBar(
+                onMateriaMedica: () => MateriaMedicaScreen.open(context),
                 onEdit: () => _editPatient(patient),
                 onDelete: () => _deletePatient(patient),
               ),
@@ -256,6 +263,25 @@ class _HomeopathyPatientDetailsScreenState
                             },
                           ),
                         ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyFollowUpTimeline(patientId: patient.id),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyDosePlanCard(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyTotalityCard(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyRepertoryEntry(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
+                        const SizedBox(height: CruSpace.cardGap),
+                        HomeopathyDispensedCard(patientId: patient.id),
                         const SizedBox(height: CruSpace.cardGap),
                         // Consultations recorded with the AI scribe.
                         if (sessions.isNotEmpty) ...[
@@ -396,10 +422,15 @@ class _HomeopathyPatientDetailsScreenState
 }
 
 class _HomeopathyTopBar extends StatelessWidget {
+  final VoidCallback onMateriaMedica;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _HomeopathyTopBar({required this.onEdit, required this.onDelete});
+  const _HomeopathyTopBar({
+    required this.onMateriaMedica,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -426,6 +457,11 @@ class _HomeopathyTopBar extends StatelessWidget {
             foreground: c.label2,
           ),
           const SizedBox(width: CruSpace.s6),
+          CruIconButton(
+            icon: HomeopathyIcons.flask,
+            onPressed: onMateriaMedica,
+            semanticLabel: 'Materia medica',
+          ),
           CruIconButton(
             icon: CruIcons.pen,
             onPressed: onEdit,

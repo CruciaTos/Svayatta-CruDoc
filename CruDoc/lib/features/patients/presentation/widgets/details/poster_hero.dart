@@ -45,7 +45,7 @@ class PatientAvatar extends StatelessWidget {
     final ring = allergic
         ? c.redText
         : detailsPending
-        ? c.amber
+        ? c.amberRing
         : null;
     if (ring == null) return monogram;
     return Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/core/services/low_end_mode.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -88,54 +89,60 @@ class MobileNavPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The rim: a white-to-grey ring around the blue bar.
-    return Container(
-      height: height,
-      padding: const EdgeInsets.all(rim),
-      decoration: ShapeDecoration(
-        shape: const StadiumBorder(),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFFFFF), Color(0xFFE2E7EF), Color(0xFFA9B3C2)],
-          stops: [0, 0.5, 1],
-        ),
-        shadows: [
-          BoxShadow(
-            color: const Color(0xFF1E3A8A).withValues(alpha: 0.22),
-            blurRadius: 22,
-            offset: const Offset(0, 8),
+    return ValueListenableBuilder<bool>(
+      valueListenable: LowEndMode.enabled,
+      builder: (context, lowEnd, _) => Container(
+        height: height,
+        padding: const EdgeInsets.all(rim),
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFFFFF), Color(0xFFE2E7EF), Color(0xFFA9B3C2)],
+            stops: [0, 0.5, 1],
           ),
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.10),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: DecoratedBox(
-        decoration: const ShapeDecoration(
-          shape: StadiumBorder(),
-          gradient: _gradient,
+          // Low-end mode drops the lift shadow (a blurred layer).
+          shadows: lowEnd
+              ? const []
+              : [
+                  BoxShadow(
+                    color: const Color(0xFF1E3A8A).withValues(alpha: 0.22),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.10),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
         ),
-        // Pressed-in edges: a highlight inside the top, a shade inside the
-        // bottom.
         child: DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: ShapeDecoration(
-            shape: const StadiumBorder(),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              stops: const [0, 0.22, 0.7, 1],
-              colors: [
-                Colors.white.withValues(alpha: 0.26),
-                Colors.white.withValues(alpha: 0),
-                Colors.black.withValues(alpha: 0),
-                Colors.black.withValues(alpha: 0.16),
-              ],
-            ),
+          decoration: const ShapeDecoration(
+            shape: StadiumBorder(),
+            gradient: _gradient,
           ),
-          child: child,
+          // Pressed-in edges: a highlight inside the top, a shade inside the
+          // bottom.
+          child: DecoratedBox(
+            position: DecorationPosition.foreground,
+            decoration: ShapeDecoration(
+              shape: const StadiumBorder(),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: const [0, 0.22, 0.7, 1],
+                colors: [
+                  Colors.white.withValues(alpha: 0.26),
+                  Colors.white.withValues(alpha: 0),
+                  Colors.black.withValues(alpha: 0),
+                  Colors.black.withValues(alpha: 0.16),
+                ],
+              ),
+            ),
+            child: child,
+          ),
         ),
       ),
     );

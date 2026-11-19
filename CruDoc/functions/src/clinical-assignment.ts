@@ -1,5 +1,8 @@
 import {onDocumentWritten} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
+// Imported directly (see clinic.ts): the emulator's admin.firestore copy
+// drops the FieldValue static.
+import {FieldValue} from "firebase-admin/firestore";
 
 /**
  * Keeps a copy of each patient's `assignedDoctorUids` on their clinical
@@ -70,7 +73,12 @@ export async function copyAssignmentToRecords(
     for (let i = 0; i < stale.length; i += BATCH_LIMIT) {
       const batch = db.batch();
       for (const d of stale.slice(i, i + BATCH_LIMIT)) {
-        batch.update(d.ref, {assignedDoctorUids: uids});
+        // updatedAt moves too, so devices syncing changes since their last
+        // pull (updatedAt > cursor) see the new assignment.
+        batch.update(d.ref, {
+          assignedDoctorUids: uids,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       }
       await batch.commit();
     }
@@ -115,7 +123,10 @@ export async function copyAssignmentsForClinic(clinicId: string): Promise<number
     for (let i = 0; i < updates.length; i += BATCH_LIMIT) {
       const batch = db.batch();
       for (const u of updates.slice(i, i + BATCH_LIMIT)) {
-        batch.update(u.ref, {assignedDoctorUids: u.uids});
+        batch.update(u.ref, {
+          assignedDoctorUids: u.uids,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       }
       await batch.commit();
     }
@@ -170,7 +181,10 @@ export async function stampRecord(
       sameUids(record.assignedDoctorUids, uids)) {
     return false;
   }
-  await ref.update({assignedDoctorUids: uids});
+  await ref.update({
+    assignedDoctorUids: uids,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   return true;
 }
 

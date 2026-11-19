@@ -146,7 +146,12 @@ class SearchLiftState extends State<SearchLift>
                 ),
               );
             },
-            child: KeyedSubtree(key: _page, child: widget.child),
+            // Its own layer: while the page glides and fades, the layer is
+            // moved, not repainted every frame.
+            child: KeyedSubtree(
+              key: _page,
+              child: RepaintBoundary(child: widget.child),
+            ),
           ),
         ),
       ),

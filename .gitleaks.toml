@@ -36,6 +36,8 @@ fingerprints = [
   "2729e765fbea9f746650964154bd94396b361d32:CruDoc/voice-receptionist/tests/test_receptionist_lines.py:stripe-access-token:202",
   # A SharedPreferences key name ('v2d.cursorOffset'), not a credential.
   "103a04e9e39479666677569fa5546b18145fd01d:CruDoc/lib/features/radiology/viewer/viewer_prefs.dart:generic-api-key:234",
+  # Same: the SharedPreferences key name 'v2d.cursorOffsetDist'.
+  "2b6b3c50baa7031d5a4ca41e9c86459ea7dd8f55:CruDoc/lib/features/radiology/viewer/viewer_prefs.dart:generic-api-key:242",
 ]
 
 [[rules]]

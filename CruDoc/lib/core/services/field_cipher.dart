@@ -55,12 +55,32 @@ class FieldCipher {
     if (value == null || value.isEmpty) return value ?? '';
     if (!value.startsWith(_prefix)) return value;
     if (key == null) return value;
+    return _decryptBody(
+      value,
+      enc.Encrypter(enc.AES(key, mode: enc.AESMode.gcm)),
+    );
+  }
 
+  /// [decryptWith] for many values under one [key]: builds the cipher once
+  /// instead of per field. Pure (no singletons), so a sync worker isolate
+  /// can use it with the raw key bytes it was handed.
+  static String Function(String?) decryptorFor(enc.Key? key) {
+    final encrypter = key == null
+        ? null
+        : enc.Encrypter(enc.AES(key, mode: enc.AESMode.gcm));
+    return (String? value) {
+      if (value == null || value.isEmpty) return value ?? '';
+      if (!value.startsWith(_prefix)) return value;
+      if (encrypter == null) return value;
+      return _decryptBody(value, encrypter);
+    };
+  }
+
+  static String _decryptBody(String value, enc.Encrypter encrypter) {
     try {
       final body = value.substring(_prefix.length);
       final parts = body.split('.');
       final iv = enc.IV(base64Decode(parts[0]));
-      final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.gcm));
       return encrypter.decrypt(enc.Encrypted.fromBase64(parts[1]), iv: iv);
     } catch (_) {
       // Wrong/missing key (e.g. mid-migration) — surface ciphertext rather

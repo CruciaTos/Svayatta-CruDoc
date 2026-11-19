@@ -373,10 +373,7 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const DocCardHeader(
-                title: 'Clinic details',
-                description: 'Printed in the letterhead of every document.',
-              ),
+              const DocCardHeader(title: 'Clinic details'),
               const SizedBox(height: CruSpace.s20),
               DocFieldPair(
                 first: CruTextField(
@@ -456,15 +453,11 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const DocCardHeader(
-                title: 'Logo & clinic stamp',
-                description: 'PNGs with a transparent background look best.',
-              ),
+              const DocCardHeader(title: 'Logo & clinic stamp'),
               const SizedBox(height: CruSpace.s20),
               DocSplit(
                 first: DocImageSlot(
                   title: 'Clinic logo',
-                  caption: 'At the top of the letterhead.',
                   bytes: _logoBytes,
                   emptyIcon: DocIcons.image,
                   actions: [
@@ -485,7 +478,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                 ),
                 second: DocImageSlot(
                   title: 'Clinic stamp',
-                  caption: 'Where a template places the clinic\'s stamp.',
                   bytes: _stampBytes,
                   emptyIcon: DocIcons.stamp,
                   actions: [
@@ -520,7 +512,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
               const SizedBox(height: CruSpace.s16),
               DocToggleRow(
                 title: 'Charge GST on bills',
-                subtitle: 'Tax invoices split it into CGST and SGST.',
                 value: _gstEnabled,
                 onChanged: canEdit
                     ? (v) => setState(() => _gstEnabled = v)
@@ -542,7 +533,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
               const SizedBox(height: CruSpace.s16),
               DocToggleRow(
                 title: 'Round off to the nearest rupee',
-                subtitle: 'Bill totals have no paise.',
                 value: _roundOff,
                 onChanged: canEdit
                     ? (v) => setState(() => _roundOff = v)
@@ -588,12 +578,7 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const DocCardHeader(
-                title: 'Document numbering',
-                description:
-                    'Each kind has its own prefix. Numbers start again every '
-                    'financial year (April to March).',
-              ),
+              const DocCardHeader(title: 'Document numbering'),
               const SizedBox(height: CruSpace.s20),
               DocFieldGrid(
                 minColumnWidth: 280,
@@ -630,7 +615,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
               const SizedBox(height: CruSpace.s20),
               DocToggleRow(
                 title: 'Everyone uses clinic templates',
-                subtitle: 'Team members can\'t pick templates of their own.',
                 value: _lockTemplates,
                 onChanged: canEdit
                     ? (v) => setState(() => _lockTemplates = v)

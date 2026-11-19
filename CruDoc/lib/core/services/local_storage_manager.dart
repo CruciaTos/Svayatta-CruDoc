@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'local_database_service.dart';
 import 'medical_storage_service.dart';
 import 'storage_sync_queue.dart';
 
@@ -81,6 +83,7 @@ class LocalStorageReport {
     required this.cloudCopyBytes,
     required this.cacheBytes,
     required this.limitBytes,
+    this.recordsBytes = 0,
   });
 
   final int totalBytes;
@@ -89,9 +92,13 @@ class LocalStorageReport {
   final int cloudCopyBytes;
   final int cacheBytes;
 
-  /// Everything else: the patient database, uploads still waiting, and
-  /// files that are never uploaded. Never removed.
-  int get keptBytes => totalBytes - cloudCopyBytes - cacheBytes;
+  /// The patient records database (all of this device's `crudoc_*.db`
+  /// files). Never removed.
+  final int recordsBytes;
+
+  /// Everything else: uploads still waiting and files that are never
+  /// uploaded. Never removed.
+  int get keptBytes => totalBytes - cloudCopyBytes - cacheBytes - recordsBytes;
 
   /// 0 = no limit.
   final int limitBytes;
@@ -146,10 +153,13 @@ class LocalStorageManager {
   LocalStorageManager._({
     Future<SharedPreferences> Function()? prefs,
     Future<Directory> Function()? appDir,
+    Future<Directory?> Function()? recordsDir,
     Future<int?> Function(String storagePath)? cloudSize,
     DateTime Function()? now,
   }) : _prefs = prefs ?? SharedPreferences.getInstance,
        _appDir = appDir ?? getApplicationSupportDirectory,
+       _recordsDir =
+           recordsDir ?? LocalDatabaseService.instance.recordsDirectory,
        _cloudSize =
            cloudSize ?? ((path) => MedicalStorageService.instance.cloudSize(path)),
        _now = now ?? DateTime.now;
@@ -162,9 +172,12 @@ class LocalStorageManager {
     required Future<Directory> Function() appDir,
     required Future<int?> Function(String storagePath) cloudSize,
     DateTime Function()? now,
+    Future<Directory?> Function()? recordsDir,
   }) => LocalStorageManager._(
     prefs: prefs,
     appDir: appDir,
+    // Tests measure only their own folder unless they say otherwise.
+    recordsDir: recordsDir ?? () async => null,
     cloudSize: cloudSize,
     now: now,
   );
@@ -192,6 +205,7 @@ class LocalStorageManager {
 
   final Future<SharedPreferences> Function() _prefs;
   final Future<Directory> Function() _appDir;
+  final Future<Directory?> Function() _recordsDir;
   final Future<int?> Function(String storagePath) _cloudSize;
   final DateTime Function() _now;
 
@@ -251,7 +265,8 @@ class LocalStorageManager {
   }
 
   Future<LocalStorageReport> report() async {
-    final total = await _directoryBytes(await _appDir());
+    final usage = await _usage();
+    final total = usage.total;
     var cloud = 0;
     var cache = 0;
     for (final a in await _allAssets()) {
@@ -266,7 +281,39 @@ class LocalStorageManager {
       cloudCopyBytes: cloud,
       cacheBytes: cache,
       limitBytes: await limitBytes(),
+      recordsBytes: usage.records,
     );
+  }
+
+  /// Everything CruDoc holds on this device: the app's own folder plus the
+  /// records database, which on Android and iOS lives outside it (in the
+  /// system databases folder). On Windows the database is already inside
+  /// the app folder and is not counted twice.
+  Future<({int total, int records})> _usage() async {
+    final appDir = await _appDir();
+    var total = await _directoryBytes(appDir);
+    var records = 0;
+    try {
+      final dir = await _recordsDir();
+      if (dir != null && await dir.exists()) {
+        await for (final e in dir.list(followLinks: false)) {
+          if (e is! File ||
+              !LocalDatabaseService.isRecordsFileName(p.basename(e.path))) {
+            continue;
+          }
+          try {
+            records += await e.length();
+          } catch (_) {}
+        }
+        final inside =
+            p.equals(dir.path, appDir.path) || p.isWithin(appDir.path, dir.path);
+        if (!inside) total += records;
+      }
+    } catch (e) {
+      // Can't see the databases folder: report what the app folder holds.
+      debugPrint('[LocalStorage] could not measure the records database: $e');
+    }
+    return (total: total, records: records);
   }
 
   /// Brings this device within its limit, as far as it safely can. One run
@@ -279,7 +326,7 @@ class LocalStorageManager {
   Future<LocalCleanupResult> _enforce() async {
     try {
       final limit = await limitBytes();
-      var total = await _directoryBytes(await _appDir());
+      var total = (await _usage()).total;
       if (limit <= 0 || total <= limit) {
         return LocalCleanupResult(totalBytesAfter: total, limitBytes: limit);
       }

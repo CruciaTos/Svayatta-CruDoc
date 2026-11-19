@@ -50,6 +50,7 @@ class CruColors extends ThemeExtension<CruColors> {
     required this.accentWash,
     required this.amber,
     required this.amberText,
+    required this.amberRing,
     required this.amberTint,
     required this.green,
     required this.greenText,
@@ -109,6 +110,9 @@ class CruColors extends ThemeExtension<CruColors> {
 
   final Color amber;
   final Color amberText;
+
+  /// Lighter, true yellow for the "details pending" avatar ring.
+  final Color amberRing;
   final Color amberTint;
 
   final Color green;
@@ -176,6 +180,7 @@ class CruColors extends ThemeExtension<CruColors> {
     accentWash: CruBrand.ink50,
     amber: Color(0xFFFF9F0A),
     amberText: Color(0xFFB25000),
+    amberRing: Color(0xFFFFD60A),
     amberTint: Color(0xFFFFF4E5),
     green: Color(0xFF34C759),
     greenText: Color(0xFF248A3D),
@@ -221,6 +226,7 @@ class CruColors extends ThemeExtension<CruColors> {
     accentWash: Color(0x1A4973F8),
     amber: Color(0xFFFF9F0A),
     amberText: Color(0xFFFFB340),
+    amberRing: Color(0xFFFFD60A),
     amberTint: Color(0x24FF9F0A),
     green: Color(0xFF30D158),
     greenText: Color(0xFF30D158),
@@ -278,6 +284,7 @@ class CruColors extends ThemeExtension<CruColors> {
     Color? accentText,
     Color? amberTint,
     Color? amberText,
+    Color? amberRing,
     Color? primaryButtonFill,
     Color? primaryButtonText,
     List<BoxShadow>? cardShadow,
@@ -308,6 +315,7 @@ class CruColors extends ThemeExtension<CruColors> {
       accentWash: accentWash,
       amber: amber,
       amberText: amberText ?? this.amberText,
+      amberRing: amberRing ?? this.amberRing,
       amberTint: amberTint ?? this.amberTint,
       green: green,
       greenText: greenText,
@@ -357,6 +365,7 @@ class CruColors extends ThemeExtension<CruColors> {
       accentWash: c(accentWash, other.accentWash),
       amber: c(amber, other.amber),
       amberText: c(amberText, other.amberText),
+      amberRing: c(amberRing, other.amberRing),
       amberTint: c(amberTint, other.amberTint),
       green: c(green, other.green),
       greenText: c(greenText, other.greenText),

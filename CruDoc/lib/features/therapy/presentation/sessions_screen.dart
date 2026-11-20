@@ -6,6 +6,7 @@ import 'package:doctor_management_app/core/utils/app_notice.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_extras_models.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -37,6 +38,37 @@ Future<void> useSession(
     );
 }
 
+/// Raises the invoice for a package sale and records it on the package.
+///
+/// A package is paid for up front and the sessions draw it down, so there is
+/// one invoice per package rather than one per session. It goes through the
+/// clinic's own invoice dialog, so the tax rate, payment mode, numbering and
+/// PDF are the same here as anywhere else in CruDoc — nothing about tax is
+/// decided in the physiotherapy code.
+Future<void> billPackage(
+  BuildContext context,
+  WidgetRef ref,
+  Patient patient,
+  SessionPackage pkg,
+) async {
+  final invoice = await showDesktopCreateInvoiceDialog(
+    context,
+    initialPatient: patient,
+    initialTreatmentName: pkg.name.trim().isEmpty
+        ? 'Session package'
+        : pkg.name.trim(),
+    initialTreatmentPrice: pkg.price,
+    initialNotes: '${pkg.total} session package'
+        '${pkg.validUntil == null ? '' : ', valid until '
+              '${DentalFormat.date(pkg.validUntil!)}'}',
+  );
+  if (invoice == null) return;
+  await saveDentalRecord(
+    ref,
+    pkg.record.copyWith(data: pkg.dataWithInvoice(invoice.id)),
+  );
+}
+
 /// Sheet to start a new package.
 Future<void> showNewPackageSheet(
   BuildContext context,
@@ -50,10 +82,13 @@ Future<void> showNewPackageSheet(
     builder: (_) => const _PackageSheet(),
   );
   if (data == null) return;
-  await saveDentalRecord(
-    ref,
-    DentalRecord.create(patient.id, RecKind.physioPackage, data),
-  );
+  final record = DentalRecord.create(patient.id, RecKind.physioPackage, data);
+  await saveDentalRecord(ref, record);
+  // Billed from here while the patient is still at the desk, rather than
+  // leaving it to be remembered later.
+  final pkg = SessionPackage.fromRecord(record);
+  if (!context.mounted || !pkg.needsInvoice) return;
+  await billPackage(context, ref, patient, pkg);
 }
 
 class _PackageSheet extends StatefulWidget {
@@ -297,6 +332,11 @@ class SessionsScreen extends ConsumerWidget {
                             '${p.validUntil != null ? ' · valid until ${DentalFormat.date(p.validUntil!)}' : ''}',
                             style: CruType.caption.tabular.tint(c.label2),
                           ),
+                          if (p.needsInvoice)
+                            Text(
+                              'Not billed yet',
+                              style: CruType.caption.tint(c.amberText),
+                            ),
                           if (p.note.isNotEmpty)
                             Text(p.note, style: CruType.caption.tint(c.label2)),
                           if (p.used.isNotEmpty) ...[
@@ -312,6 +352,11 @@ class SessionsScreen extends ConsumerWidget {
                         ],
                       ),
                     ),
+                    if (p.needsInvoice)
+                      CruCapsuleButton(
+                        label: 'Bill',
+                        onPressed: () => billPackage(context, ref, patient, p),
+                      ),
                     IconButton(
                       tooltip: 'Delete',
                       icon: Icon(

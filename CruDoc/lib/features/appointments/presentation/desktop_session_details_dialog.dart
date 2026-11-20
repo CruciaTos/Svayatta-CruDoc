@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/queue/data/provider/queue_provide
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
+import 'package:doctor_management_app/features/therapy/presentation/package_no_show.dart';
 
 /// Opens the desktop-specific Session Details modal popup dialog.
 Future<void> showDesktopSessionDetailsDialog(
@@ -113,6 +114,15 @@ class _DesktopSessionDetailsDialogState
           }),
         ),
       );
+      if (newStatus == VisitStatus.missed && mounted) {
+        // Does nothing unless this patient has a live session package.
+        await askPackageDeduction(
+          context,
+          ref,
+          patientId: _visit.patientId,
+          at: _visit.scheduledStart,
+        );
+      }
     } catch (e) {
       debugPrint('Couldnt update the status. Try again.: $e');
       if (!mounted) return;

@@ -10,6 +10,7 @@ class SessionPackage {
     required this.validUntil,
     required this.note,
     required this.used,
+    required this.invoiceId,
   });
 
   factory SessionPackage.fromRecord(DentalRecord r) {
@@ -21,6 +22,7 @@ class SessionPackage {
       price: r.number('price'),
       validUntil: r.date('validUntil'),
       note: r.str('note'),
+      invoiceId: r.str('invoiceId'),
       used: [
         if (raw is List)
           for (final e in raw)
@@ -35,6 +37,17 @@ class SessionPackage {
   final double? price;
   final DateTime? validUntil;
   final String note;
+
+  /// The invoice raised when the package was sold, or empty when it has not
+  /// been billed yet. A package is paid for up front and the sessions draw
+  /// it down, so there is one invoice per package, not one per session.
+  final String invoiceId;
+
+  /// Whether the sale has been invoiced.
+  bool get billed => invoiceId.trim().isNotEmpty;
+
+  /// Worth billing: sold for a price, and no invoice raised for it yet.
+  bool get needsInvoice => !billed && (price ?? 0) > 0;
 
   /// Oldest first.
   final List<DateTime> used;
@@ -63,7 +76,14 @@ class SessionPackage {
     'price': ?price,
     if (validUntil != null) 'validUntil': validUntil!.millisecondsSinceEpoch,
     'note': note,
+    if (billed) 'invoiceId': invoiceId,
     'used': [for (final u in used) u.millisecondsSinceEpoch],
+  };
+
+  /// A copy of the record data with [id] recorded as the package's invoice.
+  Map<String, dynamic> dataWithInvoice(String id) => {
+    ...record.data,
+    'invoiceId': id,
   };
 
   /// A copy with [at] added to the usage list.

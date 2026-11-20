@@ -58,6 +58,7 @@ class ExerciseDef {
     this.videoPath,
     this.videoLink,
     this.muscles = const [],
+    this.favourite = false,
   });
 
   final String id;
@@ -98,7 +99,35 @@ class ExerciseDef {
   bool get hasMedia =>
       photoPath != null || videoPath != null || videoLink != null;
 
+  /// Starred by the clinic, so it comes first in the picker. Stored on the
+  /// same `physioExercise` record that already carries this exercise's photo
+  /// and video, rather than in a list of its own.
+  final bool favourite;
+
   bool get hasMuscles => muscles.isNotEmpty;
+
+  ExerciseDef withFavourite(bool value) => value == favourite
+      ? this
+      : ExerciseDef(
+          id: id,
+          name: name,
+          region: region,
+          goal: goal,
+          steps: steps,
+          cautions: cautions,
+          sets: sets,
+          reps: reps,
+          holdSeconds: holdSeconds,
+          perDay: perDay,
+          level: level,
+          isCustom: isCustom,
+          muscles: muscles,
+          favourite: value,
+          recordId: recordId,
+          photoPath: photoPath,
+          videoPath: videoPath,
+          videoLink: videoLink,
+        );
 
   ExerciseDef withMedia({
     String? recordId,
@@ -119,6 +148,7 @@ class ExerciseDef {
     level: level,
     isCustom: isCustom,
     muscles: muscles,
+    favourite: favourite,
     recordId: recordId ?? this.recordId,
     photoPath: photoPath,
     videoPath: videoPath,

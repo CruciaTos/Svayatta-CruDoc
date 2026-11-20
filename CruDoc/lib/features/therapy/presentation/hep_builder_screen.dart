@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/data/exercise_library.dart';
 import 'package:doctor_management_app/features/therapy/domain/hep_models.dart';
+import 'package:doctor_management_app/features/therapy/presentation/hep_template_picker.dart';
 import 'package:doctor_management_app/features/therapy/presentation/exercise_library_screen.dart';
 import 'package:doctor_management_app/features/therapy/presentation/hep_share.dart';
 import 'package:doctor_management_app/features/therapy/presentation/protocol_picker.dart';
@@ -75,6 +76,47 @@ class _HepBuilderScreenState extends ConsumerState<HepBuilderScreen> {
         if (!_items.any((x) => x.exerciseId == i.exerciseId)) _items.add(i);
       }
     });
+  }
+
+  Future<void> _startFromTemplate() async {
+    final t = await pickHepTemplate(context);
+    if (t == null || !mounted) return;
+    setState(() {
+      for (final i in t.items) {
+        if (!_items.any((x) => x.exerciseId == i.exerciseId)) _items.add(i);
+      }
+      // A programme built from a saved one takes its name, unless the physio
+      // has already typed their own.
+      if (_title.text.trim().isEmpty ||
+          _title.text.trim() == 'Home exercise program') {
+        _title.text = t.title;
+      }
+    });
+  }
+
+  /// Keeps the current exercises as a programme the clinic can reuse.
+  ///
+  /// Only the title and the exercises are kept. The note is left behind
+  /// because it was written about this patient, and the template belongs to
+  /// no patient at all.
+  Future<void> _saveAsTemplate() async {
+    if (_items.isEmpty) {
+      recToast(context, 'Add at least one exercise');
+      return;
+    }
+    final title = _title.text.trim();
+    await saveDentalRecord(
+      ref,
+      DentalRecord.create(
+        '',
+        RecKind.physioHepTemplate,
+        HepTemplate.toData(
+          title: title.isEmpty ? 'Saved program' : title,
+          items: _items,
+        ),
+      ),
+    );
+    if (mounted) recToast(context, 'Saved to your programs');
   }
 
   /// Saves the program and returns it (new record, or the same one updated).
@@ -200,6 +242,12 @@ class _HepBuilderScreenState extends ConsumerState<HepBuilderScreen> {
                     ),
                     if (_items.isNotEmpty) ...[
                       CruCapsuleButton(
+                        label: 'Save as template',
+                        icon: CruIcons.check,
+                        onPressed: _busy ? null : _saveAsTemplate,
+                      ),
+                      const SizedBox(width: CruSpace.s8),
+                      CruCapsuleButton(
                         label: 'Protocol',
                         icon: CruIcons.fileText,
                         onPressed: _startFromProtocol,
@@ -228,6 +276,12 @@ class _HepBuilderScreenState extends ConsumerState<HepBuilderScreen> {
                           label: 'Start from a protocol',
                           icon: CruIcons.fileText,
                           onPressed: _startFromProtocol,
+                        ),
+                        const SizedBox(height: CruSpace.s8),
+                        CruCapsuleButton(
+                          label: 'Start from a saved program',
+                          icon: CruIcons.fileText,
+                          onPressed: _startFromTemplate,
                         ),
                       ],
                     ),

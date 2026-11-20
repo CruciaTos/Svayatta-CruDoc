@@ -50,6 +50,26 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
     }
   }
 
+  /// Stars or unstars [e]. The flag rides on the same `physioExercise`
+  /// record that already carries this exercise's photo and video, so a
+  /// starred exercise needs no record of its own.
+  Future<void> _toggleFavourite(ExerciseDef e) async {
+    final recs =
+        ref.read(clinicRecordsProvider(RecKind.physioExercise)).value ??
+        const <DentalRecord>[];
+    final existing = recs
+        .where((r) => r.str('exerciseId') == e.id && r.data['custom'] != true)
+        .firstOrNull;
+    final next = !e.favourite;
+    final record = existing != null
+        ? existing.copyWith(data: {...existing.data, 'favourite': next})
+        : DentalRecord.create('', RecKind.physioExercise, {
+            'exerciseId': e.id,
+            'favourite': next,
+          });
+    await saveDentalRecord(ref, record);
+  }
+
   Future<void> _addCustom() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => const _CustomExerciseScreen()),
@@ -59,7 +79,10 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final all = ref.watch(exerciseCatalogProvider);
+    final all = orderExercises(
+      ref.watch(exerciseCatalogProvider),
+      ref.watch(recentExercisesProvider),
+    );
     final q = _search.text.trim().toLowerCase();
     final shown = [
       for (final e in all)
@@ -173,11 +196,25 @@ class _ExerciseLibraryScreenState extends ConsumerState<ExerciseLibraryScreen> {
                                     Text(
                                       '${e.region.label} · ${e.level.label}'
                                       '${e.isCustom ? ' · Yours' : ''}'
-                                      '${e.hasMedia ? ' · Has media' : ''}',
+                                      '${e.hasMedia ? ' · Has media' : ''}'
+                                      '${e.favourite ? ' · Starred' : ''}',
                                       style: CruType.caption.tint(c.label2),
                                     ),
                                   ],
                                 ),
+                              ),
+                              IconButton(
+                                tooltip: e.favourite
+                                    ? 'Remove star'
+                                    : 'Star this exercise',
+                                icon: Icon(
+                                  e.favourite
+                                      ? Icons.star_rounded
+                                      : Icons.star_outline_rounded,
+                                  size: 20,
+                                  color: e.favourite ? c.amberText : c.label3,
+                                ),
+                                onPressed: () => _toggleFavourite(e),
                               ),
                               if (added)
                                 CruIcon(CruIcons.check, color: c.label2),

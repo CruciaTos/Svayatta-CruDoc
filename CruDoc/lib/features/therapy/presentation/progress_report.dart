@@ -63,8 +63,43 @@ String _delta(int? a, int? b) {
   return d > 0 ? '+$d' : '$d';
 }
 
+/// What turns the progress report into a discharge summary.
+///
+/// The physio's own words, never inferred: the app knows the pain scores and
+/// the sessions, it does not know whether the episode of care is finished or
+/// what the patient should do next.
+class DischargeNote {
+  const DischargeNote({
+    required this.on,
+    required this.outcome,
+    required this.advice,
+    this.addressedTo = '',
+  });
+
+  /// The day care ended.
+  final DateTime on;
+
+  /// How the episode finished, in the physio's words.
+  final String outcome;
+
+  /// What the patient should carry on doing.
+  final String advice;
+
+  /// The referring doctor this copy is written to, or empty for the
+  /// patient's own copy. Only a name and clinic, never their contact
+  /// details: the letter is handed to the patient.
+  final String addressedTo;
+
+  bool get isLetter => addressedTo.trim().isNotEmpty;
+}
+
 /// Pain, function, ROM, the current home program and session usage: only the
 /// sections that have data. No diagnosis, no inferred text.
+///
+/// With [discharge] set the same content becomes a discharge summary, and
+/// with an addressee on it, a letter to the referring doctor. The sections
+/// are identical either way: a referrer is owed the same facts as the
+/// patient, not a different version of them.
 Future<Uint8List> buildProgressReportPdf({
   required Patient patient,
   required List<ProgressEntry> progress,
@@ -72,6 +107,8 @@ Future<Uint8List> buildProgressReportPdf({
   required HepProgram? program,
   required SessionPackage? package,
   String? doctorName,
+  DischargeNote? discharge,
+  String? documentNumber,
 }) async {
   final doc = pw.Document();
   final bold = pw.TextStyle(fontWeight: pw.FontWeight.bold);
@@ -104,9 +141,15 @@ Future<Uint8List> buildProgressReportPdf({
     final last = progress.last;
     String change(String label, int a, int b) =>
         progress.length > 1 && a != b ? '$label $a to $b' : '$label $b';
-    body
-      ..add(heading('Pain and function'))
-      ..add(
+    // The one line the patient reads first, when it can be stated honestly.
+    final headline = painChange(progress);
+    body.add(heading('Pain and function'));
+    if (headline != null) {
+      body
+        ..add(pw.Text(headline.line, style: bold))
+        ..add(pw.SizedBox(height: 4));
+    }
+    body.add(
         pw.Text(
           '${change('Pain', first.pain, last.pain)}   |   '
           '${change('Function', first.function, last.function)}'
@@ -219,34 +262,68 @@ Future<Uint8List> buildProgressReportPdf({
       );
   }
 
-  // Blank space for the therapist.
-  body
-    ..add(heading('Therapist notes'))
-    ..add(
-      pw.Container(
-        height: 90,
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.grey400, width: 0.6),
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
+  if (discharge != null) {
+    body.add(heading('Discharge'));
+    body.add(
+      pw.Text(
+        'Care ended ${DentalFormat.date(discharge.on)}.',
+        style: small,
       ),
     );
+    if (discharge.outcome.trim().isNotEmpty) {
+      body
+        ..add(pw.SizedBox(height: 4))
+        ..add(pw.Text('Outcome: ${discharge.outcome.trim()}', style: small));
+    }
+    if (discharge.advice.trim().isNotEmpty) {
+      body
+        ..add(pw.SizedBox(height: 4))
+        ..add(pw.Text('Advice: ${discharge.advice.trim()}', style: small));
+    }
+  }
+
+  // A blank box to write in only on the patient's working copy. A discharge
+  // summary is a finished document, and a letter to another doctor with an
+  // empty box on it looks unfinished.
+  if (discharge == null) {
+    body
+      ..add(heading('Therapist notes'))
+      ..add(
+        pw.Container(
+          height: 90,
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey400, width: 0.6),
+            borderRadius: pw.BorderRadius.circular(6),
+          ),
+        ),
+      );
+  }
 
   doc.addPage(
     pw.MultiPage(
       margin: const pw.EdgeInsets.all(36),
       build: (_) => [
         pw.Text(
-          'Physiotherapy progress report',
+          discharge == null
+              ? 'Physiotherapy progress report'
+              : 'Physiotherapy discharge summary',
           style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
           '${patient.fullName}  |  Age ${patient.age}  |  '
           '${DentalFormat.date(DateTime.now())}'
-          '${doctorName != null && doctorName.trim().isNotEmpty ? '  |  $doctorName' : ''}',
+          '${doctorName != null && doctorName.trim().isNotEmpty ? '  |  $doctorName' : ''}'
+          '${documentNumber != null && documentNumber.trim().isNotEmpty ? '  |  $documentNumber' : ''}',
           style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
         ),
+        if (discharge != null && discharge.isLetter) ...[
+          pw.SizedBox(height: 10),
+          pw.Text(
+            'To: ${discharge.addressedTo.trim()}',
+            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+          ),
+        ],
         ...body,
       ],
     ),

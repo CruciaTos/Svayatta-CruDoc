@@ -38,6 +38,7 @@ import 'package:doctor_management_app/features/scribe/presentation/scribe_record
 import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/therapy/presentation/package_no_show.dart';
 
 /// One column: notes and files read best at this width.
 const double _dialogWidth = 600;
@@ -175,6 +176,15 @@ class _VisitSessionDialogState extends ConsumerState<VisitSessionDialog> {
     setState(() => _updatingStatus = true);
     try {
       await _repo.updateStatus(widget.visit.id, status);
+      if (status == VisitStatus.missed && mounted) {
+        // Does nothing unless this patient has a live session package.
+        await askPackageDeduction(
+          context,
+          ref,
+          patientId: widget.visit.patientId,
+          at: widget.visit.scheduledStart,
+        );
+      }
     } catch (e) {
       debugPrint('Couldnt change the visit. Try again.: $e');
       messenger?.showIsland(

@@ -77,6 +77,11 @@ abstract final class RecKind {
   /// Physiotherapy home exercise program (patientId = patient).
   static const physioHep = 'physioHep';
 
+  /// A saved home exercise program the clinic reuses, same shape as
+  /// `physioHep` (`{title, note, items}`) but belonging to no patient
+  /// (patientId = '', clinic-wide).
+  static const physioHepTemplate = 'physioHepTemplate';
+
   /// Physiotherapy pain and function score `{pain, worst, function, note}`
   /// (patientId = patient).
   static const physioProgress = 'physioProgress';

@@ -34,6 +34,64 @@ class ProgressEntry {
   }) => {'pain': pain, 'worst': worst, 'function': function, 'note': note};
 }
 
+/// How far the pain score has moved between the first and latest reading,
+/// for the one line a patient actually reads on their report.
+class PainChange {
+  const PainChange({
+    required this.from,
+    required this.to,
+    required this.percent,
+    required this.days,
+  });
+
+  final int from;
+  final int to;
+
+  /// How much of the original pain has gone, 0 to 100. Positive is better.
+  /// Negative means the pain has risen.
+  final int percent;
+
+  /// Days between the first and the latest reading.
+  final int days;
+
+  bool get improved => percent > 0;
+  bool get worse => percent < 0;
+
+  /// Whole weeks, rounded, and at least 1 once any time has passed.
+  int get weeks => days < 7 ? (days > 0 ? 1 : 0) : (days / 7).round();
+
+  /// The sentence for the report, e.g. "Pain down 57% over 6 weeks".
+  ///
+  /// Says it plainly when the pain has risen instead: a report the patient
+  /// keeps must not read as progress when there has not been any.
+  String get line {
+    final span = weeks == 0
+        ? 'so far'
+        : 'over $weeks week${weeks == 1 ? '' : 's'}';
+    if (percent == 0) return 'Pain unchanged at $to out of 10 $span';
+    final dir = improved ? 'down' : 'up';
+    return 'Pain $dir ${percent.abs()}% $span, from $from to $to out of 10';
+  }
+}
+
+/// The pain change across [entries] (oldest first), or null when it cannot
+/// be stated honestly.
+///
+/// Null when there is only one reading, or when the first reading was 0:
+/// there is no percentage of nothing, and inventing one would overstate the
+/// result on exactly the patients who started out well.
+PainChange? painChange(List<ProgressEntry> entries) {
+  if (entries.length < 2) return null;
+  final first = entries.first, last = entries.last;
+  if (first.pain <= 0) return null;
+  return PainChange(
+    from: first.pain,
+    to: last.pain,
+    percent: ((first.pain - last.pain) / first.pain * 100).round(),
+    days: last.date.difference(first.date).inDays,
+  );
+}
+
 /// Oldest first.
 List<ProgressEntry> progressEntries(Iterable<DentalRecord> recs) =>
     [for (final r in recs) ProgressEntry.fromRecord(r)]

@@ -158,16 +158,127 @@ final exerciseCatalogProvider = Provider<List<ExerciseDef>>((ref) {
   return [
     for (final e in kExerciseLibrary)
       if (media[e.id] case final m?)
-        e.withMedia(
-          recordId: m.id,
-          photoPath: _path(m, 'photo'),
-          videoPath: _path(m, 'video'),
-          videoLink: _link(m),
-        )
+        e
+            .withMedia(
+              recordId: m.id,
+              photoPath: _path(m, 'photo'),
+              videoPath: _path(m, 'video'),
+              videoLink: _link(m),
+            )
+            .withFavourite(m.data['favourite'] == true)
       else
         e,
     ...custom,
   ];
+});
+
+/// A programme the clinic saved to reuse on the next patient.
+///
+/// The same shape as a [HepProgram] but belonging to nobody, so saving one
+/// copies the items and nothing about the patient it came from: no name, no
+/// note about their case, nothing that would leak one patient's details into
+/// another's programme.
+class HepTemplate {
+  const HepTemplate({
+    required this.title,
+    required this.items,
+    required this.record,
+  });
+
+  factory HepTemplate.fromRecord(DentalRecord r) {
+    final raw = r.data['items'];
+    return HepTemplate(
+      title: r.str('title'),
+      items: [
+        if (raw is List)
+          for (final e in raw)
+            if (e is Map) HepItem.fromJson(Map<String, dynamic>.from(e)),
+      ],
+      record: r,
+    );
+  }
+
+  final String title;
+  final List<HepItem> items;
+  final DentalRecord record;
+
+  String get id => record.id;
+  DateTime get date => record.recordedAt;
+
+  /// The record data for a template taken from [program]. The programme's
+  /// own note is left behind: it was written about that patient.
+  static Map<String, dynamic> toData({
+    required String title,
+    required List<HepItem> items,
+  }) => {
+    'title': title,
+    'items': [for (final i in items) i.toJson()],
+  };
+}
+
+/// The clinic's saved programmes, newest first.
+final hepTemplatesProvider = Provider<List<HepTemplate>>((ref) {
+  final recs =
+      ref.watch(clinicRecordsProvider(RecKind.physioHepTemplate)).value ??
+      const <DentalRecord>[];
+  return [for (final r in recs) HepTemplate.fromRecord(r)]
+    ..sort((a, b) => b.date.compareTo(a.date));
+});
+
+/// Exercise ids the clinic has prescribed lately, most recent first.
+///
+/// Taken from the programmes already written rather than a list of its own:
+/// what a physio reached for last week is the best guess at what they want
+/// next, and it needs nothing stored to work.
+List<String> recentExerciseIds(
+  List<HepProgram> programs, {
+  int limit = 8,
+}) {
+  final newestFirst = [...programs]..sort((a, b) => b.date.compareTo(a.date));
+  final out = <String>[];
+  for (final p in newestFirst) {
+    for (final i in p.items) {
+      if (i.exerciseId.isEmpty || out.contains(i.exerciseId)) continue;
+      out.add(i.exerciseId);
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+/// Starred first, then recently prescribed, then everything else.
+///
+/// Within each band the order [all] already has is kept, so the library stays
+/// predictable: the picker lifts things to the top, it never reshuffles.
+List<ExerciseDef> orderExercises(
+  List<ExerciseDef> all,
+  List<String> recentIds,
+) {
+  final rank = {
+    for (var i = 0; i < recentIds.length; i++) recentIds[i]: i,
+  };
+  final favourites = <ExerciseDef>[];
+  final recent = <ExerciseDef>[];
+  final rest = <ExerciseDef>[];
+  for (final e in all) {
+    if (e.favourite) {
+      favourites.add(e);
+    } else if (rank.containsKey(e.id)) {
+      recent.add(e);
+    } else {
+      rest.add(e);
+    }
+  }
+  recent.sort((a, b) => rank[a.id]!.compareTo(rank[b.id]!));
+  return [...favourites, ...recent, ...rest];
+}
+
+/// Every programme in the clinic, for [recentExerciseIds].
+final recentExercisesProvider = Provider<List<String>>((ref) {
+  final recs =
+      ref.watch(clinicRecordsProvider(RecKind.physioHep)).value ??
+      const <DentalRecord>[];
+  return recentExerciseIds([for (final r in recs) HepProgram.fromRecord(r)]);
 });
 
 String? _path(DentalRecord r, String key) {

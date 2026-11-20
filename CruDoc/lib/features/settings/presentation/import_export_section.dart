@@ -82,6 +82,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   Uint8List? _bytes;
   ParsedTable? _table;
   _ImportKind _kind = _ImportKind.patients;
+  _ImportKind _startKind = _ImportKind.patients;
   ImportMapping _mapping = {};
   VisitImportMapping _visitMapping = {};
   bool _otherColumns = false;
@@ -342,11 +343,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     for (final number in todo) {
       final line = byNumber[number]!;
       if (_cancel || !mounted) {
-        _skipped.add((
-          number: number,
-          raw: line.raw,
-          why: 'Import cancelled',
-        ));
+        _skipped.add((number: number, raw: line.raw, why: 'Import cancelled'));
         continue;
       }
       try {
@@ -361,11 +358,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
         }
         _imported++;
       } catch (_) {
-        _skipped.add((
-          number: number,
-          raw: line.raw,
-          why: "Couldn't be saved",
-        ));
+        _skipped.add((number: number, raw: line.raw, why: "Couldn't be saved"));
       }
       if (!mounted) return;
       setState(() => _done++);
@@ -386,10 +379,8 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     );
   }
 
-  Future<void> _downloadSample() => _deliver(
-    'CruDoc patient import sample.csv',
-    csvBytes([sampleHeaders]),
-  );
+  Future<void> _downloadSample() =>
+      _deliver('CruDoc patient import sample.csv', csvBytes([sampleHeaders]));
 
   Future<void> _downloadVisitSample() => _deliver(
     'CruDoc visit history sample.csv',
@@ -491,100 +482,77 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     final patients = ref.watch(patientsStreamProvider).value ?? const [];
     final loaded = ref.watch(patientsStreamProvider).hasValue;
     final empty = loaded && patients.isEmpty;
+    final isVisits = _startKind == _ImportKind.visits;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CruCard(
-          semanticLabel: 'Import patients',
+          semanticLabel: 'Import',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _heading(
                 context,
-                'Import patients',
-                'Bring patients from another app or an Excel sheet. Choose an '
-                    '.xlsx or .csv file, match its columns, check the preview, '
-                    'then import.',
+                'Import',
+                isVisits
+                    ? 'Bring past visits in from your old software. Each row '
+                          'is matched to a patient already here, so import your '
+                          'patients first.'
+                    : 'Bring patients from another app or an Excel sheet. '
+                          'Choose an .xlsx or .csv file, match its columns, '
+                          'check the preview, then import.',
+              ),
+              const SizedBox(height: CruSpace.s16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CruSegmentedControl<_ImportKind>(
+                  semanticLabel: 'What to import',
+                  segments: const [
+                    CruSegment(_ImportKind.patients, 'Patients'),
+                    CruSegment(_ImportKind.visits, 'Visit history'),
+                  ],
+                  selected: _startKind,
+                  onChanged: (k) => setState(() => _startKind = k),
+                ),
               ),
               const SizedBox(height: CruSpace.s20),
               Wrap(
                 spacing: CruSpace.s12,
                 runSpacing: CruSpace.s12,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   CruButton(
                     label: _busy ? 'Reading file…' : 'Choose file',
                     icon: CruIcons.importExport,
-                    onPressed: _busy
+                    onPressed: _busy || (isVisits && empty)
                         ? null
-                        : () => _pickFile(_ImportKind.patients),
+                        : () => _pickFile(_startKind),
                   ),
                   CruButton(
                     label: 'Download sample file',
                     kind: CruButtonKind.secondary,
                     icon: CruIcons.download,
-                    onPressed: _downloadSample,
+                    onPressed: isVisits
+                        ? _downloadVisitSample
+                        : _downloadSample,
                   ),
-                  CruButton(
-                    label: 'Copy AI prompt',
-                    kind: CruButtonKind.secondary,
-                    icon: CruIcons.sparkle,
-                    onPressed: () async {
-                      await Clipboard.setData(
-                        ClipboardData(text: aiFormatPrompt),
-                      );
-                      _say(
-                        'Prompt copied. Paste it into Gemini, ChatGPT or '
-                        'Claude with your sheet, save the reply as a .csv '
-                        'file, then choose that file here.',
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: CruSpace.s12),
-              Text(
-                'Sheet not in order? Copy the AI prompt, paste it into any AI '
-                'chat with your rows, and it returns a file in the format '
-                'CruDoc reads. This sends patient details to that AI company: '
-                'use an account with training on your data switched off.',
-                style: CruType.text.tint(context.cru.label2),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: CruSpace.s16),
-        CruCard(
-          semanticLabel: 'Import visit history',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _heading(
-                context,
-                'Import visit history',
-                'Bring past visits in from your old software. Each row is '
-                    'matched to a patient already here, so import your '
-                    'patients first.',
-              ),
-              const SizedBox(height: CruSpace.s20),
-              Wrap(
-                spacing: CruSpace.s12,
-                runSpacing: CruSpace.s12,
-                children: [
-                  CruButton(
-                    label: _busy ? 'Reading file…' : 'Choose file',
-                    kind: CruButtonKind.secondary,
-                    icon: CruIcons.importExport,
-                    onPressed: _busy || empty
-                        ? null
-                        : () => _pickFile(_ImportKind.visits),
-                  ),
-                  CruButton(
-                    label: 'Download sample file',
-                    kind: CruButtonKind.secondary,
-                    icon: CruIcons.download,
-                    onPressed: _downloadVisitSample,
-                  ),
-                  if (empty)
+                  if (!isVisits)
+                    CruButton(
+                      label: 'Copy AI prompt',
+                      kind: CruButtonKind.secondary,
+                      icon: CruIcons.sparkle,
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: aiFormatPrompt),
+                        );
+                        _say(
+                          'Prompt copied. Paste it into Gemini, ChatGPT or '
+                          'Claude with your sheet, save the reply as a .csv '
+                          'file, then choose that file here.',
+                        );
+                      },
+                    ),
+                  if (isVisits && empty)
                     Text(
                       'Import your patients first',
                       style: CruType.text.tint(c.label3),
@@ -593,11 +561,17 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
               ),
               const SizedBox(height: CruSpace.s12),
               Text(
-                'A visit needs a date and some way to say whose it is: the '
-                'patient ID from your old software, a phone number or a '
-                'name. Visits in the past are saved as completed unless the '
-                'file says otherwise. Nobody is messaged about an imported '
-                'visit.',
+                isVisits
+                    ? 'A visit needs a date and some way to say whose it is: '
+                          'the patient ID from your old software, a phone '
+                          'number or a name. Visits in the past are saved as '
+                          'completed unless the file says otherwise. Nobody is '
+                          'messaged about an imported visit.'
+                    : 'Sheet not in order? Copy the AI prompt, paste it into '
+                          'any AI chat with your rows, and it returns a file in '
+                          'the format CruDoc reads. This sends patient details '
+                          'to that AI company: use an account with training on '
+                          'your data switched off.',
                 style: CruType.text.tint(c.label2),
               ),
             ],
@@ -621,8 +595,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 child: CruSegmentedControl<ExportFormat>(
                   semanticLabel: 'File format',
                   segments: [
-                    for (final f in ExportFormat.values)
-                      CruSegment(f, f.label),
+                    for (final f in ExportFormat.values) CruSegment(f, f.label),
                   ],
                   selected: _format,
                   onChanged: (f) => setState(() => _format = f),
@@ -733,10 +706,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 onPressed: _canPreview ? _toPreview : null,
               ),
               if (_missingForPreview != null)
-                Text(
-                  _missingForPreview!,
-                  style: CruType.text.tint(c.label3),
-                ),
+                Text(_missingForPreview!, style: CruType.text.tint(c.label3)),
             ],
           ),
         ],
@@ -849,8 +819,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 foreground: c.greenText,
               ),
               CruChip(
-                value:
-                    '${_count.format(_duplicateCount)} possible duplicates',
+                value: '${_count.format(_duplicateCount)} possible duplicates',
                 background: c.amberTint,
                 foreground: c.amberText,
               ),
@@ -934,10 +903,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 onPressed: toImport == 0 ? null : _runImport,
               ),
               if (toImport == 0)
-                Text(
-                  'Nothing to import',
-                  style: CruType.text.tint(c.label3),
-                ),
+                Text('Nothing to import', style: CruType.text.tint(c.label3)),
             ],
           ),
         ],
@@ -1038,8 +1004,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     final c = context.cru;
     final failed = _skipped
         .where(
-          (s) =>
-              s.why == "Couldn't be saved" || s.why == 'Import cancelled',
+          (s) => s.why == "Couldn't be saved" || s.why == 'Import cancelled',
         )
         .length;
     final skipped = _skipped.length - failed;
@@ -1047,10 +1012,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _count.format(n),
-            style: CruType.title.tabular.tint(c.label),
-          ),
+          Text(_count.format(n), style: CruType.title.tabular.tint(c.label)),
           Text(label, style: CruType.text.tint(c.label2)),
         ],
       ),

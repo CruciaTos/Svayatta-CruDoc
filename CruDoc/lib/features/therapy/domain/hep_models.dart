@@ -122,6 +122,24 @@ class HepProgram {
 }
 
 /// Library plus the physio's own exercises and attached photos / videos.
+/// The muscles a program works: its exercises' muscles, in the order the
+/// program lists them and without repeats.
+///
+/// An exercise the catalogue no longer has, and one whose point is movement
+/// rather than a muscle, simply contribute nothing. Used to light up the 3D
+/// chart, so the physio and the patient can see what the program is for.
+List<String> programMuscles(HepProgram? program, List<ExerciseDef> catalog) {
+  if (program == null) return const [];
+  final byId = {for (final e in catalog) e.id: e};
+  final out = <String>[];
+  for (final item in program.items) {
+    for (final m in byId[item.exerciseId]?.muscles ?? const <String>[]) {
+      if (!out.contains(m)) out.add(m);
+    }
+  }
+  return out;
+}
+
 final exerciseCatalogProvider = Provider<List<ExerciseDef>>((ref) {
   final recs =
       ref.watch(clinicRecordsProvider(RecKind.physioExercise)).value ??

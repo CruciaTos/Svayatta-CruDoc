@@ -51,12 +51,22 @@ class MuscleChartView extends StatefulWidget {
   const MuscleChartView({
     super.key,
     required this.findings,
+    this.highlight = const [],
     this.onFindingsChanged,
     this.onSelect,
     this.embed = false,
   });
 
   final List<MuscleFinding> findings;
+
+  /// Muscles to light up, as side-neutral catalogue ids (no `_l`/`_r`), so
+  /// one id lights both sides. Typically the muscles an exercise works, from
+  /// `ExerciseDef.muscles`.
+  ///
+  /// While this is not empty the rest of the body is drawn see-through, so
+  /// the highlight needs no colour of its own and cannot be mistaken for a
+  /// clinical finding. A finding on a highlighted muscle still shows.
+  final List<String> highlight;
 
   /// Every change the physio makes in the viewer, with the full list.
   final ValueChanged<List<MuscleFinding>>? onFindingsChanged;
@@ -81,6 +91,7 @@ class _MuscleChartViewState extends State<MuscleChartView> {
   String? _error;
   int _attempt = 0;
   String _lastSynced = '';
+  String _lastHighlight = '';
 
   String _encode(List<MuscleFinding> f) =>
       jsonEncode([for (final x in f) x.toJson()]);
@@ -89,9 +100,15 @@ class _MuscleChartViewState extends State<MuscleChartView> {
     final web = _web;
     if (web == null || !_ready) return;
     final json = _encode(widget.findings);
-    if (json == _lastSynced) return;
-    _lastSynced = json;
-    await web.evaluateJavascript(source: 'MuscleChart.setFindings($json)');
+    if (json != _lastSynced) {
+      _lastSynced = json;
+      await web.evaluateJavascript(source: 'MuscleChart.setFindings($json)');
+    }
+    final lit = jsonEncode(widget.highlight);
+    if (lit != _lastHighlight) {
+      _lastHighlight = lit;
+      await web.evaluateJavascript(source: 'MuscleChart.setHighlight($lit)');
+    }
   }
 
   @override

@@ -105,6 +105,10 @@ const state = {
   selected: null,
   hover: null,
   findings: new Map(),      // id -> { status, condition, pain }
+  // Muscles an exercise works. Not a clinical state: while this is set the
+  // rest of the body goes x-ray so the targets read on their own, and no new
+  // colour is introduced that could be mistaken for a finding.
+  highlight: new Set(),
 };
 let catalog, byId = new Map(), muscles = [], bones = [], musclesById = new Map();
 let rightSign = -1;         // world-x sign of the patient's right side
@@ -166,15 +170,22 @@ function init(cat, gltf) {
 // ---------------------------------------------------------------- appearance
 function applyMaterials() {
   const { mode } = state;
+  const highlighting = state.highlight.size > 0;
   for (const m of muscles) {
     const id = m.userData.id, info = byId.get(id);
     const f = state.findings.get(id);
     const status = f?.status || '';
     const sel = state.selected === id, hov = state.hover === id;
-    const flagged = !!status || sel;
+    const lit = state.highlight.has(id);
+    const flagged = !!status || sel || lit;
     let visible = !state.hidden.has(id) && (state.superficial || !info.superficial || flagged);
     let material;
-    if (mode === 'anatomy') material = solid(status, sel, hov);
+    if (highlighting && !lit) {
+      // Kept visible as context, but see-through: the exercise's own muscles
+      // are the only solid ones. A finding on them still shows its colour.
+      material = mat.muscleGhost;
+    }
+    else if (mode === 'anatomy') material = solid(status, sel, hov);
     else if (flagged) material = solid(status, sel, hov);
     else if (mode === 'focus') material = hov ? solid('', false, true) : mat.muscleGhost;
     else { visible = visible && hov; material = solid('', false, true); }
@@ -507,6 +518,20 @@ window.MuscleChart = {
     applyMaterials(); renderFindings(); renderCard();
   },
   getFindings: () => [...state.findings].map(([id, f]) => ({ id, ...f })),
+  /// Lights up the muscles an exercise works. Takes side-neutral ids (no
+  /// `_l`/`_r`), so one id lights both sides; an exact id also works. An
+  /// empty list or no argument clears it.
+  setHighlight(ids) {
+    state.highlight.clear();
+    for (const raw of ids || []) {
+      const want = String(raw).replace(/_(l|r)$/, '');
+      for (const id of musclesById.keys()) {
+        if (id === raw || id.replace(/_(l|r)$/, '') === want) state.highlight.add(id);
+      }
+    }
+    applyMaterials();
+  },
+  getHighlight: () => [...state.highlight],
   setSkeleton(on) { state.skeleton = !!on; applyMaterials(); },
   setSuperficial(on) { state.superficial = !!on; applyMaterials(); },
   catalog: () => catalog,

@@ -8,6 +8,31 @@ import 'package:doctor_management_app/features/therapy/domain/physio_extras_mode
 /// alongside treatment the patient never finished. Nothing else in CruDoc
 /// notices: a dental treatment due again raises a recall from its rule, and a
 /// homeopathy dose plan writes its own recall for the review date, but a
+/// package just sits there with sessions on it.
+///
+/// Kept as a pure function over data the caller has already fetched, so it
+/// can be tested without Riverpod and without a database.
+
+/// How long a package may go untouched before the patient counts as having
+/// stopped coming. Physiotherapy is usually weekly or twice weekly, so three
+/// clear weeks is well past a missed appointment or a holiday.
+const int kPackageStallDays = 21;
+
+/// A package that has stalled, and why it is worth a call.
+class PackageDropOff {
+  const PackageDropOff({
+    required this.patientId,
+    required this.package,
+    required this.since,
+    required this.expired,
+  });
+
+  final String patientId;
+  final SessionPackage package;
+
+  /// The last session used, or the day the package was sold when none has
+  /// been used at all.
+  final DateTime since;
 
   /// The package ran past its validity date with sessions still on it, so
   /// this is a refund conversation as much as a booking one.

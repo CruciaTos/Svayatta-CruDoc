@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_overlay.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/homeopathy/data/homeopathy_follow_up_recall.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
@@ -826,6 +827,15 @@ class _HomeopathyCaseTakingSheetState
       final updated = _buildSheetFromForm(isCompleted: markComplete);
       await ref.read(homeopathyRepositoryProvider).saveCaseSheet(updated);
       ref.invalidate(homeopathyCaseSheetProvider(widget.patient.id));
+      // The follow-up date is the whole of homeopathy's long-term care, so it
+      // becomes a recall somebody is actually reminded to act on.
+      await syncHomeoFollowUpRecall(
+        ref,
+        patientId: widget.patient.id,
+        patientName: widget.patient.fullName,
+        date: updated.followUp.nextFollowUpDate,
+        notes: updated.prescriptionNotes.prescribedRemedy,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showIsland(

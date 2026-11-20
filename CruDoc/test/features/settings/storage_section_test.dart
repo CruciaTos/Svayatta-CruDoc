@@ -64,7 +64,10 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'at $width');
         expect(find.text('Storage on this device'), findsOneWidget);
         expect(find.text('No limit'), findsWidgets);
-        expect(find.text('No limit set: nothing is removed.'), findsOneWidget);
+        // With no limit set there is nothing to say about it, so the status
+        // line is left out rather than explaining its own absence.
+        expect(find.text('Within the limit.'), findsNothing);
+        expect(find.text('Over the limit.'), findsNothing);
       }
     });
   }

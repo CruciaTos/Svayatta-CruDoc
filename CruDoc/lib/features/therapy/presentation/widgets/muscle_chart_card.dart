@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/therapy/domain/hep_models.dart';
 import 'package:doctor_management_app/features/therapy/muscle_chart/muscle_chart_view.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -23,6 +24,10 @@ class _MuscleChartCardState extends ConsumerState<MuscleChartCard> {
   DentalRecord? _record;
   Timer? _saveTimer;
   List<MuscleFinding>? _pending;
+
+  /// Off by default: the chart's job is the findings, and the programme
+  /// highlight is something the physio turns on to show the patient.
+  bool _showProgram = false;
 
   @override
   void dispose() {
@@ -69,6 +74,23 @@ class _MuscleChartCardState extends ConsumerState<MuscleChartCard> {
     ];
     final affected = findings.where((f) => f.status != 'resolved').length;
 
+    // The newest home exercise programme, and the muscles it works.
+    final hepAsync = ref.watch(
+      patientRecordsProvider((
+        patientId: widget.patient.id,
+        kind: RecKind.physioHep,
+      )),
+    );
+    final programs = [...?hepAsync.value]
+      ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
+    final program = programs.isEmpty
+        ? null
+        : HepProgram.fromRecord(programs.first);
+    final programIds = programMuscles(
+      program,
+      ref.watch(exerciseCatalogProvider),
+    );
+
     return CruCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,11 +117,20 @@ class _MuscleChartCardState extends ConsumerState<MuscleChartCard> {
                       findings.isEmpty
                           ? 'Click a muscle to record a finding'
                           : '$affected active finding${affected == 1 ? '' : 's'} · ${findings.length} recorded',
-                      style: CruType.caption.tint(c.label2),
+                      style: CruType.caption.tabular.tint(c.label2),
                     ),
                   ],
                 ),
               ),
+              // Only offered when there is a programme with muscles to show.
+              if (programIds.isNotEmpty)
+                CruCapsuleButton(
+                  label: _showProgram
+                      ? 'Hide programme'
+                      : 'Show programme muscles',
+                  onPressed: () =>
+                      setState(() => _showProgram = !_showProgram),
+                ),
             ],
           ),
           const SizedBox(height: CruSpace.s12),
@@ -111,6 +142,7 @@ class _MuscleChartCardState extends ConsumerState<MuscleChartCard> {
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : MuscleChartView(
                       findings: findings,
+                      highlight: _showProgram ? programIds : const [],
                       onFindingsChanged: (all) {
                         setState(() {
                           final data = {

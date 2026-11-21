@@ -33,6 +33,7 @@ Future<void> shareProgressReport(
     for (final r in await load(RecKind.physioHep)) HepProgram.fromRecord(r),
   ]..sort((a, b) => b.date.compareTo(a.date));
   final packages = sessionPackages(await load(RecKind.physioPackage));
+  final goals = physioGoals(await load(RecKind.physioGoal));
   final doctor = ref.read(doctorIdentityProvider).fullName;
 
   final bytes = await buildProgressReportPdf(
@@ -41,6 +42,7 @@ Future<void> shareProgressReport(
     rom: rom,
     program: programs.firstOrNull,
     package: packages.firstOrNull,
+    goals: goals,
     doctorName: doctor,
   );
   final name = 'Progress report - ${patient.fullName}.pdf';
@@ -106,6 +108,7 @@ Future<Uint8List> buildProgressReportPdf({
   required List<RomAssessment> rom,
   required HepProgram? program,
   required SessionPackage? package,
+  List<PhysioGoal> goals = const [],
   String? doctorName,
   DischargeNote? discharge,
   String? documentNumber,
@@ -134,6 +137,26 @@ Future<Uint8List> buildProgressReportPdf({
       );
 
   final body = <pw.Widget>[];
+
+  // Goals, in the patient's own words and ahead of the measurements, because
+  // they are what the patient came for. Each one carries where it stands, so
+  // a goal nobody has decided on reads as still open rather than as missing.
+  if (goals.isNotEmpty) {
+    body.add(heading('Goals'));
+    body.add(
+      table(
+        ['Goal', 'Target', 'Status'],
+        [
+          for (final g in goals)
+            [
+              g.text,
+              g.target == null ? '—' : DentalFormat.date(g.target!),
+              g.status.label,
+            ],
+        ],
+      ),
+    );
+  }
 
   // Pain and function.
   if (progress.isNotEmpty) {
@@ -270,6 +293,14 @@ Future<Uint8List> buildProgressReportPdf({
         style: small,
       ),
     );
+    // How the goals ended up, in one line. Null when nobody ever settled
+    // one, so an episode where no goal was decided says nothing rather than
+    // claiming none were reached.
+    if (goalOutcomeLine(goals) case final line?) {
+      body
+        ..add(pw.SizedBox(height: 4))
+        ..add(pw.Text(line, style: small));
+    }
     if (discharge.outcome.trim().isNotEmpty) {
       body
         ..add(pw.SizedBox(height: 4))

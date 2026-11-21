@@ -35,6 +35,7 @@ import 'package:doctor_management_app/features/scribe/data/providers/scribe_prov
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visit_session_dialog.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/goals_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/screening_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
@@ -622,6 +623,10 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                     left: [MuscleChartCard(patient: p)],
                     right: [
                       ScreeningCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      // What the patient came for, above the measurements
+                      // taken to get them there.
+                      GoalsCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),
                       ProgressCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),

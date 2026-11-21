@@ -65,6 +65,7 @@ Future<bool> shareDischargeSummary(
     for (final r in await load(RecKind.physioHep)) HepProgram.fromRecord(r),
   ]..sort((a, b) => b.date.compareTo(a.date));
   final packages = sessionPackages(await load(RecKind.physioPackage));
+  final goals = physioGoals(await load(RecKind.physioGoal));
 
   // Numbered as a medical report rather than a referral: the REF sequence
   // belongs to the dental referral letters, and sharing it would interleave
@@ -82,6 +83,7 @@ Future<bool> shareDischargeSummary(
     rom: rom,
     program: programs.firstOrNull,
     package: packages.firstOrNull,
+    goals: goals,
     doctorName: ref.read(doctorIdentityProvider).fullName,
     discharge: note,
     documentNumber: docNumber,

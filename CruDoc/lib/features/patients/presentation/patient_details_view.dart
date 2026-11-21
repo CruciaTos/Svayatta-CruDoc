@@ -36,6 +36,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/screening_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/hep_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/sessions_card.dart';
@@ -610,21 +611,31 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
 
           Widget clinicalScreen() {
             if (isPhysio) {
-              return DetailsColumns(
-                wide: wide,
-                left: [MuscleChartCard(patient: p)],
-                right: [
-                  ProgressCard(patient: p),
-                  const SizedBox(height: CruSpace.cardGap),
-                  RomCard(patient: p),
-                  const SizedBox(height: CruSpace.cardGap),
-                  HepCard(patient: p),
-                  const SizedBox(height: CruSpace.cardGap),
-                  SessionsCard(patient: p),
-                  const SizedBox(height: CruSpace.cardGap),
-                  SpecialTestsCard(patient: p),
-                  const SizedBox(height: CruSpace.cardGap),
-                  PhysioPhotosCard(patient: p),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Above the cards, not among them: a red flag is the one
+                  // thing to read before anything else on this page.
+                  ScreeningBanner(patient: p),
+                  DetailsColumns(
+                    wide: wide,
+                    left: [MuscleChartCard(patient: p)],
+                    right: [
+                      ScreeningCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      ProgressCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      RomCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      HepCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      SessionsCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      SpecialTestsCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      PhysioPhotosCard(patient: p),
+                    ],
+                  ),
                 ],
               );
             }

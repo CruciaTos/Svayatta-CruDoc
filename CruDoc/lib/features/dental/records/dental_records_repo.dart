@@ -77,6 +77,15 @@ abstract final class RecKind {
   /// Physiotherapy home exercise program (patientId = patient).
   static const physioHep = 'physioHep';
 
+  /// One physiotherapy goal with a target date
+  /// `{text, target, status, note}` (patientId = patient).
+  static const physioGoal = 'physioGoal';
+
+  /// Physiotherapy intake screening: which red and yellow flags were asked
+  /// about and what the answer was `{flags: {id: present|absent}, note}`
+  /// (patientId = patient, one per patient, updated in place).
+  static const physioScreening = 'physioScreening';
+
   /// A saved home exercise program the clinic reuses, same shape as
   /// `physioHep` (`{title, note, items}`) but belonging to no patient
   /// (patientId = '', clinic-wide).

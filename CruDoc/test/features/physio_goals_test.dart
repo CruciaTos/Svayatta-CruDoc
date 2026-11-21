@@ -18,12 +18,7 @@ void main() {
   }) => DentalRecord.create(
     'p1',
     RecKind.physioGoal,
-    PhysioGoal.toData(
-      text: text,
-      target: target,
-      status: status,
-      note: note,
-    ),
+    PhysioGoal.toData(text: text, target: target, status: status, note: note),
     at: setOn ?? now,
   );
 
@@ -89,8 +84,11 @@ void main() {
     test('a settled goal never asks to be reviewed again', () {
       for (final s in [GoalStatus.reached, GoalStatus.missed]) {
         expect(
-          goal(text: 'a', target: DateTime(2026, 10, 1), status: s)
-              .overdue(now),
+          goal(
+            text: 'a',
+            target: DateTime(2026, 10, 1),
+            status: s,
+          ).overdue(now),
           isFalse,
           reason: '${s.name} is already decided',
         );
@@ -99,10 +97,7 @@ void main() {
 
     test('daysLeft counts whole days either side of today', () {
       expect(goal(text: 'a', target: DateTime(2026, 11, 28)).daysLeft(now), 7);
-      expect(
-        goal(text: 'a', target: DateTime(2026, 11, 14)).daysLeft(now),
-        -7,
-      );
+      expect(goal(text: 'a', target: DateTime(2026, 11, 14)).daysLeft(now), -7);
     });
   });
 
@@ -114,12 +109,10 @@ void main() {
         rec(text: 'later', target: DateTime(2026, 12, 20)),
         rec(text: 'sooner', target: DateTime(2026, 11, 25)),
       ]);
-      expect([for (final g in list) g.text], [
-        'sooner',
-        'later',
-        'no date',
-        'reached',
-      ]);
+      expect(
+        [for (final g in list) g.text],
+        ['sooner', 'later', 'no date', 'reached'],
+      );
     });
 
     test('settled goals come newest first', () {

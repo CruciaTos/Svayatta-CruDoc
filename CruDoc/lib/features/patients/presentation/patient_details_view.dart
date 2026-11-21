@@ -36,6 +36,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/goals_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/modality_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/screening_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
@@ -633,6 +634,10 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                       RomCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),
                       HepCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      // What was applied in the clinic, next to what the
+                      // patient was sent home to do.
+                      ModalityCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),
                       SessionsCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),

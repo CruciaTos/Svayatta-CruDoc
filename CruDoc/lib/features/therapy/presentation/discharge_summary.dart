@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/domain/hep_models.dart';
+import 'package:doctor_management_app/features/therapy/domain/modality_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_assess_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_extras_models.dart';
 import 'package:doctor_management_app/features/therapy/presentation/progress_report.dart';
@@ -66,6 +67,7 @@ Future<bool> shareDischargeSummary(
   ]..sort((a, b) => b.date.compareTo(a.date));
   final packages = sessionPackages(await load(RecKind.physioPackage));
   final goals = physioGoals(await load(RecKind.physioGoal));
+  final modalities = modalityApplications(await load(RecKind.physioModality));
 
   // Numbered as a medical report rather than a referral: the REF sequence
   // belongs to the dental referral letters, and sharing it would interleave
@@ -84,6 +86,7 @@ Future<bool> shareDischargeSummary(
     program: programs.firstOrNull,
     package: packages.firstOrNull,
     goals: goals,
+    modalities: modalities,
     doctorName: ref.read(doctorIdentityProvider).fullName,
     discharge: note,
     documentNumber: docNumber,
@@ -217,5 +220,4 @@ class _DischargeSheetState extends ConsumerState<_DischargeSheet> {
       ),
     );
   }
-
 }

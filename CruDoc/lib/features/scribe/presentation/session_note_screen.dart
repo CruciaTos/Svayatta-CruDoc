@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/scribe/data/providers/scribe_prov
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/session_scan_card.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/soap_phrase_bar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Opens one session note from a patient's record.
@@ -307,6 +308,10 @@ class _NoteEditor extends StatelessWidget {
             textCapitalization: TextCapitalization.sentences,
             enabled: enabled,
           ),
+          // Physiotherapy only, and collapsed until asked for, so it costs
+          // nothing on the specialties whose notes read nothing like this.
+          const SizedBox(height: CruSpace.s16),
+          SoapPhraseBar(controller: edit.notes, enabled: enabled),
         ],
       ),
     );

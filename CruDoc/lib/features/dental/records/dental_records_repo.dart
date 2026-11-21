@@ -109,6 +109,25 @@ abstract final class RecKind {
   /// (patientId = patient).
   static const physioTestResult = 'physioTestResult';
 
+  /// One completed outcome measure `{scaleId, answers: {itemId: index},
+  /// value?, note}` (patientId = patient).
+  ///
+  /// `answers` for a questionnaire, `value` for a measure that is a single
+  /// figure (a walk distance, a timed test). The score itself is never
+  /// stored: it is derived from the answers every time, so a scoring rule
+  /// that is corrected also corrects the history instead of leaving old
+  /// records carrying a number nothing can reproduce.
+  static const physioScaleScore = 'physioScaleScore';
+
+  /// One electrotherapy or modality application in a session
+  /// `{modalityId, site, minutes, params: {paramId: value}, note}`
+  /// (patientId = patient).
+  ///
+  /// One record per application, not per session: a knee and a shoulder
+  /// treated on the same day were two applications at two sets of settings,
+  /// and a log that averaged them could not answer what was actually given.
+  static const physioModality = 'physioModality';
+
   /// Homeopathy dose plan `{remedy, potency, pattern, days?, reviewOn, note,
   /// recallId?}` (patientId = patient).
   static const homeoDosePlan = 'homeoDosePlan';

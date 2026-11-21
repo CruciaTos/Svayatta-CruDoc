@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/domain/hep_models.dart';
+import 'package:doctor_management_app/features/therapy/domain/modality_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_assess_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_extras_models.dart';
 
@@ -34,6 +35,7 @@ Future<void> shareProgressReport(
   ]..sort((a, b) => b.date.compareTo(a.date));
   final packages = sessionPackages(await load(RecKind.physioPackage));
   final goals = physioGoals(await load(RecKind.physioGoal));
+  final modalities = modalityApplications(await load(RecKind.physioModality));
   final doctor = ref.read(doctorIdentityProvider).fullName;
 
   final bytes = await buildProgressReportPdf(
@@ -43,6 +45,7 @@ Future<void> shareProgressReport(
     program: programs.firstOrNull,
     package: packages.firstOrNull,
     goals: goals,
+    modalities: modalities,
     doctorName: doctor,
   );
   final name = 'Progress report - ${patient.fullName}.pdf';
@@ -109,6 +112,7 @@ Future<Uint8List> buildProgressReportPdf({
   required HepProgram? program,
   required SessionPackage? package,
   List<PhysioGoal> goals = const [],
+  List<ModalityApplication> modalities = const [],
   String? doctorName,
   DischargeNote? discharge,
   String? documentNumber,
@@ -173,13 +177,13 @@ Future<Uint8List> buildProgressReportPdf({
         ..add(pw.SizedBox(height: 4));
     }
     body.add(
-        pw.Text(
-          '${change('Pain', first.pain, last.pain)}   |   '
-          '${change('Function', first.function, last.function)}'
-          '   (0 to 10; latest ${DentalFormat.date(last.date)})',
-          style: bold,
-        ),
-      );
+      pw.Text(
+        '${change('Pain', first.pain, last.pain)}   |   '
+        '${change('Function', first.function, last.function)}'
+        '   (0 to 10; latest ${DentalFormat.date(last.date)})',
+        style: bold,
+      ),
+    );
     if (progress.length > 1) {
       final shown = progress.length > 10
           ? progress.sublist(progress.length - 10)
@@ -216,7 +220,8 @@ Future<Uint8List> buildProgressReportPdf({
     for (final m in r.moves) {
       final seen = [
         for (final a in list)
-          if (a.row(m.name) case final row? when row.lDeg != null || row.rDeg != null)
+          if (a.row(m.name) case final row?
+              when row.lDeg != null || row.rDeg != null)
             (a, row),
       ];
       if (seen.isEmpty) continue;
@@ -271,6 +276,36 @@ Future<Uint8List> buildProgressReportPdf({
       );
   }
 
+  // Electrotherapy given, by session, with the settings used.
+  //
+  // Listed rather than summarised: on a report that may be read by another
+  // clinician or an insurer, "IFT ×12" does not say what was applied, and
+  // the settings are the part that can be checked or repeated.
+  if (modalities.isNotEmpty) {
+    body.add(heading('Electrotherapy and modalities'));
+    final tally = modalityTallyLine(modalities);
+    if (tally != null) {
+      body
+        ..add(pw.Text(tally, style: small))
+        ..add(pw.SizedBox(height: 4));
+    }
+    body.add(
+      table(
+        ['Date', 'Modality', 'Site', 'Time', 'Settings'],
+        [
+          for (final a in modalities)
+            [
+              DentalFormat.date(a.givenAt),
+              a.label,
+              a.site,
+              a.minutes == null ? '' : '${a.minutes} min',
+              a.settingsLine,
+            ],
+        ],
+      ),
+    );
+  }
+
   // Session package.
   if (package != null) {
     body
@@ -288,10 +323,7 @@ Future<Uint8List> buildProgressReportPdf({
   if (discharge != null) {
     body.add(heading('Discharge'));
     body.add(
-      pw.Text(
-        'Care ended ${DentalFormat.date(discharge.on)}.',
-        style: small,
-      ),
+      pw.Text('Care ended ${DentalFormat.date(discharge.on)}.', style: small),
     );
     // How the goals ended up, in one line. Null when nobody ever settled
     // one, so an episode where no goal was decided says nothing rather than

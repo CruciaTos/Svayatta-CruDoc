@@ -24,6 +24,7 @@ import 'package:doctor_management_app/features/homeopathy/presentation/widgets/h
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_dose_plan_card.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_totality_card.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_repertory_entry.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/lesion_photos_card.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/materia_medica_screen.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_dispensed_card.dart';
 
@@ -282,6 +283,13 @@ class _HomeopathyPatientDetailsScreenState
                         ),
                         const SizedBox(height: CruSpace.cardGap),
                         HomeopathyDispensedCard(patientId: patient.id),
+                        const SizedBox(height: CruSpace.cardGap),
+                        // Skin and wart cases: what the lesion actually
+                        // looked like, next to what was dispensed for it.
+                        LesionPhotosCard(
+                          patientId: patient.id,
+                          patientName: patient.fullName,
+                        ),
                         const SizedBox(height: CruSpace.cardGap),
                         // Consultations recorded with the AI scribe.
                         if (sessions.isNotEmpty) ...[

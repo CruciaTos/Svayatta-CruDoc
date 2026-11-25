@@ -145,6 +145,16 @@ abstract final class RecKind {
   /// (patientId = patient).
   static const homeoDispense = 'homeoDispense';
 
+  /// One visit's photographs of a skin case `{date, notes,
+  /// sites: {key: label}, photos: {key: localPath}}` (patientId = patient).
+  ///
+  /// Sites are named per patient rather than chosen from a fixed list,
+  /// because a skin case has its lesions wherever it has them: one wart on a
+  /// thumb, or patches on both elbows and the scalp. The physiotherapy photo
+  /// set uses fixed posture slots for the opposite reason — every patient
+  /// has one anterior view.
+  static const homeoLesionPhoto = 'homeoLesionPhoto';
+
   /// Homeopathy remedy stock line `{remedy, potency, form, qty, unit, low?}`
   /// (patientId = '', clinic-wide).
   static const homeoStock = 'homeoStock';

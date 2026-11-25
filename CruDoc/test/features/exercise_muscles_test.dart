@@ -16,9 +16,7 @@ void main() {
   // Read the asset from disk rather than through rootBundle: this is a plain
   // unit test, and the file is the same one the WebView is served.
   final catalog =
-      jsonDecode(
-            File('assets/muscle_viewer/catalog.json').readAsStringSync(),
-          )
+      jsonDecode(File('assets/muscle_viewer/catalog.json').readAsStringSync())
           as Map<String, dynamic>;
   final muscles = (catalog['muscles'] as List).cast<Map<String, dynamic>>();
 
@@ -41,7 +39,11 @@ void main() {
         if (!baseIds.contains(m)) unknown.add('${e.id} -> $m');
       }
     }
-    expect(unknown, isEmpty, reason: 'not in catalog.json:\n${unknown.join('\n')}');
+    expect(
+      unknown,
+      isEmpty,
+      reason: 'not in catalog.json:\n${unknown.join('\n')}',
+    );
   });
 
   test('no exercise names the same muscle twice', () {
@@ -117,7 +119,10 @@ void main() {
     });
 
     test('an exercise with no muscle target contributes nothing', () {
-      expect(programMuscles(program(['ankle-alphabet']), kExerciseLibrary), isEmpty);
+      expect(
+        programMuscles(program(['ankle-alphabet']), kExerciseLibrary),
+        isEmpty,
+      );
     });
 
     test('an exercise the catalogue no longer has is skipped', () {
@@ -143,14 +148,61 @@ void main() {
       'ankle-alphabet',
       'bal-tandem-stance',
       'breath-pursed-lip',
+      // Balance work trains the reaction, not a muscle. Highlighting a
+      // chart for these would point at whatever happened to be holding the
+      // patient up rather than at the thing being trained.
+      'bal-weight-shift',
+      'bal-head-turns',
+      'bal-single-leg-eyes-closed',
+      'bal-cushion-stand',
+      'bal-step-over',
     };
+
+    test('no two exercises share an id', () {
+      // Added after two were introduced by accident. A duplicate id is
+      // quiet and nasty: the picker shows both, a saved programme resolves
+      // to whichever comes first, and a physio editing one appears to edit
+      // the other at random.
+      final seen = <String>{};
+      final twice = <String>[];
+      for (final e in kExerciseLibrary) {
+        if (!seen.add(e.id)) twice.add(e.id);
+      }
+      expect(twice, isEmpty, reason: 'duplicated:\n${twice.join('\n')}');
+    });
+
+    test('every exercise has a name, a goal and steps to follow', () {
+      // A library entry with no steps is worse than a missing one: it looks
+      // like an exercise the patient can be sent home with.
+      for (final e in kExerciseLibrary) {
+        expect(e.name.trim(), isNotEmpty, reason: e.id);
+        expect(e.goal.trim(), isNotEmpty, reason: e.id);
+        expect(e.steps, isNotEmpty, reason: e.id);
+        expect(e.cautions.trim(), isNotEmpty, reason: e.id);
+      }
+    });
+
+    test('every exercise names what to stop for', () {
+      // The one line that has to be on all of them.
+      for (final e in kExerciseLibrary) {
+        expect(
+          e.cautions.toLowerCase(),
+          contains('stop'),
+          reason: '${e.id} does not say when to stop',
+        );
+      }
+    });
 
     test('every other exercise names its muscles', () {
       final missing = [
         for (final e in kExerciseLibrary)
           if (!e.hasMuscles && !noTarget.contains(e.id)) e.id,
       ];
-      expect(missing, isEmpty, reason: 'no muscles set:\n${missing.join('\n')}');
+      expect(
+        missing,
+        isEmpty,
+        reason: 'no muscles set:\n${missing.join('\n')}',
+      );
     });
 
     test('the exempt list has no stale entries', () {

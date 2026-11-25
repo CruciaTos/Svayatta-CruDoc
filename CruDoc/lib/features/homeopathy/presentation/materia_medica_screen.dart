@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/homeopathy/data/materia_medica_data.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/tissue_salts_screen.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/remedy_compare_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -92,6 +93,13 @@ class _MateriaMedicaScreenState extends State<MateriaMedicaScreen> {
                           'Materia medica',
                           style: CruType.title2.tint(c.label),
                         ),
+                      ),
+                      // The biochemic salts are reference material too, and
+                      // a different system rather than more remedies, so
+                      // they sit beside this list instead of inside it.
+                      CruCapsuleButton(
+                        label: 'Tissue salts',
+                        onPressed: () => TissueSaltsScreen.open(context),
                       ),
                     ],
                   ),

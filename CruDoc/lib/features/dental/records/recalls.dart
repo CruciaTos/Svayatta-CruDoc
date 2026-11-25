@@ -30,6 +30,21 @@ const _packageMessage =
     'Hello {name}, this is a reminder from {clinic} about your {reason}. '
     'Reply to book your next visit, or call us to pick a time.';
 
+/// The subject line for a recall sent by email.
+///
+/// WhatsApp and SMS have no subject, so this is the one piece of wording
+/// email needs that the templates do not carry. It says what the mail is
+/// about without putting the clinical reason in a line that shows up on a
+/// lock screen next to the patient's name — "Reminder from Smile Dental" is
+/// enough for the patient to open it, and a stalled physiotherapy package
+/// is nobody else's business.
+String recallEmailSubject({required String clinic, required bool fromPackage}) {
+  final where = clinic.trim().isEmpty ? 'our clinic' : clinic.trim();
+  return fromPackage
+      ? 'Your remaining sessions at $where'
+      : 'A reminder from $where';
+}
+
 /// Recall rules a new clinic starts with (all editable).
 const _defaultRules = <(String, int, List<String>)>[
   (
@@ -83,10 +98,11 @@ RecallStatus recallStatusOf(DentalRecord r) =>
 
 /// The next open recall among [records], sorted by due date.
 DentalRecord? nextOpenRecall(List<DentalRecord>? records) {
-  final open = (records ?? const <DentalRecord>[])
-      .where((r) => recallStatusOf(r).isOpen)
-      .toList()
-    ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+  final open =
+      (records ?? const <DentalRecord>[])
+          .where((r) => recallStatusOf(r).isOpen)
+          .toList()
+        ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
   return open.firstOrNull;
 }
 
@@ -235,9 +251,7 @@ final packageDropOffProvider = FutureProvider<List<PackageDropOff>>((
     await ref.watch(clinicRecordsProvider(RecKind.physioPackage).future),
   );
   if (packages.isEmpty) return const [];
-  final recalls = await ref.watch(
-    clinicRecordsProvider(RecKind.recall).future,
-  );
+  final recalls = await ref.watch(clinicRecordsProvider(RecKind.recall).future);
   final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
   final upcoming = ref.watch(upcomingVisitsProvider).value;
   // Until the booked visits are known, a suggestion could ask the clinic to
@@ -1055,6 +1069,41 @@ class _RecallRow extends ConsumerWidget {
     await _mark(ref, RecallStatus.sent, channel: 'SMS');
   }
 
+  /// Hands the reminder to the computer's mail client, the same way
+  /// WhatsApp and SMS hand off to theirs.
+  ///
+  /// A handoff rather than a server send: the clinic's own address is the
+  /// one the patient should see and reply to, and nothing is sent without
+  /// the person at the keyboard seeing it first. The campaign dispatcher is
+  /// the path for sending in bulk.
+  Future<void> _email(BuildContext context, WidgetRef ref) async {
+    final to = (patient?.email ?? '').trim();
+    if (to.isEmpty) {
+      recToast(context, 'No email address on record.');
+      return;
+    }
+    final subject = recallEmailSubject(
+      clinic: ref.read(doctorIdentityProvider).clinicName ?? '',
+      fromPackage: recall.str('source') == 'package',
+    );
+    // Built by hand rather than with queryParameters, which encodes spaces
+    // as "+" and leaves some mail clients showing them literally.
+    final ok = await launchUrl(
+      Uri.parse(
+        'mailto:${Uri.encodeComponent(to)}'
+        '?subject=${Uri.encodeComponent(subject)}'
+        '&body=${Uri.encodeComponent(_message(ref))}',
+      ),
+    );
+    if (!ok) {
+      if (context.mounted) {
+        recToast(context, 'No mail app on this computer.');
+      }
+      return;
+    }
+    await _mark(ref, RecallStatus.sent, channel: 'Email');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
@@ -1141,6 +1190,8 @@ class _RecallRow extends ConsumerWidget {
                   await _whatsApp(context, ref);
                 case 'sms':
                   await _sms(context, ref);
+                case 'email':
+                  await _email(context, ref);
                 case 'confirmed':
                   await _mark(ref, RecallStatus.confirmed);
                 case 'noResponse':
@@ -1175,8 +1226,14 @@ class _RecallRow extends ConsumerWidget {
                   child: Text('Remind on WhatsApp'),
                 ),
                 const PopupMenuItem(value: 'sms', child: Text('Remind by SMS')),
-                const PopupMenuDivider(),
               ],
+              if (reach && (patient?.email ?? '').trim().isNotEmpty)
+                const PopupMenuItem(
+                  value: 'email',
+                  child: Text('Remind by email'),
+                ),
+              if (reach && (phone || (patient?.email ?? '').trim().isNotEmpty))
+                const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'confirmed',
                 child: Text('Replied: confirmed'),

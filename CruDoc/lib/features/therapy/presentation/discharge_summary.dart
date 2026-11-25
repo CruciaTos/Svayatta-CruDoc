@@ -14,7 +14,9 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/domain/hep_models.dart';
+import 'package:doctor_management_app/features/therapy/data/outcome_scale_registry.dart';
 import 'package:doctor_management_app/features/therapy/domain/modality_models.dart';
+import 'package:doctor_management_app/features/therapy/domain/outcome_score_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_assess_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_extras_models.dart';
 import 'package:doctor_management_app/features/therapy/presentation/progress_report.dart';
@@ -68,6 +70,12 @@ Future<bool> shareDischargeSummary(
   final packages = sessionPackages(await load(RecKind.physioPackage));
   final goals = physioGoals(await load(RecKind.physioGoal));
   final modalities = modalityApplications(await load(RecKind.physioModality));
+  final scaleRecs = await load(RecKind.physioScaleScore);
+  final scales = await ref.read(outcomeScalesProvider.future);
+  final scaleTrends = [
+    for (final s in scales.scales)
+      if (scaleTrend(s, scaleRecs) case final t when t.isNotEmpty) t,
+  ];
 
   // Numbered as a medical report rather than a referral: the REF sequence
   // belongs to the dental referral letters, and sharing it would interleave
@@ -87,6 +95,7 @@ Future<bool> shareDischargeSummary(
     package: packages.firstOrNull,
     goals: goals,
     modalities: modalities,
+    scaleTrends: scaleTrends,
     doctorName: ref.read(doctorIdentityProvider).fullName,
     discharge: note,
     documentNumber: docNumber,

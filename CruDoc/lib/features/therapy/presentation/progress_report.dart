@@ -14,7 +14,9 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/domain/hep_models.dart';
+import 'package:doctor_management_app/features/therapy/data/outcome_scale_registry.dart';
 import 'package:doctor_management_app/features/therapy/domain/modality_models.dart';
+import 'package:doctor_management_app/features/therapy/domain/outcome_score_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_assess_models.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_extras_models.dart';
 
@@ -36,6 +38,12 @@ Future<void> shareProgressReport(
   final packages = sessionPackages(await load(RecKind.physioPackage));
   final goals = physioGoals(await load(RecKind.physioGoal));
   final modalities = modalityApplications(await load(RecKind.physioModality));
+  final scaleRecs = await load(RecKind.physioScaleScore);
+  final scales = await ref.read(outcomeScalesProvider.future);
+  final scaleTrends = [
+    for (final s in scales.scales)
+      if (scaleTrend(s, scaleRecs) case final t when t.isNotEmpty) t,
+  ];
   final doctor = ref.read(doctorIdentityProvider).fullName;
 
   final bytes = await buildProgressReportPdf(
@@ -46,6 +54,7 @@ Future<void> shareProgressReport(
     package: packages.firstOrNull,
     goals: goals,
     modalities: modalities,
+    scaleTrends: scaleTrends,
     doctorName: doctor,
   );
   final name = 'Progress report - ${patient.fullName}.pdf';
@@ -113,6 +122,7 @@ Future<Uint8List> buildProgressReportPdf({
   required SessionPackage? package,
   List<PhysioGoal> goals = const [],
   List<ModalityApplication> modalities = const [],
+  List<List<ScaleResult>> scaleTrends = const [],
   String? doctorName,
   DischargeNote? discharge,
   String? documentNumber,
@@ -274,6 +284,45 @@ Future<Uint8List> buildProgressReportPdf({
           ],
         ),
       );
+  }
+
+  // Scored outcome measures.
+  //
+  // The instrument is named with its source, because a score means nothing
+  // without saying which version produced it, and a reader who wants to
+  // check it must be able to find the instrument rather than trust us.
+  // Takings that could not be scored are listed as such instead of being
+  // dropped, so a gap in the series is visible.
+  if (scaleTrends.isNotEmpty) {
+    body.add(heading('Outcome measures'));
+    for (final trend in scaleTrends) {
+      if (trend.isEmpty) continue;
+      final scale = trend.first.scale;
+      body
+        ..add(pw.SizedBox(height: 4))
+        ..add(pw.Text('${scale.short} — ${scale.name}', style: bold))
+        ..add(pw.Text(scale.source, style: const pw.TextStyle(fontSize: 8)));
+      final change = scaleChange(trend);
+      if (change != null && change.reportLine.isNotEmpty) {
+        body.add(pw.Text(change.reportLine, style: small));
+      }
+      body.add(
+        table(
+          ['Date', 'Score', 'Interpretation'],
+          [
+            for (final r in trend)
+              [
+                DentalFormat.date(r.takenAt),
+                r.display ?? 'not scored',
+                r.isReportable
+                    ? (r.band?.label ?? '')
+                    : 'incomplete (${r.answered} of '
+                          '${scale.items.length} answered)',
+              ],
+          ],
+        ),
+      );
+    }
   }
 
   // Electrotherapy given, by session, with the settings used.

@@ -37,6 +37,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/goals_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/modality_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/outcome_scales_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/screening_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
@@ -630,6 +631,11 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                       GoalsCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),
                       ProgressCard(patient: p),
+                      const SizedBox(height: CruSpace.cardGap),
+                      // Beside the pain and function scores, the scored
+                      // instruments that can be compared with published
+                      // figures rather than only with this patient's past.
+                      OutcomeScalesCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),
                       RomCard(patient: p),
                       const SizedBox(height: CruSpace.cardGap),

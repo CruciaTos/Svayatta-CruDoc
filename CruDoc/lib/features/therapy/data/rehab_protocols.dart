@@ -365,4 +365,78 @@ const List<RehabProtocol> kRehabProtocols = [
       ProtocolItem('neck-scapular-setting', sets: 2, reps: 10),
     ],
   ),
+
+  // The last five, now that the exercise library has the loading and hand
+  // work these need.
+  RehabProtocol(
+    id: 'frozen-shoulder-later',
+    name: 'Frozen shoulder (thawing)',
+    description:
+        'Once the painful stage has settled: range first, then loading. '
+        'Progress is measured in months with this one.',
+    items: [
+      ProtocolItem('shoulder-assisted-flexion', sets: 2, reps: 10, perDay: 2),
+      ProtocolItem('shoulder-towel-stretch', sets: 3, perDay: 2),
+      ProtocolItem('shoulder-sleeper-stretch', sets: 2, perDay: 2),
+      ProtocolItem('shoulder-ext-rotation', sets: 3, reps: 12),
+      ProtocolItem('shoulder-band-row', sets: 3, reps: 12),
+    ],
+  ),
+  RehabProtocol(
+    id: 'hip-replacement-early',
+    name: 'Hip replacement, early',
+    description:
+        'Circulation and gentle strength in the first weeks. Follow the '
+        "surgeon's movement precautions over anything here — commonly no "
+        'crossing the legs, no bending the hip past a right angle and no '
+        'turning the leg inward.',
+    items: [
+      ProtocolItem('ankle-alphabet', perDay: 4),
+      ProtocolItem('knee-quad-set', sets: 3, reps: 10, perDay: 3),
+      ProtocolItem('hip-band-abduction-standing', sets: 2, reps: 10),
+      ProtocolItem('hip-standing-extension-band', sets: 2, reps: 10),
+      ProtocolItem('bal-sit-to-stand', sets: 2, reps: 8, perDay: 2),
+    ],
+  ),
+  RehabProtocol(
+    id: 'carpal-tunnel',
+    name: 'Carpal tunnel / median nerve at the wrist',
+    description:
+        'Nerve glides plus tendon and thumb work. Splinting at night and '
+        'load management matter as much as the exercises.',
+    items: [
+      ProtocolItem('neck-median-nerve-glide', sets: 2, reps: 10, perDay: 2),
+      ProtocolItem('wrist-tendon-glides', sets: 3, reps: 5, perDay: 3),
+      ProtocolItem('wrist-thumb-opposition', sets: 2, reps: 5, perDay: 2),
+      ProtocolItem('wrist-flexor-stretch', sets: 2, perDay: 2),
+      ProtocolItem('wrist-extensor-stretch', sets: 2, perDay: 2),
+    ],
+  ),
+  RehabProtocol(
+    id: 'shin-splints',
+    name: 'Shin pain (medial tibial stress)',
+    description:
+        'Calf and foot loading with hip control, alongside cutting back the '
+        'running volume that brought it on.',
+    items: [
+      ProtocolItem('ankle-calf-stretch', sets: 2, perDay: 2),
+      ProtocolItem('ankle-heel-raise', sets: 3, reps: 15),
+      ProtocolItem('ankle-dorsiflexion-band', sets: 3, reps: 15),
+      ProtocolItem('foot-short-foot', sets: 3, reps: 10, perDay: 2),
+      ProtocolItem('hip-clamshell', sets: 2, reps: 12),
+    ],
+  ),
+  RehabProtocol(
+    id: 'groin-strain',
+    name: 'Groin strain (adductor)',
+    description:
+        'Isometric inner thigh work first, which is usually comfortable '
+        'early, then range and hip strength around it.',
+    items: [
+      ProtocolItem('hip-adductor-squeeze', sets: 3, reps: 10, perDay: 2),
+      ProtocolItem('hip-adductor-stretch', sets: 2, perDay: 2),
+      ProtocolItem('hip-clamshell', sets: 2, reps: 12),
+      ProtocolItem('lb-bridge', sets: 3, reps: 10),
+    ],
+  ),
 ];

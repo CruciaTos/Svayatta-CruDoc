@@ -157,6 +157,7 @@ class VoiceAiBridge {
       DesktopTab.files => 'files',
       DesktopTab.settings => 'settings',
       DesktopTab.charting => 'charting',
+      DesktopTab.physio => 'physio',
       DesktopTab.todos => 'todos',
       _ => null,
     };

@@ -35,17 +35,10 @@ import 'package:doctor_management_app/features/scribe/data/providers/scribe_prov
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visit_session_dialog.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/assigned_doctors_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/goals_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/modality_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/outcome_scales_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/progress_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_icons.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_page.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_screen.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/screening_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/rom_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/hep_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/sessions_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/special_tests_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
-import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
@@ -333,12 +326,13 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
       clinicCanProvider(ClinicPermission.clinicalEdit),
     );
     final canBill = ref.watch(clinicCanProvider(ClinicPermission.billing));
+    final canPhysio = clinical;
     final isPhysio = clinical && ref.watch(isPhysiotherapyProvider);
     final isHomeopath = clinical && specialty == DoctorSpecialtyType.homeopathy;
     // Imaging studies show with the files: one place for everything filed
     // to the patient.
     final showImaging = ref.watch(hasDentalRadiologyProvider);
-    final hasClinical = isDentist || isPhysio || isHomeopath;
+    final hasClinical = isHomeopath;
     final hasFiles = clinical || showImaging;
 
     // Homeopathy case sheet (homeopaths only): allergies and history.
@@ -380,6 +374,16 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
       }
       ref.read(chartingPatientIdProvider.notifier).state = p.id;
       goToTab(DesktopTab.charting);
+    }
+
+    void openPhysioScreen() {
+      final goToTab = ref.read(shellNavigatorProvider);
+      if (goToTab == null) {
+        openPhysio(context, p);
+        return;
+      }
+      ref.read(physioPatientIdProvider.notifier).state = p.id;
+      goToTab(DesktopTab.physio);
     }
 
     // Phone glance card: what the patient owes (the same total as the
@@ -497,8 +501,8 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
     };
     final open = sources.containsKey(_open) ? _open : null;
     // Dentists chart in Charting (the header's button), so they have no
-    // Clinical page; physio and homeopathy keep theirs.
-    final tabs = [_Tab.overview, if (hasClinical && !isDentist) _Tab.clinical];
+    // Clinical page; homeopathy keeps theirs.
+    final tabs = [_Tab.overview, if (hasClinical) _Tab.clinical];
     final tab = tabs.contains(_tab) ? _tab : _Tab.overview;
 
     return PopScope(
@@ -510,7 +514,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
         builder: (context, constraints) {
           final phone = constraints.maxWidth < _phoneWidth;
           final padding = phone ? _phonePadding : _padding;
-          final showBottomBar = phone && open == null && (isDentist || canBook);
+          final showBottomBar = phone && open == null && (canPhysio || canBook);
           final wide =
               constraints.maxWidth - padding.horizontal >=
               CruBreakpoint.detailsTwoColumn;
@@ -549,7 +553,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                       : null,
                 )
               : null;
-          final overview = DetailsColumns(
+          final overviewColumns = DetailsColumns(
             wide: wide,
             left: [history, card(_Sub.files)],
             right: [assignedDoctors, card(_Sub.visits), card(_Sub.payments)],
@@ -561,10 +565,20 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
               assignedDoctors,
             ],
           );
+          final overview = canPhysio
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ScreeningBanner(patient: p),
+                    overviewColumns,
+                  ],
+                )
+              : overviewColumns;
 
-          // Phone Overview: the poster, the glance card, the chart dock
-          // (dentists, once a record has data), medical history, then the
-          // three one-line cards that open Visits, Payments and Files.
+          // Phone Overview: the poster, red-flag banner (clinical), the
+          // glance card, the chart dock (dentists, once a record has data),
+          // medical history, then the three one-line cards that open Visits,
+          // Payments and Files.
           final dock =
               dockClusters != null && PatientChartDock.hasData(dockClusters)
               ? PatientChartDock(clusters: dockClusters)
@@ -582,6 +596,7 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                 allergies: allergies,
                 onEditPending: () => showEditPatientSheet(context, patient: p),
               ),
+              if (canPhysio) ScreeningBanner(patient: p),
               PatientGlanceCard(
                 summary: s,
                 now: now,
@@ -613,48 +628,6 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
           );
 
           Widget clinicalScreen() {
-            if (isPhysio) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Above the cards, not among them: a red flag is the one
-                  // thing to read before anything else on this page.
-                  ScreeningBanner(patient: p),
-                  DetailsColumns(
-                    wide: wide,
-                    left: [MuscleChartCard(patient: p)],
-                    right: [
-                      ScreeningCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      // What the patient came for, above the measurements
-                      // taken to get them there.
-                      GoalsCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      ProgressCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      // Beside the pain and function scores, the scored
-                      // instruments that can be compared with published
-                      // figures rather than only with this patient's past.
-                      OutcomeScalesCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      RomCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      HepCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      // What was applied in the clinic, next to what the
-                      // patient was sent home to do.
-                      ModalityCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      SessionsCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      SpecialTestsCard(patient: p),
-                      const SizedBox(height: CruSpace.cardGap),
-                      PhysioPhotosCard(patient: p),
-                    ],
-                  ),
-                ],
-              );
-            }
             return _CaseSheetCard(
               onOpen: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute<void>(
@@ -766,6 +739,8 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                         _ChartingButton(patient: p, compact: compact),
                         _RecallButton(patient: p, compact: compact),
                       ],
+                      if (canPhysio)
+                        _PhysioButton(patient: p, compact: compact),
                     ],
                     tabs: tabsControl,
                   ),
@@ -897,9 +872,12 @@ class _DetailsBodyState extends ConsumerState<_DetailsBody>
                 bottom: MobileMetrics.navBottom(context),
                 child: _PatientDetailsBottomBar(
                   isDentist: isDentist,
+                  canPhysio: canPhysio,
+                  isPhysio: isPhysio,
                   canBook: canBook,
                   onNewVisit: newVisit,
                   onOpenChart: openChart,
+                  onOpenPhysio: openPhysioScreen,
                 ),
               ),
             ],
@@ -952,6 +930,47 @@ class _ChartingButton extends ConsumerWidget {
   }
 }
 
+/// Opens the patient's Physio workspace: in the shell (the sidebar stays) on
+/// desktop, as its own screen where there is no shell. An icon button when
+/// the header is short of room.
+class _PhysioButton extends ConsumerWidget {
+  const _PhysioButton({required this.patient, required this.compact});
+
+  final Patient patient;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    void open() {
+      final goToTab = ref.read(shellNavigatorProvider);
+      if (goToTab == null) {
+        openPhysio(context, patient);
+        return;
+      }
+      ref.read(physioPatientIdProvider.notifier).state = patient.id;
+      goToTab(DesktopTab.physio);
+    }
+
+    final semantic = 'Open physio for ${patient.fullName}';
+    if (compact) {
+      return CruSquareButton(
+        icon: PhysioIcons.physio,
+        secondary: true,
+        semanticLabel: semantic,
+        tooltip: 'Physio',
+        onPressed: open,
+      );
+    }
+    return CruButton(
+      label: 'Physio',
+      kind: CruButtonKind.secondary,
+      icon: PhysioIcons.physio,
+      semanticLabel: semantic,
+      onPressed: open,
+    );
+  }
+}
+
 /// "Recall · 12 Apr" ("Recall overdue · 12 Apr" once past); an icon
 /// button when the header is short of room.
 class _RecallButton extends ConsumerWidget {
@@ -997,26 +1016,51 @@ class _RecallButton extends ConsumerWidget {
 }
 
 /// Floating bar on phone, in the nav bar's place and look (the blue
-/// pill): dentists get a round New visit button and the one filled
-/// Open chart capsule; everyone else a single New visit capsule.
+/// pill): dentists get a round New visit button, a round Physio button, and
+/// the one filled Open chart capsule; physio logins get a round New visit
+/// button and the Open physio capsule; other clinical logins get a round
+/// Physio button and the New visit capsule; non-clinical logins get a single
+/// New visit capsule.
 class _PatientDetailsBottomBar extends StatelessWidget {
   const _PatientDetailsBottomBar({
     required this.isDentist,
+    required this.canPhysio,
+    required this.isPhysio,
     required this.canBook,
     required this.onNewVisit,
     required this.onOpenChart,
+    required this.onOpenPhysio,
   });
 
   final bool isDentist;
+  final bool canPhysio;
+  final bool isPhysio;
   final bool canBook;
   final VoidCallback onNewVisit;
   final VoidCallback onOpenChart;
+  final VoidCallback onOpenPhysio;
 
   /// Height of the buttons inside the pill.
   static const double _button = 40;
 
   @override
   Widget build(BuildContext context) {
+    final physioCircle = _PillCircle(
+      icon: PhysioIcons.physio,
+      label: 'Open physio',
+      onTap: onOpenPhysio,
+    );
+    final newVisitCircle = _PillCircle(
+      icon: CruIcons.plus,
+      label: 'New visit',
+      onTap: onNewVisit,
+    );
+    final openPhysioCapsule = _PillCapsule(
+      label: 'Open physio',
+      icon: PhysioIcons.physio,
+      onTap: onOpenPhysio,
+    );
+
     final Widget content;
     if (isDentist) {
       final chart = _PillCapsule(
@@ -1024,19 +1068,40 @@ class _PatientDetailsBottomBar extends StatelessWidget {
         icon: DentalIcons.tooth,
         onTap: onOpenChart,
       );
+      content = Row(
+        children: [
+          if (canBook) ...[newVisitCircle, const SizedBox(width: CruSpace.s8)],
+          physioCircle,
+          const SizedBox(width: CruSpace.s8),
+          Expanded(child: chart),
+        ],
+      );
+    } else if (isPhysio) {
       content = canBook
           ? Row(
               children: [
-                _PillCircle(
-                  icon: CruIcons.plus,
-                  label: 'New visit',
-                  onTap: onNewVisit,
-                ),
+                newVisitCircle,
                 const SizedBox(width: CruSpace.s8),
-                Expanded(child: chart),
+                Expanded(child: openPhysioCapsule),
               ],
             )
-          : chart;
+          : openPhysioCapsule;
+    } else if (canPhysio) {
+      content = canBook
+          ? Row(
+              children: [
+                physioCircle,
+                const SizedBox(width: CruSpace.s8),
+                Expanded(
+                  child: _PillCapsule(
+                    label: 'New visit',
+                    icon: CruIcons.plus,
+                    onTap: onNewVisit,
+                  ),
+                ),
+              ],
+            )
+          : openPhysioCapsule;
     } else {
       content = _PillCapsule(
         label: 'New visit',

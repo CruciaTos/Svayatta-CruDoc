@@ -86,8 +86,7 @@ enum DentalFeature {
   /// that aren't dental.
   static DentalFeature? forTab(int tab) => switch (tab) {
     DesktopTab.treatmentPlans ||
-    DesktopTab.recalls ||
-    // Referrals are not here: every specialty refers patients, dental or not.
+    // Referrals and Recalls are not here: every clinical login uses them.
     DesktopTab.sterilization ||
     DesktopTab.procedures ||
     DesktopTab.charting => chairside,

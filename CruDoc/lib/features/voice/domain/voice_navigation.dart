@@ -459,6 +459,7 @@ const _synonyms = <int, List<String>>{
   DesktopTab.worklist: ['worklist', 'work list'],
   DesktopTab.reports: ['reports', 'radiology reports'],
   DesktopTab.referrers: ['referrers', 'referring doctors'],
+  DesktopTab.physio: ['physio', 'physiotherapy'],
 };
 
 const _navVerbs = {

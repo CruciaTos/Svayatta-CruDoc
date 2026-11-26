@@ -40,8 +40,9 @@ bool clinicAllowsDesktopTab(ClinicAccess? access, int tab) {
     return access.kind == MemberKind.doctor ||
         access.can(ClinicPermission.settings);
   }
-  // Files are patient records.
+  // Files and Physio are patient clinical records.
   if (tab == DesktopTab.files ||
+      tab == DesktopTab.physio ||
       DesktopTab.isDental(tab) ||
       DesktopTab.isRadiology(tab)) {
     return access.can(ClinicPermission.clinicalView);

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
+import 'package:doctor_management_app/features/therapy/data/physio_providers.dart';
 import 'package:doctor_management_app/features/therapy/data/soap_phrases.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -23,11 +26,13 @@ class SoapPhraseBar extends ConsumerStatefulWidget {
   const SoapPhraseBar({
     super.key,
     required this.controller,
+    required this.patientId,
     this.enabled = true,
   });
 
   /// The note being written. Phrases are inserted at its caret.
   final TextEditingController controller;
+  final String patientId;
   final bool enabled;
 
   @override
@@ -55,7 +60,14 @@ class _SoapPhraseBarState extends ConsumerState<SoapPhraseBar> {
 
   @override
   Widget build(BuildContext context) {
-    if (!ref.watch(isPhysiotherapyProvider)) return const SizedBox.shrink();
+    final clinical = ref.watch(
+      clinicCanProvider(ClinicPermission.clinicalView),
+    );
+    final show =
+        clinical &&
+        (ref.watch(isPhysiotherapyProvider) ||
+            ref.watch(patientHasPhysioProvider(widget.patientId)));
+    if (!show) return const SizedBox.shrink();
     final c = context.cru;
     final open = _open;
 

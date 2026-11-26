@@ -311,7 +311,11 @@ class _NoteEditor extends StatelessWidget {
           // Physiotherapy only, and collapsed until asked for, so it costs
           // nothing on the specialties whose notes read nothing like this.
           const SizedBox(height: CruSpace.s16),
-          SoapPhraseBar(controller: edit.notes, enabled: enabled),
+          SoapPhraseBar(
+            controller: edit.notes,
+            patientId: edit.original.patientId,
+            enabled: enabled,
+          ),
         ],
       ),
     );

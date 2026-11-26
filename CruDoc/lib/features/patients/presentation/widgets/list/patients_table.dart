@@ -10,6 +10,8 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_icons.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_page.dart';
 
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
@@ -59,17 +61,29 @@ class PatientsTable extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    // Dentists with Charting in the sidebar get a chart button per row.
+    // Dentists with Charting in the sidebar get a chart button per row;
+    // physio logins without Charting get a physio button in the same column.
     final goToTab = ref.watch(shellNavigatorProvider);
+    final tabs = sidebarTabs(
+      dental: ref.watch(dentalFeaturesProvider),
+      access: ref.watch(clinicAccessProvider).value,
+    );
     final chart =
+        goToTab != null && tabs.any((t) => t.tab == DesktopTab.charting);
+    final physio =
+        !chart &&
         goToTab != null &&
-        sidebarTabs(
-          dental: ref.watch(dentalFeaturesProvider),
-          access: ref.watch(clinicAccessProvider).value,
-        ).any((t) => t.tab == DesktopTab.charting);
+        ref.watch(isPhysiotherapyProvider) &&
+        tabs.any((t) => t.tab == DesktopTab.physio);
+    final hasAction = chart || physio;
     void openChart(PatientSummary s) {
       ref.read(chartingPatientIdProvider.notifier).state = s.id;
       goToTab?.call(DesktopTab.charting);
+    }
+
+    void openPhysioTab(PatientSummary s) {
+      ref.read(physioPatientIdProvider.notifier).state = s.id;
+      goToTab?.call(DesktopTab.physio);
     }
 
     return CruCard(
@@ -82,15 +96,18 @@ class PatientsTable extends ConsumerWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final narrowBreakpoint =
-              chart ? CruSize.tableNarrowWithChart : CruSize.tableNarrow;
+          final narrowBreakpoint = hasAction
+              ? CruSize.tableNarrowWithChart
+              : CruSize.tableNarrow;
           final narrow = constraints.maxWidth < narrowBreakpoint;
           final minTableWidth = narrow
-              ? (chart ? 640.0 : 520.0)
-              : (chart ? CruSize.tableNarrowWithChart : CruSize.tableNarrow);
+              ? (hasAction ? 640.0 : 520.0)
+              : (hasAction
+                    ? CruSize.tableNarrowWithChart
+                    : CruSize.tableNarrow);
           final tableWidth = math.max(constraints.maxWidth, minTableWidth);
           final children = <Widget>[
-            _TableHeader(narrow: narrow, chart: chart),
+            _TableHeader(narrow: narrow, chart: hasAction),
             if (view.visible.isEmpty && empty != null) empty!,
           ];
           for (final g in view.groups) {
@@ -123,6 +140,7 @@ class PatientsTable extends ConsumerWidget {
                 selected: selected,
                 onTap: () => onTap(s),
                 onChart: chart ? () => openChart(s) : null,
+                onPhysio: physio ? () => openPhysioTab(s) : null,
               );
               children.add(
                 selected && selectedRowKey != null
@@ -251,19 +269,26 @@ const double _chartColumn = 120;
 /// "Charting" with the tooth, the same button as the header's Recalls:
 /// opens Charting for the row's patient.
 class _ChartButton extends StatelessWidget {
-  const _ChartButton({required this.name, required this.onTap});
+  const _ChartButton({
+    required this.label,
+    required this.icon,
+    required this.semantic,
+    required this.onTap,
+  });
 
-  final String name;
+  final String label;
+  final CruIconData icon;
+  final String semantic;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Align(
     alignment: Alignment.centerRight,
     child: CruButton(
-      label: 'Charting',
+      label: label,
       kind: CruButtonKind.secondary,
-      icon: DentalIcons.tooth,
-      semanticLabel: 'Open charting for $name',
+      icon: icon,
+      semanticLabel: semantic,
       onPressed: onTap,
     ),
   );
@@ -352,6 +377,7 @@ class PatientTableRow extends StatelessWidget {
     this.narrow = false,
     this.selected = false,
     this.onChart,
+    this.onPhysio,
   });
 
   final PatientSummary summary;
@@ -360,6 +386,9 @@ class PatientTableRow extends StatelessWidget {
 
   /// Opens Charting for this patient; null hides the button.
   final VoidCallback? onChart;
+
+  /// Opens Physio for this patient; null hides the button.
+  final VoidCallback? onPhysio;
   final bool narrow;
   final bool selected;
 
@@ -520,9 +549,21 @@ class PatientTableRow extends StatelessWidget {
           last: lastCell,
           next: nextCell,
           balance: balanceCell,
-          chart: onChart == null
-              ? null
-              : _ChartButton(name: s.name, onTap: onChart!),
+          chart: onChart != null
+              ? _ChartButton(
+                  label: 'Charting',
+                  icon: DentalIcons.tooth,
+                  semantic: 'Open charting for ${s.name}',
+                  onTap: onChart!,
+                )
+              : onPhysio != null
+              ? _ChartButton(
+                  label: 'Physio',
+                  icon: PhysioIcons.physio,
+                  semantic: 'Open physio for ${s.name}',
+                  onTap: onPhysio!,
+                )
+              : null,
           chevron: CruIcon(
             CruIcons.chevronRight,
             size: 16,

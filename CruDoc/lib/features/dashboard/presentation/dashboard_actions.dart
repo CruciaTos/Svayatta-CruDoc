@@ -112,6 +112,9 @@ abstract final class DesktopTab {
   /// list. Desktop only; the phone's Tasks tab already combines them.
   static const allTasks = 35;
 
+  /// Physiotherapy workspace for the patient picked on the page.
+  static const physio = 36;
+
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
   static const reports = 13;
@@ -155,6 +158,7 @@ abstract final class DesktopTab {
     files => 'Files',
     documents => 'Documents',
     charting => 'Charting',
+    physio => 'Physio',
     todos => 'To-do',
     allTasks => 'All tasks',
     _ => 'Back',

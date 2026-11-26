@@ -36,6 +36,7 @@ const _screens = <String, String>{
   'referrals': 'tab:${DesktopTab.dentalReferrals}',
   'lab_cases': 'tab:${DesktopTab.labCases}',
   'charting': 'tab:${DesktopTab.charting}',
+  'physio': 'tab:${DesktopTab.physio}',
   'low_stock': 'spot:inventory.low',
   'expiring_stock': 'spot:inventory.expiring',
   'inventory_orders': 'spot:inventory.orders',

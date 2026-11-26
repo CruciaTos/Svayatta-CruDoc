@@ -19,6 +19,8 @@ import 'package:doctor_management_app/features/patients/domain/patients_models.d
 import 'package:doctor_management_app/features/patients/domain/quick_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_icons.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_screen.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -162,6 +164,13 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
             tone: MobileTone.violet,
             onTap: () => PatientActions.dictate(mobileRoot(context), s, now),
           ),
+        if (_can(ClinicPermission.clinicalView))
+          MobileSheetAction(
+            label: 'Physio',
+            icon: PhysioIcons.physio,
+            tone: MobileTone.teal,
+            onTap: () => openPhysio(mobileRoot(context), p),
+          ),
         MobileSheetAction(
           label: 'Open record',
           icon: CruIcons.fileText,
@@ -187,17 +196,16 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     );
   }
 
-  /// Right swipe: the front desk rings the patient; anyone who holds their
-  /// clinical records opens the tooth chart instead, which is the thing
-  /// they came to this row for. Left swipe: book a visit.
+  /// Right swipe: the front desk rings the patient; dentists with clinical
+  /// access open the tooth chart; physiotherapists with clinical access open
+  /// Physio. Left swipe: book a visit.
   ///
-  /// [toothChart] is the reason, not the role: it is clinical access on a
-  /// dentist's login. Reading it that way keeps the chart away from an
-  /// assistant or a manager, who are no more entitled to it than the
-  /// receptionist is, and keeps a physiotherapist from opening teeth.
+  /// [toothChart] and [physio] gate on clinical access as well as specialty
+  /// so non-clinical staff never swipe into clinical workspaces.
   MobileSwipeAction? _rightSwipe(
     PatientSummary s, {
     required bool toothChart,
+    required bool physio,
   }) {
     if (toothChart) {
       return MobileSwipeAction(
@@ -205,6 +213,14 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
         icon: DentalIcons.tooth,
         tone: MobileTone.blue,
         onCommit: () => openCharting(mobileRoot(context), s.patient),
+      );
+    }
+    if (physio) {
+      return MobileSwipeAction(
+        label: 'Physio',
+        icon: PhysioIcons.physio,
+        tone: MobileTone.teal,
+        onCommit: () => openPhysio(mobileRoot(context), s.patient),
       );
     }
     if (s.patient.phone.trim().isEmpty) return null;
@@ -509,9 +525,11 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     final now = ref.watch(dashboardNowProvider);
     final view = async.value;
     final canBook = ref.watch(clinicCanProvider(ClinicPermission.schedule));
-    final canChart =
-        ref.watch(isDentalProvider) &&
-        ref.watch(clinicCanProvider(ClinicPermission.clinicalView));
+    final clinical = ref.watch(
+      clinicCanProvider(ClinicPermission.clinicalView),
+    );
+    final canChart = ref.watch(isDentalProvider) && clinical;
+    final canPhysioSwipe = ref.watch(isPhysiotherapyProvider) && clinical;
     // Recalls left More for an icon here, for those whose sidebar has it.
     final recalls = sidebarTabs(
       dental: ref.watch(dentalFeaturesProvider),
@@ -637,7 +655,11 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                       for (final s in g.rows)
                         MobileSwipeRow(
                           key: ValueKey(s.id),
-                          action: _rightSwipe(s, toothChart: canChart),
+                          action: _rightSwipe(
+                            s,
+                            toothChart: canChart,
+                            physio: canPhysioSwipe,
+                          ),
                           leftAction: _bookSwipe(s, canBook: canBook),
                           // Only the outer fifths swipe the row; the middle
                           // 60% changes tabs as usual.

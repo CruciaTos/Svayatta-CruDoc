@@ -18,6 +18,7 @@ import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/todos/presentation/todo_icons.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_icons.dart';
 import 'package:doctor_management_app/features/tutorial/presentation/tutorial_target.dart';
 
 class _NavItem {
@@ -74,6 +75,7 @@ const _litBy = {
   DesktopTab.recalls: DesktopTab.patients,
   DesktopTab.perioPatients: DesktopTab.patients,
   DesktopTab.charting: DesktopTab.patients,
+  DesktopTab.physio: DesktopTab.patients,
   DesktopTab.scribe: DesktopTab.appointments,
   DesktopTab.sterilization: DesktopTab.inventory,
 };
@@ -81,10 +83,11 @@ const _litBy = {
 /// Pages reached from somewhere other than the sidebar: a button on their
 /// parent page (Recalls, Scribe), a tab (Sterilization), a Patients filter
 /// (Perio), Settings › Dental (Procedures, form templates), the fixed
-/// Emergency button, or a patient row's chart button (Charting).
+/// Emergency button, or a patient row's button (Charting, Physio).
 const _notDrawn = {
   DesktopTab.recalls,
   DesktopTab.charting,
+  DesktopTab.physio,
   DesktopTab.perioPatients,
   DesktopTab.scribe,
   DesktopTab.sterilization,
@@ -178,15 +181,15 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
       if (dental.contains(DentalFeature.chairside))
         const _NavItem(DesktopTab.charting, 'Charting', DentalIcons.tooth),
+      const _NavItem(DesktopTab.physio, 'Physio', PhysioIcons.physio),
       const _NavItem(DesktopTab.files, 'Files', FileIcons.folder),
-      if (dental.contains(DentalFeature.chairside)) ...const [
-        _NavItem(
+      if (dental.contains(DentalFeature.chairside))
+        const _NavItem(
           DesktopTab.treatmentPlans,
           'Treatment plans',
           DentalIcons.plan,
         ),
-        _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
-      ],
+      const _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
       // Every specialty refers patients to other doctors.
       const _NavItem(
         DesktopTab.dentalReferrals,

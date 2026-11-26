@@ -32,6 +32,7 @@ import 'package:doctor_management_app/features/appointments/data/providers/appoi
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/subscription/presentation/feature_upgrade_sheet.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/charting_page.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/shared/widgets/page_search.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
@@ -217,6 +218,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Charting',
     'To-do',
     'All tasks',
+    'Physio',
   ];
 
   static const List<IconData> _icons = [
@@ -256,6 +258,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.grid_view_outlined,
     Icons.check_circle_outline_rounded,
     Icons.checklist_rounded,
+    Icons.accessibility_new_rounded,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -385,6 +388,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         );
       case DesktopTab.charting:
         return const ChartingPage();
+      case DesktopTab.physio:
+        return const PhysioPage();
       case DesktopTab.recalls:
         return const DesktopBackPage(
           backLabel: 'Patients',
@@ -542,6 +547,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == 0 ||
             shown == DesktopTab.settings ||
             shown == DesktopTab.files ||
+            shown == DesktopTab.physio ||
             shown == DesktopTab.documents ||
             shown == DesktopTab.todos ||
             shown == DesktopTab.allTasks ||
@@ -561,6 +567,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.appointments ||
             shown == DesktopTab.settings ||
             shown == DesktopTab.files ||
+            shown == DesktopTab.physio ||
             shown == DesktopTab.documents ||
             shown == DesktopTab.todos ||
             shown == DesktopTab.allTasks ||

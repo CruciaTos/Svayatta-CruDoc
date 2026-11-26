@@ -33,6 +33,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
+import 'package:doctor_management_app/features/therapy/data/physio_providers.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/session_note_screen.dart';
@@ -254,7 +255,10 @@ class _VisitSessionDialogState extends ConsumerState<VisitSessionDialog> {
     );
     final canSchedule = ref.watch(clinicCanProvider(ClinicPermission.schedule));
     final canBill = ref.watch(clinicCanProvider(ClinicPermission.billing));
-    final isPhysio = clinical && ref.watch(isPhysiotherapyProvider);
+    final isPhysio =
+        clinical &&
+        (ref.watch(isPhysiotherapyProvider) ||
+            ref.watch(patientHasPhysioProvider(widget.patient.id)));
 
     final scribeNotes = clinical
         ? [

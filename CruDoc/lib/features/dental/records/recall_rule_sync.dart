@@ -28,10 +28,31 @@ class RecallRuleSync {
       final prefs = await SharedPreferences.getInstance();
       final key = '$_backfillKey$doctorId';
       if (prefs.getBool(key) ?? false) return;
-      final ran = await run(doctorId);
-      if (ran) await prefs.setBool(key, true);
+      final ok = await _runAndCheck(doctorId);
+      if (ok) await prefs.setBool(key, true);
     } catch (e) {
       debugPrint('Recall rule backfill failed: $e');
+    }
+  }
+
+  static Future<bool> _runAndCheck(String doctorId) async {
+    if (_running) {
+      _again = true;
+      return false;
+    }
+    _running = true;
+    try {
+      await _run(doctorId, null);
+      return true;
+    } catch (e) {
+      debugPrint('Recall rule sync failed: $e');
+      return false;
+    } finally {
+      _running = false;
+      if (_again) {
+        _again = false;
+        await run(doctorId);
+      }
     }
   }
 
@@ -59,15 +80,18 @@ class RecallRuleSync {
 
   static Future<bool> _run(String doctorId, String? patientId) async {
     final repo = DentalRecordsRepository();
-    final rules = await ensureRecallRules(repo, doctorId);
-    if (rules.isEmpty) return false;
-
     final now = DateTime.now();
     final procedures = await repo.completedProcedures(
       doctorId,
       now.subtract(const Duration(days: 730)),
       patientId: patientId,
     ); // newest first
+    // Only clinics with completed dental procedures get default dental recall
+    // rules; non-dental clinics must never have dental rules seeded.
+    if (procedures.isEmpty) return false;
+
+    final rules = await ensureRecallRules(repo, doctorId);
+    if (rules.isEmpty) return false;
 
     final recalls = [
       for (final r in await repo.all(doctorId, RecKind.recall))

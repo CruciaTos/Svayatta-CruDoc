@@ -50,7 +50,7 @@ class ChartingPage extends ConsumerWidget {
       }
     }
 
-    final picker = _PatientSearch(
+    final picker = PatientSearch(
       items: items,
       patients: patients,
       current: patient,
@@ -88,27 +88,30 @@ class _Option {
   final String line;
 }
 
-/// The search bar on top of Charting: type a name or phone, pick from the
-/// dropdown (arrow keys and Enter work). Empty, it lists today's patients
-/// then recent ones.
-class _PatientSearch extends StatefulWidget {
-  const _PatientSearch({
+/// The search bar on top of Charting and Physio: type a name or phone, pick
+/// from the dropdown (arrow keys and Enter work). Empty, it lists today's
+/// patients then recent ones.
+class PatientSearch extends StatefulWidget {
+  const PatientSearch({
+    super.key,
     required this.items,
     required this.patients,
     required this.current,
     required this.onPick,
+    this.semanticPrefix = 'Chart',
   });
 
   final List<ApptItem> items;
   final List<Patient> patients;
   final Patient? current;
   final ValueChanged<Patient> onPick;
+  final String semanticPrefix;
 
   @override
-  State<_PatientSearch> createState() => _PatientSearchState();
+  State<PatientSearch> createState() => _PatientSearchState();
 }
 
-class _PatientSearchState extends State<_PatientSearch> {
+class _PatientSearchState extends State<PatientSearch> {
   final _controller = TextEditingController();
   final _focus = FocusNode(debugLabel: 'charting patient search');
 
@@ -217,6 +220,7 @@ class _PatientSearchState extends State<_PatientSearch> {
                     itemCount: list.length,
                     itemBuilder: (context, i) => _OptionRow(
                       option: list[i],
+                      semanticPrefix: widget.semanticPrefix,
                       highlighted:
                           AutocompleteHighlightedOption.of(context) == i,
                       onTap: () => onSelected(list[i]),
@@ -304,11 +308,13 @@ class _SearchField extends StatelessWidget {
 class _OptionRow extends StatelessWidget {
   const _OptionRow({
     required this.option,
+    required this.semanticPrefix,
     required this.highlighted,
     required this.onTap,
   });
 
   final _Option option;
+  final String semanticPrefix;
   final bool highlighted;
   final VoidCallback onTap;
 
@@ -319,7 +325,7 @@ class _OptionRow extends StatelessWidget {
     return CruPressable(
       onTap: onTap,
       scaleOnPress: false,
-      semanticLabel: 'Chart ${p.fullName}',
+      semanticLabel: '$semanticPrefix ${p.fullName}',
       builder: (context, hovered) => Container(
         padding: const EdgeInsets.symmetric(
           horizontal: CruSpace.s10,

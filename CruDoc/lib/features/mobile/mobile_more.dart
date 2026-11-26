@@ -171,8 +171,9 @@ class MobileMoreScreen extends ConsumerWidget {
     DesktopTab.sterilization,
     DesktopTab.procedures,
     DesktopTab.oralMedForms,
-    // Charting is a desktop screen.
+    // Charting and Physio are patient screens.
     DesktopTab.charting,
+    DesktopTab.physio,
     // To-dos are a source on the Tasks tab.
     DesktopTab.todos,
     // The phone's Tasks tab is already the combined list.

@@ -87,9 +87,9 @@ void main() {
       );
     });
 
-    test('Referrals open for every specialty, not just dental', () {
+    test('Referrals and recalls open for every specialty, not just dental', () {
       expect(DentalFeature.allowsTab(DesktopTab.dentalReferrals, {}), isTrue);
-      expect(DentalFeature.allowsTab(DesktopTab.recalls, {}), isFalse);
+      expect(DentalFeature.allowsTab(DesktopTab.recalls, {}), isTrue);
     });
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
@@ -365,7 +366,10 @@ class _SetRecallDialogState extends ConsumerState<_SetRecallDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final rules = ref.watch(recallRulesProvider).value ?? const <RecallRule>[];
+    final isDental = ref.watch(isDentalProvider);
+    final rules = isDental
+        ? (ref.watch(recallRulesProvider).value ?? const <RecallRule>[])
+        : const <RecallRule>[];
     return CruFormDialog(
       title: widget.existing == null ? 'Set recall' : 'Edit recall',
       subtitle: _patient?.fullName ?? 'Remind a patient to come back',
@@ -381,8 +385,9 @@ class _SetRecallDialogState extends ConsumerState<_SetRecallDialog> {
           CruFormSection(
             first: true,
             title: 'Recall',
-            description:
-                'A rule sets the date from today; change it if you like.',
+            description: isDental
+                ? 'A rule sets the date from today; change it if you like.'
+                : 'Pick when the patient should come back.',
             children: [
               if (widget.patient == null)
                 CruPickerField(
@@ -399,25 +404,28 @@ class _SetRecallDialogState extends ConsumerState<_SetRecallDialog> {
                     if (p != null) setState(() => _patient = p);
                   },
                 ),
-              CruFieldFrame(
-                label: 'Reason',
-                child: DentalChipWrap<RecallRule>(
-                  options: rules,
-                  label: (r) => '${r.name} · ${r.months} mo',
-                  isSelected: (r) => r.record.id == _rule?.record.id,
-                  onTap: (r) => setState(() {
-                    _rule = r;
-                    _reason.text = r.name;
-                    _due = _addMonths(DateTime.now(), r.months);
-                  }),
+              if (rules.isNotEmpty)
+                CruFieldFrame(
+                  label: 'Reason',
+                  child: DentalChipWrap<RecallRule>(
+                    options: rules,
+                    label: (r) => '${r.name} · ${r.months} mo',
+                    isSelected: (r) => r.record.id == _rule?.record.id,
+                    onTap: (r) => setState(() {
+                      _rule = r;
+                      _reason.text = r.name;
+                      _due = _addMonths(DateTime.now(), r.months);
+                    }),
+                  ),
                 ),
-              ),
               CruFieldRow(
                 children: [
                   CruTextField(
-                    label: 'Reason text',
+                    label: isDental ? 'Reason text' : 'Reason',
                     controller: _reason,
-                    hint: 'Check-up and cleaning',
+                    hint: isDental
+                        ? 'Check-up and cleaning'
+                        : 'Follow-up review',
                   ),
                   CruPickerField(
                     label: 'Due',
@@ -455,7 +463,9 @@ class _RulesDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final rules = ref.watch(recallRulesProvider).value ?? const <RecallRule>[];
+    final rules = ref.watch(isDentalProvider)
+        ? (ref.watch(recallRulesProvider).value ?? const <RecallRule>[])
+        : const <RecallRule>[];
     return DentalPanelDialog(
       title: 'Recall rules',
       subtitle: 'Completed treatments matching a rule suggest a recall',
@@ -723,8 +733,18 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final isDental = ref.watch(isDentalProvider);
     final recalls = ref.watch(clinicRecordsProvider(RecKind.recall)).value;
-    final suggestions = ref.watch(recallSuggestionsProvider).value ?? const [];
+    final suggestions = isDental
+        ? (ref.watch(recallSuggestionsProvider).value ?? const [])
+        : const <
+            ({
+              String patientId,
+              RecallRule rule,
+              DateTime due,
+              String procedure,
+            })
+          >[];
     final dropOffs = ref.watch(packageDropOffProvider).value ?? const [];
     final patients = {
       for (final p
@@ -801,12 +821,13 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
                 ? 'Bring patients back for check-ups and reviews'
                 : '$overdue overdue · $week due this week',
             actions: [
-              CruButton(
-                label: 'Rules',
-                icon: CruIcons.settings,
-                kind: CruButtonKind.secondary,
-                onPressed: () => showRecallRulesDialog(context),
-              ),
+              if (isDental)
+                CruButton(
+                  label: 'Rules',
+                  icon: CruIcons.settings,
+                  kind: CruButtonKind.secondary,
+                  onPressed: () => showRecallRulesDialog(context),
+                ),
               CruButton(
                 label: 'Set recall',
                 icon: CruIcons.plus,
@@ -970,8 +991,10 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
                               ? 'No recalls yet'
                               : 'Nothing here',
                           body: recalls.isEmpty
-                              ? 'Set a recall from a patient\'s record or here. Completed '
-                                    'treatments that match a rule show up above as suggestions.'
+                              ? (isDental
+                                    ? 'Set a recall from a patient\'s record or here. Completed '
+                                          'treatments that match a rule show up above as suggestions.'
+                                    : 'Set a recall from a patient\'s record or here.')
                               : 'Try another filter or search.',
                         ),
                       ),
@@ -1009,7 +1032,9 @@ class _RecallRow extends ConsumerWidget {
   final DateTime today;
 
   String _message(WidgetRef ref) {
-    final rules = ref.read(recallRulesProvider).value ?? const <RecallRule>[];
+    final rules = ref.read(isDentalProvider)
+        ? (ref.read(recallRulesProvider).value ?? const <RecallRule>[])
+        : const <RecallRule>[];
     final rule = rules
         .where((r) => r.record.id == recall.str('ruleId'))
         .firstOrNull;

@@ -18,7 +18,12 @@ class WorkerUpdate {
     this.progress = 0,
     this.page,
     this.focusAt,
+    this.corners,
+    this.takenMs = 0,
   });
+
+  /// When the frame this describes was handed over, as given to [offer].
+  final int takenMs;
 
   final ScanPhase phase;
   final ScanHint hint;
@@ -26,6 +31,9 @@ class WorkerUpdate {
   final double progress;
   final CapturedPage? page;
   final Pt? focusAt;
+
+  /// [CornerFlag]s while the corners are set by hand; otherwise null.
+  final List<int>? corners;
 }
 
 /// Runs the [ScanEngine] on its own isolate so the camera preview never
@@ -73,11 +81,13 @@ class ScanWorker {
     required int rotation,
     required int quarterTurns,
     required bool fullRange,
+    int takenMs = 0,
   }) {
     if (_busy || _closed) return false;
     final msg = _encodeFrame(image, rotation, quarterTurns, fullRange);
     if (msg == null) return false;
     _busy = true;
+    (msg[1] as List).add(takenMs);
     _toWorker.send(msg);
     return true;
   }
@@ -86,8 +96,86 @@ class ScanWorker {
   void setAutoCapture(bool on) => _toWorker.send(['auto', on]);
   void reset() => _toWorker.send(const ['reset']);
 
+  /// Pauses automatic capture while a finger is on the screen.
+  void hold(bool on) => _toWorker.send(['hold', on]);
+
+  /// Whether the phone is moving too much for a sharp picture.
+  void shaking(bool on) => _toWorker.send(['shaking', on]);
+
+  /// A long press on the live picture; see [ScanEngine.press].
+  Future<CornerReply?> press({
+    required Quad start,
+    required bool sure,
+    required int index,
+    required Pt at,
+    required double reach,
+  }) {
+    if (_closed) return Future.value();
+    final done = Completer<CornerReply?>();
+    _replies.add(done);
+    _toWorker.send(['press', start.toList(), sure, index, at.x, at.y, reach]);
+    return done.future;
+  }
+
+  /// A page was cut by hand along [source]'s corners.
+  void pageTaken(PageSource source) => _toWorker.send(['taken', source]);
+
+  /// Back to finding the corners itself.
+  void releaseCorners() => _toWorker.send(const ['auto-corners']);
+
+  /// Corners being waited for, answered in the order they were sent.
+  final List<Completer<CornerReply?>> _replies = [];
+
+  /// Puts corner [index] at [at] on the live picture; see
+  /// [ScanEngine.setCorner]. A drag in progress ([reply] false) is not
+  /// answered.
+  Future<CornerReply?> setCorner({
+    required Quad start,
+    required bool sure,
+    required int index,
+    required Pt at,
+    double reach = 0,
+    required bool holding,
+    bool reply = true,
+  }) {
+    if (_closed) return Future.value();
+    final done = reply ? Completer<CornerReply?>() : null;
+    if (done != null) _replies.add(done);
+    _toWorker.send([
+      'corner',
+      start.toList(),
+      sure,
+      index,
+      at.x,
+      at.y,
+      reach,
+      holding,
+      reply,
+    ]);
+    return done?.future ?? Future.value();
+  }
+
   void _onMessage(Object? msg) {
     if (msg is! List || msg.isEmpty) return;
+    if (msg[0] == 'corner') {
+      // Not a reply to a frame: [busy] stays as it is.
+      if (_replies.isNotEmpty) {
+        final at = (msg[1] as List?)?.cast<double>();
+        final page = (msg[3] as List?)?.cast<double>();
+        _replies
+            .removeAt(0)
+            .complete(
+              at == null
+                  ? null
+                  : CornerReply(
+                      Pt(at[0], at[1]),
+                      (msg[2] as List).cast<int>(),
+                      page: page == null ? null : Quad.fromList(page),
+                    ),
+            );
+      }
+      return;
+    }
     _busy = false;
     if (_closed) return;
     if (msg[0] == 'error') {
@@ -114,8 +202,12 @@ class ScanWorker {
                     .asUint8List(),
                 width: pageMsg[2] as int,
                 height: pageMsg[3] as int,
+                source: pageMsg[4] as PageSource?,
+                redo: pageMsg[5] as bool,
               ),
         focusAt: focus == null ? null : Pt(focus[0], focus[1]),
+        corners: (msg[7] as List?)?.cast<int>(),
+        takenMs: msg[8] as int,
       ),
     );
   }
@@ -124,6 +216,10 @@ class ScanWorker {
     if (_closed) return;
     _closed = true;
     _isolate.kill(priority: Isolate.immediate);
+    for (final r in _replies) {
+      r.complete(null);
+    }
+    _replies.clear();
     _fromWorker.close();
     await _updates.close();
   }
@@ -224,6 +320,12 @@ void _workerMain(List<Object?> args) {
   final inbox = ReceivePort();
   toMain.send(inbox.sendPort);
   final clock = Stopwatch()..start();
+  void answer(CornerReply? r) => toMain.send([
+    'corner',
+    r == null ? null : [r.at.x, r.at.y],
+    r?.flags,
+    r?.page?.toList(),
+  ]);
   inbox.listen((msg) {
     if (msg is! List || msg.isEmpty) return;
     switch (msg[0]) {
@@ -233,6 +335,36 @@ void _workerMain(List<Object?> args) {
         engine.autoCapture = msg[1] as bool;
       case 'reset':
         engine.reset();
+      case 'hold':
+        engine.held = msg[1] as bool;
+      case 'taken':
+        engine.pageTaken(msg[1] as PageSource);
+      case 'auto-corners':
+        engine.releaseCorners();
+      case 'corner':
+        final r = engine.setCorner(
+          start: Quad.fromList((msg[1] as List).cast<double>()),
+          sure: msg[2] as bool,
+          index: msg[3] as int,
+          at: Pt(msg[4] as double, msg[5] as double),
+          reach: msg[6] as double,
+          holding: msg[7] as bool,
+          nowMs: clock.elapsedMilliseconds,
+        );
+        if (msg[8] as bool) answer(r);
+      case 'shaking':
+        engine.shaking = msg[1] as bool;
+      case 'press':
+        answer(
+          engine.press(
+            start: Quad.fromList((msg[1] as List).cast<double>()),
+            sure: msg[2] as bool,
+            index: msg[3] as int,
+            at: Pt(msg[4] as double, msg[5] as double),
+            reach: msg[6] as double,
+            nowMs: clock.elapsedMilliseconds,
+          ),
+        );
       case 'frame':
         try {
           final frame = _decodeFrame(msg);
@@ -256,8 +388,12 @@ void _workerMain(List<Object?> args) {
                     TransferableTypedData.fromList([page.thumb]),
                     page.width,
                     page.height,
+                    page.source,
+                    page.redo,
                   ],
             u.focusAt == null ? null : [u.focusAt!.x, u.focusAt!.y],
+            u.corners,
+            meta[13] as int,
           ]);
         } catch (e, st) {
           toMain.send(['error', '$e\n$st']);

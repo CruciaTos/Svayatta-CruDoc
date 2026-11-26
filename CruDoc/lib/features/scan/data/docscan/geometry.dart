@@ -122,6 +122,9 @@ class Quad {
 
   List<Pt> get corners => [tl, tr, br, bl];
 
+  /// For each corner, the way into the page from it.
+  static const inward = [Pt(1, 1), Pt(-1, 1), Pt(-1, -1), Pt(1, -1)];
+
   List<double> toList() => [tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y];
 
   Pt get centroid =>
@@ -194,6 +197,15 @@ class Quad {
   Quad lerp(Quad o, double t) {
     Pt l(Pt a, Pt b) => a + (b - a) * t;
     return Quad(l(tl, o.tl), l(tr, o.tr), l(br, o.br), l(bl, o.bl));
+  }
+
+  /// Whether [p] is inside this (convex, clockwise on screen) shape.
+  bool contains(Pt p) {
+    final c = corners;
+    for (var i = 0; i < 4; i++) {
+      if ((c[(i + 1) % 4] - c[i]).cross(p - c[i]) < 0) return false;
+    }
+    return true;
   }
 
   bool insideRect(double w, double h, {double tolerance = 0}) => corners.every(

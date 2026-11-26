@@ -73,7 +73,9 @@ void main() {
 
       var offered = 0;
       var refused = 0;
-      for (var i = 0; i < 14; i++) {
+      for (var i = 0; i < 24; i++) {
+        // At a camera's pace: capture waits for the page to be held a while.
+        await Future<void>.delayed(const Duration(milliseconds: 110));
         if (worker.offer(
           image,
           rotation: 90,
@@ -96,9 +98,9 @@ void main() {
         }
       }
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(offered, 14);
-      expect(refused, 14);
-      expect(updates, hasLength(14));
+      expect(offered, 24);
+      expect(refused, 24);
+      expect(updates, hasLength(24));
 
       final pages = [
         for (final u in updates)
@@ -133,7 +135,8 @@ void main() {
       if (u.page != null) withPage = u;
     });
     addTearDown(sub.cancel);
-    for (var i = 0; i < 14 && withPage == null; i++) {
+    for (var i = 0; i < 40 && withPage == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 110));
       worker.offer(image, rotation: 90, quarterTurns: 1, fullRange: true);
       while (worker.busy) {
         await Future<void>.delayed(const Duration(milliseconds: 5));

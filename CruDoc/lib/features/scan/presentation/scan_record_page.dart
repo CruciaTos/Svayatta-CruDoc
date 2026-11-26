@@ -168,10 +168,7 @@ class _ScanRecordPageState extends State<ScanRecordPage> {
         if (error != null)
           ScanProblem(message: error, onRetry: _read)
         else if (record == null)
-          ScanReading(
-            page: widget.pages.first,
-            label: 'Reading the document…',
-          )
+          ScanReading(page: widget.pages.first, label: 'Reading the document…')
         else ...[
           ScanAiNote(
             text:
@@ -247,7 +244,10 @@ class _ScanRecordPageState extends State<ScanRecordPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          [f.value, f.unit].where((s) => s.isNotEmpty).join(' '),
+                          [
+                            f.value,
+                            f.unit,
+                          ].where((s) => s.isNotEmpty).join(' '),
                           style: MobileType.row.tabular
                               .copyWith(fontWeight: FontWeight.w600)
                               .tint(c.label),

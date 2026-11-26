@@ -47,6 +47,10 @@ abstract class PixelSource {
   /// A [factor]× smaller box-averaged grey copy, used for detection.
   GrayImage downsample(int factor);
 
+  /// A [factor]× smaller grey copy from four pixels of each block: rougher
+  /// than [downsample] and much cheaper, for following movement.
+  GrayImage thumbnail(int factor);
+
   /// A shape found in [downsample]'s copy, in full-resolution coordinates.
   Quad fromSmall(Quad q, int factor);
 
@@ -201,6 +205,17 @@ class YuvFrame implements PixelSource {
   }
 
   @override
+  GrayImage thumbnail(int factor) {
+    final f = math.max(1, factor);
+    if (f < 2) return downsample(f);
+    final sw = sensorWidth ~/ f, sh = sensorHeight ~/ f;
+    return rotateGray(
+      GrayImage(sw, sh, _fourPoint(y, yRowStride, sw, sh, f)),
+      rotation,
+    );
+  }
+
+  @override
   Uint8List warp(Homography toSource, int outWidth, int outHeight) {
     final out = Uint8List(outWidth * outHeight * 3);
     final m = toSource.matrix;
@@ -322,6 +337,14 @@ class RgbSource implements PixelSource {
   }
 
   @override
+  GrayImage thumbnail(int factor) {
+    final f = math.max(1, factor);
+    if (f < 2) return downsample(f);
+    final sw = width ~/ f, sh = height ~/ f;
+    return GrayImage(sw, sh, _fourPoint(_luma, width, sw, sh, f));
+  }
+
+  @override
   Uint8List warp(Homography toSource, int outWidth, int outHeight) {
     final out = Uint8List(outWidth * outHeight * 3);
     final m = toSource.matrix;
@@ -349,6 +372,20 @@ class RgbSource implements PixelSource {
     }
     return out;
   }
+}
+
+/// Each output pixel is the mean of four spread over its [f]×[f] block.
+Uint8List _fourPoint(Uint8List src, int stride, int w, int h, int f) {
+  final out = Uint8List(w * h);
+  final near = f ~/ 4, far = near + f ~/ 2;
+  for (var y = 0; y < h; y++) {
+    final a = (y * f + near) * stride, b = (y * f + far) * stride;
+    for (var x = 0; x < w; x++) {
+      final i = x * f + near, j = x * f + far;
+      out[y * w + x] = (src[a + i] + src[a + j] + src[b + i] + src[b + j]) >> 2;
+    }
+  }
+  return out;
 }
 
 int _clamp8(double v) => v <= 0 ? 0 : (v >= 255 ? 255 : v.round());

@@ -32,6 +32,7 @@ class FileSource {
     this.path,
     this.bytes,
     this.teeth = const [],
+    this.note = '',
   });
 
   final String name;
@@ -41,6 +42,9 @@ class FileSource {
 
   /// FDI numbers of the teeth this picture shows (none for full mouth).
   final List<int> teeth;
+
+  /// The doctor's note about it.
+  final String note;
 
   /// The content type, or null when the Files screen doesn't take it.
   String? get contentType => PatientFileTypes.contentTypeFor(name);
@@ -549,6 +553,7 @@ class FilesRepository {
         localPath: rel,
         sha256: sha256,
         teeth: s.teeth,
+        note: s.note.trim(),
       );
       await _putFile(f);
       final queued = await StorageSyncQueue.instance.enqueue(
@@ -842,6 +847,15 @@ class FilesRepository {
         ? '$clean$ext'
         : clean;
     await _putFile(f.copyWith(name: named, updatedAt: DateTime.now()));
+    _changed();
+  }
+
+  /// Writes (or, when empty, clears) the note on a file.
+  Future<void> setNote(String id, String note) async {
+    final clean = note.trim();
+    final f = await file(id);
+    if (f == null || f.note == clean) return;
+    await _putFile(f.copyWith(note: clean, updatedAt: DateTime.now()));
     _changed();
   }
 

@@ -111,6 +111,7 @@ class FileViewerPage extends StatelessWidget {
                 ),
                 const CruSeparator(),
                 Expanded(child: _isPdf ? _pdf(context) : _image(context)),
+                if (file.note.isNotEmpty) _note(c),
               ],
             ),
           ),
@@ -118,6 +119,20 @@ class FileViewerPage extends StatelessWidget {
       ),
     );
   }
+
+  /// The doctor's note, kept under the picture.
+  Widget _note(CruColors c) => Container(
+    margin: const EdgeInsets.all(CruSpace.s12),
+    padding: const EdgeInsets.all(CruSpace.s12),
+    constraints: const BoxConstraints(maxHeight: 140),
+    decoration: ShapeDecoration(
+      color: c.inset,
+      shape: cruShape(CruRadius.control),
+    ),
+    child: SingleChildScrollView(
+      child: SelectableText(file.note, style: CruType.text.tint(c.label)),
+    ),
+  );
 
   Widget _image(BuildContext context) => ProgressivePicture(file: file);
 

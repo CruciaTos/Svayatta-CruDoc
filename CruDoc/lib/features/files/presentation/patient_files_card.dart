@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/domain/files_builder.dart';
+import 'package:doctor_management_app/features/files/presentation/file_note_dialog.dart';
 import 'package:doctor_management_app/features/files/presentation/files_actions.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/file_thumb.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
@@ -135,16 +136,19 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
     // "12 Oct · Root canal 46", or the date alone.
     String groupOf(_Item i) {
       final day = when(i);
-      final visit =
-          linkedVisit(i.file) ??
-          widget.visits
-              .where(
-                (v) =>
-                    v.status != VisitStatus.cancelled &&
-                    v.status != VisitStatus.missed &&
-                    DateUtils.isSameDay(v.scheduledStart, day),
-              )
-              .firstOrNull;
+      // Kept out of every session: the day alone, whatever was booked then.
+      final apart = i.file != null && links[i.file!.id] == kNoVisit;
+      final visit = apart
+          ? null
+          : linkedVisit(i.file) ??
+                widget.visits
+                    .where(
+                      (v) =>
+                          v.status != VisitStatus.cancelled &&
+                          v.status != VisitStatus.missed &&
+                          DateUtils.isSameDay(v.scheduledStart, day),
+                    )
+                    .firstOrNull;
       final date = DateFormat(
         day.year == now.year ? 'd MMM' : 'd MMM y',
       ).format(day);
@@ -205,6 +209,13 @@ class _PatientFilesCardState extends ConsumerState<PatientFilesCard> {
                   file: shown[i].file!,
                   patientName: name,
                   now: now,
+                  onDetails: canEdit
+                      ? () => showFileNoteDialog(
+                          context,
+                          file: shown[i].file!,
+                          patient: patient,
+                        )
+                      : null,
                 ),
               ),
           ],
@@ -374,11 +385,15 @@ class _FileRow extends StatelessWidget {
     required this.file,
     required this.patientName,
     required this.now,
+    required this.onDetails,
   });
 
   final PatientFile file;
   final String patientName;
   final DateTime now;
+
+  /// Opens the file's note and session; null without permission to edit.
+  final VoidCallback? onDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -412,8 +427,11 @@ class _FileRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    '${FilesBuilder.dateLabel(file.createdAt, now)}'
-                    ' · ${FilesBuilder.typeLabel(file)}',
+                    // The note says more than the date and the type.
+                    file.note.isNotEmpty
+                        ? file.note.replaceAll('\n', ' ')
+                        : '${FilesBuilder.dateLabel(file.createdAt, now)}'
+                              ' · ${FilesBuilder.typeLabel(file)}',
                     style: CruType.subhead.tabular.tint(c.label2),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -421,6 +439,15 @@ class _FileRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (onDetails != null) ...[
+              const SizedBox(width: CruSpace.s8),
+              CruSquareButton(
+                icon: CruIcons.pen,
+                semanticLabel: 'Note and session for ${file.name}',
+                tooltip: 'Note and session',
+                onPressed: onDetails,
+              ),
+            ],
           ],
         ),
       ),

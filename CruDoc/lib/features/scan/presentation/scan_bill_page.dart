@@ -93,10 +93,11 @@ class _ScanBillPageState extends ConsumerState<ScanBillPage> {
       var already = false;
       if (key != null) {
         try {
-          already = (await ref
-                  .read(inventoryRepositoryProvider)
-                  .getPurchases(billKey: key))
-              .isNotEmpty;
+          already =
+              (await ref
+                      .read(inventoryRepositoryProvider)
+                      .getPurchases(billKey: key))
+                  .isNotEmpty;
         } catch (_) {}
       }
       if (!mounted) return;
@@ -487,8 +488,9 @@ class _LineEditorState extends State<_LineEditor> {
 
   /// "03/2027" or "3/27": the last day of that month.
   static DateTime? _parseExpiry(String text) {
-    final m = RegExp(r'^\s*(\d{1,2})\s*[/\-.]\s*(\d{2}|\d{4})\s*$')
-        .firstMatch(text);
+    final m = RegExp(
+      r'^\s*(\d{1,2})\s*[/\-.]\s*(\d{2}|\d{4})\s*$',
+    ).firstMatch(text);
     if (m == null) return null;
     final month = int.parse(m[1]!);
     var year = int.parse(m[2]!);
@@ -602,10 +604,7 @@ class _LineEditorState extends State<_LineEditor> {
                       ),
                     ),
                     const SizedBox(height: CruSpace.s16),
-                    Text(
-                      'Adds to',
-                      style: MobileType.caption.tint(c.label3),
-                    ),
+                    Text('Adds to', style: MobileType.caption.tint(c.label3)),
                     const SizedBox(height: CruSpace.s6),
                     MobileCard(
                       child: Column(
@@ -613,8 +612,7 @@ class _LineEditorState extends State<_LineEditor> {
                           for (final m in _candidates) ...[
                             MobileRow(
                               title: m.name,
-                              subtitle:
-                                  '${m.currentStock} ${m.unit} in stock',
+                              subtitle: '${m.currentStock} ${m.unit} in stock',
                               trailing: _match?.id == m.id
                                   ? const CruIcon(
                                       CruIcons.check,

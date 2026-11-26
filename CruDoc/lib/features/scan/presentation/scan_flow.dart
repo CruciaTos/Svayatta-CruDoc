@@ -10,12 +10,15 @@ import 'package:doctor_management_app/features/scan/data/scan_capture.dart';
 import 'package:doctor_management_app/features/scan/presentation/scan_bill_page.dart';
 import 'package:doctor_management_app/features/scan/presentation/scan_note_page.dart';
 import 'package:doctor_management_app/features/scan/presentation/scan_record_page.dart';
+import 'package:doctor_management_app/features/scan/presentation/scan_review_page.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The Scan quick action: the document camera finds the page, saves it
-/// once it is steady and sharp, and straightens it, then the person says what the pages are for and the AI
-/// reads them into that place. The pages themselves are always kept with
-/// what they became.
+/// once it is steady and sharp, and straightens it. Done opens the review
+/// page, where each photo gets a note and a patient and is saved to their
+/// files; from there the pages can instead be read by the AI into a session
+/// note, a record or a supplier bill. Without clinical permission only the
+/// bill is offered.
 ///
 /// [patient] skips the patient question (a scan started from their
 /// record). [clinical]: may write clinical records. [inventory]: the
@@ -46,8 +49,46 @@ Future<void> startScanFlow(
   }
   if (pages.isEmpty || !root.mounted) return;
 
+  if (clinical) {
+    await pushMobile<void>(
+      root,
+      ScanReviewPage(
+        pages: pages,
+        patient: patient,
+        inventory: inventory,
+        revenue: revenue,
+      ),
+    );
+    return;
+  }
+  await showScanUses(
+    root,
+    pages: pages,
+    patient: patient,
+    clinical: clinical,
+    inventory: inventory,
+    revenue: revenue,
+  );
+}
+
+/// What else the pages can become: the AI reads them into the chosen place.
+/// [leaving] is called just before that page opens.
+Future<void> showScanUses(
+  BuildContext root, {
+  required List<ScannedPage> pages,
+  Patient? patient,
+  required bool clinical,
+  required bool inventory,
+  required bool revenue,
+  VoidCallback? leaving,
+}) async {
   Future<Patient?> whose(String title) async =>
       patient ?? await showPatientPickerDialog(root, title: title);
+
+  void open(Widget page) {
+    leaving?.call();
+    pushMobile<void>(root, page);
+  }
 
   final count = pages.length == 1 ? '1 page' : '${pages.length} pages';
   await showMobileActionSheet(
@@ -65,7 +106,7 @@ Future<void> startScanFlow(
           onTap: () async {
             final p = await whose('Whose session notes are these?');
             if (p == null || !root.mounted) return;
-            await pushMobile(root, ScanNotePage(pages: pages, patient: p));
+            open(ScanNotePage(pages: pages, patient: p));
           },
         ),
       if (clinical)
@@ -77,7 +118,7 @@ Future<void> startScanFlow(
           onTap: () async {
             final p = await whose('Whose record is this?');
             if (p == null || !root.mounted) return;
-            await pushMobile(root, ScanRecordPage(pages: pages, patient: p));
+            open(ScanRecordPage(pages: pages, patient: p));
           },
         ),
       if (inventory)
@@ -86,8 +127,7 @@ Future<void> startScanFlow(
           detail: 'Adds the medicines and supplies bought to inventory',
           icon: CruIcons.box,
           tone: MobileTone.teal,
-          onTap: () =>
-              pushMobile(root, ScanBillPage(pages: pages, revenue: revenue)),
+          onTap: () => open(ScanBillPage(pages: pages, revenue: revenue)),
         ),
     ],
   );
@@ -230,8 +270,7 @@ class ScanPagesStrip extends StatelessWidget {
         itemCount: pages.length,
         separatorBuilder: (_, _) => const SizedBox(width: CruSpace.s10),
         itemBuilder: (context, i) => GestureDetector(
-          onTap: () =>
-              pushMobile(context, _ScanPagesViewer(pages: pages, initial: i)),
+          onTap: () => openScanPages(context, pages, i),
           child: _Paper(
             page: pages[i],
             width: (height - 8) * pages[i].aspectRatio.clamp(0.5, 1.6),
@@ -242,7 +281,15 @@ class ScanPagesStrip extends StatelessWidget {
   }
 }
 
-/// The scanned pages full screen, swiped through, pinch to zoom.
+/// The scanned pages full screen from [initial], swiped through, pinch to
+/// zoom.
+void openScanPages(
+  BuildContext context,
+  List<ScannedPage> pages,
+  int initial,
+) =>
+    pushMobile<void>(context, _ScanPagesViewer(pages: pages, initial: initial));
+
 class _ScanPagesViewer extends StatelessWidget {
   const _ScanPagesViewer({required this.pages, required this.initial});
 

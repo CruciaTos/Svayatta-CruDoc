@@ -94,6 +94,18 @@ abstract final class ScanCapture {
     return pages;
   }
 
+  /// [page] as shown after [turns] quarter turns clockwise and then, when
+  /// [mirrored], a left-to-right flip.
+  static Future<ScannedPage> turned(
+    ScannedPage page,
+    int turns,
+    bool mirrored,
+  ) async {
+    final out = await compute(_turn, (page.jpeg, turns, mirrored));
+    if (out == null) throw const ScanCaptureException('Unreadable picture.');
+    return out;
+  }
+
   /// One scanned page saved as a JPEG in the app's temporary folder, for
   /// readers that need a file (ML Kit receipt reading). Null when the
   /// person backed out.
@@ -155,6 +167,24 @@ ScannedPage? _shrink(Uint8List bytes) {
   return ScannedPage(
     jpeg: img.encodeJpg(page, quality: ScanCapture._jpegQuality),
     thumb: img.encodeJpg(thumb, quality: 70),
+    width: page.width,
+    height: page.height,
+  );
+}
+
+/// Top-level so it runs on a background isolate.
+ScannedPage? _turn((Uint8List, int, bool) job) {
+  final (bytes, turns, mirrored) = job;
+  var page = img.decodeImage(bytes);
+  if (page == null) return null;
+  // Flipping after a turn is the same as flipping first and turning the
+  // other way.
+  if (mirrored) page = img.flipHorizontal(page);
+  final quarter = (mirrored ? -turns : turns) % 4;
+  if (quarter != 0) page = img.copyRotate(page, angle: 90 * quarter);
+  return ScannedPage(
+    jpeg: img.encodeJpg(page, quality: ScanCapture._jpegQuality),
+    thumb: img.encodeJpg(_fit(page, ScanCapture._thumbLongEdge), quality: 70),
     width: page.width,
     height: page.height,
   );

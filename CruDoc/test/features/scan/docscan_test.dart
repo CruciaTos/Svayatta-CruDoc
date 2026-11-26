@@ -412,7 +412,7 @@ void main() {
       final frame = frameOf(tilted);
       final pages = <CapturedPage>[];
       final phases = <ScanPhase>[];
-      for (var i = 0; i < 14; i++) {
+      for (var i = 0; i < 34; i++) {
         final u = engine.process(frame, nowMs: i * 80);
         phases.add(u.phase);
         if (u.page != null) pages.add(u.page!);
@@ -427,10 +427,10 @@ void main() {
       final engine = ScanEngine();
       final a = frameOf(tilted, seed: 1), b = frameOf(tilted, seed: 99);
       var saved = 0;
-      for (var i = 0; i < 12; i++) {
+      for (var i = 0; i < 30; i++) {
         if (engine.process(a, nowMs: i * 80).page != null) saved++;
       }
-      for (var i = 12; i < 26; i++) {
+      for (var i = 30; i < 62; i++) {
         if (engine.process(b, nowMs: i * 80).page != null) saved++;
       }
       expect(saved, 2);
@@ -454,14 +454,14 @@ void main() {
         fh,
       );
       var saved = 0, t = 0;
-      for (var i = 0; i < 24; i++) {
+      for (var i = 0; i < 48; i++) {
         if (engine.process(page, nowMs: t += 80).page != null) saved++;
       }
       expect(saved, 1, reason: 'held in view: one save');
       for (var i = 0; i < 4; i++) {
         engine.process(empty, nowMs: t += 80);
       }
-      for (var i = 0; i < 14; i++) {
+      for (var i = 0; i < 34; i++) {
         if (engine.process(page, nowMs: t += 80).page != null) saved++;
       }
       expect(saved, 2);

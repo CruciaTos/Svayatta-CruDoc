@@ -205,6 +205,7 @@ class PatientFile {
     this.receivedFromUid = '',
     this.receivedFromName = '',
     this.teeth = const [],
+    this.note = '',
   });
 
   final String id;
@@ -260,6 +261,10 @@ class PatientFile {
   /// linked to a tooth). Old files have none.
   final List<int> teeth;
 
+  /// The doctor's own words about this file ("Mouth cleanup done"); ''
+  /// when there are none.
+  final String note;
+
   FileKind get kind => PatientFileTypes.kindOf(contentType);
 
   PatientFile copyWith({
@@ -279,6 +284,7 @@ class PatientFile {
     String? receivedFromUid,
     String? receivedFromName,
     List<int>? teeth,
+    String? note,
   }) => PatientFile(
     id: id,
     doctorId: doctorId,
@@ -302,6 +308,7 @@ class PatientFile {
     receivedFromUid: receivedFromUid ?? this.receivedFromUid,
     receivedFromName: receivedFromName ?? this.receivedFromName,
     teeth: teeth ?? this.teeth,
+    note: note ?? this.note,
   );
 
   Map<String, Object?> toLocalMap() => {
@@ -327,6 +334,7 @@ class PatientFile {
     'receivedFromUid': receivedFromUid,
     'receivedFromName': receivedFromName,
     'teeth': jsonEncode(teeth),
+    'note': note,
   };
 
   factory PatientFile.fromLocalMap(Map<String, Object?> m) => PatientFile(
@@ -355,6 +363,7 @@ class PatientFile {
       for (final e in _decodeList(m['teeth']))
         if (int.tryParse(e) != null) int.parse(e),
     ],
+    note: m['note'] as String? ?? '',
   );
 }
 

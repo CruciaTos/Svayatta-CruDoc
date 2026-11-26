@@ -700,9 +700,10 @@ class _FileRow extends StatelessWidget {
     semanticLabel: 'Open ${file.name}',
     leading: FileThumb(file: file),
     title: file.name,
-    subtitle:
-        '${FilesBuilder.dateLabel(file.createdAt, now)} · '
-        '${FilesBuilder.typeLabel(file)}',
+    subtitle: file.note.isNotEmpty
+        ? file.note.replaceAll('\n', ' ')
+        : '${FilesBuilder.dateLabel(file.createdAt, now)} · '
+              '${FilesBuilder.typeLabel(file)}',
   );
 }
 

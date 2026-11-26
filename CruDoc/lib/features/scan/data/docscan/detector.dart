@@ -57,7 +57,11 @@ abstract final class DocumentDetector {
   static const minAreaFraction = 0.12;
 
   /// [refine] off returns the raw line-intersection corners (diagnostics).
-  static Detection detect(GrayImage input, {bool refine = true}) {
+  ///
+  /// With [around], the page wanted is the one that point is on (a finger
+  /// held on it): only shapes containing it count, and since the person says
+  /// there is a page there, smaller and fainter ones are accepted.
+  static Detection detect(GrayImage input, {bool refine = true, Pt? around}) {
     final w = input.width, h = input.height;
     if (w < 32 || h < 32) return const Detection(DetectionStatus.none);
     final g = gaussian5(input);
@@ -68,8 +72,13 @@ abstract final class DocumentDetector {
     final edgeThreshold = math.max(10.0, 2.5 * median);
     final supportThreshold = math.max(8.0, 2.0 * median);
 
-    final lines = _houghLines(grad, edgeThreshold);
+    final lines = _houghLines(
+      grad,
+      edgeThreshold,
+      most: around == null ? _maxLines : _maxLines + 10,
+    );
     if (lines.length < 4) return const Detection(DetectionStatus.none);
+    final smallest = around == null ? minAreaFraction : 0.03;
 
     final minDim = math.min(w, h).toDouble();
     final frameArea = (w * h).toDouble();
@@ -110,6 +119,7 @@ abstract final class DocumentDetector {
         if (pts.any((p) => p == null)) continue;
         final quad = Quad.ordered(pts.cast<Pt>());
         if (!_plausibleShape(quad, minDim)) continue;
+        if (around != null && !quad.contains(around)) continue;
         // Far outside the frame: not even a partial page.
         if (!quad.insideRect(w.toDouble(), h.toDouble(), tolerance: minDim)) {
           continue;
@@ -126,7 +136,7 @@ abstract final class DocumentDetector {
           if (s.good && (bestPartial == null || s.score > bestPartial.score)) {
             bestPartial = s;
           }
-        } else if (areaFrac < minAreaFraction) {
+        } else if (areaFrac < smallest) {
           if (s.good && (bestSmall == null || s.score > bestSmall.score)) {
             bestSmall = s;
           }
@@ -136,6 +146,12 @@ abstract final class DocumentDetector {
       }
     }
 
+    if (around != null) {
+      final chosen = _pointedAt(scored, g);
+      return chosen == null
+          ? const Detection(DetectionStatus.none)
+          : _finished(chosen, g, w, h, refine);
+    }
     if (scored.isNotEmpty) {
       final top = scored.where((s) => s.good).toList();
       if (top.isNotEmpty) {
@@ -155,28 +171,7 @@ abstract final class DocumentDetector {
             chosen = s;
           }
         }
-        final refined = !refine
-            ? chosen.quad
-            : refineQuad(
-                g.sample,
-                chosen.quad,
-                searchRadius: 2.5,
-                step: 0.75,
-                tangentSpacing: 1.0,
-                maxShift: 2.5,
-                minContrast: 4,
-              );
-        final quad =
-            refined.insideRect(w + 1.0, h + 1.0, tolerance: 1) &&
-                refined.isConvex
-            ? refined
-            : chosen.quad;
-        return Detection(
-          DetectionStatus.found,
-          quad: quad,
-          support: chosen.support,
-          minSide: chosen.minSide,
-        );
+        return _finished(chosen, g, w, h, refine);
       }
     }
     if (bestPartial != null &&
@@ -197,6 +192,319 @@ abstract final class DocumentDetector {
       );
     }
     return const Detection(DetectionStatus.none);
+  }
+
+  /// [chosen] with its corners settled onto the edges.
+  static Detection _finished(
+    _Scored chosen,
+    GrayImage g,
+    int w,
+    int h,
+    bool refine,
+  ) {
+    final refined = !refine
+        ? chosen.quad
+        : refineQuad(
+            g.sample,
+            chosen.quad,
+            searchRadius: 2.5,
+            step: 0.75,
+            tangentSpacing: 1.0,
+            maxShift: 2.5,
+            minContrast: 4,
+          );
+    final quad =
+        refined.insideRect(w + 1.0, h + 1.0, tolerance: 1) && refined.isConvex
+        ? refined
+        : chosen.quad;
+    return Detection(
+      DetectionStatus.found,
+      quad: quad,
+      support: chosen.support,
+      minSide: chosen.minSide,
+    );
+  }
+
+  /// Of the shapes around a finger, the sheet it rests on: the smallest
+  /// well-supported one that differs from what lies outside it. So the book
+  /// wins over the tray it lies on, and a printed box (paper on both sides
+  /// of its rule) does not count at all.
+  static _Scored? _pointedAt(List<_Scored> scored, GrayImage g) {
+    final fair = [
+      for (final s in scored)
+        if (s.support >= 0.45 && s.minSide >= 0.22) s,
+    ];
+    final sides = [for (final s in fair) _standsOut(s.quad, g)];
+    // All four sides if any shape manages it: half a page, closed off by a
+    // rule across it, only manages three.
+    final need = sides.contains(4) ? 4 : 3;
+    final sheets = [
+      for (var i = 0; i < fair.length; i++)
+        if (sides[i] >= need) fair[i],
+    ];
+    if (sheets.isEmpty) return null;
+    var best = 0.0;
+    for (final s in sheets) {
+      best = math.max(best, s.score);
+    }
+    _Scored? chosen;
+    for (final s in sheets) {
+      if (s.score < 0.78 * best) continue;
+      if (chosen == null ||
+          s.quad.area < chosen.quad.area * 0.97 ||
+          (s.quad.area <= chosen.quad.area * 1.03 && s.score > chosen.score)) {
+        chosen = s;
+      }
+    }
+    if (chosen == null) return null;
+    // A crease or spine just inside the sheet makes a slightly smaller
+    // shape: the outer edge a little further out is the sheet's.
+    var outer = chosen;
+    for (final s in sheets) {
+      if (s.quad.area > outer.quad.area &&
+          s.quad.area <= chosen.quad.area * 1.12 &&
+          s.score >= 0.92 * chosen.score) {
+        outer = s;
+      }
+    }
+    return outer;
+  }
+
+  /// How many sides of [q] are a change of shade all along: lighter inside
+  /// than out (or darker), not merely print that comes and goes.
+  static int _standsOut(Quad q, GrayImage g) {
+    final c = q.corners;
+    final centre = q.centroid;
+    var sides = 0;
+    for (var i = 0; i < 4; i++) {
+      final a = c[i], b = c[(i + 1) % 4];
+      final dir = (b - a).unit;
+      var n = Pt(-dir.y, dir.x);
+      if (n.dot(centre - a) < 0) n = n * -1; // inward
+      var lighter = 0, darker = 0, seen = 0;
+      for (var k = 0; k < 24; k++) {
+        final p = a + (b - a) * (0.08 + 0.84 * (k + 0.5) / 24);
+        final outside = p - n * 9;
+        if (outside.x < 0 ||
+            outside.y < 0 ||
+            outside.x > g.width ||
+            outside.y > g.height) {
+          continue;
+        }
+        seen++;
+        // A little band on each side, so single strokes of print even out.
+        var step = 0.0;
+        var inMin = 255.0, inMax = 0.0, outMin = 255.0, outMax = 0.0;
+        for (final off in const [3.0, 5.0, 7.0, 9.0]) {
+          final i2 = p + n * off, o2 = p - n * off;
+          final u = g.sample(i2.x, i2.y), v = g.sample(o2.x, o2.y);
+          step += u - v;
+          inMin = math.min(inMin, u);
+          inMax = math.max(inMax, u);
+          outMin = math.min(outMin, v);
+          outMax = math.max(outMax, v);
+        }
+        // Strokes of print on either hand make it no edge of a sheet.
+        if (inMax - inMin > 55 || outMax - outMin > 55) continue;
+        if (step >= 4 * 14) lighter++;
+        if (step <= -4 * 14) darker++;
+      }
+      if (seen > 0 && math.max(lighter, darker) >= 0.65 * seen) sides++;
+    }
+    return sides;
+  }
+
+  static const _snapSize = 128;
+
+  /// The page corner the person is pointing at: two straight edges, one
+  /// lighter side between them, meeting within [radius] of [at] (all in
+  /// [src]'s pixels). [inward] is roughly where the rest of the page lies,
+  /// when known. Null when nothing there looks like a corner.
+  static Pt? cornerNear(
+    PixelSource src,
+    Pt at, {
+    required double radius,
+    Pt? inward,
+  }) {
+    const n = _snapSize;
+    final r = math.max(radius, 12.0);
+    final half = math.max(2.2 * r, 48.0);
+    final step = 2 * half / n; // picture pixels per window pixel
+    final origin = Pt(at.x - half, at.y - half);
+    final width = src.width.toDouble(), height = src.height.toDouble();
+    Pt toPicture(Pt p) => origin + p * step;
+
+    // A copy of the surroundings, small enough that print and grain blur.
+    final sub = step.ceil().clamp(1, 4);
+    final data = Uint8List(n * n);
+    for (var y = 0; y < n; y++) {
+      for (var x = 0; x < n; x++) {
+        var sum = 0.0;
+        for (var j = 0; j < sub; j++) {
+          for (var i = 0; i < sub; i++) {
+            sum += src.luma(
+              origin.x + (x + (i + 0.5) / sub) * step,
+              origin.y + (y + (j + 0.5) / sub) * step,
+            );
+          }
+        }
+        data[y * n + x] = (sum / (sub * sub)).round();
+      }
+    }
+    final grad = _Gradients.of(gaussian5(GrayImage(n, n, data)));
+    // Beyond the picture there is nothing; repeated border pixels would
+    // otherwise draw edges of their own.
+    bool inPicture(double x, double y, double margin) {
+      final px = origin.x + x * step, py = origin.y + y * step;
+      final m = margin * step;
+      return px >= m && py >= m && px <= width - m && py <= height - m;
+    }
+
+    for (var y = 0; y < n; y++) {
+      for (var x = 0; x < n; x++) {
+        if (inPicture(x + 0.5, y + 0.5, 1.5)) continue;
+        final i = y * n + x;
+        grad.gx[i] = grad.gy[i] = grad.mag[i] = 0;
+      }
+    }
+    final median = grad.medianMagnitude();
+    final lines = _houghLines(grad, math.max(10.0, 2.2 * median));
+    if (lines.length < 2) return null;
+    final threshold = math.max(7.0, 1.6 * median);
+
+    // How much of a ray from [from] along [dir] lies on an edge.
+    _Ray ray(Pt from, Pt dir) {
+      final normal = Pt(-dir.y, dir.x);
+      var seen = 0, hit = 0, signSum = 0;
+      var strength = 0.0;
+      for (var t = 3.0; t <= 0.45 * n; t += 1.5) {
+        final p = from + dir * t;
+        if (p.x < 2 || p.y < 2 || p.x > n - 3 || p.y > n - 3) break;
+        if (!inPicture(p.x, p.y, 2)) break;
+        seen++;
+        var best = 0.0;
+        for (final off in const [-1.5, -0.75, 0.0, 0.75, 1.5]) {
+          final qx = (p.x + normal.x * off).floor();
+          final qy = (p.y + normal.y * off).floor();
+          final i = qy * n + qx;
+          final gx = grad.gx[i], gy = grad.gy[i];
+          final proj = gx * normal.x + gy * normal.y;
+          if (proj.abs() > best.abs() &&
+              proj.abs() >= 0.75 * math.sqrt(gx * gx + gy * gy)) {
+            best = proj;
+          }
+        }
+        if (best.abs() >= threshold) {
+          hit++;
+          signSum += best > 0 ? 1 : -1;
+          strength += best.abs();
+        }
+      }
+      if (seen == 0 || hit == 0) return const _Ray(0, 0, 0);
+      final consistency = signSum.abs() / hit;
+      final support =
+          (hit / seen) * (0.3 + 0.7 * consistency) * math.min(1.0, seen / 16);
+      return _Ray(support, signSum >= 0 ? 1 : -1, strength / hit);
+    }
+
+    const centre = Pt(n / 2, n / 2);
+    final reachW = r / step;
+    final inwardW = inward == null ? null : (inward - origin) * (1 / step);
+    var bestScore = 0.25; // anything weaker is not a corner
+    Pt? corner;
+    Pt? dirA, dirB;
+    var brighterInside = 1;
+    for (var i = 0; i < lines.length; i++) {
+      for (var j = i + 1; j < lines.length; j++) {
+        if (_angleBetween(lines[i], lines[j]) < 40) continue;
+        final x = lines[i].line.intersect(lines[j].line);
+        if (x == null) continue;
+        final distance = x.distanceTo(centre);
+        if (distance > reachW) continue;
+        for (final sa in const [1.0, -1.0]) {
+          for (final sb in const [1.0, -1.0]) {
+            final a = lines[i].line.dir * sa, b = lines[j].line.dir * sb;
+            final ra = ray(x, a), rb = ray(x, b);
+            final weakest = math.min(ra.support, rb.support);
+            if (weakest < 0.5) continue;
+            // Both edges must agree on which side is the paper.
+            final inA = ra.sign * (Pt(-a.y, a.x).dot(b) >= 0 ? 1 : -1);
+            final inB = rb.sign * (Pt(-b.y, b.x).dot(a) >= 0 ? 1 : -1);
+            if (inA != inB) continue;
+            // A corner ends there; a crossing carries on.
+            final beyond = math.max(
+              ray(x, a * -1).support,
+              ray(x, b * -1).support,
+            );
+            final contrast = math.min(ra.strength, rb.strength);
+            var score =
+                (0.7 * weakest + 0.15 * (ra.support + rb.support)) *
+                (1 - 0.35 * beyond) *
+                (0.55 + 0.45 * math.min(1.0, contrast / (4 * threshold))) *
+                (1 - 0.45 * distance / reachW);
+            if (inwardW != null && (a + b).dot(inwardW - x) < 0) score *= 0.7;
+            if (score > bestScore) {
+              bestScore = score;
+              corner = x;
+              dirA = a;
+              dirB = b;
+              brighterInside = inA;
+            }
+          }
+        }
+      }
+    }
+    if (corner == null) return null;
+
+    // Sharpen on the full-resolution picture.
+    final coarse = toPicture(corner);
+    final reach = 1.5 * step + 1.5;
+    Line2 edge(Pt dir, Pt other) {
+      var normal = Pt(-dir.y, dir.x);
+      if (normal.dot(other) < 0) normal = normal * -1; // into the page
+      final original = Line2(coarse, dir);
+      const samples = 24;
+      final from = 3 * step, to = 0.4 * n * step;
+      final found = <(Pt, double)>[];
+      Pt? first, last;
+      for (var k = 0; k < samples; k++) {
+        final p = coarse + dir * (from + (to - from) * (k + 0.5) / samples);
+        if (p.x < 1 || p.y < 1 || p.x > width - 1 || p.y > height - 1) break;
+        first ??= p;
+        last = p;
+        double across(double s) {
+          final q = p + normal * s;
+          return src.luma(q.x, q.y);
+        }
+
+        double slope(double s) =>
+            (across(s + 1) - across(s - 1)) * brighterInside;
+        var bestS = 0.0, best = 0.0;
+        for (var s = -reach; s <= reach; s += 1) {
+          final v = slope(s);
+          if (v > best) {
+            best = v;
+            bestS = s;
+          }
+        }
+        if (best < 5) continue;
+        final l = slope(bestS - 1), rr = slope(bestS + 1);
+        final den = l - 2 * best + rr;
+        final shift = den.abs() < 1e-6
+            ? 0.0
+            : (0.5 * (l - rr) / den).clamp(-0.5, 0.5);
+        found.add((p + normal * (bestS + shift), best));
+      }
+      if (first == null) return original;
+      return _robustSide(found, original, first, last!, reach * 1.5, samples) ??
+          original;
+    }
+
+    final refined = edge(dirA!, dirB!).intersect(edge(dirB, dirA));
+    final out = refined != null && refined.distanceTo(coarse) <= reach * 1.5
+        ? refined
+        : coarse;
+    return Pt(out.x.clamp(0.0, width), out.y.clamp(0.0, height));
   }
 
   /// Angles 40–140°, no sliver sides, opposite sides within 2.5× of each
@@ -290,7 +598,11 @@ abstract final class DocumentDetector {
     return a.line.distanceTo(pb);
   }
 
-  static List<_HLine> _houghLines(_Gradients grad, double edgeThreshold) {
+  static List<_HLine> _houghLines(
+    _Gradients grad,
+    double edgeThreshold, {
+    int most = _maxLines,
+  }) {
     final w = grad.w, h = grad.h;
     final maxRho = (math.sqrt(w * w + h * h)).ceil();
     final rhoBins = 2 * maxRho + 1;
@@ -362,7 +674,7 @@ abstract final class DocumentDetector {
     final chosen = <_HLine>[];
     var tried = 0;
     for (final idx in peaks) {
-      if (chosen.length >= _maxLines || tried >= 160) break;
+      if (chosen.length >= most || tried >= 160) break;
       final t = idx ~/ rhoBins;
       final rho = (idx % rhoBins - maxRho).toDouble();
       // Cheap first: the same accumulator neighbourhood as a chosen line.
@@ -461,6 +773,17 @@ bool _sameLine(Line2 a, double ta, Line2 b, double tb, int w, int h) {
   }
   if (t0 > t1) return null;
   return (l.point + l.dir * t0, l.point + l.dir * t1);
+}
+
+class _Ray {
+  const _Ray(this.support, this.sign, this.strength);
+
+  /// Share of the ray on a consistent edge (0–1).
+  final double support;
+
+  /// Which side of the ray is brighter.
+  final int sign;
+  final double strength;
 }
 
 class _HLine {

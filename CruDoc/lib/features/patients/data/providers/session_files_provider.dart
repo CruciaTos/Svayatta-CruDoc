@@ -5,6 +5,10 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
 
+/// A file deliberately kept out of every session: stored like a link, so
+/// the day it was added on does not claim it.
+const kNoVisit = 'none';
+
 /// Which of a patient's files belong to which visit.
 ///
 /// A file belongs to a visit when it was added from that visit's session
@@ -19,7 +23,7 @@ class SessionFiles {
   /// The patient's files, newest first.
   final List<PatientFile> files;
 
-  /// File id → the visit it was added from.
+  /// File id → the visit it was added to, or [kNoVisit].
   final Map<String, String> links;
 
   /// [visit]'s files, newest first. [extraIds] adds files linked some
@@ -81,20 +85,42 @@ Future<void> linkFilesToVisit(
   WidgetRef ref,
   Visit visit,
   Iterable<String> fileIds,
+) => setFilesVisit(ref, visit.patientId, fileIds, visit);
+
+/// Puts the patient's [fileIds] in [visit]'s session, taking them out of
+/// any other. With no [visit] they belong to no session.
+Future<void> setFilesVisit(
+  WidgetRef ref,
+  String patientId,
+  Iterable<String> fileIds,
+  Visit? visit,
 ) async {
   final ids = fileIds.toSet();
   if (ids.isEmpty) return;
-  final records = await ref.read(
-    patientRecordsProvider((
-      patientId: visit.patientId,
-      kind: RecKind.visitFiles,
-    )).future,
-  );
+  final provider = patientRecordsProvider((
+    patientId: patientId,
+    kind: RecKind.visitFiles,
+  ));
+  final records = await ref.read(provider.future);
+  final target = visit?.id ?? kNoVisit;
   DentalRecord? existing;
+  final leaving = <DentalRecord>[];
   for (final r in records) {
-    if (r.str('visitId') == visit.id) {
+    final held = r.data['fileIds'];
+    if (r.str('visitId') == target && existing == null) {
       existing = r;
-      break;
+    } else if (held is List && held.any((id) => ids.contains('$id'))) {
+      leaving.add(
+        r.copyWith(
+          data: {
+            ...r.data,
+            'fileIds': [
+              for (final id in held)
+                if (!ids.contains('$id')) '$id',
+            ],
+          },
+        ),
+      );
     }
   }
   final before = existing?.data['fileIds'];
@@ -104,10 +130,13 @@ Future<void> linkFilesToVisit(
     ...ids,
   }.toList();
   final record = existing == null
-      ? DentalRecord.create(visit.patientId, RecKind.visitFiles, {
-          'visitId': visit.id,
+      ? DentalRecord.create(patientId, RecKind.visitFiles, {
+          'visitId': target,
           'fileIds': merged,
-        }, at: visit.scheduledStart)
+        }, at: visit?.scheduledStart)
       : existing.copyWith(data: {...existing.data, 'fileIds': merged});
+  for (final r in leaving) {
+    await saveDentalRecord(ref, r);
+  }
   await saveDentalRecord(ref, record);
 }

@@ -156,6 +156,15 @@ void main() {
       'bal-single-leg-eyes-closed',
       'bal-cushion-stand',
       'bal-step-over',
+      'bal-tandem-walk',
+      'bal-single-leg-reach',
+      // Nerve glides move a nerve through its tunnel. Highlighting muscle
+      // on the chart would say the opposite of what the exercise is for,
+      // and these are the two where getting that wrong matters most.
+      'neck-median-nerve-glide',
+      'lb-sciatic-nerve-glide',
+      'wrist-ulnar-nerve-glide',
+      'bal-sideways-walk',
     };
 
     test('no two exercises share an id', () {

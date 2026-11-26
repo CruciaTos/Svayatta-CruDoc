@@ -2088,4 +2088,1046 @@ const List<ExerciseDef> kExerciseLibrary = [
     reps: 10,
     level: ExerciseLevel.medium,
   ),
+
+  // Later-stage loading, the stretches the library was missing, and the
+  // respiratory work a chest caseload needs.
+  ExerciseDef(
+    id: 'knee-bodyweight-squat',
+    muscles: [
+      'm_vastus_lateralis_muscle',
+      'm_gluteus_maximus_muscle',
+      'm_rectus_femoris_muscle',
+    ],
+    name: 'Squat',
+    region: ExerciseRegion.knee,
+    goal: 'Builds the strength needed for stairs, chairs and getting up.',
+    steps: [
+      'Stand with your feet hip-width apart, a chair behind you.',
+      'Push your hips back and bend your knees as if to sit.',
+      'Go down as far as is comfortable, keeping your heels down.',
+      'Stand back up by pushing through your heels.',
+    ],
+    cautions:
+        'Keep your knees in line with your feet, not falling inward. '
+        '$_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'knee-static-lunge',
+    muscles: [
+      'm_rectus_femoris_muscle',
+      'm_gluteus_maximus_muscle',
+      'm_vastus_medialis_muscle',
+    ],
+    name: 'Static lunge',
+    region: ExerciseRegion.knee,
+    goal: 'Strengthens one leg at a time in a walking position.',
+    steps: [
+      'Stand in a split position, one foot forward, holding a counter.',
+      'Lower straight down by bending both knees.',
+      'Keep your body upright and your front heel down.',
+      'Push back up through the front leg.',
+    ],
+    cautions:
+        'Do not let the front knee travel past the toes. Hold support if '
+        'needed. $_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'knee-step-down',
+    muscles: ['m_vastus_medialis_muscle', 'm_gluteus_medius_muscle'],
+    name: 'Step down',
+    region: ExerciseRegion.knee,
+    goal: 'Trains the control needed for going downstairs.',
+    steps: [
+      'Stand on a low step, holding the rail.',
+      'Slowly lower the other foot toward the floor by bending the standing '
+          'knee.',
+      'Tap the heel down lightly and come back up.',
+      'Keep your pelvis level throughout.',
+    ],
+    cautions:
+        'Slowly down is the point. Start with the lowest step you have. '
+        '$_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'knee-quad-stretch-standing',
+    muscles: ['m_rectus_femoris_muscle', 'm_vastus_lateralis_muscle'],
+    name: 'Standing thigh stretch',
+    region: ExerciseRegion.knee,
+    goal: 'Eases tightness at the front of the thigh.',
+    steps: [
+      'Stand holding a counter with one hand.',
+      'Bend one knee and take hold of that ankle behind you.',
+      'Keep your knees together and your hips pushed slightly forward.',
+      'Hold, then release slowly.',
+    ],
+    cautions:
+        'Stop if the kneecap hurts. Use a towel around the ankle if you '
+        'cannot reach. $_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'shoulder-band-abduction',
+    muscles: ['m_acromial_part_of_deltoid_muscle', 'm_supraspinatus_muscle'],
+    name: 'Sideways raise with band',
+    region: ExerciseRegion.shoulder,
+    goal: 'Strengthens lifting the arm out to the side.',
+    steps: [
+      'Stand on one end of a band and hold the other in that hand.',
+      'Keep the elbow almost straight and the thumb turned slightly up.',
+      'Raise the arm out to the side, no higher than shoulder height.',
+      'Lower slowly.',
+    ],
+    cautions: 'Stop at shoulder height, and stop sooner if it pinches. $_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'shoulder-wall-pushup',
+    muscles: [
+      'm_serratus_anterior_muscle',
+      'm_sternocostal_head_of_pectoralis_major_muscle',
+    ],
+    name: 'Wall push-up',
+    region: ExerciseRegion.shoulder,
+    goal: 'Loads the shoulder gently through a pushing movement.',
+    steps: [
+      'Stand facing a wall with your hands at shoulder height and width.',
+      'Bend your elbows to bring your chest toward the wall.',
+      'Push back out, and at the end push your shoulder blades apart.',
+      'Keep your body in a straight line.',
+    ],
+    cautions: 'Step closer to the wall to make it easier. $_stop',
+    sets: 3,
+    reps: 12,
+  ),
+  ExerciseDef(
+    id: 'shoulder-shrug',
+    muscles: ['m_descending_part_of_trapezius_muscle', 'm_levator_scapulae'],
+    name: 'Shoulder shrug',
+    region: ExerciseRegion.shoulder,
+    goal: 'Strengthens the muscles that lift the shoulder blades.',
+    steps: [
+      'Stand or sit tall with your arms by your sides.',
+      'Lift both shoulders straight up toward your ears.',
+      'Hold briefly at the top.',
+      'Lower slowly and fully.',
+    ],
+    cautions:
+        'Straight up and down, without rolling the shoulders. Not for a '
+        'neck that is already tight at the top. $_stop',
+    sets: 3,
+    reps: 12,
+  ),
+  ExerciseDef(
+    id: 'neck-levator-stretch',
+    muscles: ['m_levator_scapulae'],
+    name: 'Levator scapulae stretch',
+    region: ExerciseRegion.neck,
+    goal: 'Eases tightness between the neck and the shoulder blade.',
+    steps: [
+      'Sit and reach one hand over to hold the chair seat, to anchor that '
+          'shoulder.',
+      'Turn your head about 45 degrees away from that side.',
+      'Look down toward your opposite knee until you feel a stretch.',
+      'Hold, then release.',
+    ],
+    cautions: 'Stop if you feel dizzy or get pins and needles. $_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'neck-wall-retraction',
+    muscles: ['m_longus_colli_muscle', 'm_longus_capitis_muscle'],
+    name: 'Chin tuck against a wall',
+    region: ExerciseRegion.neck,
+    goal: 'Practises head position with the wall as feedback.',
+    steps: [
+      'Stand with your back and head against a wall, feet a little forward.',
+      'Draw your chin backward, making a double chin.',
+      'Press the back of your head gently into the wall.',
+      'Hold, then relax.',
+    ],
+    cautions: 'Keep your chin level — do not tip the head back. $_stop',
+    sets: 2,
+    reps: 10,
+    holdSeconds: 5,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'back-roller-extension',
+    muscles: [
+      'm_longissimus_thoracis_muscle',
+      'm_transverse_part_of_trapezius_muscle',
+    ],
+    name: 'Mid-back extension over a roller',
+    region: ExerciseRegion.upperBack,
+    goal: 'Opens a stiff mid-back using a roller or rolled towel.',
+    steps: [
+      'Lie with a foam roller or rolled towel across your mid-back.',
+      'Support your head with your hands.',
+      'Let your upper back arch gently backward over the roller.',
+      'Come back up, move the roller a little, and repeat.',
+    ],
+    cautions:
+        'Keep it in the mid-back, not the low back or neck. Stop if it '
+        'pinches. $_stop',
+    sets: 2,
+    reps: 8,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'back-band-pull-apart',
+    muscles: [
+      'm_rhomboid_major_muscle',
+      'm_transverse_part_of_trapezius_muscle',
+    ],
+    name: 'Band pull-apart',
+    region: ExerciseRegion.upperBack,
+    goal: 'Strengthens the upper back against light resistance.',
+    steps: [
+      'Hold a band in both hands at chest height, arms out in front.',
+      'Pull your hands apart, squeezing the shoulder blades together.',
+      'Keep your elbows almost straight.',
+      'Return slowly under control.',
+    ],
+    cautions: 'Keep your shoulders down and do not shrug. $_stop',
+    sets: 3,
+    reps: 12,
+  ),
+  ExerciseDef(
+    id: 'lb-side-lying-rotation',
+    muscles: [
+      'm_external_abdominal_oblique_muscle',
+      'm_quadratus_lumborum_muscle',
+    ],
+    name: 'Side-lying trunk rotation',
+    region: ExerciseRegion.lowBack,
+    goal: 'A gentle rotation stretch for a stiff low back.',
+    steps: [
+      'Lie on your back, then bring both knees up and let them fall to one '
+          'side.',
+      'Keep both shoulders on the floor.',
+      'Hold and breathe out into the stretch.',
+      'Bring the knees back and repeat to the other side.',
+    ],
+    cautions: 'Stop if it brings on leg symptoms. $_stop',
+    sets: 2,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'lb-prone-leg-raise',
+    muscles: ['m_gluteus_maximus_muscle', 'm_iliocostalis_lumborum_muscle'],
+    name: 'Prone single leg raise',
+    region: ExerciseRegion.lowBack,
+    goal: 'Strengthens the back and buttock together.',
+    steps: [
+      'Lie face down with a pillow under your hips.',
+      'Lift one straight leg a small way off the surface.',
+      'Keep your hips level and your pelvis still.',
+      'Lower slowly and swap legs.',
+    ],
+    cautions: 'A small lift. Do not arch the low back. $_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'hip-adductor-stretch',
+    muscles: ['m_adductor_longus', 'm_gracilis_muscle'],
+    name: 'Seated groin stretch',
+    region: ExerciseRegion.hip,
+    goal: 'Eases tightness in the inner thigh.',
+    steps: [
+      'Sit on the floor with the soles of your feet together.',
+      'Hold your ankles and let your knees fall outward.',
+      'Press gently on the inner thighs with your elbows.',
+      'Hold, then release.',
+    ],
+    cautions: 'A stretch, not a sharp pull in the groin. $_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'hip-lateral-step-up',
+    muscles: ['m_gluteus_medius_muscle', 'm_gluteus_maximus_muscle'],
+    name: 'Sideways step up',
+    region: ExerciseRegion.hip,
+    goal: 'Strengthens the outer hip through a full movement.',
+    steps: [
+      'Stand side-on to a low step, holding a rail.',
+      'Step up sideways with the nearest foot.',
+      'Bring the other foot up to meet it.',
+      'Step back down slowly, leading with the far foot.',
+    ],
+    cautions:
+        'Keep your pelvis level and do not push off the lower foot. '
+        '$_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'core-bear-hold',
+    muscles: [
+      'm_transversus_abdominis_muscle',
+      'm_rectus_abdominis_muscle',
+      'm_serratus_anterior_muscle',
+    ],
+    name: 'Bear hold',
+    region: ExerciseRegion.core,
+    goal: 'Trains the trunk with the back held flat and still.',
+    steps: [
+      'Kneel on hands and knees with your knees under your hips.',
+      'Flatten your lower back and lift your knees a couple of inches.',
+      'Hold, breathing normally, without letting the back sag.',
+      'Lower the knees slowly.',
+    ],
+    cautions: 'Stop as soon as the back starts to sag or arch. $_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 15,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'core-standing-side-bend',
+    muscles: [
+      'm_quadratus_lumborum_muscle',
+      'm_external_abdominal_oblique_muscle',
+    ],
+    name: 'Standing side bend',
+    region: ExerciseRegion.core,
+    goal: 'Works the side of the trunk through its range.',
+    steps: [
+      'Stand tall with your feet hip-width apart.',
+      'Slide one hand down the side of your leg, bending sideways.',
+      'Keep facing forward, without twisting or leaning back.',
+      'Return upright and repeat to the other side.',
+    ],
+    cautions: 'Bend only sideways, not forward. $_stop',
+    sets: 2,
+    reps: 10,
+  ),
+  ExerciseDef(
+    id: 'ankle-single-heel-raise',
+    muscles: ['m_soleus_muscle', 'm_medial_head_of_gastrocnemius'],
+    name: 'Single-leg heel raise',
+    region: ExerciseRegion.ankleFoot,
+    goal: 'Progresses the calf to carrying full body weight.',
+    steps: [
+      'Stand on one leg holding a counter for balance.',
+      'Rise onto the ball of that foot as high as you can.',
+      'Pause at the top.',
+      'Lower slowly until the heel touches down.',
+    ],
+    cautions:
+        'Only once double-leg heel raises are easy. Use the counter for '
+        'balance, not to pull yourself up. $_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'ankle-heel-and-toe-walk',
+    muscles: ['m_tibialis_anterior_muscle', 'm_soleus_muscle'],
+    name: 'Heel and toe walking',
+    region: ExerciseRegion.ankleFoot,
+    goal: 'Works both sides of the ankle while moving.',
+    steps: [
+      'Walk a short distance on your heels, toes lifted.',
+      'Turn around and walk back on your toes.',
+      'Stay beside a wall or counter you can touch.',
+      'Rest between lengths.',
+    ],
+    cautions:
+        'Keep support within reach. Stop if the shins ache sharply. '
+        '$_stop',
+    sets: 3,
+    reps: 1,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'breath-basal-expansion',
+    muscles: ['m_diaphragm', 'm_external_intercostal_muscles'],
+    name: 'Lower chest breathing',
+    region: ExerciseRegion.breathing,
+    goal: 'Directs air into the lower parts of the lungs.',
+    steps: [
+      'Sit or lie with one hand on the lower ribs at the side.',
+      'Breathe in slowly and send the breath into that hand.',
+      'Hold the breath in for two or three seconds if you can.',
+      'Breathe out gently and repeat on the other side.',
+    ],
+    cautions:
+        'Rest after every three or four breaths. Stop if you feel '
+        'light-headed. $_stop',
+    sets: 3,
+    reps: 4,
+    perDay: 3,
+  ),
+  ExerciseDef(
+    id: 'breath-positions-of-ease',
+    muscles: ['m_diaphragm'],
+    name: 'Positions of ease',
+    region: ExerciseRegion.breathing,
+    goal:
+        'Positions that make breathing easier when you are short of '
+        'breath.',
+    steps: [
+      'Sit leaning forward with your forearms resting on your thighs or a '
+          'table.',
+      'Let your shoulders drop and your neck relax.',
+      'Breathe out slowly through pursed lips.',
+      'Stay there until your breathing settles.',
+    ],
+    cautions:
+        'If breathlessness does not settle, or comes on at rest for the '
+        'first time, seek medical help rather than carrying on. $_stop',
+    sets: 1,
+    reps: 1,
+    holdSeconds: 60,
+    perDay: 3,
+  ),
+
+  // Hand and finger work, nerve glides, and the remaining progressions.
+  ExerciseDef(
+    id: 'shoulder-ext-rotation-90',
+    muscles: ['m_infraspinatus_muscle', 'm_teres_minor_muscle'],
+    name: 'Outward rotation at shoulder height',
+    region: ExerciseRegion.shoulder,
+    goal:
+        'Strengthens the cuff in the position used for throwing and '
+        'reaching overhead.',
+    steps: [
+      'Anchor a band at shoulder height in front of you.',
+      'Hold it with the elbow out to the side, bent to 90 degrees.',
+      'Rotate the forearm upward and back, as if waving.',
+      'Return slowly.',
+    ],
+    cautions:
+        'A late-stage exercise. Stop if it pinches at the front of the '
+        'shoulder. $_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'shoulder-prone-horizontal-abduction',
+    muscles: [
+      'm_scapular_spinal_part_of_deltoid_muscle',
+      'm_infraspinatus_muscle',
+    ],
+    name: 'Prone wide raise',
+    region: ExerciseRegion.shoulder,
+    goal: 'Strengthens the back of the shoulder.',
+    steps: [
+      'Lie face down on a bed with one arm hanging over the edge.',
+      'With the thumb turned out, lift the arm out to the side.',
+      'Stop at shoulder height.',
+      'Lower slowly.',
+    ],
+    cautions: 'Start with no weight at all. $_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'shoulder-towel-stretch',
+    muscles: ['m_subscapularis_muscle', 'm_teres_major_muscle'],
+    name: 'Behind-the-back towel stretch',
+    region: ExerciseRegion.shoulder,
+    goal: 'Regains the reach needed to fasten clothing behind the back.',
+    steps: [
+      'Hold a towel over one shoulder, grasping the lower end behind your '
+          'back.',
+      'Use the upper hand to pull the lower arm gently up your back.',
+      'Stop at a stretch, not at pain.',
+      'Hold, then release.',
+    ],
+    cautions:
+        'Not after a shoulder repair unless your surgeon allows this '
+        'position. $_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'elbow-extension-stretch',
+    muscles: ['m_brachialis_muscle', 'm_long_head_of_biceps_brachii'],
+    name: 'Elbow straightening stretch',
+    region: ExerciseRegion.elbowWrist,
+    goal: 'Regains the last of elbow straightening after injury or a cast.',
+    steps: [
+      'Sit with your upper arm resting on a table, palm up.',
+      'Let the forearm hang over the edge.',
+      'Rest a small weight in the hand and let gravity straighten the elbow.',
+      'Hold, keeping the muscles relaxed.',
+    ],
+    cautions:
+        'Relax into it — do not push. Stop if you get pins and needles in '
+        'the hand. $_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 60,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'wrist-finger-extension-band',
+    muscles: ['m_extensor_digitorum', 'm_extensor_pollicis_brevis'],
+    name: 'Finger spread with band',
+    region: ExerciseRegion.elbowWrist,
+    goal: 'Strengthens the muscles that open the hand.',
+    steps: [
+      'Put a light rubber band around all your fingers and thumb.',
+      'Rest the hand on a table.',
+      'Spread the fingers apart against the band.',
+      'Close slowly.',
+    ],
+    cautions: 'Use the lightest band that gives any resistance. $_stop',
+    sets: 3,
+    reps: 12,
+  ),
+  ExerciseDef(
+    id: 'wrist-tendon-glides',
+    muscles: [
+      'm_flexor_digitorum_profundus',
+      'm_radial_head_of_flexor_digitorum_superficialis',
+    ],
+    name: 'Finger tendon glides',
+    region: ExerciseRegion.elbowWrist,
+    goal: 'Keeps the finger tendons moving freely after injury or surgery.',
+    steps: [
+      'Start with the fingers straight.',
+      'Bend only the big knuckles, keeping the fingers straight, and hold.',
+      'Make a hook by bending the two end joints, and hold.',
+      'Make a full fist, hold, then straighten out again.',
+    ],
+    cautions:
+        'Follow any range limits set after hand surgery. Gentle, not '
+        'forced. $_stop',
+    sets: 3,
+    reps: 5,
+    holdSeconds: 3,
+    perDay: 3,
+  ),
+  ExerciseDef(
+    id: 'wrist-thumb-opposition',
+    muscles: ['m_opponens_pollicis_muscle', 'm_abductor_pollicis_brevis'],
+    name: 'Thumb to fingertips',
+    region: ExerciseRegion.elbowWrist,
+    goal: 'Restores the thumb movement used for pinching and gripping.',
+    steps: [
+      'Rest your hand with the palm facing up.',
+      'Touch the tip of the thumb to the tip of the index finger, making an '
+          'O.',
+      'Open the hand fully, then touch the middle finger, and so on.',
+      'Work through all four fingers and back.',
+    ],
+    cautions: 'Stop if the base of the thumb becomes painful. $_stop',
+    sets: 3,
+    reps: 5,
+    perDay: 3,
+  ),
+  ExerciseDef(
+    id: 'neck-median-nerve-glide',
+    name: 'Arm nerve glide',
+    region: ExerciseRegion.neck,
+    goal:
+        'Keeps the nerve running into the arm moving freely where symptoms '
+        'travel past the elbow.',
+    steps: [
+      'Sit tall and take the arm out to the side, palm up, elbow straight.',
+      'Tilt your head gently away from that arm, and at the same time bend '
+          'the wrist down.',
+      'Then tilt the head back toward the arm as you lift the wrist up.',
+      'Move slowly in and out of the position — never hold it.',
+    ],
+    cautions:
+        'A glide, not a stretch: a light pull that eases as you come out of '
+        'it. Stop at once if symptoms build up or linger afterwards. '
+        '$_stop',
+    sets: 2,
+    reps: 10,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'neck-scm-stretch',
+    muscles: ['m_sternocleidomastoid_muscle'],
+    name: 'Front-of-neck stretch',
+    region: ExerciseRegion.neck,
+    goal: 'Eases tightness in the muscle running down the front of the neck.',
+    steps: [
+      'Sit tall and place one hand on the collarbone to anchor it.',
+      'Turn your head about 45 degrees away from that side.',
+      'Tilt your head gently backward until you feel a stretch.',
+      'Hold, breathing normally.',
+    ],
+    cautions:
+        'Only a small amount of backward tilt. Stop at once if you feel '
+        'dizzy, sick or get visual changes. $_stop',
+    sets: 2,
+    reps: 1,
+    holdSeconds: 20,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'lb-sciatic-nerve-glide',
+    name: 'Leg nerve glide',
+    region: ExerciseRegion.lowBack,
+    goal:
+        'Keeps the nerve running down the leg moving freely where symptoms '
+        'travel below the knee.',
+    steps: [
+      'Sit on a chair and slump slightly, hands behind you.',
+      'Straighten one knee and at the same time lift your chin.',
+      'Then bend the knee back down as you tuck your chin.',
+      'Move slowly in and out — never hold the end position.',
+    ],
+    cautions:
+        'A glide, not a stretch. Stop at once if leg symptoms build up or '
+        'stay worse afterwards. $_stop',
+    sets: 2,
+    reps: 10,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'lb-supine-hamstring-stretch',
+    muscles: ['m_semitendinosus_muscle', 'm_long_head_of_biceps_femoris'],
+    name: 'Hamstring stretch with a strap',
+    region: ExerciseRegion.lowBack,
+    goal: 'Stretches the back of the thigh with the back supported.',
+    steps: [
+      'Lie on your back with a strap or towel looped around one foot.',
+      'Keep the other leg bent with the foot flat on the floor.',
+      'Straighten the strapped leg upward until you feel a stretch.',
+      'Hold, then lower slowly.',
+    ],
+    cautions:
+        'A stretch behind the thigh, not pins and needles in the leg. '
+        '$_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'hip-bridge-march',
+    muscles: ['m_gluteus_maximus_muscle', 'm_transversus_abdominis_muscle'],
+    name: 'Bridge with march',
+    region: ExerciseRegion.hip,
+    goal: 'Trains the hips to stay level while one leg moves.',
+    steps: [
+      'Lie on your back and lift your hips into a bridge.',
+      'Hold the bridge and lift one foot off the floor.',
+      'Keep your hips completely level, then put the foot down.',
+      'Repeat with the other leg, then lower the hips.',
+    ],
+    cautions: 'Stop when the hips start to drop on one side. $_stop',
+    sets: 3,
+    reps: 8,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'hip-kneeling-flexor-stretch',
+    muscles: ['m_psoas_major', 'm_rectus_femoris_muscle'],
+    name: 'Kneeling hip flexor stretch',
+    region: ExerciseRegion.hip,
+    goal:
+        'A deeper stretch for the front of the hip than the standing '
+        'version.',
+    steps: [
+      'Kneel on one knee on a cushion, the other foot forward and flat.',
+      'Tuck your tailbone under to flatten your lower back.',
+      'Shift your weight gently forward without arching the back.',
+      'Hold, then come out of it slowly.',
+    ],
+    cautions:
+        'The tuck is what makes it work. Stop if the knee hurts. '
+        '$_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'hip-seated-external-rotation',
+    muscles: ['m_piriformis_muscle', 'm_gluteus_medius_muscle'],
+    name: 'Seated outward hip rotation',
+    region: ExerciseRegion.hip,
+    goal: 'Strengthens the muscles that turn the hip outward.',
+    steps: [
+      'Sit on a chair with a band looped around both ankles.',
+      'Keep your knees still and together.',
+      'Move one foot inward across the other against the band.',
+      'Return slowly.',
+    ],
+    cautions: 'Keep the knees from drifting apart. $_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'knee-single-leg-sit-to-stand',
+    muscles: [
+      'm_vastus_lateralis_muscle',
+      'm_gluteus_maximus_muscle',
+      'm_vastus_medialis_muscle',
+    ],
+    name: 'Single-leg sit to stand',
+    region: ExerciseRegion.knee,
+    goal: 'The hardest step before returning to full activity.',
+    steps: [
+      'Sit on a firm chair with one foot on the floor, the other lifted.',
+      'Lean forward slightly and stand up on the one leg.',
+      'Sit back down slowly on the same leg.',
+      'Use your hands on a counter only as much as you need.',
+    ],
+    cautions:
+        'Use a higher chair to make it easier. Stop if the knee gives way '
+        'or the kneecap hurts. $_stop',
+    sets: 3,
+    reps: 8,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'core-plank-leg-lift',
+    muscles: ['m_transversus_abdominis_muscle', 'm_gluteus_maximus_muscle'],
+    name: 'Plank with leg lift',
+    region: ExerciseRegion.core,
+    goal: 'Trains the trunk to stay still while a leg moves.',
+    steps: [
+      'Hold a plank on your forearms, feet hip-width apart.',
+      'Lift one leg a small way off the floor, keeping it straight.',
+      'Keep the hips level and do not let the back sag.',
+      'Lower and repeat with the other leg.',
+    ],
+    cautions: 'Stop when the back starts to sag. $_stop',
+    sets: 3,
+    reps: 8,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'core-side-plank-hip-dip',
+    muscles: [
+      'm_external_abdominal_oblique_muscle',
+      'm_quadratus_lumborum_muscle',
+    ],
+    name: 'Side plank hip dips',
+    region: ExerciseRegion.core,
+    goal: 'Adds movement to the side plank.',
+    steps: [
+      'Hold a side plank on your knees or feet.',
+      'Lower your hips slowly a few inches toward the floor.',
+      'Lift them back up to the straight line.',
+      'Keep your body facing forward throughout.',
+    ],
+    cautions: 'Keep it slow and small. Stop if the shoulder hurts. $_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'bal-tandem-walk',
+    name: 'Heel-to-toe walking',
+    region: ExerciseRegion.balance,
+    goal: 'Walking on a narrow base, which is harder than standing on one.',
+    steps: [
+      'Stand beside a counter you can reach the whole way along.',
+      'Walk forward placing each heel directly in front of the other toes.',
+      'Look ahead rather than at your feet.',
+      'Turn around carefully and walk back.',
+    ],
+    cautions:
+        'Keep a hand near the counter the whole way. Stop if you feel '
+        'unsteady. $_stop',
+    sets: 3,
+    reps: 10,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'bal-single-leg-reach',
+    name: 'Single-leg reach',
+    region: ExerciseRegion.balance,
+    goal: 'Balance while reaching, as happens in daily tasks.',
+    steps: [
+      'Stand on one leg next to a counter.',
+      'Reach the other foot forward and tap the floor lightly.',
+      'Bring it back to the middle without putting weight on it.',
+      'Then tap out to the side, and behind.',
+    ],
+    cautions:
+        'Support within reach. Reach only as far as you can control. '
+        '$_stop',
+    sets: 3,
+    reps: 8,
+    level: ExerciseLevel.hard,
+  ),
+  ExerciseDef(
+    id: 'ankle-plantarflexion-band',
+    muscles: ['m_soleus_muscle', 'm_lateral_head_of_gastrocnemius'],
+    name: 'Ankle push-down with band',
+    region: ExerciseRegion.ankleFoot,
+    goal: 'Strengthens the calf without standing on it.',
+    steps: [
+      'Sit with the leg straight and a band looped around the ball of the '
+          'foot.',
+      'Hold both ends of the band.',
+      'Point the foot away from you against the band.',
+      'Return slowly.',
+    ],
+    cautions: 'Keep the knee straight and the movement at the ankle. $_stop',
+    sets: 3,
+    reps: 12,
+  ),
+  ExerciseDef(
+    id: 'ankle-dorsiflexion-band',
+    muscles: ['m_tibialis_anterior_muscle', 'm_extensor_digitorum_longus'],
+    name: 'Ankle pull-up with band',
+    region: ExerciseRegion.ankleFoot,
+    goal: 'Strengthens the muscles that lift the foot when walking.',
+    steps: [
+      'Sit with the leg straight and a band anchored in front of the foot.',
+      'Loop the band over the top of the foot.',
+      'Pull the foot upward toward you against the band.',
+      'Lower slowly.',
+    ],
+    cautions: 'Move only the ankle, keeping the knee still. $_stop',
+    sets: 3,
+    reps: 12,
+  ),
+  ExerciseDef(
+    id: 'breath-breath-stacking',
+    muscles: ['m_diaphragm', 'm_external_intercostal_muscles'],
+    name: 'Breath stacking',
+    region: ExerciseRegion.breathing,
+    goal: 'Gets more air in than one breath allows, to help clear phlegm.',
+    steps: [
+      'Take a breath in and hold it.',
+      'Without breathing out, take another small breath on top.',
+      'Add a third small breath if you can.',
+      'Hold briefly, then breathe out slowly.',
+    ],
+    cautions:
+        'Rest between cycles. Stop if you feel dizzy or your chest feels '
+        'tight. $_stop',
+    sets: 3,
+    reps: 3,
+    perDay: 3,
+  ),
+  ExerciseDef(
+    id: 'breath-side-bend-breathing',
+    muscles: ['m_external_intercostal_muscles', 'm_quadratus_lumborum_muscle'],
+    name: 'Side bend with breathing',
+    region: ExerciseRegion.breathing,
+    goal: 'Opens one side of the chest to breathe into.',
+    steps: [
+      'Sit tall with one hand resting on your head.',
+      'Breathe in as you bend gently away from that side.',
+      'Feel the ribs open on the stretched side.',
+      'Breathe out as you come upright, then swap sides.',
+    ],
+    cautions: 'Bend sideways only, not forward or back. $_stop',
+    sets: 2,
+    reps: 6,
+    perDay: 2,
+  ),
+
+  // The last of the upper back, and a few remaining variants.
+  ExerciseDef(
+    id: 'back-prone-w-raise',
+    muscles: ['m_ascending_part_of_trapezius_muscle', 'm_infraspinatus_muscle'],
+    name: 'Prone W raise',
+    region: ExerciseRegion.upperBack,
+    goal:
+        'Works the lower shoulder blade muscles and outward rotation '
+        'together.',
+    steps: [
+      'Lie face down with your elbows bent and tucked near your sides.',
+      'Draw the shoulder blades down and together.',
+      'Lift the hands and elbows a small way off the floor.',
+      'Lower slowly.',
+    ],
+    cautions: 'Keep your neck relaxed and your forehead down. $_stop',
+    sets: 3,
+    reps: 10,
+  ),
+  ExerciseDef(
+    id: 'back-thread-the-needle',
+    muscles: [
+      'm_longissimus_thoracis_muscle',
+      'm_external_abdominal_oblique_muscle',
+    ],
+    name: 'Thread the needle',
+    region: ExerciseRegion.upperBack,
+    goal: 'Rotation stretch for a stiff mid-back.',
+    steps: [
+      'Kneel on hands and knees.',
+      'Slide one arm under your body, palm up, reaching across.',
+      'Let that shoulder and the side of your head rest down.',
+      'Hold, then come back up and swap sides.',
+    ],
+    cautions:
+        'Keep your hips over your knees, not shifting sideways. '
+        '$_stop',
+    sets: 2,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'back-lat-stretch',
+    muscles: ['m_latissimus_dorsi_muscle', 'm_teres_major_muscle'],
+    name: 'Overhead side stretch',
+    region: ExerciseRegion.upperBack,
+    goal: 'Stretches the big muscle down the side of the back.',
+    steps: [
+      'Hold a counter or door frame at about head height with one hand.',
+      'Step back and sink your hips away from that hand.',
+      'Let your upper body lengthen along that side.',
+      'Hold, then step in and swap sides.',
+    ],
+    cautions:
+        'Stop if you feel pinching at the front of the shoulder. '
+        '$_stop',
+    sets: 3,
+    reps: 1,
+    holdSeconds: 30,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'bal-sideways-walk',
+    name: 'Sideways walking',
+    region: ExerciseRegion.balance,
+    goal:
+        'Practises stepping sideways, which is how most people recover a '
+        'stumble.',
+    steps: [
+      'Stand side-on to a counter and hold it lightly.',
+      'Step sideways along it, bringing the feet together each time.',
+      'Keep your toes facing forward and your body upright.',
+      'Walk back the other way.',
+    ],
+    cautions:
+        'Do not cross your feet over. Keep hold of the counter. '
+        '$_stop',
+    sets: 2,
+    reps: 10,
+  ),
+  ExerciseDef(
+    id: 'breath-diaphragm-sniff',
+    muscles: ['m_diaphragm'],
+    name: 'Short sniffs',
+    region: ExerciseRegion.breathing,
+    goal:
+        'Wakes up the diaphragm when breathing has become shallow and '
+        'all in the chest.',
+    steps: [
+      'Sit tall with one hand on your upper abdomen.',
+      'Take three or four short, quick sniffs in through the nose.',
+      'Feel your hand move outward with each sniff.',
+      'Breathe out slowly and rest.',
+    ],
+    cautions:
+        'Rest between sets. Stop if you feel light-headed or your nose is '
+        'blocked. $_stop',
+    sets: 2,
+    reps: 4,
+    perDay: 2,
+  ),
+  ExerciseDef(
+    id: 'core-standing-brace-march',
+    muscles: ['m_transversus_abdominis_muscle', 'm_psoas_major'],
+    name: 'Standing brace with march',
+    region: ExerciseRegion.core,
+    goal:
+        'Holding the trunk steady while standing and moving, as in daily '
+        'life.',
+    steps: [
+      'Stand tall and gently tighten your abdomen, as if bracing lightly.',
+      'Keep breathing normally.',
+      'Lift one knee to hip height, then lower it.',
+      'Alternate without letting your back arch or your hips drop.',
+    ],
+    cautions: 'A light brace, not a breath hold. $_stop',
+    sets: 3,
+    reps: 10,
+  ),
+  ExerciseDef(
+    id: 'knee-standing-hamstring-curl',
+    muscles: ['m_semitendinosus_muscle', 'm_long_head_of_biceps_femoris'],
+    name: 'Standing hamstring curl',
+    region: ExerciseRegion.knee,
+    goal: 'Strengthens the back of the thigh in standing.',
+    steps: [
+      'Stand holding a counter, a band anchored in front of you around one '
+          'ankle.',
+      'Bend that knee to bring the heel toward your buttock.',
+      'Keep your thighs level with each other.',
+      'Lower slowly against the band.',
+    ],
+    cautions: 'Do not let the hip drift backward. $_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'hip-standing-extension-band',
+    muscles: ['m_gluteus_maximus_muscle', 'm_semitendinosus_muscle'],
+    name: 'Standing hip extension with band',
+    region: ExerciseRegion.hip,
+    goal: 'Strengthens the buttock in a standing position.',
+    steps: [
+      'Anchor a band in front of you at ankle height and loop it on one '
+          'ankle.',
+      'Hold a counter and stand tall.',
+      'Take that leg straight backward against the band.',
+      'Return slowly without leaning forward.',
+    ],
+    cautions:
+        'Keep your body upright — do not lean to get more range. '
+        '$_stop',
+    sets: 3,
+    reps: 12,
+    level: ExerciseLevel.medium,
+  ),
+  ExerciseDef(
+    id: 'wrist-ulnar-nerve-glide',
+    name: 'Little-finger nerve glide',
+    region: ExerciseRegion.elbowWrist,
+    goal:
+        'Keeps the nerve at the inner elbow moving where symptoms run into '
+        'the little finger.',
+    steps: [
+      'Start with the arm out to the side, elbow straight, palm forward.',
+      'Bend the elbow and bring the hand toward your ear, fingers pointing '
+          'down.',
+      'Then straighten the arm back out to the side.',
+      'Move slowly in and out — never hold the end position.',
+    ],
+    cautions:
+        'A glide, not a stretch. Stop at once if tingling in the little '
+        'finger builds up or lingers. $_stop',
+    sets: 2,
+    reps: 10,
+    perDay: 2,
+  ),
 ];

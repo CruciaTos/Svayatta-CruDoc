@@ -183,7 +183,13 @@ class _PainDialogState extends ConsumerState<_PainDialog> {
               ),
             ),
             const SizedBox(height: CruSpace.s8),
-            CruTextField(label: 'Note', optional: true, controller: _note),
+            CruMoreFields(
+              label: 'Note',
+              open: _note.text.isNotEmpty,
+              children: [
+                CruTextField(label: 'Note', optional: true, controller: _note),
+              ],
+            ),
             const SizedBox(height: CruSpace.s8),
             Align(
               alignment: Alignment.centerRight,
@@ -497,11 +503,17 @@ class _FranklDialogState extends ConsumerState<_FranklDialog> {
                 ),
               ),
             const SizedBox(height: CruSpace.s8),
-            CruTextField(
+            CruMoreFields(
               label: 'Note',
-              optional: true,
-              controller: _note,
-              hint: 'Tell-show-do worked well',
+              open: _note.text.isNotEmpty,
+              children: [
+                CruTextField(
+                  label: 'Note',
+                  optional: true,
+                  controller: _note,
+                  hint: 'Tell-show-do worked well',
+                ),
+              ],
             ),
             if (history.isNotEmpty) ...[
               const DentalGroupLabel('Earlier visits'),

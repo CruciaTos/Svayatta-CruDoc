@@ -54,6 +54,7 @@ class PatientForm extends StatefulWidget {
     super.key,
     required this.formKey,
     required this.onSubmit,
+    this.initialName,
     this.initialFirstName,
     this.initialLastName,
     this.initialPhone,
@@ -84,6 +85,7 @@ class PatientForm extends StatefulWidget {
   /// validation passes.
   final ValueChanged<PatientFormResult> onSubmit;
 
+  final String? initialName;
   final String? initialFirstName;
   final String? initialLastName;
   final String? initialPhone;
@@ -104,12 +106,10 @@ class PatientFormState extends State<PatientForm> {
   static const _genderOptions = ['Male', 'Female', 'Other'];
   static const _maxDiagnoses = Patient.maxDiagnoses;
 
-  late final TextEditingController _firstNameController;
-  late final TextEditingController _lastNameController;
+  late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   late final TextEditingController _emailController;
   late List<TextEditingController> _diagnosisControllers;
-  late final TextEditingController _packageBalanceController;
 
   late String _gender;
   DateTime? _dateOfBirth;
@@ -117,12 +117,13 @@ class PatientFormState extends State<PatientForm> {
   @override
   void initState() {
     super.initState();
-    _firstNameController = TextEditingController(
-      text: widget.initialFirstName ?? '',
-    );
-    _lastNameController = TextEditingController(
-      text: widget.initialLastName ?? '',
-    );
+    final initialName =
+        widget.initialName ??
+        [widget.initialFirstName, widget.initialLastName]
+            .where((s) => s != null && s.trim().isNotEmpty)
+            .map((s) => s!.trim())
+            .join(' ');
+    _nameController = TextEditingController(text: initialName);
     _phoneController = TextEditingController(text: widget.initialPhone ?? '');
     _emailController = TextEditingController(text: widget.initialEmail ?? '');
 
@@ -135,25 +136,18 @@ class PatientFormState extends State<PatientForm> {
               .map((diagnosis) => TextEditingController(text: diagnosis))
               .toList();
 
-    _packageBalanceController = TextEditingController(
-      text: widget.initialPackageBalance != null
-          ? widget.initialPackageBalance!.toStringAsFixed(0)
-          : '',
-    );
     _gender = widget.initialGender ?? _genderOptions.first;
     _dateOfBirth = widget.initialDateOfBirth;
   }
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
+    _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
     for (final controller in _diagnosisControllers) {
       controller.dispose();
     }
-    _packageBalanceController.dispose();
     super.dispose();
   }
 
@@ -176,19 +170,17 @@ class PatientFormState extends State<PatientForm> {
   /// changed; heard conditions are added to the ones already typed.
   void applyVoiceFill(PatientVoiceFill fill) {
     setState(() {
-      if (fill.firstName.isNotEmpty) _firstNameController.text = fill.firstName;
-      if (fill.lastName.isNotEmpty) _lastNameController.text = fill.lastName;
+      final spokenName = [
+        fill.firstName,
+        fill.lastName,
+      ].where((s) => s.trim().isNotEmpty).map((s) => s.trim()).join(' ');
+      if (spokenName.isNotEmpty) _nameController.text = spokenName;
       if (fill.phone.isNotEmpty) _phoneController.text = fill.phone;
       if (fill.email.isNotEmpty) _emailController.text = fill.email;
       if (fill.gender != null && _genderOptions.contains(fill.gender)) {
         _gender = fill.gender!;
       }
       _dateOfBirth = fill.dateOfBirthOr(DateTime.now()) ?? _dateOfBirth;
-      if (fill.packageBalance != null) {
-        _packageBalanceController.text = fill.packageBalance!.toStringAsFixed(
-          0,
-        );
-      }
       if (fill.conditions.isNotEmpty) {
         final existing = _diagnosisControllers
             .map((c) => c.text.trim())
@@ -214,12 +206,9 @@ class PatientFormState extends State<PatientForm> {
     final isValid = widget.formKey.currentState?.validate() ?? false;
     if (!isValid) return false;
 
-    if (_dateOfBirth == null) {
-      ScaffoldMessenger.of(context).showIsland(
-        const SnackBar(content: Text('Please select a date of birth')),
-      );
-      return false;
-    }
+    final nameParts = _nameController.text.trim().split(RegExp(r'\s+'));
+    final firstName = nameParts.first;
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
 
     final diagnoses = _diagnosisControllers
         .map((controller) => controller.text.trim())
@@ -227,26 +216,19 @@ class PatientFormState extends State<PatientForm> {
         .take(_maxDiagnoses)
         .toList();
 
-    if (diagnoses.isEmpty && widget.showDiagnosis) {
-      ScaffoldMessenger.of(context).showIsland(
-        const SnackBar(content: Text('Please enter at least one diagnosis')),
-      );
-      return false;
-    }
-
     widget.onSubmit(
       PatientFormResult(
-        firstName: _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim(),
+        firstName: firstName,
+        lastName: lastName,
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim(),
         gender: _gender,
-        dateOfBirth: _dateOfBirth!,
+        dateOfBirth:
+            _dateOfBirth ?? widget.initialDateOfBirth ?? DateTime.now(),
         diagnosis: widget.showDiagnosis
             ? diagnoses
             : List.of(widget.initialDiagnoses ?? const <String>[]),
-        packageBalance:
-            double.tryParse(_packageBalanceController.text.trim()) ?? 0.0,
+        packageBalance: widget.initialPackageBalance ?? 0.0,
       ),
     );
     return true;
@@ -279,28 +261,11 @@ class PatientFormState extends State<PatientForm> {
             ),
             const SizedBox(height: 18),
           ],
-          Row(
-            children: [
-              Expanded(
-                child: _FormField(
-                  label: 'First Name',
-                  controller: _firstNameController,
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Required'
-                      : null,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _FormField(
-                  label: 'Last Name',
-                  controller: _lastNameController,
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Required'
-                      : null,
-                ),
-              ),
-            ],
+          _FormField(
+            label: 'Name',
+            controller: _nameController,
+            validator: (value) =>
+                (value == null || value.trim().isEmpty) ? 'Required' : null,
           ),
           const SizedBox(height: 16),
           _FormField(
@@ -316,21 +281,6 @@ class PatientFormState extends State<PatientForm> {
             },
           ),
           const SizedBox(height: 16),
-          _FormField(
-            label: 'Email (optional)',
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              final trimmed = value?.trim() ?? '';
-              if (trimmed.isEmpty) return null; // optional field
-              final emailRegex = RegExp(r'^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$');
-              if (!emailRegex.hasMatch(trimmed)) {
-                return 'Enter a valid email address';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
           const _SectionLabel(text: 'Gender'),
           const SizedBox(height: 8),
           _GenderSelector(
@@ -339,48 +289,64 @@ class PatientFormState extends State<PatientForm> {
             onChanged: (value) => setState(() => _gender = value),
           ),
           const SizedBox(height: 16),
-          const _SectionLabel(text: 'Date of Birth'),
+          const _SectionLabel(text: 'Date of Birth (optional)'),
           const SizedBox(height: 8),
           _DateOfBirthField(date: _dateOfBirth, onTap: _pickDateOfBirth),
-          if (widget.showDiagnosis) ...[
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const _SectionLabel(text: 'Diagnosis'),
-                Text(
-                  '${_diagnosisControllers.length}/$_maxDiagnoses',
-                  style: CruType.caption.tabular.tint(context.cru.label3),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            for (var i = 0; i < _diagnosisControllers.length; i++)
-              _DiagnosisFieldRow(
-                index: i,
-                controller: _diagnosisControllers[i],
-                canRemove: _diagnosisControllers.length > 1,
-                onRemove: () => _removeDiagnosisField(i),
+          const SizedBox(height: CruSpace.s16),
+          CruMoreFields(
+            label: widget.showDiagnosis ? 'Email, diagnosis' : 'Email',
+            open:
+                _emailController.text.isNotEmpty ||
+                (widget.showDiagnosis &&
+                    _diagnosisControllers.any((c) => c.text.isNotEmpty)),
+            children: [
+              _FormField(
+                label: 'Email (optional)',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  final trimmed = value?.trim() ?? '';
+                  if (trimmed.isEmpty) return null; // optional field
+                  final emailRegex = RegExp(r'^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$');
+                  if (!emailRegex.hasMatch(trimmed)) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
               ),
-            if (_diagnosisControllers.length < _maxDiagnoses) ...[
-              const SizedBox(height: 4),
-              _AddDiagnosisButton(onTap: _addDiagnosisField),
+              if (widget.showDiagnosis)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const _SectionLabel(text: 'Diagnosis (optional)'),
+                        // The count only matters once no more can be added.
+                        if (_diagnosisControllers.length >= _maxDiagnoses)
+                          Text(
+                            '${_diagnosisControllers.length}/$_maxDiagnoses',
+                            style: CruType.caption.tabular.tint(
+                              context.cru.label3,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: CruSpace.s8),
+                    for (var i = 0; i < _diagnosisControllers.length; i++)
+                      _DiagnosisFieldRow(
+                        index: i,
+                        controller: _diagnosisControllers[i],
+                        canRemove: _diagnosisControllers.length > 1,
+                        onRemove: () => _removeDiagnosisField(i),
+                      ),
+                    if (_diagnosisControllers.length < _maxDiagnoses) ...[
+                      const SizedBox(height: CruSpace.s4),
+                      _AddDiagnosisButton(onTap: _addDiagnosisField),
+                    ],
+                  ],
+                ),
             ],
-          ],
-          const SizedBox(height: 16),
-          _FormField(
-            label: 'Package Balance',
-            controller: _packageBalanceController,
-            tabular: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            validator: (value) {
-              final trimmed = value?.trim() ?? '';
-              if (trimmed.isEmpty) return null; // optional, defaults to 0
-              if (double.tryParse(trimmed) == null) {
-                return 'Enter a valid number';
-              }
-              return null;
-            },
           ),
         ],
       ),
@@ -707,9 +673,9 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showIsland(
-        const SnackBar(content: Text('Patient added successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showIsland(const SnackBar(content: Text('Patient added successfully')));
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;

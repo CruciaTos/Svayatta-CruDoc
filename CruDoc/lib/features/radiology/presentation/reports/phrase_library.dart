@@ -260,7 +260,6 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
       busy: _busy,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       width: CruSize.formDialog - 80,
       body: Form(
         key: _form,
@@ -269,10 +268,7 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
             : AutovalidateMode.disabled,
         child: CruFormSection(
           first: true,
-          title: 'Phrase',
-          description:
-              'Write __ where a value goes: it is selected after expanding, and '
-              'Tab moves to the next one.',
+          description: 'Use __ where a value goes.',
           children: [
             CruTextField(
               label: 'Shortcut',

@@ -724,9 +724,7 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
     final e = widget.existing;
     return CruFormDialog(
       title: e == null ? 'Add procedure' : e.name,
-      subtitle: e == null
-          ? 'To your procedure list'
-          : categoryLabel(e.category),
+      subtitle: e == null ? null : categoryLabel(e.category),
       leading: const CruIconTile(
         icon: DentalIcons.procedures,
         tone: CruTileTone.accent,
@@ -736,7 +734,6 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -796,8 +793,6 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
             ),
             CruFormSection(
               title: 'Fee and time',
-              description:
-                  'Filled in when you plan treatment; change it per patient.',
               children: [
                 CruFieldRow(
                   children: [
@@ -826,9 +821,6 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
                 ),
                 CruFieldFrame(
                   label: 'Charged',
-                  help: _perTooth
-                      ? 'The fee is multiplied by the number of teeth in a plan.'
-                      : 'One fee per visit, whatever the teeth.',
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: CruSegmentedControl<bool>(

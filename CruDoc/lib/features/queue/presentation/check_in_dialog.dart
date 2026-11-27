@@ -40,6 +40,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
   final TextEditingController _walkInPhoneController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
   QueuePriority _priority = QueuePriority.normal;
+  final _form = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -52,10 +53,10 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
   }
 
   Future<void> _submitCheckIn() async {
-    setState(() {
-      _errorMessage = null;
-      _isLoading = true;
-    });
+    setState(() => _errorMessage = null);
+    // A walk-in needs a name; the field says so.
+    if (!(_form.currentState?.validate() ?? false)) return;
+    setState(() => _isLoading = true);
 
     try {
       final repo = ref.read(queueRepositoryProvider);
@@ -137,460 +138,472 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 500),
         child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  CruSpace.s24,
-                  CruSpace.s20,
-                  CruSpace.s16,
-                  CruSpace.s16,
-                ),
-                child: Row(
-                  children: [
-                    CruIconTile(
-                      icon: CruIcons.userCheck,
-                      tone: CruTileTone.accent,
-                    ),
-                    const SizedBox(width: CruSpace.s12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Check In Patient',
-                            style: CruType.title2.tint(c.label),
-                          ),
-                          const SizedBox(height: CruSpace.s2),
-                          Text(
-                            'Assign next walk-in token number',
-                            style: CruType.subhead.tint(c.label2),
-                          ),
-                        ],
+          child: Form(
+            key: _form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    CruSpace.s24,
+                    CruSpace.s20,
+                    CruSpace.s16,
+                    CruSpace.s16,
+                  ),
+                  child: Row(
+                    children: [
+                      CruIconTile(
+                        icon: CruIcons.userCheck,
+                        tone: CruTileTone.accent,
                       ),
-                    ),
-                    CruIconButton(
-                      icon: CruIcons.close,
-                      size: CruSize.control,
-                      iconSize: 18,
-                      semanticLabel: 'Close',
-                      onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Close',
-                    ),
-                  ],
-                ),
-              ),
-              const CruSeparator(),
-
-              // Body content
-              Padding(
-                padding: const EdgeInsets.all(CruSpace.s24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Segmented toggle: Registered Patient vs Walk-in Guest
-                    Container(
-                      height: CruSize.segmentHeight + 6,
-                      padding: const EdgeInsets.all(3),
-                      decoration: ShapeDecoration(
-                        color: c.inset,
-                        shape: cruShape(CruRadius.segmentOuter),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _TypeToggleItem(
-                              label: 'Registered Patient',
-                              icon: CruIcons.user,
-                              isSelected: _isRegistered,
-                              onTap: () => setState(() {
-                                _isRegistered = true;
-                                _errorMessage = null;
-                              }),
-                            ),
-                          ),
-                          const SizedBox(width: CruSpace.s4),
-                          Expanded(
-                            child: _TypeToggleItem(
-                              label: 'Walk-in Guest',
-                              icon: CruIcons.userPlus,
-                              isSelected: !_isRegistered,
-                              onTap: () => setState(() {
-                                _isRegistered = false;
-                                _errorMessage = null;
-                              }),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: CruSpace.s20),
-
-                    // Registered Patient Selection
-                    if (_isRegistered) ...[
-                      Text(
-                        'Select Patient',
-                        style: CruType.subhead.w500.tint(c.label2),
-                      ),
-                      const SizedBox(height: CruSpace.s6),
-                      Autocomplete<Patient>(
-                        displayStringForOption: (p) =>
-                            '${p.fullName} (${p.phone})',
-                        optionsBuilder: (textEditingValue) {
-                          final query = textEditingValue.text
-                              .trim()
-                              .toLowerCase();
-                          if (query.isEmpty) {
-                            return const Iterable<Patient>.empty();
-                          }
-                          return allPatients.where((p) {
-                            if (p.isArchived) return false;
-                            final name = p.fullName.toLowerCase();
-                            final phone = p.phone.toLowerCase();
-                            return name.contains(query) ||
-                                phone.contains(query);
-                          });
-                        },
-                        onSelected: (patient) {
-                          setState(() {
-                            _selectedPatient = patient;
-                            _errorMessage = null;
-                          });
-                        },
-                        optionsViewBuilder: (context, onSelected, options) {
-                          return Align(
-                            alignment: Alignment.topLeft,
-                            child: Material(
-                              elevation: 4,
-                              color: c.surface,
-                              shape: cruShape(
-                                CruRadius.card,
-                                side: BorderSide(color: c.cardBorder),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxHeight: 240,
-                                  maxWidth: 450,
-                                ),
-                                child: ListView.separated(
-                                  padding: EdgeInsets.zero,
-                                  shrinkWrap: true,
-                                  itemCount: options.length,
-                                  separatorBuilder: (_, _) =>
-                                      const CruSeparator(),
-                                  itemBuilder: (context, i) {
-                                    final patient = options.elementAt(i);
-                                    return InkWell(
-                                      onTap: () => onSelected(patient),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: CruSpace.s14,
-                                          vertical: CruSpace.s10,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            CruMonogram(
-                                              name: patient.fullName,
-                                              size: 32,
-                                            ),
-                                            const SizedBox(width: CruSpace.s10),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    patient.fullName,
-                                                    style: CruType.body.w600
-                                                        .tint(c.label),
-                                                  ),
-                                                  Text(
-                                                    '${patient.gender} · ${patient.phone}',
-                                                    style: CruType.caption.tint(
-                                                      c.label2,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                        fieldViewBuilder:
-                            (context, controller, focusNode, onFieldSubmitted) {
-                              return AnimatedContainer(
-                                duration: CruMotion.of(context, CruMotion.fast),
-                                curve: CruMotion.curve,
-                                constraints: BoxConstraints(
-                                  minHeight: cruIsPhone(context)
-                                      ? CruSize.searchBarPhone
-                                      : CruSize.actionButton,
-                                ),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: cruIsPhone(context)
-                                      ? CruSpace.s16
-                                      : CruSpace.s14,
-                                ),
-                                decoration: ShapeDecoration(
-                                  color: focusNode.hasFocus
-                                      ? c.surface
-                                      : c.inset,
-                                  shape: cruShape(
-                                    CruRadius.control,
-                                    side: BorderSide(
-                                      color: focusNode.hasFocus
-                                          ? c.accent
-                                          : c.inset.withValues(alpha: 0),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    CruIcon(
-                                      CruIcons.search,
-                                      size: cruIsPhone(context)
-                                          ? CruSize.searchIconPhone
-                                          : 18,
-                                      color: c.label3,
-                                    ),
-                                    SizedBox(
-                                      width: cruIsPhone(context)
-                                          ? CruSpace.s12
-                                          : CruSpace.s10,
-                                    ),
-                                    Expanded(
-                                      child: TextField(
-                                        controller: controller,
-                                        focusNode: focusNode,
-                                        style:
-                                            (cruIsPhone(context)
-                                                    ? CruType.body
-                                                    : CruType.input)
-                                                .tint(c.label),
-                                        cursorColor: c.accent,
-                                        decoration: InputDecoration.collapsed(
-                                          hintText: cruIsPhone(context)
-                                              ? 'Name or phone number'
-                                              : 'Search by name or phone...',
-                                          hintStyle:
-                                              (cruIsPhone(context)
-                                                      ? CruType.body
-                                                      : CruType.input)
-                                                  .tint(c.label3),
-                                        ),
-                                        onSubmitted: (_) => onFieldSubmitted(),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                      ),
-                      if (_selectedPatient != null) ...[
-                        const SizedBox(height: CruSpace.s10),
-                        Container(
-                          padding: const EdgeInsets.all(CruSpace.s12),
-                          decoration: ShapeDecoration(
-                            color: c.accentWash,
-                            shape: cruShape(
-                              CruRadius.control,
-                              side: BorderSide(color: c.accentTint),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              CruMonogram(
-                                name: _selectedPatient!.fullName,
-                                size: CruSize.monogramRow,
-                              ),
-                              const SizedBox(width: CruSpace.s12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _selectedPatient!.fullName,
-                                      style: CruType.body.w600.tint(c.label),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${_selectedPatient!.gender} · ${_selectedPatient!.phone}',
-                                      style: CruType.caption.tint(c.label2),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              CruIconButton(
-                                icon: CruIcons.close,
-                                size: 28,
-                                iconSize: 14,
-                                semanticLabel: 'Remove selection',
-                                onPressed: () =>
-                                    setState(() => _selectedPatient = null),
-                                tooltip: 'Remove selection',
-                              ),
-                            ],
-                          ),
+                      const SizedBox(width: CruSpace.s12),
+                      Expanded(
+                        child: Text(
+                          'Check In Patient',
+                          style: CruType.title2.tint(c.label),
                         ),
-                      ],
-                    ] else ...[
-                      CruTextField(
-                        label: 'Patient Name *',
-                        controller: _walkInNameController,
-                        hint: 'e.g. Rahul Sharma',
-                        icon: CruIcons.user,
                       ),
-                      const SizedBox(height: CruSpace.s14),
-                      CruTextField(
-                        label: 'Phone Number',
-                        optional: true,
-                        controller: _walkInPhoneController,
-                        hint: 'e.g. +91 98765 43210',
-                        keyboardType: TextInputType.phone,
-                        icon: CruIcons.phone,
+                      CruIconButton(
+                        icon: CruIcons.close,
+                        size: CruSize.control,
+                        iconSize: 18,
+                        semanticLabel: 'Close',
+                        onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Close',
                       ),
                     ],
+                  ),
+                ),
+                const CruSeparator(),
 
-                    const SizedBox(height: CruSpace.s14),
-
-                    CruTextField(
-                      label: 'Reason for Visit / Chief Complaint',
-                      optional: true,
-                      controller: _reasonController,
-                      hint:
-                          'e.g. High fever, Dressing change, Routine followup...',
-                      icon: CruIcons.fileText,
-                      maxLines: 2,
-                    ),
-
-                    if (doctors.length > 1) ...[
-                      const SizedBox(height: CruSpace.s14),
-                      CruDropdownField<String>(
-                        label: 'Doctor',
-                        icon: CruIcons.user,
-                        value: _attendingDoctorUid,
-                        items: [for (final d in doctors) d.uid],
-                        itemLabel: (uid) => doctors
-                            .firstWhere(
-                              (d) => d.uid == uid,
-                              orElse: () => doctors.first,
-                            )
-                            .name,
-                        onChanged: (v) =>
-                            setState(() => _attendingDoctorUid = v),
-                      ),
-                    ],
-
-                    const SizedBox(height: CruSpace.s16),
-
-                    Text(
-                      'Queue Priority',
-                      style: CruType.subhead.w500.tint(c.label2),
-                    ),
-                    const SizedBox(height: CruSpace.s8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _PriorityOptionCard(
-                            title: 'Normal',
-                            subtitle: 'Standard queue line',
-                            icon: CruIcons.check,
-                            isSelected: _priority == QueuePriority.normal,
-                            isUrgent: false,
-                            onTap: () => setState(
-                              () => _priority = QueuePriority.normal,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: CruSpace.s10),
-                        Expanded(
-                          child: _PriorityOptionCard(
-                            title: 'Urgent',
-                            subtitle: 'Jumps ahead in line',
-                            icon: CruIcons.warning,
-                            isSelected: _priority == QueuePriority.urgent,
-                            isUrgent: true,
-                            onTap: () => setState(
-                              () => _priority = QueuePriority.urgent,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: CruSpace.s16),
+                // Body content
+                Padding(
+                  padding: const EdgeInsets.all(CruSpace.s24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Segmented toggle: Registered Patient vs Walk-in Guest
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: CruSpace.s12,
-                          vertical: CruSpace.s10,
-                        ),
+                        height: CruSize.segmentHeight + 6,
+                        padding: const EdgeInsets.all(3),
                         decoration: ShapeDecoration(
-                          color: c.amberTint,
-                          shape: cruShape(CruRadius.control),
+                          color: c.inset,
+                          shape: cruShape(CruRadius.segmentOuter),
                         ),
                         child: Row(
                           children: [
-                            CruIcon(
-                              CruIcons.warning,
-                              size: 16,
-                              color: c.amberText,
-                            ),
-                            const SizedBox(width: CruSpace.s8),
                             Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: CruType.caption.w500.tint(c.amberText),
+                              child: _TypeToggleItem(
+                                label: 'Registered Patient',
+                                icon: CruIcons.user,
+                                isSelected: _isRegistered,
+                                onTap: () => setState(() {
+                                  _isRegistered = true;
+                                  _errorMessage = null;
+                                }),
+                              ),
+                            ),
+                            const SizedBox(width: CruSpace.s4),
+                            Expanded(
+                              child: _TypeToggleItem(
+                                label: 'Walk-in Guest',
+                                icon: CruIcons.userPlus,
+                                isSelected: !_isRegistered,
+                                onTap: () => setState(() {
+                                  _isRegistered = false;
+                                  _errorMessage = null;
+                                }),
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(height: CruSpace.s20),
+
+                      // Registered Patient Selection
+                      if (_isRegistered) ...[
+                        Text(
+                          'Select Patient',
+                          style: CruType.subhead.w500.tint(c.label2),
+                        ),
+                        const SizedBox(height: CruSpace.s6),
+                        Autocomplete<Patient>(
+                          displayStringForOption: (p) =>
+                              '${p.fullName} (${p.phone})',
+                          optionsBuilder: (textEditingValue) {
+                            final query = textEditingValue.text
+                                .trim()
+                                .toLowerCase();
+                            if (query.isEmpty) {
+                              return const Iterable<Patient>.empty();
+                            }
+                            return allPatients.where((p) {
+                              if (p.isArchived) return false;
+                              final name = p.fullName.toLowerCase();
+                              final phone = p.phone.toLowerCase();
+                              return name.contains(query) ||
+                                  phone.contains(query);
+                            });
+                          },
+                          onSelected: (patient) {
+                            setState(() {
+                              _selectedPatient = patient;
+                              _errorMessage = null;
+                            });
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4,
+                                color: c.surface,
+                                shape: cruShape(
+                                  CruRadius.card,
+                                  side: BorderSide(color: c.cardBorder),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxHeight: 240,
+                                    maxWidth: 450,
+                                  ),
+                                  child: ListView.separated(
+                                    padding: EdgeInsets.zero,
+                                    shrinkWrap: true,
+                                    itemCount: options.length,
+                                    separatorBuilder: (_, _) =>
+                                        const CruSeparator(),
+                                    itemBuilder: (context, i) {
+                                      final patient = options.elementAt(i);
+                                      return InkWell(
+                                        onTap: () => onSelected(patient),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: CruSpace.s14,
+                                            vertical: CruSpace.s10,
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              CruMonogram(
+                                                name: patient.fullName,
+                                                size: 32,
+                                              ),
+                                              const SizedBox(
+                                                width: CruSpace.s10,
+                                              ),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      patient.fullName,
+                                                      style: CruType.body.w600
+                                                          .tint(c.label),
+                                                    ),
+                                                    Text(
+                                                      '${patient.gender} · ${patient.phone}',
+                                                      style: CruType.caption
+                                                          .tint(c.label2),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          fieldViewBuilder:
+                              (
+                                context,
+                                controller,
+                                focusNode,
+                                onFieldSubmitted,
+                              ) {
+                                return AnimatedContainer(
+                                  duration: CruMotion.of(
+                                    context,
+                                    CruMotion.fast,
+                                  ),
+                                  curve: CruMotion.curve,
+                                  constraints: BoxConstraints(
+                                    minHeight: cruIsPhone(context)
+                                        ? CruSize.searchBarPhone
+                                        : CruSize.actionButton,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: cruIsPhone(context)
+                                        ? CruSpace.s16
+                                        : CruSpace.s14,
+                                  ),
+                                  decoration: ShapeDecoration(
+                                    color: focusNode.hasFocus
+                                        ? c.surface
+                                        : c.inset,
+                                    shape: cruShape(
+                                      CruRadius.control,
+                                      side: BorderSide(
+                                        color: focusNode.hasFocus
+                                            ? c.accent
+                                            : c.inset.withValues(alpha: 0),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CruIcon(
+                                        CruIcons.search,
+                                        size: cruIsPhone(context)
+                                            ? CruSize.searchIconPhone
+                                            : 18,
+                                        color: c.label3,
+                                      ),
+                                      SizedBox(
+                                        width: cruIsPhone(context)
+                                            ? CruSpace.s12
+                                            : CruSpace.s10,
+                                      ),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          style:
+                                              (cruIsPhone(context)
+                                                      ? CruType.body
+                                                      : CruType.input)
+                                                  .tint(c.label),
+                                          cursorColor: c.accent,
+                                          decoration: InputDecoration.collapsed(
+                                            hintText: cruIsPhone(context)
+                                                ? 'Name or phone number'
+                                                : 'Search by name or phone...',
+                                            hintStyle:
+                                                (cruIsPhone(context)
+                                                        ? CruType.body
+                                                        : CruType.input)
+                                                    .tint(c.label3),
+                                          ),
+                                          onSubmitted: (_) =>
+                                              onFieldSubmitted(),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                        ),
+                        if (_selectedPatient != null) ...[
+                          const SizedBox(height: CruSpace.s10),
+                          Container(
+                            padding: const EdgeInsets.all(CruSpace.s12),
+                            decoration: ShapeDecoration(
+                              color: c.accentWash,
+                              shape: cruShape(
+                                CruRadius.control,
+                                side: BorderSide(color: c.accentTint),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                CruMonogram(
+                                  name: _selectedPatient!.fullName,
+                                  size: CruSize.monogramRow,
+                                ),
+                                const SizedBox(width: CruSpace.s12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _selectedPatient!.fullName,
+                                        style: CruType.body.w600.tint(c.label),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${_selectedPatient!.gender} · ${_selectedPatient!.phone}',
+                                        style: CruType.caption.tint(c.label2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                CruIconButton(
+                                  icon: CruIcons.close,
+                                  size: 28,
+                                  iconSize: 14,
+                                  semanticLabel: 'Remove selection',
+                                  onPressed: () =>
+                                      setState(() => _selectedPatient = null),
+                                  tooltip: 'Remove selection',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ] else ...[
+                        CruTextField(
+                          label: 'Patient Name *',
+                          controller: _walkInNameController,
+                          hint: 'e.g. Rahul Sharma',
+                          icon: CruIcons.user,
+                          textCapitalization: TextCapitalization.words,
+                          validator: (v) => (v ?? '').trim().isEmpty
+                              ? "Enter the patient's name."
+                              : null,
+                        ),
+                        const SizedBox(height: CruSpace.s14),
+                        CruTextField(
+                          label: 'Phone Number',
+                          optional: true,
+                          controller: _walkInPhoneController,
+                          hint: 'e.g. +91 98765 43210',
+                          keyboardType: TextInputType.phone,
+                          icon: CruIcons.phone,
+                        ),
+                      ],
+
+                      if (doctors.length > 1) ...[
+                        const SizedBox(height: CruSpace.s14),
+                        CruDropdownField<String>(
+                          label: 'Doctor',
+                          icon: CruIcons.user,
+                          value: _attendingDoctorUid,
+                          items: [for (final d in doctors) d.uid],
+                          itemLabel: (uid) => doctors
+                              .firstWhere(
+                                (d) => d.uid == uid,
+                                orElse: () => doctors.first,
+                              )
+                              .name,
+                          onChanged: (v) =>
+                              setState(() => _attendingDoctorUid = v),
+                        ),
+                      ],
+
+                      const SizedBox(height: CruSpace.s16),
+
+                      Text(
+                        'Queue Priority',
+                        style: CruType.subhead.w500.tint(c.label2),
+                      ),
+                      const SizedBox(height: CruSpace.s8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _PriorityOptionCard(
+                              title: 'Normal',
+                              icon: CruIcons.check,
+                              isSelected: _priority == QueuePriority.normal,
+                              isUrgent: false,
+                              onTap: () => setState(
+                                () => _priority = QueuePriority.normal,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: CruSpace.s10),
+                          Expanded(
+                            child: _PriorityOptionCard(
+                              title: 'Urgent',
+                              icon: CruIcons.warning,
+                              isSelected: _priority == QueuePriority.urgent,
+                              isUrgent: true,
+                              onTap: () => setState(
+                                () => _priority = QueuePriority.urgent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: CruSpace.s16),
+
+                      CruMoreFields(
+                        label: 'Reason',
+                        open: _reasonController.text.isNotEmpty,
+                        children: [
+                          CruTextField(
+                            label: 'Reason for Visit / Chief Complaint',
+                            optional: true,
+                            controller: _reasonController,
+                            hint:
+                                'e.g. High fever, Dressing change, Routine followup...',
+                            icon: CruIcons.fileText,
+                            maxLines: 2,
+                          ),
+                        ],
+                      ),
+
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: CruSpace.s16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CruSpace.s12,
+                            vertical: CruSpace.s10,
+                          ),
+                          decoration: ShapeDecoration(
+                            color: c.amberTint,
+                            shape: cruShape(CruRadius.control),
+                          ),
+                          child: Row(
+                            children: [
+                              CruIcon(
+                                CruIcons.warning,
+                                size: 16,
+                                color: c.amberText,
+                              ),
+                              const SizedBox(width: CruSpace.s8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: CruType.caption.w500.tint(c.amberText),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
 
-              const CruSeparator(),
+                const CruSeparator(),
 
-              // Footer
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: CruSpace.s24,
-                  vertical: CruSpace.s16,
+                // Footer
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CruSpace.s24,
+                    vertical: CruSpace.s16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      CruButton(
+                        label: 'Cancel',
+                        kind: CruButtonKind.secondary,
+                        onPressed: _isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                      ),
+                      const SizedBox(width: CruSpace.s10),
+                      CruButton(
+                        label: _isLoading ? 'Issuing…' : 'Issue Token',
+                        kind: CruButtonKind.primary,
+                        onPressed: _isLoading ? null : _submitCheckIn,
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    CruButton(
-                      label: 'Cancel',
-                      kind: CruButtonKind.secondary,
-                      onPressed: _isLoading
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                    ),
-                    const SizedBox(width: CruSpace.s10),
-                    CruButton(
-                      label: _isLoading ? 'Issuing…' : 'Issue Token',
-                      kind: CruButtonKind.primary,
-                      onPressed: _isLoading ? null : _submitCheckIn,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -654,7 +667,6 @@ class _TypeToggleItem extends StatelessWidget {
 
 class _PriorityOptionCard extends StatelessWidget {
   final String title;
-  final String subtitle;
   final CruIconData icon;
   final bool isSelected;
   final bool isUrgent;
@@ -662,7 +674,6 @@ class _PriorityOptionCard extends StatelessWidget {
 
   const _PriorityOptionCard({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.isSelected,
     required this.isUrgent,
@@ -681,7 +692,7 @@ class _PriorityOptionCard extends StatelessWidget {
     return CruPressable(
       onTap: onTap,
       scaleOnPress: false,
-      semanticLabel: '$title priority, $subtitle',
+      semanticLabel: '$title priority',
       builder: (context, hovered) => AnimatedContainer(
         duration: CruMotion.of(context, CruMotion.fast),
         curve: CruMotion.curve,
@@ -704,27 +715,11 @@ class _PriorityOptionCard extends StatelessWidget {
             CruIcon(icon, size: 18, color: isSelected ? primaryText : c.label3),
             const SizedBox(width: CruSpace.s10),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: CruType.body.w600.tint(
-                      isSelected ? primaryText : c.label,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: CruType.caption.tint(
-                      isSelected
-                          ? (isUrgent ? c.amberText : c.label2)
-                          : c.label3,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+              child: Text(
+                title,
+                style: CruType.body.w600.tint(
+                  isSelected ? primaryText : c.label,
+                ),
               ),
             ),
           ],

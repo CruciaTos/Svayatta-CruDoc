@@ -84,11 +84,17 @@ class _EntrySheetState extends State<_EntrySheet> {
                 value: _function,
                 onChanged: (v) => setState(() => _function = v),
               ),
-              CruTextField(
+              CruMoreFields(
                 label: 'Note',
-                controller: _note,
-                optional: true,
-                textInputAction: TextInputAction.done,
+                open: _note.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Note',
+                    controller: _note,
+                    optional: true,
+                    textInputAction: TextInputAction.done,
+                  ),
+                ],
               ),
               const SizedBox(height: CruSpace.s16),
               CruButton(

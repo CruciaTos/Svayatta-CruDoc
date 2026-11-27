@@ -208,10 +208,7 @@ class SpecialTestDetailScreen extends ConsumerWidget {
     ).where((r) => r.testId == test.id).toList();
 
     Widget heading(String text) => Padding(
-      padding: const EdgeInsets.only(
-        top: CruSpace.s16,
-        bottom: CruSpace.s8,
-      ),
+      padding: const EdgeInsets.only(top: CruSpace.s16, bottom: CruSpace.s8),
       child: Text(text, style: CruType.micro.w600.tint(c.label2)),
     );
 
@@ -224,10 +221,7 @@ class SpecialTestDetailScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(CruSpace.s16),
               children: [
-                Text(
-                  test.region.label,
-                  style: CruType.caption.tint(c.label2),
-                ),
+                Text(test.region.label, style: CruType.caption.tint(c.label2)),
                 const SizedBox(height: CruSpace.s4),
                 Text(test.assesses, style: CruType.body.tint(c.label)),
                 heading('HOW TO DO IT'),
@@ -289,9 +283,7 @@ class SpecialTestDetailScreen extends ConsumerWidget {
                               children: [
                                 Text(
                                   DentalFormat.date(r.date),
-                                  style: CruType.caption.tabular.tint(
-                                    c.label2,
-                                  ),
+                                  style: CruType.caption.tabular.tint(c.label2),
                                 ),
                                 const SizedBox(height: CruSpace.s2),
                                 Text(
@@ -418,11 +410,17 @@ class _ResultSheetState extends State<_ResultSheet> {
                 TestResult.sideLabel,
                 (v) => setState(() => _side = v),
               ),
-              CruTextField(
+              CruMoreFields(
                 label: 'Note',
-                controller: _note,
-                optional: true,
-                textInputAction: TextInputAction.done,
+                open: _note.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Note',
+                    controller: _note,
+                    optional: true,
+                    textInputAction: TextInputAction.done,
+                  ),
+                ],
               ),
               const SizedBox(height: CruSpace.s16),
               CruButton(

@@ -114,9 +114,8 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
         modalities: _modalities,
       );
       r.sort(
-        (a, b) => (b.studyDate ?? DateTime(0)).compareTo(
-          a.studyDate ?? DateTime(0),
-        ),
+        (a, b) =>
+            (b.studyDate ?? DateTime(0)).compareTo(a.studyDate ?? DateTime(0)),
       );
       if (mounted) setState(() => _results = r);
     } on DicomWebException catch (e) {
@@ -465,7 +464,6 @@ class _PacsServersDialog extends ConsumerWidget {
         ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
     return DentalPanelDialog(
       title: 'PACS servers',
-      subtitle: 'DICOMweb addresses you can search and send to',
       leading: const CruIconTile(
         icon: RadIcons.server,
         tone: CruTileTone.neutral,
@@ -681,7 +679,6 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: widget.existing == null ? 'Add PACS' : 'Edit PACS',
-      subtitle: 'A DICOMweb server',
       leading: const CruIconTile(
         icon: RadIcons.server,
         tone: CruTileTone.accent,
@@ -700,8 +697,6 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
             CruFormSection(
               first: true,
               title: 'Server',
-              description:
-                  'Ask whoever runs the PACS for its DICOMweb address.',
               children: [
                 CruTextField(
                   label: 'Name',
@@ -759,9 +754,7 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
                     label: _auth == 'basic' ? 'Password' : 'Token',
                     controller: _secret,
                     obscureText: true,
-                    help:
-                        'Kept in this device\'s secure storage and never synced; '
-                        'enter it again on each computer.',
+                    help: 'Stays on this computer.',
                     onChanged: (_) => _edited(),
                   ),
                 DentalChoiceChip(
@@ -962,7 +955,6 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
                       CruTextField(
                         label: 'AE title',
                         controller: _ae!,
-                        help: 'Up to 16 letters, the name scanners send to.',
                         onChanged: (_) => setState(() {}),
                         inputFormatters: [
                           LengthLimitingTextInputFormatter(16),
@@ -1007,10 +999,7 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
                       style: CruType.caption.tint(c.label2),
                     )
                   else if (rx.error != null)
-                    RadNotConnected(
-                      title: 'Not listening',
-                      body: rx.error!,
-                    )
+                    RadNotConnected(title: 'Not listening', body: rx.error!)
                   else if (rx.listening)
                     _Outcome(
                       ok: true,

@@ -149,6 +149,7 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
   // New drug input controllers
   final _drugCtrl = TextEditingController();
   final _doseCtrl = TextEditingController();
+  final _form = GlobalKey<FormState>();
   final _noteCtrl = TextEditingController();
   String _unit = 'mg';
   String _route = 'IV';
@@ -200,12 +201,9 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
   }
 
   void _addDrug() {
+    if (!(_form.currentState?.validate() ?? false)) return;
     final name = _drugCtrl.text.trim();
-    final dose = double.tryParse(_doseCtrl.text.trim());
-    if (name.isEmpty || dose == null || dose <= 0) {
-      recToast(context, 'Please enter a valid drug name and dose');
-      return;
-    }
+    final dose = double.parse(_doseCtrl.text.trim());
 
     final entry = DrugLogEntry(
       at: DateTime.now().millisecondsSinceEpoch,
@@ -283,347 +281,370 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
       subtitle:
           '${widget.patient.fullName} · Patient weight: ${_weightKg.toStringAsFixed(1)} kg',
       width: 920,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Local Anaesthetic Maximum-Dose Calculator
-          Container(
-            padding: const EdgeInsets.all(CruSpace.s16),
-            decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              border: Border.all(color: c.hairline),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        CruIcon(CruIcons.box, size: 18, color: c.accent),
-                        const SizedBox(width: CruSpace.s8),
-                        Text(
-                          'Local Anaesthetic Maximum-Dose Calculator',
-                          style: CruType.callout.w600.tint(c.label),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Weight: ', style: CruType.caption.tint(c.label2)),
-                        SizedBox(
-                          width: 60,
-                          child: TextFormField(
-                            initialValue: _weightKg.toStringAsFixed(0),
-                            keyboardType: TextInputType.number,
-                            style: CruType.caption.w600.tabular.tint(c.label),
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 4,
-                              ),
-                            ),
-                            onChanged: (val) {
-                              final parsed = double.tryParse(val);
-                              if (parsed != null && parsed > 0) {
-                                setState(() => _weightKg = parsed);
-                              }
-                            },
-                          ),
-                        ),
-                        Text(' kg', style: CruType.caption.tint(c.label2)),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s12),
-
-                // Table of LA doses
-                Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(2.2),
-                    1: FlexColumnWidth(1.2),
-                    2: FlexColumnWidth(1.2),
-                    3: FlexColumnWidth(1.2),
-                    4: FlexColumnWidth(1.4),
-                  },
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                  children: [
-                    TableRow(
-                      decoration: BoxDecoration(color: c.inset),
-                      children: [
-                        _th('Anaesthetic', c),
-                        _th('Max Dose', c),
-                        _th('Max Cartridges', c),
-                        _th('Given So Far', c),
-                        _th('Cartridges Left', c),
-                      ],
-                    ),
-                    for (final spec in localAnaestheticsList) ...[
-                      _laTableRow(spec, c),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s10),
-
-                // Formulary disclaimer note
-                Row(
-                  children: [
-                    CruIcon(CruIcons.help, size: 14, color: c.label3),
-                    const SizedBox(width: CruSpace.s6),
-                    Expanded(
-                      child: Text(
-                        'Check against your local formulary. Dose limits must be reduced in elderly, medically compromised, or pediatric patients.',
-                        style: CruType.micro.tint(c.label3),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Drug entry section
-          Container(
-            padding: const EdgeInsets.all(CruSpace.s16),
-            decoration: BoxDecoration(
-              color: c.surface,
-              borderRadius: BorderRadius.circular(CruRadius.control),
-              border: Border.all(color: c.hairline),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Administer Medication',
-                  style: CruType.callout.w600.tint(c.label),
-                ),
-                const SizedBox(height: CruSpace.s8),
-
-                // Quick drug chips
-                Wrap(
-                  spacing: CruSpace.s6,
-                  runSpacing: CruSpace.s6,
-                  children: [
-                    for (final drug in _commonDrugs)
-                      DentalChoiceChip(
-                        label: drug,
-                        selected: _drugCtrl.text == drug,
-                        onTap: () {
-                          setState(() {
-                            _drugCtrl.text = drug;
-                            if (drug.contains('adrenaline') ||
-                                drug.contains('plain')) {
-                              _unit = 'cartridges';
-                              _route = 'Infiltration';
-                            } else if (drug == 'Fentanyl') {
-                              _unit = 'mcg';
-                              _route = 'IV';
-                            } else {
-                              _unit = 'mg';
-                              _route = 'IV';
-                            }
-                          });
-                        },
-                      ),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s12),
-
-                // Entry row
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: CruTextField(
-                        label: 'Drug name',
-                        controller: _drugCtrl,
-                        hint: 'e.g. Midazolam',
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s8),
-                    Expanded(
-                      flex: 2,
-                      child: CruTextField(
-                        label: 'Dose',
-                        controller: _doseCtrl,
-                        hint: 'e.g. 2.0',
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s8),
-                    Expanded(
-                      flex: 2,
-                      child: CruFieldFrame(
-                        label: 'Unit',
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _unit,
-                            items: [
-                              for (final u in _units)
-                                DropdownMenuItem(
-                                  value: u,
-                                  child: Text(
-                                    u,
-                                    style: CruType.body.tint(c.label),
-                                  ),
-                                ),
-                            ],
-                            onChanged: (u) => setState(() => _unit = u ?? 'mg'),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s8),
-                    Expanded(
-                      flex: 2,
-                      child: CruFieldFrame(
-                        label: 'Route',
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _route,
-                            items: [
-                              for (final r in _routes)
-                                DropdownMenuItem(
-                                  value: r,
-                                  child: Text(
-                                    r,
-                                    style: CruType.body.tint(c.label),
-                                  ),
-                                ),
-                            ],
-                            onChanged: (r) =>
-                                setState(() => _route = r ?? 'IV'),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s8),
-                    CruButton(
-                      label: 'Record',
-                      icon: CruIcons.plus,
-                      kind: CruButtonKind.primary,
-                      onPressed: _addDrug,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Running Totals & Administered Log
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Running totals column
-              Expanded(
-                flex: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(CruSpace.s16),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Running Totals',
-                        style: CruType.callout.w600.tint(c.label),
-                      ),
-                      const SizedBox(height: CruSpace.s10),
-                      if (_drugTotals.isEmpty)
-                        Text(
-                          'No medications logged yet.',
-                          style: CruType.caption.tint(c.label3),
-                        )
-                      else
-                        for (final entry in _drugTotals.entries) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: CruSpace.s4,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    entry.key,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: CruType.caption.tint(c.label),
-                                  ),
-                                ),
-                                Text(
-                                  entry.value.toStringAsFixed(1),
-                                  style: CruType.caption.w600.tabular.tint(
-                                    c.accent,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const CruSeparator(),
-                        ],
-                    ],
-                  ),
-                ),
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Local Anaesthetic Maximum-Dose Calculator
+            Container(
+              padding: const EdgeInsets.all(CruSpace.s16),
+              decoration: BoxDecoration(
+                color: c.surface,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: c.hairline),
               ),
-              const SizedBox(width: CruSpace.s16),
-
-              // Log list column
-              Expanded(
-                flex: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(CruSpace.s16),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          CruIcon(CruIcons.box, size: 18, color: c.accent),
+                          const SizedBox(width: CruSpace.s8),
                           Text(
-                            'Administration Log (${_drugs.length})',
+                            'Local Anaesthetic Maximum-Dose Calculator',
                             style: CruType.callout.w600.tint(c.label),
-                          ),
-                          Text(
-                            'Latest first',
-                            style: CruType.micro.tint(c.label3),
                           ),
                         ],
                       ),
-                      const SizedBox(height: CruSpace.s10),
-                      if (_drugs.isEmpty)
-                        Text(
-                          'No administration records.',
-                          style: CruType.caption.tint(c.label3),
-                        )
-                      else
-                        for (var i = _drugs.length - 1; i >= 0; i--) ...[
-                          _drugRow(_drugs[i], i, c),
-                          if (i > 0) const CruSeparator(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Weight: ',
+                            style: CruType.caption.tint(c.label2),
+                          ),
+                          SizedBox(
+                            width: 60,
+                            child: TextFormField(
+                              initialValue: _weightKg.toStringAsFixed(0),
+                              keyboardType: TextInputType.number,
+                              style: CruType.caption.w600.tabular.tint(c.label),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 4,
+                                ),
+                              ),
+                              onChanged: (val) {
+                                final parsed = double.tryParse(val);
+                                if (parsed != null && parsed > 0) {
+                                  setState(() => _weightKg = parsed);
+                                }
+                              },
+                            ),
+                          ),
+                          Text(' kg', style: CruType.caption.tint(c.label2)),
                         ],
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: CruSpace.s12),
+
+                  // Table of LA doses
+                  Table(
+                    columnWidths: const {
+                      0: FlexColumnWidth(2.2),
+                      1: FlexColumnWidth(1.2),
+                      2: FlexColumnWidth(1.2),
+                      3: FlexColumnWidth(1.2),
+                      4: FlexColumnWidth(1.4),
+                    },
+                    defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                    children: [
+                      TableRow(
+                        decoration: BoxDecoration(color: c.inset),
+                        children: [
+                          _th('Anaesthetic', c),
+                          _th('Max Dose', c),
+                          _th('Max Cartridges', c),
+                          _th('Given So Far', c),
+                          _th('Cartridges Left', c),
+                        ],
+                      ),
+                      for (final spec in localAnaestheticsList) ...[
+                        _laTableRow(spec, c),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: CruSpace.s10),
+
+                  // Formulary disclaimer note
+                  Row(
+                    children: [
+                      CruIcon(CruIcons.help, size: 14, color: c.label3),
+                      const SizedBox(width: CruSpace.s6),
+                      Expanded(
+                        child: Text(
+                          'Check against your local formulary. Dose limits must be reduced in elderly, medically compromised, or pediatric patients.',
+                          style: CruType.micro.tint(c.label3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: CruSpace.s16),
+
+            // Drug entry section
+            Container(
+              padding: const EdgeInsets.all(CruSpace.s16),
+              decoration: BoxDecoration(
+                color: c.surface,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: c.hairline),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Administer Medication',
+                    style: CruType.callout.w600.tint(c.label),
+                  ),
+                  const SizedBox(height: CruSpace.s8),
+
+                  // Quick drug chips
+                  Wrap(
+                    spacing: CruSpace.s6,
+                    runSpacing: CruSpace.s6,
+                    children: [
+                      for (final drug in _commonDrugs)
+                        DentalChoiceChip(
+                          label: drug,
+                          selected: _drugCtrl.text == drug,
+                          onTap: () {
+                            setState(() {
+                              _drugCtrl.text = drug;
+                              if (drug.contains('adrenaline') ||
+                                  drug.contains('plain')) {
+                                _unit = 'cartridges';
+                                _route = 'Infiltration';
+                              } else if (drug == 'Fentanyl') {
+                                _unit = 'mcg';
+                                _route = 'IV';
+                              } else {
+                                _unit = 'mg';
+                                _route = 'IV';
+                              }
+                            });
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: CruSpace.s12),
+
+                  // Entry row, top-aligned so an error under one field
+                  // doesn't shift the others.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: CruTextField(
+                          label: 'Drug name',
+                          controller: _drugCtrl,
+                          hint: 'e.g. Midazolam',
+                          validator: (v) => (v ?? '').trim().isEmpty
+                              ? 'Enter a drug name.'
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: CruSpace.s8),
+                      Expanded(
+                        flex: 2,
+                        child: CruTextField(
+                          label: 'Dose',
+                          controller: _doseCtrl,
+                          hint: 'e.g. 2.0',
+                          showValid: false,
+                          validator: (v) {
+                            final n = double.tryParse((v ?? '').trim());
+                            return n == null || n <= 0
+                                ? 'Enter a valid dose.'
+                                : null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: CruSpace.s8),
+                      Expanded(
+                        flex: 2,
+                        child: CruFieldFrame(
+                          label: 'Unit',
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: _unit,
+                              items: [
+                                for (final u in _units)
+                                  DropdownMenuItem(
+                                    value: u,
+                                    child: Text(
+                                      u,
+                                      style: CruType.body.tint(c.label),
+                                    ),
+                                  ),
+                              ],
+                              onChanged: (u) =>
+                                  setState(() => _unit = u ?? 'mg'),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: CruSpace.s8),
+                      Expanded(
+                        flex: 2,
+                        child: CruFieldFrame(
+                          label: 'Route',
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: _route,
+                              items: [
+                                for (final r in _routes)
+                                  DropdownMenuItem(
+                                    value: r,
+                                    child: Text(
+                                      r,
+                                      style: CruType.body.tint(c.label),
+                                    ),
+                                  ),
+                              ],
+                              onChanged: (r) =>
+                                  setState(() => _route = r ?? 'IV'),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: CruSpace.s8),
+                      Padding(
+                        // Level with the inputs, below their labels.
+                        padding: const EdgeInsets.only(top: CruSpace.s24),
+                        child: CruButton(
+                          label: 'Record',
+                          icon: CruIcons.plus,
+                          kind: CruButtonKind.primary,
+                          onPressed: _addDrug,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: CruSpace.s16),
+
+            // Running Totals & Administered Log
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Running totals column
+                Expanded(
+                  flex: 4,
+                  child: Container(
+                    padding: const EdgeInsets.all(CruSpace.s16),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      border: Border.all(color: c.hairline),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Running Totals',
+                          style: CruType.callout.w600.tint(c.label),
+                        ),
+                        const SizedBox(height: CruSpace.s10),
+                        if (_drugTotals.isEmpty)
+                          Text(
+                            'No medications logged yet.',
+                            style: CruType.caption.tint(c.label3),
+                          )
+                        else
+                          for (final entry in _drugTotals.entries) ...[
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: CruSpace.s4,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      entry.key,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: CruType.caption.tint(c.label),
+                                    ),
+                                  ),
+                                  Text(
+                                    entry.value.toStringAsFixed(1),
+                                    style: CruType.caption.w600.tabular.tint(
+                                      c.accent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const CruSeparator(),
+                          ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: CruSpace.s16),
+
+                // Log list column
+                Expanded(
+                  flex: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(CruSpace.s16),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      border: Border.all(color: c.hairline),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Administration Log (${_drugs.length})',
+                              style: CruType.callout.w600.tint(c.label),
+                            ),
+                            Text(
+                              'Latest first',
+                              style: CruType.micro.tint(c.label3),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: CruSpace.s10),
+                        if (_drugs.isEmpty)
+                          Text(
+                            'No administration records.',
+                            style: CruType.caption.tint(c.label3),
+                          )
+                        else
+                          for (var i = _drugs.length - 1; i >= 0; i--) ...[
+                            _drugRow(_drugs[i], i, c),
+                            if (i > 0) const CruSeparator(),
+                          ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

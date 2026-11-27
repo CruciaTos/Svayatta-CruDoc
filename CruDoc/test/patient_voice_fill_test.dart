@@ -37,9 +37,7 @@ class _FakeVoiceFillService extends PatientVoiceFillService {
 
 Future<void> _speak(WidgetTester tester) async {
   await tester.tap(
-    find
-        .byWidgetPredicate((w) => w is CruIcon && w.icon == CruIcons.mic)
-        .first,
+    find.byWidgetPredicate((w) => w is CruIcon && w.icon == CruIcons.mic).first,
   );
   await tester.pump();
   expect(find.textContaining('Listening'), findsOneWidget);
@@ -223,12 +221,13 @@ void main() {
       expect(stateKey.currentState!.submit(), isTrue);
 
       expect(saved!.firstName, 'Rahul');
+      expect(saved!.lastName, 'Sharma');
       expect(saved!.phone, '9876543210');
       expect(saved!.email, 'kept@example.com'); // not heard, not touched
       expect(saved!.gender, 'Female');
       expect(DateTime.now().year - saved!.dateOfBirth.year, 42);
       expect(saved!.diagnosis, ['Low back pain']);
-      expect(saved!.packageBalance, 5000);
+      expect(saved!.packageBalance, 0);
     });
 
     testWidgets('mobile form hides the mic unless enabled', (tester) async {
@@ -245,6 +244,49 @@ void main() {
         ),
       );
       expect(find.text('Fill by voice'), findsNothing);
+    });
+
+    testWidgets('mobile form submits with only name, phone, and gender', (
+      tester,
+    ) async {
+      final formKey = GlobalKey<FormState>();
+      final stateKey = GlobalKey<PatientFormState>();
+      PatientFormResult? saved;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: PatientForm(
+                key: stateKey,
+                formKey: formKey,
+                onSubmit: (r) => saved = r,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Name'), findsOneWidget);
+      expect(find.text('First Name'), findsNothing);
+      expect(find.text('Last Name'), findsNothing);
+      expect(find.text('Package Balance'), findsNothing);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Name'),
+        'Maya Patel',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Phone Number'),
+        '9876543210',
+      );
+
+      expect(stateKey.currentState!.submit(), isTrue);
+      expect(saved!.firstName, 'Maya');
+      expect(saved!.lastName, 'Patel');
+      expect(saved!.phone, '9876543210');
+      expect(saved!.gender, 'Male');
+      expect(saved!.diagnosis, isEmpty);
+      expect(saved!.packageBalance, 0);
     });
 
     testWidgets('desktop dialog fills the new-patient form', (tester) async {
@@ -270,11 +312,14 @@ void main() {
         ),
       );
       expect(find.text('Fill by voice'), findsOneWidget);
+      expect(find.text('Name'), findsOneWidget);
+      expect(find.text('First name'), findsNothing);
+      expect(find.text('Last name'), findsNothing);
+      expect(find.text('Package balance'), findsNothing);
 
       await _speak(tester);
       expect(find.text('Form filled'), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'Rahul'), findsOneWidget);
-      expect(find.widgetWithText(TextField, 'Sharma'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Rahul Sharma'), findsOneWidget);
       expect(find.widgetWithText(TextField, '9876543210'), findsOneWidget);
       expect(find.widgetWithText(TextField, '42'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Desk job'), findsOneWidget);

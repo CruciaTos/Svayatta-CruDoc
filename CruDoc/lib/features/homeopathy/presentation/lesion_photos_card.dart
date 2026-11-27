@@ -183,6 +183,7 @@ class _LesionVisitSheet extends ConsumerStatefulWidget {
 class _LesionVisitSheetState extends ConsumerState<_LesionVisitSheet> {
   final _newSite = TextEditingController();
   final _notes = TextEditingController();
+  final _siteForm = GlobalKey<FormState>();
   DateTime _date = DateTime.now();
 
   /// Site key to label, for this visit.
@@ -211,12 +212,9 @@ class _LesionVisitSheetState extends ConsumerState<_LesionVisitSheet> {
   }
 
   void _addSite() {
+    if (!(_siteForm.currentState?.validate() ?? false)) return;
     final label = _newSite.text.trim();
     final key = lesionSiteKey(label);
-    if (key.isEmpty) {
-      recToast(context, 'Give the site a name, such as "left thumb".');
-      return;
-    }
     setState(() {
       _sites[key] = label;
       _newSite.clear();
@@ -311,9 +309,7 @@ class _LesionVisitSheetState extends ConsumerState<_LesionVisitSheet> {
             Text('Photograph the skin', style: CruType.headline.tint(c.label)),
             const SizedBox(height: CruSpace.s4),
             Text(
-              'Photograph the same sites each visit, from about the same '
-              'distance. A comparison is only worth anything if both '
-              'pictures are of the same place.',
+              'Same spot, same distance each visit.',
               style: CruType.caption.tint(c.label2),
             ),
             const SizedBox(height: CruSpace.s16),
@@ -372,12 +368,19 @@ class _LesionVisitSheetState extends ConsumerState<_LesionVisitSheet> {
                     Row(
                       children: [
                         Expanded(
-                          child: CruTextField(
-                            label: 'Another site',
-                            controller: _newSite,
-                            hint: 'Left thumb, scalp, right elbow',
-                            textCapitalization: TextCapitalization.sentences,
-                            onSubmitted: (_) => _addSite(),
+                          child: Form(
+                            key: _siteForm,
+                            child: CruTextField(
+                              label: 'Another site',
+                              controller: _newSite,
+                              hint: 'Left thumb, scalp, right elbow',
+                              textCapitalization: TextCapitalization.sentences,
+                              validator: (v) =>
+                                  lesionSiteKey((v ?? '').trim()).isEmpty
+                                  ? 'Give the site a name, such as "left thumb".'
+                                  : null,
+                              onSubmitted: (_) => _addSite(),
+                            ),
                           ),
                         ),
                         const SizedBox(width: CruSpace.s8),
@@ -385,13 +388,19 @@ class _LesionVisitSheetState extends ConsumerState<_LesionVisitSheet> {
                       ],
                     ),
                     const SizedBox(height: CruSpace.s12),
-                    CruTextField(
+                    CruMoreFields(
                       label: 'Note',
-                      controller: _notes,
-                      hint: 'What the lesion looks like today',
-                      optional: true,
-                      maxLines: 2,
-                      textCapitalization: TextCapitalization.sentences,
+                      open: _notes.text.isNotEmpty,
+                      children: [
+                        CruTextField(
+                          label: 'Note',
+                          controller: _notes,
+                          hint: 'What the lesion looks like today',
+                          optional: true,
+                          maxLines: 2,
+                          textCapitalization: TextCapitalization.sentences,
+                        ),
+                      ],
                     ),
                   ],
                 ),

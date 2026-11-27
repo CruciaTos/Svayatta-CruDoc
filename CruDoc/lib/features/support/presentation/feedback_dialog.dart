@@ -124,7 +124,6 @@ class _FeedbackDialogState extends ConsumerState<FeedbackDialog> {
     final left = SupportTicketService.maxMessage - _message.text.length;
     return CruFormDialog(
       title: 'Report a bug or send feedback',
-      subtitle: 'Goes straight to the CruDoc team',
       submitLabel: 'Send',
       onSubmit: _send,
       busy: _busy,

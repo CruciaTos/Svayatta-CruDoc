@@ -1302,6 +1302,15 @@ class FirestoreSyncService {
           // like the phone number, and not gated on clinical access, since
           // the front desk looks patients up by it after a migration.
           'oldId': FieldCipher.encrypt(row['oldId'] as String?),
+          // Sent only when set: the upload merges, so a device that has not
+          // downloaded this patient's ABHA yet cannot blank it on the server.
+          if ((row['abhaNumber'] as String? ?? '').isNotEmpty) ...{
+            'abhaNumber': FieldCipher.encrypt(row['abhaNumber'] as String?),
+            'abhaAddress': FieldCipher.encrypt(row['abhaAddress'] as String?),
+            'abhaVerifiedAt': row['abhaVerifiedAt'] is int
+                ? _timestampFromMillis(row['abhaVerifiedAt'])
+                : null,
+          },
           'packageBalance': (row['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': row['isArchived'] == 1,
           'isActive': row['isActive'] == 1,

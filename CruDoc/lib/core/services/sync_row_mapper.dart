@@ -155,6 +155,11 @@ Map<String, Object?> syncSqliteRowFor(
             ? decrypt(data['notes'] as String? ?? '')
             : '',
         'oldId': decrypt(data['oldId'] as String? ?? ''),
+        'abhaNumber': decrypt(data['abhaNumber'] as String? ?? ''),
+        'abhaAddress': decrypt(data['abhaAddress'] as String? ?? ''),
+        'abhaVerifiedAt': data['abhaVerifiedAt'] != null
+            ? _millis(data['abhaVerifiedAt'], fallback: now)
+            : null,
         'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
         'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
         'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

@@ -73,6 +73,14 @@ class _QuickPatientDialogState extends ConsumerState<QuickPatientDialog> {
     });
   }
 
+  /// Optional here; a typed number follows the patient form's rule.
+  String? _validatePhone(String? v) {
+    final digits = (v ?? '').replaceAll(RegExp(r'\D'), '');
+    return digits.isEmpty || digits.length >= 10
+        ? null
+        : 'Enter a 10-digit mobile number.';
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     setState(() => _submitted = true);
@@ -136,7 +144,6 @@ class _QuickPatientDialogState extends ConsumerState<QuickPatientDialog> {
     final name = _name.text.trim();
     return CruFormDialog(
       title: 'New patient',
-      subtitle: 'Just a name for now. Add the rest later.',
       leading: name.isEmpty
           ? const CruIconTile(
               icon: CruIcons.userPlus,
@@ -148,7 +155,6 @@ class _QuickPatientDialogState extends ConsumerState<QuickPatientDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _formKey,
         autovalidateMode: _submitted
@@ -159,8 +165,6 @@ class _QuickPatientDialogState extends ConsumerState<QuickPatientDialog> {
           children: [
             CruFormSection(
               first: true,
-              title: 'Patient',
-              description: 'Just a name and contact number.',
               children: [
                 CruTextField(
                   label: 'Name',
@@ -174,6 +178,7 @@ class _QuickPatientDialogState extends ConsumerState<QuickPatientDialog> {
                 ),
                 CruTextField(
                   label: 'Phone',
+                  optional: true,
                   controller: _phone,
                   icon: CruIcons.phone,
                   hint: '98765 43210',
@@ -183,6 +188,7 @@ class _QuickPatientDialogState extends ConsumerState<QuickPatientDialog> {
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
                     LengthLimitingTextInputFormatter(16),
                   ],
+                  validator: _validatePhone,
                   onChanged: _edited,
                 ),
               ],

@@ -131,6 +131,7 @@ class _NameSheet extends StatefulWidget {
 
 class _NameSheetState extends State<_NameSheet> {
   late final _name = TextEditingController(text: widget.initial);
+  final _form = GlobalKey<FormState>();
   bool _saving = false;
   String? _error;
 
@@ -142,8 +143,8 @@ class _NameSheetState extends State<_NameSheet> {
 
   Future<void> _save() async {
     final name = _name.text.trim();
-    if (name.isEmpty) {
-      setState(() => _error = 'Enter your name first.');
+    if (!(_form.currentState?.validate() ?? false)) {
+      setState(() => _error = null);
       return;
     }
     setState(() {
@@ -194,13 +195,20 @@ class _NameSheetState extends State<_NameSheet> {
             const SizedBox(height: CruSpace.s4),
             Text(note, style: CruType.caption.tint(c.label2)),
             const SizedBox(height: CruSpace.s16),
-            CruTextField(
-              label: 'Full name',
-              controller: _name,
-              hint: 'Dr. Ananya Deshpande',
-              autofocus: a.allowed,
-              textCapitalization: TextCapitalization.words,
-              onSubmitted: (_) => _saving || !a.allowed ? null : _save(),
+            Form(
+              key: _form,
+              child: CruTextField(
+                label: 'Full name',
+                controller: _name,
+                hint: 'Dr. Ananya Deshpande',
+                autofocus: a.allowed,
+                textCapitalization: TextCapitalization.words,
+                autofillHints: const [AutofillHints.name],
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _saving || !a.allowed ? null : _save(),
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ? 'Enter your name first.' : null,
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: CruSpace.s8),

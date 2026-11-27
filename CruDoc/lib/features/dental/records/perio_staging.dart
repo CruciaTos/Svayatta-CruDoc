@@ -658,11 +658,17 @@ class _PerioStagingPanelState extends State<PerioStagingPanel> {
             child: Text('• $r', style: CruType.caption.tint(c.label2)),
           ),
         const SizedBox(height: CruSpace.s16),
-        CruTextField(
+        CruMoreFields(
           label: 'Notes',
-          optional: true,
-          controller: _notes,
-          maxLines: 2,
+          open: _notes.text.isNotEmpty,
+          children: [
+            CruTextField(
+              label: 'Notes',
+              optional: true,
+              controller: _notes,
+              maxLines: 2,
+            ),
+          ],
         ),
         const SizedBox(height: CruSpace.s16),
         Row(

@@ -188,15 +188,23 @@ class _StockAdjustmentDialogState extends ConsumerState<StockAdjustmentDialog> {
                 onChanged: _edited,
               ),
               const SizedBox(height: CruSpace.s16),
-              CruTextField(
+              CruMoreFields(
                 label: 'Note',
-                optional: true,
-                controller: _note,
-                hint: _restock ? 'Supplier bill, order…' : 'Visit, patient…',
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _save(),
-                onChanged: _edited,
+                open: _note.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Note',
+                    optional: true,
+                    controller: _note,
+                    hint: _restock
+                        ? 'Supplier bill, order…'
+                        : 'Visit, patient…',
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _save(),
+                    onChanged: _edited,
+                  ),
+                ],
               ),
             ],
           ),

@@ -148,7 +148,12 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
               surface: DentalChart.storeSurfaces(_surfaces),
               procedureLogId: null,
               visitId: visit?.id,
-              baseEntryId: chartBaseFor(ref, widget.patient.id, visit, widget.tooth),
+              baseEntryId: chartBaseFor(
+                ref,
+                widget.patient.id,
+                visit,
+                widget.tooth,
+              ),
               notes: _notes.text.trim(),
               recordedAt: visit?.scheduledStart ?? at,
               createdAt: now,
@@ -197,14 +202,12 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CruFormSection(
             first: true,
             title: 'Finding',
-            description: 'What you see on this tooth today.',
             children: [
               CruFieldFrame(
                 label: 'Condition',
@@ -236,8 +239,6 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
               CruFieldFrame(
                 label: 'Surfaces',
                 optional: true,
-                help:
-                    'Mesial, distal, occlusal, buccal, lingual, incisal, cervical.',
                 child: DentalChipWrap<ToothSurface>(
                   options: ToothSurface.values,
                   label: (s) =>
@@ -256,9 +257,12 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
             ],
           ),
           CruFormSection(
-            title: 'Notes',
             children: [
-              CruFieldRow(
+              CruMoreFields(
+                label: 'Date, notes',
+                open:
+                    _notes.text.isNotEmpty ||
+                    !DentalFormat.sameDay(_date, DateTime.now()),
                 children: [
                   CruPickerField(
                     label: 'Date',
@@ -280,17 +284,16 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
                       }
                     },
                   ),
-                  const SizedBox.shrink(),
+                  CruTextField(
+                    label: 'Notes',
+                    optional: true,
+                    controller: _notes,
+                    maxLines: 3,
+                    hint: 'Sensitive to cold, deep pocket distal…',
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) => _edited(),
+                  ),
                 ],
-              ),
-              CruTextField(
-                label: 'Notes',
-                optional: true,
-                controller: _notes,
-                maxLines: 3,
-                hint: 'Sensitive to cold, deep pocket distal…',
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (_) => _edited(),
               ),
             ],
           ),
@@ -338,10 +341,6 @@ class _ProcedurePicker extends ConsumerWidget {
           label: 'Procedure',
           controller: name,
           hint: 'Root canal treatment, composite filling…',
-          help: catalog.isEmpty
-              ? 'Add your procedures and fees under Procedures in the sidebar '
-                    'to pick them here.'
-              : null,
           textCapitalization: TextCapitalization.sentences,
           validator: (v) =>
               (v ?? '').trim().isEmpty ? 'Name the procedure.' : null,
@@ -498,7 +497,9 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
               baseEntryId: chartBaseFor(
                 ref,
                 widget.patient.id,
-                ref.read(chartTimelineProvider(widget.patient.id)).sessionOf(log.visitId),
+                ref
+                    .read(chartTimelineProvider(widget.patient.id))
+                    .sessionOf(log.visitId),
                 tooth,
               ),
               notes: log.procedureName,
@@ -554,7 +555,7 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
       notice: _notice,
       footerHint: _status == DentalProcedureStatus.completed && t != null
           ? 'Completing it marks ${DentalChart.treatmentLabel(t).toLowerCase()} on the chart.'
-          : 'Ctrl + Enter to save',
+          : null,
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -566,7 +567,6 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
             CruFormSection(
               first: true,
               title: 'Procedure',
-              description: 'What was done and on which teeth.',
               children: [
                 _ProcedurePicker(
                   name: _name,
@@ -646,24 +646,29 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
               ],
             ),
             CruFormSection(
-              title: 'Notes',
               children: [
-                CruTextField(
-                  label: 'Materials',
-                  optional: true,
-                  controller: _materials,
-                  hint: 'Composite A2, 2 cartridges lignocaine…',
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (_) => _edited(),
-                ),
-                CruTextField(
-                  label: 'Notes',
-                  optional: true,
-                  controller: _notes,
-                  maxLines: 3,
-                  hint: 'How it went, what to watch for',
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (_) => _edited(),
+                CruMoreFields(
+                  label: 'Materials, notes',
+                  open: _materials.text.isNotEmpty || _notes.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Materials',
+                      optional: true,
+                      controller: _materials,
+                      hint: 'Composite A2, 2 cartridges lignocaine…',
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (_) => _edited(),
+                    ),
+                    CruTextField(
+                      label: 'Notes',
+                      optional: true,
+                      controller: _notes,
+                      maxLines: 3,
+                      hint: 'How it went, what to watch for',
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
                 ),
                 if (widget.existing != null)
                   Align(
@@ -832,7 +837,6 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -843,8 +847,6 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
           children: [
             CruFormSection(
               first: true,
-              title: 'Procedure',
-              description: 'What you recommend, on which teeth, for how much.',
               children: [
                 _ProcedurePicker(
                   name: _name,

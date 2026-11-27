@@ -11,6 +11,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/abdm/presentation/counter_qr_screen.dart';
 import 'package:doctor_management_app/core/pdf/data/branding_image_store.dart';
 import 'package:doctor_management_app/core/pdf/data/doc_numbering.dart';
 import 'package:doctor_management_app/core/pdf/data/doc_repository.dart';
@@ -397,7 +398,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                 enabled: canEdit,
                 maxLines: 3,
                 hint: 'Street, area, city and PIN code',
-                help: 'Up to 3 lines.',
               ),
               const SizedBox(height: CruSpace.s16),
               DocFieldPair(
@@ -440,7 +440,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                 optional: true,
                 maxLines: 2,
                 hint: 'e.g. Mon–Sat 9 AM – 8 PM',
-                help: 'Up to 2 lines.',
               ),
             ],
           ),
@@ -526,7 +525,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                     enabled: canEdit,
                     tabular: true,
                     textCapitalization: TextCapitalization.characters,
-                    help: '15 characters.',
                   ),
                 ),
               ],
@@ -549,7 +547,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                   optional: true,
                   keyboardType: TextInputType.emailAddress,
                   hint: 'name@bank',
-                  help: 'Used for the UPI QR code on bills.',
                 ),
                 second: CruTextField(
                   label: 'Name shown when paying',
@@ -565,7 +562,7 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                 enabled: canEdit,
                 optional: true,
                 maxLines: 3,
-                help: 'Printed at the bottom of every bill. One per line.',
+                help: 'One per line.',
               ),
             ],
           ),
@@ -610,7 +607,6 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
                 enabled: canEdit,
                 optional: true,
                 maxLines: 2,
-                help: 'Printed at the bottom of every document.',
               ),
               const SizedBox(height: CruSpace.s20),
               DocToggleRow(
@@ -624,6 +620,35 @@ class _ClinicDetailsTabState extends ConsumerState<ClinicDetailsTab> {
           ),
         ),
         const SizedBox(height: CruSpace.s24),
+
+        if (ClinicSession.instance.access?.can(ClinicPermission.patientsEdit) ??
+            true) ...[
+          CruCard(
+            semanticLabel: 'ABHA counter QR',
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'ABHA counter QR',
+                    style: CruType.row.tint(context.cru.label),
+                  ),
+                ),
+                CruButton(
+                  label: 'Open',
+                  kind: CruButtonKind.secondary,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CounterQrScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: CruSpace.cardGap),
+        ],
 
         if (canEdit)
           DocSaveBar(

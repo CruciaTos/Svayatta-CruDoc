@@ -53,7 +53,7 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
   List<LabCaseFile> _files = [];
 
   bool _busy = false;
-  String? _teethError;
+  final _form = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -101,6 +101,15 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
       }
     }
     return tokens;
+  }
+
+  String? _checkTeeth(String? raw) {
+    try {
+      _parseAndValidateTeeth(raw ?? '');
+      return null;
+    } on FormatException catch (e) {
+      return e.message;
+    }
   }
 
   Future<void> _pickPatient() async {
@@ -163,14 +172,8 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
       return;
     }
 
-    List<String> parsedTeeth = [];
-    try {
-      parsedTeeth = _parseAndValidateTeeth(_teeth.text);
-      _teethError = null;
-    } catch (e) {
-      setState(() => _teethError = e.toString());
-      return;
-    }
+    if (!(_form.currentState?.validate() ?? false)) return;
+    final parsedTeeth = _parseAndValidateTeeth(_teeth.text);
 
     setState(() => _busy = true);
 
@@ -272,378 +275,401 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
       busy: _busy,
       submitLabel: widget.initialCase == null ? 'Create order' : 'Save changes',
       onSubmit: _save,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Patient
-          CruFieldFrame(
-            label: 'Patient',
-            child: Row(
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Patient
+            CruFieldFrame(
+              label: 'Patient',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _patient != null
+                          ? '${_patient!.fullName} (${_patient!.age}y, ${_patient!.gender.toUpperCase()})'
+                          : 'No patient selected',
+                      style: CruType.body.tint(
+                        _patient != null ? c.label : c.label3,
+                      ),
+                    ),
+                  ),
+                  CruCapsuleButton(
+                    label: _patient != null ? 'Change' : 'Pick patient',
+                    icon: CruIcons.search,
+                    onPressed: _pickPatient,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Lab partner
+            CruFieldFrame(
+              label: 'Dental lab partner',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _selectedLab?.id,
+                        hint: Text(
+                          labs.isEmpty
+                              ? 'No dental labs saved'
+                              : 'Select dental lab',
+                          style: CruType.body.tint(c.label3),
+                        ),
+                        items: [
+                          for (final lab
+                              in (labs.isNotEmpty ? labs : allContacts))
+                            DropdownMenuItem<String>(
+                              value: lab.id,
+                              child: Text(
+                                '${lab.name}${lab.turnaroundDays != null ? ' (${lab.turnaroundDays}d turnaround)' : ''}',
+                                style: CruType.body.tint(c.label),
+                              ),
+                            ),
+                        ],
+                        onChanged: (id) {
+                          setState(() {
+                            _selectedLab = allContacts
+                                .where((cnt) => cnt.id == id)
+                                .firstOrNull;
+                            if (_selectedLab?.turnaroundDays != null &&
+                                widget.initialCase == null) {
+                              _due = DateTime.now().add(
+                                Duration(days: _selectedLab!.turnaroundDays!),
+                              );
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s8),
+                  CruCapsuleButton(
+                    label: 'Add lab',
+                    icon: CruIcons.plus,
+                    onPressed: () async {
+                      final newContact = await showDialog<ReferralContact>(
+                        context: context,
+                        builder: (_) => const EditContactDialog(
+                          contact: ReferralContact(
+                            id: '',
+                            name: '',
+                            specialty: 'Dental lab',
+                          ),
+                        ),
+                      );
+                      if (newContact != null && mounted) {
+                        setState(() {
+                          _selectedLab = newContact;
+                          if (newContact.turnaroundDays != null &&
+                              widget.initialCase == null) {
+                            _due = DateTime.now().add(
+                              Duration(days: newContact.turnaroundDays!),
+                            );
+                          }
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Restoration type & Material row
+            Row(
               children: [
                 Expanded(
-                  child: Text(
-                    _patient != null
-                        ? '${_patient!.fullName} (${_patient!.age}y, ${_patient!.gender.toUpperCase()})'
-                        : 'No patient selected',
-                    style: CruType.body.tint(
-                      _patient != null ? c.label : c.label3,
+                  child: CruFieldFrame(
+                    label: 'Restoration type',
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _type,
+                        items: [
+                          for (final t in labCaseTypes)
+                            DropdownMenuItem<String>(
+                              value: t,
+                              child: Text(t, style: CruType.body.tint(c.label)),
+                            ),
+                        ],
+                        onChanged: (t) {
+                          if (t != null) setState(() => _type = t);
+                        },
+                      ),
                     ),
                   ),
                 ),
-                CruCapsuleButton(
-                  label: _patient != null ? 'Change' : 'Pick patient',
-                  icon: CruIcons.search,
-                  onPressed: _pickPatient,
+                const SizedBox(width: CruSpace.s12),
+                Expanded(
+                  child: CruFieldFrame(
+                    label: 'Material',
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _material,
+                        items: [
+                          for (final m in labMaterials)
+                            DropdownMenuItem<String>(
+                              value: m,
+                              child: Text(m, style: CruType.body.tint(c.label)),
+                            ),
+                        ],
+                        onChanged: (m) {
+                          if (m != null) setState(() => _material = m);
+                        },
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: CruSpace.s12),
+            const SizedBox(height: CruSpace.s12),
 
-          // Lab partner
-          CruFieldFrame(
-            label: 'Dental lab partner',
-            child: Row(
+            // Teeth (FDI)
+            CruTextField(
+              label: 'Teeth (FDI, comma-separated)',
+              controller: _teeth,
+              hint:
+                  'e.g. 16, 26, 36 (Universal: ${toothLabel('16', numbering)})',
+              validator: _checkTeeth,
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Shade Guide Selection
+            CruFieldFrame(
+              label: 'Shade (VITA classical)',
+              child: Wrap(
+                spacing: CruSpace.s6,
+                runSpacing: CruSpace.s6,
+                children: [
+                  for (final s in vitaShades)
+                    DentalChoiceChip(
+                      label: s,
+                      selected: _shade == s,
+                      onTap: () => setState(() => _shade = s),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Margin design & Due date row
+            Row(
               children: [
                 Expanded(
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _selectedLab?.id,
-                      hint: Text(
-                        labs.isEmpty
-                            ? 'No dental labs saved'
-                            : 'Select dental lab',
-                        style: CruType.body.tint(c.label3),
+                  child: CruFieldFrame(
+                    label: 'Margin design',
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _margin,
+                        items: [
+                          for (final m in labMargins)
+                            DropdownMenuItem<String>(
+                              value: m,
+                              child: Text(m, style: CruType.body.tint(c.label)),
+                            ),
+                        ],
+                        onChanged: (m) {
+                          if (m != null) setState(() => _margin = m);
+                        },
                       ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: CruSpace.s12),
+                Expanded(
+                  child: CruFieldFrame(
+                    label: 'Due date',
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            DentalFormat.date(_due),
+                            style: CruType.body.w600.tabular.tint(c.label),
+                          ),
+                        ),
+                        CruCapsuleButton(
+                          label: 'Change',
+                          icon: CruIcons.calendar,
+                          onPressed: _pickDueDate,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Notes
+            CruTextField(
+              label: 'Clinical instructions & occlusal clearance',
+              controller: _notes,
+              maxLines: 4,
+              hint:
+                  'Provide specific instructions: contact tightness, anatomy, translucency, bite registration...',
+            ),
+            const SizedBox(height: CruSpace.s16),
+
+            // A new order starts at its first stage with no files.
+            CruMoreFields(
+              label: 'Stage, files',
+              open:
+                  widget.initialCase != null ||
+                  _stage != LabCaseStage.scanned ||
+                  _files.isNotEmpty,
+              children: [
+                // Stage
+                CruFieldFrame(
+                  label: 'Current stage',
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<LabCaseStage>(
+                      isExpanded: true,
+                      value: _stage,
                       items: [
-                        for (final lab
-                            in (labs.isNotEmpty ? labs : allContacts))
-                          DropdownMenuItem<String>(
-                            value: lab.id,
+                        for (final st in LabCaseStage.values)
+                          DropdownMenuItem<LabCaseStage>(
+                            value: st,
                             child: Text(
-                              '${lab.name}${lab.turnaroundDays != null ? ' (${lab.turnaroundDays}d turnaround)' : ''}',
+                              st.label,
                               style: CruType.body.tint(c.label),
                             ),
                           ),
                       ],
-                      onChanged: (id) {
-                        setState(() {
-                          _selectedLab = allContacts
-                              .where((cnt) => cnt.id == id)
-                              .firstOrNull;
-                          if (_selectedLab?.turnaroundDays != null &&
-                              widget.initialCase == null) {
-                            _due = DateTime.now().add(
-                              Duration(days: _selectedLab!.turnaroundDays!),
-                            );
-                          }
-                        });
+                      onChanged: (st) {
+                        if (st != null) setState(() => _stage = st);
                       },
                     ),
                   ),
                 ),
-                const SizedBox(width: CruSpace.s8),
-                CruCapsuleButton(
-                  label: 'Add lab',
-                  icon: CruIcons.plus,
-                  onPressed: () async {
-                    final newContact = await showDialog<ReferralContact>(
-                      context: context,
-                      builder: (_) => const EditContactDialog(
-                        contact: ReferralContact(
-                          id: '',
-                          name: '',
-                          specialty: 'Dental lab',
-                        ),
-                      ),
-                    );
-                    if (newContact != null && mounted) {
-                      setState(() {
-                        _selectedLab = newContact;
-                        if (newContact.turnaroundDays != null &&
-                            widget.initialCase == null) {
-                          _due = DateTime.now().add(
-                            Duration(days: newContact.turnaroundDays!),
-                          );
-                        }
-                      });
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: CruSpace.s12),
 
-          // Restoration type & Material row
-          Row(
-            children: [
-              Expanded(
-                child: CruFieldFrame(
-                  label: 'Restoration type',
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _type,
-                      items: [
-                        for (final t in labCaseTypes)
-                          DropdownMenuItem<String>(
-                            value: t,
-                            child: Text(t, style: CruType.body.tint(c.label)),
-                          ),
-                      ],
-                      onChanged: (t) {
-                        if (t != null) setState(() => _type = t);
-                      },
+                // Attached scan / photo files
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Attached Files (${_files.length})',
+                      style: CruType.callout.w600.tint(c.label),
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: CruSpace.s12),
-              Expanded(
-                child: CruFieldFrame(
-                  label: 'Material',
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _material,
-                      items: [
-                        for (final m in labMaterials)
-                          DropdownMenuItem<String>(
-                            value: m,
-                            child: Text(m, style: CruType.body.tint(c.label)),
-                          ),
-                      ],
-                      onChanged: (m) {
-                        if (m != null) setState(() => _material = m);
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Teeth (FDI)
-          CruTextField(
-            label: 'Teeth (FDI, comma-separated)',
-            controller: _teeth,
-            hint: 'e.g. 16, 26, 36 (Universal: ${toothLabel('16', numbering)})',
-            help: _teethError,
-            onChanged: (_) {
-              if (_teethError != null) setState(() => _teethError = null);
-            },
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Shade Guide Selection
-          CruFieldFrame(
-            label: 'Shade (VITA classical)',
-            child: Wrap(
-              spacing: CruSpace.s6,
-              runSpacing: CruSpace.s6,
-              children: [
-                for (final s in vitaShades)
-                  DentalChoiceChip(
-                    label: s,
-                    selected: _shade == s,
-                    onTap: () => setState(() => _shade = s),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Margin design & Due date row
-          Row(
-            children: [
-              Expanded(
-                child: CruFieldFrame(
-                  label: 'Margin design',
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _margin,
-                      items: [
-                        for (final m in labMargins)
-                          DropdownMenuItem<String>(
-                            value: m,
-                            child: Text(m, style: CruType.body.tint(c.label)),
-                          ),
-                      ],
-                      onChanged: (m) {
-                        if (m != null) setState(() => _margin = m);
-                      },
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: CruSpace.s12),
-              Expanded(
-                child: CruFieldFrame(
-                  label: 'Due date',
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          DentalFormat.date(_due),
-                          style: CruType.body.w600.tabular.tint(c.label),
-                        ),
-                      ),
-                      CruCapsuleButton(
-                        label: 'Change',
-                        icon: CruIcons.calendar,
-                        onPressed: _pickDueDate,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Stage
-          CruFieldFrame(
-            label: 'Current stage',
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<LabCaseStage>(
-                isExpanded: true,
-                value: _stage,
-                items: [
-                  for (final st in LabCaseStage.values)
-                    DropdownMenuItem<LabCaseStage>(
-                      value: st,
-                      child: Text(st.label, style: CruType.body.tint(c.label)),
-                    ),
-                ],
-                onChanged: (st) {
-                  if (st != null) setState(() => _stage = st);
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Notes
-          CruTextField(
-            label: 'Clinical instructions & occlusal clearance',
-            controller: _notes,
-            maxLines: 4,
-            hint:
-                'Provide specific instructions: contact tightness, anatomy, translucency, bite registration...',
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Attached scan / photo files
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Attached Files (${_files.length})',
-                style: CruType.callout.w600.tint(c.label),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (widget.initialCase != null && _patient != null) ...[
-                    CruCapsuleButton(
-                      label: 'Export case (ZIP)',
-                      icon: CruIcons.download,
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => ExportLabCaseDialog(
-                          labCase: widget.initialCase!,
-                          patient: _patient!,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s8),
-                  ],
-                  CruCapsuleButton(
-                    label: 'Add files',
-                    icon: CruIcons.plus,
-                    onPressed: _addAttachment,
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s8),
-          if (_files.isEmpty)
-            Text(
-              'No scan or design files attached yet (.stl, .ply, photos).',
-              style: CruType.caption.tint(c.label3),
-            )
-          else
-            for (final f in _files)
-              Padding(
-                padding: const EdgeInsets.only(bottom: CruSpace.s4),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s12,
-                    vertical: CruSpace.s6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
-                  ),
-                  child: Row(
-                    children: [
-                      CruIcon(CruIcons.box, size: 16, color: c.label2),
-                      const SizedBox(width: CruSpace.s8),
-                      if (f.is3dScan) ...[
-                        CruPill(
-                          text: '3D',
-                          background: c.accentTint,
-                          foreground: c.accent,
-                        ),
-                        const SizedBox(width: CruSpace.s6),
-                      ],
-                      Expanded(
-                        child: Text(
-                          f.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: CruType.note.tint(c.label),
-                        ),
-                      ),
-                      CruIconButton(
-                        icon: CruIcons.arrowUpRight,
-                        size: CruSize.squareButton,
-                        semanticLabel: 'Open file',
-                        tooltip: 'Open file',
-                        onPressed: () {
-                          if (f.is3dScan) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => ScanViewerScreen(
-                                  filePath: f.path,
-                                  fileName: f.name,
-                                  title: _patient?.fullName,
-                                ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (widget.initialCase != null && _patient != null) ...[
+                          CruCapsuleButton(
+                            label: 'Export case (ZIP)',
+                            icon: CruIcons.download,
+                            onPressed: () => showDialog<void>(
+                              context: context,
+                              builder: (_) => ExportLabCaseDialog(
+                                labCase: widget.initialCase!,
+                                patient: _patient!,
                               ),
-                            );
-                          } else {
-                            launchUrl(Uri.file(f.path));
-                          }
-                        },
-                      ),
-                      CruIconButton(
-                        icon: CruIcons.close,
-                        size: CruSize.squareButton,
-                        semanticLabel: 'Remove file',
-                        tooltip: 'Remove',
-                        onPressed: () => setState(() => _files.remove(f)),
-                      ),
+                            ),
+                          ),
+                          const SizedBox(width: CruSpace.s8),
+                        ],
+                        CruCapsuleButton(
+                          label: 'Add files',
+                          icon: CruIcons.plus,
+                          onPressed: _addAttachment,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (_files.isEmpty)
+                  Text(
+                    'No scan or design files attached yet (.stl, .ply, photos).',
+                    style: CruType.caption.tint(c.label3),
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final f in _files)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: CruSpace.s4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: CruSpace.s12,
+                              vertical: CruSpace.s6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: c.surface,
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.control,
+                              ),
+                              border: Border.all(color: c.hairline),
+                            ),
+                            child: Row(
+                              children: [
+                                CruIcon(
+                                  CruIcons.box,
+                                  size: 16,
+                                  color: c.label2,
+                                ),
+                                const SizedBox(width: CruSpace.s8),
+                                if (f.is3dScan) ...[
+                                  CruPill(
+                                    text: '3D',
+                                    background: c.accentTint,
+                                    foreground: c.accent,
+                                  ),
+                                  const SizedBox(width: CruSpace.s6),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    f.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: CruType.note.tint(c.label),
+                                  ),
+                                ),
+                                CruIconButton(
+                                  icon: CruIcons.arrowUpRight,
+                                  size: CruSize.squareButton,
+                                  semanticLabel: 'Open file',
+                                  tooltip: 'Open file',
+                                  onPressed: () {
+                                    if (f.is3dScan) {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => ScanViewerScreen(
+                                            filePath: f.path,
+                                            fileName: f.name,
+                                            title: _patient?.fullName,
+                                          ),
+                                        ),
+                                      );
+                                    } else {
+                                      launchUrl(Uri.file(f.path));
+                                    }
+                                  },
+                                ),
+                                CruIconButton(
+                                  icon: CruIcons.close,
+                                  size: CruSize.squareButton,
+                                  semanticLabel: 'Remove file',
+                                  tooltip: 'Remove',
+                                  onPressed: () =>
+                                      setState(() => _files.remove(f)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-              ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

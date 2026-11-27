@@ -51,6 +51,9 @@ class _MedicalReportGenerationSheetState
 
   late DateTime _reportDate;
 
+  /// The number given on opening; anything else was typed.
+  late final String _autoNumber;
+
   @override
   void initState() {
     super.initState();
@@ -66,7 +69,8 @@ class _MedicalReportGenerationSheetState
           : '${patient.age} Y / ${patient.gender.trim().isEmpty ? 'N/A' : patient.gender.trim()}',
     );
     _patientPhoneCtrl = TextEditingController(text: patient?.phone ?? '');
-    _reportNumberCtrl = TextEditingController(text: 'RPT-$reportSeq');
+    _autoNumber = 'RPT-$reportSeq';
+    _reportNumberCtrl = TextEditingController(text: _autoNumber);
     _reportTitleCtrl = TextEditingController(text: 'Clinical Summary Report');
     _clinicalSummaryCtrl = TextEditingController(
       text: patient?.notes.trim().isNotEmpty == true
@@ -313,19 +317,7 @@ class _MedicalReportGenerationSheetState
             style: CruType.callout.w700.tint(_c.label),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildInput(
-                  _reportNumberCtrl,
-                  'Report #',
-                  Icons.tag_rounded,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: _buildDatePicker()),
-            ],
-          ),
+          _buildDatePicker(),
           const SizedBox(height: 12),
           _buildInput(_reportTitleCtrl, 'Report Title', Icons.title_rounded),
           const SizedBox(height: 12),
@@ -355,6 +347,14 @@ class _MedicalReportGenerationSheetState
             _patientPhoneCtrl,
             'WhatsApp / Phone',
             Icons.phone_rounded,
+          ),
+          const SizedBox(height: 12),
+          CruMoreFields(
+            label: 'Report number',
+            open: _reportNumberCtrl.text != _autoNumber,
+            children: [
+              _buildInput(_reportNumberCtrl, 'Report #', Icons.tag_rounded),
+            ],
           ),
         ],
       ),

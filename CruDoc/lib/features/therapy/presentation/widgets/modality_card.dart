@@ -295,11 +295,10 @@ class _ModalitySheetState extends ConsumerState<_ModalitySheet> {
               _isNew ? 'Log a treatment' : 'Treatment given',
               style: CruType.headline.tint(c.label),
             ),
-            const SizedBox(height: CruSpace.s4),
-            Text(
-              m == null ? 'Which machine, then what it was set to.' : m.name,
-              style: CruType.caption.tint(c.label2),
-            ),
+            if (m != null) ...[
+              const SizedBox(height: CruSpace.s4),
+              Text(m.name, style: CruType.caption.tint(c.label2)),
+            ],
             const SizedBox(height: CruSpace.s16),
             Flexible(
               child: SingleChildScrollView(

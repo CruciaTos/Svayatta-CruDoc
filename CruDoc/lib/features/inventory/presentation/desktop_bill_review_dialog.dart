@@ -581,10 +581,6 @@ class _DesktopBillReviewDialogState extends State<DesktopBillReviewDialog> {
       dirty: _dirty,
       notice:
           _notice ?? (_phase == _Phase.ready ? _readingNotice(bill!) : null),
-      footerHint: _phase == _Phase.ready
-          ? 'Read by ${bill!.readOffline ? 'PaddleOCR' : 'Sarvam Vision'}'
-                ' · Ctrl + Enter to add'
-          : null,
       body: switch (_phase) {
         _Phase.reading => _Reading(seconds: _seconds),
         _Phase.failed => _Failed(message: _failure!, onRetry: () => _read()),

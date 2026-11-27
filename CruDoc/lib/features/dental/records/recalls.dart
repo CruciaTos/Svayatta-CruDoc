@@ -308,6 +308,7 @@ class _SetRecallDialog extends ConsumerStatefulWidget {
 }
 
 class _SetRecallDialogState extends ConsumerState<_SetRecallDialog> {
+  final _form = GlobalKey<FormState>();
   Patient? _patient;
   RecallRule? _rule;
   late DateTime _due;
@@ -339,11 +340,13 @@ class _SetRecallDialogState extends ConsumerState<_SetRecallDialog> {
   }
 
   Future<void> _save() async {
+    final valid = _form.currentState?.validate() ?? false;
     final p = _patient;
-    if (p == null || _reason.text.trim().isEmpty) {
-      recToast(context, 'Pick a patient and a reason.');
+    if (p == null) {
+      recToast(context, 'Pick a patient.');
       return;
     }
+    if (!valid) return;
     final e = widget.existing;
     final data = {
       ...?e?.data,
@@ -372,81 +375,94 @@ class _SetRecallDialogState extends ConsumerState<_SetRecallDialog> {
         : const <RecallRule>[];
     return CruFormDialog(
       title: widget.existing == null ? 'Set recall' : 'Edit recall',
-      subtitle: _patient?.fullName ?? 'Remind a patient to come back',
+      subtitle: _patient?.fullName,
       leading: const CruIconTile(
         icon: RecIcons.recall,
         tone: CruTileTone.accent,
       ),
       submitLabel: 'Save recall',
       onSubmit: _save,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CruFormSection(
-            first: true,
-            title: 'Recall',
-            description: isDental
-                ? 'A rule sets the date from today; change it if you like.'
-                : 'Pick when the patient should come back.',
-            children: [
-              if (widget.patient == null)
-                CruPickerField(
-                  label: 'Patient',
-                  icon: CruIcons.user,
-                  value: _patient?.fullName,
-                  placeholder: 'Pick a patient',
-                  onTap: () async {
-                    final p = await pickRadPatient(
-                      context,
-                      title: 'Pick a patient',
-                      subtitle: 'Who should come back',
-                    );
-                    if (p != null) setState(() => _patient = p);
-                  },
-                ),
-              if (rules.isNotEmpty)
-                CruFieldFrame(
-                  label: 'Reason',
-                  child: DentalChipWrap<RecallRule>(
-                    options: rules,
-                    label: (r) => '${r.name} · ${r.months} mo',
-                    isSelected: (r) => r.record.id == _rule?.record.id,
-                    onTap: (r) => setState(() {
-                      _rule = r;
-                      _reason.text = r.name;
-                      _due = _addMonths(DateTime.now(), r.months);
-                    }),
-                  ),
-                ),
-              CruFieldRow(
-                children: [
-                  CruTextField(
-                    label: isDental ? 'Reason text' : 'Reason',
-                    controller: _reason,
-                    hint: isDental
-                        ? 'Check-up and cleaning'
-                        : 'Follow-up review',
-                  ),
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CruFormSection(
+              first: true,
+              children: [
+                if (widget.patient == null)
                   CruPickerField(
-                    label: 'Due',
-                    icon: CruIcons.calendar,
-                    value: DentalFormat.date(_due),
-                    placeholder: 'Pick a date',
+                    label: 'Patient',
+                    icon: CruIcons.user,
+                    value: _patient?.fullName,
+                    placeholder: 'Pick a patient',
                     onTap: () async {
-                      final d = await pickDentalDate(
+                      final p = await pickRadPatient(
                         context,
-                        initial: _due,
-                        last: DateTime.now().add(const Duration(days: 365 * 3)),
+                        title: 'Pick a patient',
+                        subtitle: 'Who should come back',
                       );
-                      if (d != null) setState(() => _due = d);
+                      if (p != null) setState(() => _patient = p);
                     },
                   ),
-                ],
-              ),
-              CruTextField(label: 'Notes', optional: true, controller: _notes),
-            ],
-          ),
-        ],
+                if (rules.isNotEmpty)
+                  CruFieldFrame(
+                    label: 'Reason',
+                    child: DentalChipWrap<RecallRule>(
+                      options: rules,
+                      label: (r) => '${r.name} · ${r.months} mo',
+                      isSelected: (r) => r.record.id == _rule?.record.id,
+                      onTap: (r) => setState(() {
+                        _rule = r;
+                        _reason.text = r.name;
+                        _due = _addMonths(DateTime.now(), r.months);
+                      }),
+                    ),
+                  ),
+                CruFieldRow(
+                  children: [
+                    CruTextField(
+                      label: isDental ? 'Reason text' : 'Reason',
+                      controller: _reason,
+                      hint: isDental
+                          ? 'Check-up and cleaning'
+                          : 'Follow-up review',
+                      validator: (v) =>
+                          (v ?? '').trim().isEmpty ? 'Add a reason.' : null,
+                    ),
+                    CruPickerField(
+                      label: 'Due',
+                      icon: CruIcons.calendar,
+                      value: DentalFormat.date(_due),
+                      placeholder: 'Pick a date',
+                      onTap: () async {
+                        final d = await pickDentalDate(
+                          context,
+                          initial: _due,
+                          last: DateTime.now().add(
+                            const Duration(days: 365 * 3),
+                          ),
+                        );
+                        if (d != null) setState(() => _due = d);
+                      },
+                    ),
+                  ],
+                ),
+                CruMoreFields(
+                  label: 'Notes',
+                  open: _notes.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Notes',
+                      optional: true,
+                      controller: _notes,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -468,7 +484,6 @@ class _RulesDialog extends ConsumerWidget {
         : const <RecallRule>[];
     return DentalPanelDialog(
       title: 'Recall rules',
-      subtitle: 'Completed treatments matching a rule suggest a recall',
       leading: const CruIconTile(
         icon: RecIcons.recall,
         tone: CruTileTone.neutral,
@@ -545,6 +560,7 @@ class _RuleEditor extends ConsumerStatefulWidget {
 }
 
 class _RuleEditorState extends ConsumerState<_RuleEditor> {
+  final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.rule?.name ?? '');
   late final _months = TextEditingController(
     text: '${widget.rule?.months ?? 6}',
@@ -565,7 +581,7 @@ class _RuleEditorState extends ConsumerState<_RuleEditor> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) return;
+    if (!(_form.currentState?.validate() ?? false)) return;
     final data = {
       'name': _name.text.trim(),
       'months': (int.tryParse(_months.text.trim()) ?? 6).clamp(1, 60),
@@ -606,44 +622,48 @@ class _RuleEditorState extends ConsumerState<_RuleEditor> {
       ),
       submitLabel: 'Save rule',
       onSubmit: _save,
-      body: CruFormSection(
-        first: true,
-        title: 'Rule',
-        description:
-            'Use {name}, {clinic}, {reason} and {date} in the message.',
-        children: [
-          CruFieldRow(
-            children: [
-              CruTextField(
-                label: 'Name',
-                controller: _name,
-                hint: 'Check-up and cleaning',
-              ),
-              CruTextField(
-                label: 'Every',
-                controller: _months,
-                tabular: true,
-                trailing: Text(
-                  'months',
-                  style: CruType.subhead.tint(context.cru.label3),
+      body: Form(
+        key: _form,
+        child: CruFormSection(
+          first: true,
+          description:
+              'Use {name}, {clinic}, {reason} and {date} in the message.',
+          children: [
+            CruFieldRow(
+              children: [
+                CruTextField(
+                  label: 'Name',
+                  controller: _name,
+                  hint: 'Check-up and cleaning',
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Name the rule.' : null,
                 ),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              ),
-            ],
-          ),
-          CruTextField(
-            label: 'After treatments containing',
-            controller: _keywords,
-            hint: 'scaling, cleaning, prophylaxis',
-            help: 'Words separated by commas, matched in procedure names.',
-          ),
-          CruTextField(label: 'Message', controller: _message, maxLines: 3),
-          if (widget.rule != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: CruLink(label: 'Delete this rule', onPressed: _delete),
+                CruTextField(
+                  label: 'Every',
+                  controller: _months,
+                  tabular: true,
+                  trailing: Text(
+                    'months',
+                    style: CruType.subhead.tint(context.cru.label3),
+                  ),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ],
             ),
-        ],
+            CruTextField(
+              label: 'After treatments containing',
+              controller: _keywords,
+              hint: 'scaling, cleaning, prophylaxis',
+              help: 'Separate with commas.',
+            ),
+            CruTextField(label: 'Message', controller: _message, maxLines: 3),
+            if (widget.rule != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CruLink(label: 'Delete this rule', onPressed: _delete),
+              ),
+          ],
+        ),
       ),
     );
   }

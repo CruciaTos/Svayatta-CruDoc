@@ -370,7 +370,6 @@ class _EndoDialogState extends ConsumerState<_EndoDialog> {
       onSubmit: _save,
       busy: _saving,
       dirty: _dirty,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         child: Column(
@@ -379,7 +378,6 @@ class _EndoDialogState extends ConsumerState<_EndoDialog> {
             CruFormSection(
               first: true,
               title: 'Diagnosis',
-              description: 'AAE terms, pulpal and periapical.',
               children: [
                 CruTextField(
                   label: 'Tooth (FDI)',
@@ -426,7 +424,6 @@ class _EndoDialogState extends ConsumerState<_EndoDialog> {
             ),
             CruFormSection(
               title: 'Vitality tests',
-              description: 'Tap a result for each test done.',
               children: [
                 for (final t in _tests.entries)
                   Row(
@@ -467,9 +464,6 @@ class _EndoDialogState extends ConsumerState<_EndoDialog> {
             ),
             CruFormSection(
               title: 'Canals',
-              description: _canals.isEmpty
-                  ? 'Add each canal with its working length.'
-                  : '${_canals.length} canal${_canals.length == 1 ? '' : 's'}',
               children: [
                 for (final canal in _canals)
                   Container(
@@ -656,7 +650,6 @@ class _EndoDialogState extends ConsumerState<_EndoDialog> {
             ),
             CruFormSection(
               title: 'Post-op instructions',
-              description: 'Edit, then send to the patient.',
               children: [
                 CruTextField(
                   label: 'Instructions',
@@ -691,12 +684,18 @@ class _EndoDialogState extends ConsumerState<_EndoDialog> {
                     ),
                   ],
                 ),
-                CruTextField(
+                CruMoreFields(
                   label: 'Notes',
-                  optional: true,
-                  controller: _notes,
-                  maxLines: 2,
-                  onChanged: (_) => _edited(),
+                  open: _notes.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Notes',
+                      optional: true,
+                      controller: _notes,
+                      maxLines: 2,
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
                 ),
                 if (widget.existing != null)
                   Align(

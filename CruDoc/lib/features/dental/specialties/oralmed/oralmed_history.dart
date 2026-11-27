@@ -348,7 +348,6 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
           CruFormSection(
             first: true,
             title: 'Systemic conditions',
-            description: 'Tick what the patient has now or had.',
             children: [
               DentalChipWrap<String>(
                 options: omConditions,
@@ -376,7 +375,6 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
           ),
           CruFormSection(
             title: 'Medicines',
-            description: 'What the patient takes regularly.',
             children: [
               _lines(
                 lines: _meds,
@@ -402,7 +400,6 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
           ),
           CruFormSection(
             title: 'Allergies',
-            description: 'Shown in red on the patient record.',
             children: [
               if (_allergies.isEmpty)
                 Align(

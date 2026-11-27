@@ -278,7 +278,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
       });
     } catch (e) {
       debugPrint('Onboarding save failed: $e');
-      if (mounted) setState(() => _error = 'Could not save. Check the connection and try again.');
+      if (mounted) {
+        setState(
+          () => _error = 'Could not save. Check the connection and try again.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -287,7 +291,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   /// A clinic is set up as soon as onboarding finishes, so its owner can add
   /// people straight away. If it fails (no connection), nothing is lost: the
   /// choice is on the profile and Settings → Team sets it up from there.
-  Future<void> _setUpClinic(User user, String name, DoctorSpecialty spec) async {
+  Future<void> _setUpClinic(
+    User user,
+    String name,
+    DoctorSpecialty spec,
+  ) async {
     try {
       final clinicName = _clinicName.text.trim();
       await ClinicTeamApi.instance.ensureClinic(
@@ -411,7 +419,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     );
   }
 
-  Widget _heading(String title, String lead) {
+  Widget _heading(String title, [String? lead]) {
     final c = context.cru;
     return Padding(
       padding: const EdgeInsets.only(bottom: CruSpace.s20),
@@ -422,8 +430,10 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             header: true,
             child: Text(title, style: CruType.largeTitle.tint(c.label)),
           ),
-          const SizedBox(height: CruSpace.s6),
-          Text(lead, style: CruType.lead.tint(c.label2)),
+          if (lead != null) ...[
+            const SizedBox(height: CruSpace.s6),
+            Text(lead, style: CruType.lead.tint(c.label2)),
+          ],
         ],
       ),
     );
@@ -453,10 +463,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading(
-          'Welcome to CruDoc',
-          'A few questions so the app fits how you work. Takes a minute.',
-        ),
+        _heading('Welcome to CruDoc'),
         if (_askForPhone) ...[
           CruCard(
             child: Column(
@@ -516,92 +523,111 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   Widget _aboutStep() {
     final c = context.cru;
     final spec = _spec;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _heading('About you', 'Shown on your prescriptions and to your patients.'),
-        if (_isClinic) ...[
-          Text('Your role in the clinic', style: CruType.subhead.tint(c.label2)),
-          const SizedBox(height: CruSpace.s8),
-          _OptionTile(
-            icon: CruIcons.user,
-            title: "I'm a doctor here",
-            detail: 'You treat patients and run the clinic.',
-            selected: _ownerIsDoctor,
-            onTap: () => setState(() => _ownerIsDoctor = true),
+    // No GlobalKey: the step switcher can hold two copies for a moment.
+    return Form(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _heading(
+            'About you',
+            'Shown on your prescriptions and to your patients.',
           ),
-          const SizedBox(height: CruSpace.s8),
-          _OptionTile(
-            icon: CruIcons.patients,
-            title: 'I manage the clinic',
-            detail: 'You run staff, billing and settings. Medical records '
-                'stay with the doctors.',
-            selected: !_ownerIsDoctor,
-            onTap: () => setState(() => _ownerIsDoctor = false),
+          if (_isClinic) ...[
+            Text(
+              'Your role in the clinic',
+              style: CruType.subhead.tint(c.label2),
+            ),
+            const SizedBox(height: CruSpace.s8),
+            _OptionTile(
+              icon: CruIcons.user,
+              title: "I'm a doctor here",
+              detail: 'You treat patients and run the clinic.',
+              selected: _ownerIsDoctor,
+              onTap: () => setState(() => _ownerIsDoctor = true),
+            ),
+            const SizedBox(height: CruSpace.s8),
+            _OptionTile(
+              icon: CruIcons.patients,
+              title: 'I manage the clinic',
+              detail:
+                  'You run staff, billing and settings. Medical records '
+                  'stay with the doctors.',
+              selected: !_ownerIsDoctor,
+              onTap: () => setState(() => _ownerIsDoctor = false),
+            ),
+            const SizedBox(height: CruSpace.s20),
+            CruTextField(
+              label: 'Clinic name',
+              controller: _clinicName,
+              hint: 'Sunrise Dental',
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: CruSpace.s16),
+          ],
+          Builder(
+            builder: (context) => CruTextField(
+              label: 'Your name',
+              controller: _name,
+              hint: _isClinic && !_ownerIsDoctor
+                  ? 'Priya Sharma'
+                  : 'Dr. Priya Sharma',
+              // A clinic answers the role question first, above this.
+              autofocus: !_isClinic && _name.text.isEmpty,
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.name],
+              textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) {
+                if (Form.of(context).validate()) _next();
+              },
+              validator: (v) =>
+                  (v ?? '').trim().isEmpty ? 'Enter your name.' : null,
+            ),
           ),
-          const SizedBox(height: CruSpace.s20),
-          CruTextField(
-            label: 'Clinic name',
-            controller: _clinicName,
-            hint: 'Sunrise Dental',
-            textCapitalization: TextCapitalization.words,
-          ),
-          const SizedBox(height: CruSpace.s16),
-        ],
-        CruTextField(
-          label: 'Your name',
-          controller: _name,
-          hint: _isClinic && !_ownerIsDoctor ? 'Priya Sharma' : 'Dr. Priya Sharma',
-          textCapitalization: TextCapitalization.words,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: CruSpace.s20),
-        Text(
-          _isClinic && !_ownerIsDoctor ? 'Clinic specialty' : 'Specialty',
-          style: CruType.subhead.tint(c.label2),
-        ),
-        const SizedBox(height: CruSpace.s8),
-        LayoutBuilder(
-          builder: (context, box) {
-            final columns = box.maxWidth > 440 ? 4 : 3;
-            final w =
-                (box.maxWidth - CruSpace.s8 * (columns - 1)) / columns;
-            return Wrap(
-              spacing: CruSpace.s8,
-              runSpacing: CruSpace.s8,
-              children: [
-                for (final s in DoctorSpecialty.all)
-                  SizedBox(
-                    width: w,
-                    height: _kSpecialtyTile,
-                    child: _SpecialtyTile(
-                      spec: s,
-                      selected: spec != null && spec.type == s.type,
-                      onTap: () => setState(() => _specialty = s.type),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-        if (spec?.type == DoctorSpecialtyType.dentist) ...[
           const SizedBox(height: CruSpace.s20),
           Text(
-            'What do you do?',
-            style: CruType.caption.tint(c.label2),
+            _isClinic && !_ownerIsDoctor ? 'Clinic specialty' : 'Specialty',
+            style: CruType.subhead.tint(c.label2),
           ),
           const SizedBox(height: CruSpace.s8),
-          DentalFeaturesPicker(
-            selected: _dental,
-            onChanged: (features) => setState(() => _dental = features),
+          LayoutBuilder(
+            builder: (context, box) {
+              final columns = box.maxWidth > 440 ? 4 : 3;
+              final w = (box.maxWidth - CruSpace.s8 * (columns - 1)) / columns;
+              return Wrap(
+                spacing: CruSpace.s8,
+                runSpacing: CruSpace.s8,
+                children: [
+                  for (final s in DoctorSpecialty.all)
+                    SizedBox(
+                      width: w,
+                      height: _kSpecialtyTile,
+                      child: _SpecialtyTile(
+                        spec: s,
+                        selected: spec != null && spec.type == s.type,
+                        onTap: () => setState(() => _specialty = s.type),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
+          if (spec?.type == DoctorSpecialtyType.dentist) ...[
+            const SizedBox(height: CruSpace.s20),
+            Text('What do you do?', style: CruType.caption.tint(c.label2)),
+            const SizedBox(height: CruSpace.s8),
+            DentalFeaturesPicker(
+              selected: _dental,
+              onChanged: (features) => setState(() => _dental = features),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
   Widget _featuresStep() {
-    final c = context.cru;
     final paid = featureCatalog.where((f) => !f.isBaseModule).toList();
     final on = _modules;
     return Column(
@@ -616,7 +642,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           icon: CruIcons.sparkle,
           title: 'Use what we suggest',
           detail: [
-            _practice == PracticeType.clinic ? 'Picked for a clinic' : 'Picked for a solo practice',
+            _practice == PracticeType.clinic
+                ? 'Picked for a clinic'
+                : 'Picked for a solo practice',
             ?_spec?.label,
           ].join(' · '),
           selected: _suggest == true,
@@ -658,11 +686,6 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                 ],
               ],
             ),
-          ),
-          const SizedBox(height: CruSpace.s8),
-          Text(
-            'You can change these any time from your plan.',
-            style: CruType.caption.tint(c.label3),
           ),
         ],
       ],
@@ -883,6 +906,8 @@ class _FeatureRow extends StatelessWidget {
         ],
       ),
     );
-    return onTap == null ? row : CruPressable(onTap: onTap, builder: (_, _) => row);
+    return onTap == null
+        ? row
+        : CruPressable(onTap: onTap, builder: (_, _) => row);
   }
 }

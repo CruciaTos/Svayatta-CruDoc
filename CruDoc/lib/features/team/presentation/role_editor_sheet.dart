@@ -143,8 +143,8 @@ class _RoleEditorDialogState extends ConsumerState<RoleEditorDialog> {
     return CruFormDialog(
       title: role == null ? 'New role' : role.name,
       subtitle: readOnly
-          ? 'This role can do things you can\'t, so only an admin can change it.'
-          : 'Tick what people in this role may do.',
+          ? "This role can do things you can't, so only an admin can change it."
+          : null,
       submitLabel: readOnly ? 'Done' : (_busy ? 'Saving…' : 'Save'),
       cancelLabel: readOnly ? 'Close' : 'Cancel',
       busy: _busy,

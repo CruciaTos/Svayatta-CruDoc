@@ -167,12 +167,6 @@ class _DischargeSheetState extends ConsumerState<_DischargeSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('Discharge summary', style: CruType.headline.tint(c.label)),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                'The progress, range of motion and sessions already recorded '
-                'are included. Only what CruDoc cannot know goes here.',
-                style: CruType.caption.tint(c.label2),
-              ),
               const SizedBox(height: CruSpace.s16),
               CruCapsuleButton(
                 label: 'Care ended ${DentalFormat.date(_on)}',
@@ -201,9 +195,6 @@ class _DischargeSheetState extends ConsumerState<_DischargeSheet> {
                 itemLabel: (id) => id.isEmpty
                     ? "The patient's own copy"
                     : referrerLabel(contacts.firstWhere((x) => x.id == id)),
-                help: _to == null
-                    ? null
-                    : 'A copy for the referring doctor, handed to the patient.',
                 onChanged: (id) => setState(() {
                   _to = id.isEmpty
                       ? null

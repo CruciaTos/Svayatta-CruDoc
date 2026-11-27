@@ -116,9 +116,7 @@ class _SwitchesCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _Card(
       title: 'Automatic messages',
-      description:
-          'Sent by CruDoc from our servers, so they go out even when every '
-          'device is off. Nothing about treatment is included.',
+      description: 'Nothing about treatment is included.',
       child: Column(
         children: [
           _SwitchRow(
@@ -201,9 +199,6 @@ class _ChannelsCardState extends ConsumerState<_ChannelsCard> {
 
     return _Card(
       title: 'Channels',
-      description:
-          'Each patient gets one message, on the first channel that can '
-          'reach them. If neither can, it shows as skipped below.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -211,14 +206,8 @@ class _ChannelsCardState extends ConsumerState<_ChannelsCard> {
             semanticLabel: 'Channel order',
             expand: true,
             segments: [
-              CruSegment(
-                order.first,
-                '${order.first.label} first',
-              ),
-              CruSegment(
-                order.last,
-                '${order.last.label} first',
-              ),
+              CruSegment(order.first, '${order.first.label} first'),
+              CruSegment(order.last, '${order.last.label} first'),
             ],
             selected: order.first,
             onChanged: (first) => setReminderChannelOrder([
@@ -300,17 +289,12 @@ class _ChannelRow extends StatelessWidget {
               if (status.isNotEmpty)
                 Text(
                   status,
-                  style: CruType.caption.tint(
-                    waiting ? c.amberText : c.label2,
-                  ),
+                  style: CruType.caption.tint(waiting ? c.amberText : c.label2),
                 ),
             ],
           ),
         ),
-        if (action != null) ...[
-          const SizedBox(width: CruSpace.s12),
-          action!,
-        ],
+        if (action != null) ...[const SizedBox(width: CruSpace.s12), action!],
       ],
     );
   }
@@ -400,7 +384,11 @@ class _WordingCardState extends ConsumerState<_WordingCard> {
 
   /// Variables the clinic knows now are filled in; the rest stay in square
   /// brackets so the preview never invents a patient or a time.
-  String _preview(String text, {required String clinic, required String doctor}) {
+  String _preview(
+    String text, {
+    required String clinic,
+    required String doctor,
+  }) {
     final known = <String, String>{
       'clinic': clinic.isEmpty ? '[clinic]' : clinic,
       'doctor': doctor.isEmpty ? '[doctor]' : doctor,
@@ -419,14 +407,10 @@ class _WordingCardState extends ConsumerState<_WordingCard> {
     final clinic = identity.clinicName ?? '';
     final doctor = identity.fullName ?? '';
     final dirty = _isDirty(saved);
-    final isDefault =
-        saved == kDefaultEmailTemplates[_kind] && !dirty;
+    final isDefault = saved == kDefaultEmailTemplates[_kind] && !dirty;
 
     return _Card(
       title: 'Email wording',
-      description:
-          'WhatsApp uses CruDoc\'s Meta-approved messages, which stay as '
-          'they are. Emails are yours to word.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -535,7 +519,6 @@ class _ActivityCard extends ConsumerWidget {
 
     return _Card(
       title: 'Recent activity',
-      description: 'The last 50 automatic messages and what happened.',
       child: log == null
           ? const SizedBox.shrink()
           : log.isEmpty

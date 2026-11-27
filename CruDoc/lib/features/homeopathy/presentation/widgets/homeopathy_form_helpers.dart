@@ -7,7 +7,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Green only marks a section as done; nothing else on it is coloured.
 class HomeopathyAccordionCard extends StatelessWidget {
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final bool isComplete;
   final CruIconData icon;
   final List<Widget> children;
@@ -16,7 +16,7 @@ class HomeopathyAccordionCard extends StatelessWidget {
   const HomeopathyAccordionCard({
     super.key,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.isComplete,
     required this.icon,
     required this.children,
@@ -65,12 +65,14 @@ class HomeopathyAccordionCard extends StatelessWidget {
               child: CruIcon(icon, size: 18, color: c.label2),
             ),
             title: Text(title, style: CruType.headline.tint(c.label)),
-            subtitle: Text(
-              subtitle,
-              style: CruType.caption.tint(c.label2),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            subtitle: subtitle == null
+                ? null
+                : Text(
+                    subtitle!,
+                    style: CruType.caption.tint(c.label2),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

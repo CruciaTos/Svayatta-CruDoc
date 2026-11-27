@@ -265,7 +265,6 @@ class _DesktopAddTransactionDialogState
   @override
   List<String> voiceMissing() => [
     if ((double.tryParse(_amountController.text.trim()) ?? 0) <= 0) 'amount',
-    if (_descriptionController.text.trim().isEmpty) 'what it was for',
   ];
 
   @override
@@ -279,9 +278,6 @@ class _DesktopAddTransactionDialogState
     return null;
   }
 
-  String? _validateDescription(String? v) =>
-      (v == null || v.trim().isEmpty) ? 'Add a description.' : null;
-
   Future<void> _save() async {
     if (_saving) return;
     setState(() => _submitted = true);
@@ -293,7 +289,18 @@ class _DesktopAddTransactionDialogState
     });
 
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
-    final description = _descriptionController.text.trim();
+    final typed = _descriptionController.text.trim();
+    // Left empty, the entry is named by its category, or by its type.
+    final description = typed.isNotEmpty
+        ? typed
+        : RevenueBuilder.sentence(
+            _selectedCategory ??
+                switch (_formType) {
+                  _TransactionFormType.income => 'payment',
+                  _TransactionFormType.expense => 'expense',
+                  _TransactionFormType.pending => 'pending payment',
+                },
+          );
     final payer = _payerController.text.trim();
     final notes = _notesController.text.trim();
     final now = DateTime.now();
@@ -412,7 +419,6 @@ class _DesktopAddTransactionDialogState
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _formKey,
         autovalidateMode: _submitted
@@ -424,7 +430,6 @@ class _DesktopAddTransactionDialogState
             CruFormSection(
               first: true,
               title: 'Amount',
-              description: 'Money in, money out, or a balance to collect.',
               children: [
                 CruFieldFrame(
                   label: 'Type',
@@ -477,12 +482,10 @@ class _DesktopAddTransactionDialogState
             ),
             CruFormSection(
               title: 'Details',
-              description: 'What it was for and who it was with.',
               children: [
                 CruFieldFrame(
                   label: 'Category',
                   optional: true,
-                  help: 'Picking one fills in the description.',
                   child: Wrap(
                     spacing: CruSpace.s8,
                     runSpacing: CruSpace.s8,
@@ -500,34 +503,36 @@ class _DesktopAddTransactionDialogState
                 ),
                 CruTextField(
                   label: 'Description',
+                  optional: true,
                   controller: _descriptionController,
                   hint: 'Root canal consultation, gloves and masks…',
                   textCapitalization: TextCapitalization.sentences,
-                  validator: _validateDescription,
                   onChanged: _edited,
                 ),
-                CruTextField(
-                  label: payerLabel,
-                  optional: true,
-                  controller: _payerController,
-                  hint: payerHint,
-                  textCapitalization: TextCapitalization.words,
-                  onChanged: _edited,
-                ),
-              ],
-            ),
-            CruFormSection(
-              title: 'Notes',
-              description: 'Invoice, cheque or payment reference.',
-              children: [
-                CruTextField(
-                  label: 'Notes',
-                  optional: true,
-                  controller: _notesController,
-                  maxLines: 3,
-                  hint: 'Invoice number, cheque ID or voucher',
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: _edited,
+                CruMoreFields(
+                  label: '$payerLabel, notes',
+                  open:
+                      _payerController.text.isNotEmpty ||
+                      _notesController.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: payerLabel,
+                      optional: true,
+                      controller: _payerController,
+                      hint: payerHint,
+                      textCapitalization: TextCapitalization.words,
+                      onChanged: _edited,
+                    ),
+                    CruTextField(
+                      label: 'Notes',
+                      optional: true,
+                      controller: _notesController,
+                      maxLines: 3,
+                      hint: 'Invoice number, cheque ID or voucher',
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: _edited,
+                    ),
+                  ],
                 ),
               ],
             ),

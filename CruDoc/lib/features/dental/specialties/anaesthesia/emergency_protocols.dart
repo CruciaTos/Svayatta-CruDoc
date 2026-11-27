@@ -259,6 +259,7 @@ class _ProtocolDialogState extends ConsumerState<_ProtocolDialog> {
   late final _drugs = TextEditingController(
     text: _lines(widget.existing?.data['drugs']).join('\n'),
   );
+  final _form = GlobalKey<FormState>();
   bool _dirty = false;
   bool _saving = false;
   String? _notice;
@@ -275,12 +276,7 @@ class _ProtocolDialogState extends ConsumerState<_ProtocolDialog> {
       t.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty || _split(_steps.text).isEmpty) {
-      setState(
-        () => _notice = 'Give the protocol a name and at least one step.',
-      );
-      return;
-    }
+    if (!(_form.currentState?.validate() ?? false)) return;
     setState(() {
       _saving = true;
       _notice = null;
@@ -330,58 +326,64 @@ class _ProtocolDialogState extends ConsumerState<_ProtocolDialog> {
 
     return CruFormDialog(
       title: widget.existing == null ? 'Add protocol' : 'Edit protocol',
-      subtitle: 'Exactly as your clinic’s approved guideline gives it',
       submitLabel: 'Save protocol',
       onSubmit: _save,
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CruFormSection(
-            first: true,
-            title: 'Protocol',
-            children: [
-              CruTextField(
-                label: 'Name',
-                controller: _name,
-                hint: 'Anaphylaxis',
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: edited,
-              ),
-              CruTextField(
-                label: 'Steps',
-                controller: _steps,
-                maxLines: 10,
-                help: 'One step per line; they show numbered.',
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: edited,
-              ),
-              CruTextField(
-                label: 'Drugs and doses',
-                optional: true,
-                controller: _drugs,
-                maxLines: 5,
-                help: 'One per line, with dose and route.',
-                onChanged: edited,
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: CruSpace.s16),
-            child: Text(
-              'A clinician should check the steps and doses against your '
-              'guideline before this is used with patients.',
-              style: CruType.caption.tint(c.label3),
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CruFormSection(
+              first: true,
+              children: [
+                CruTextField(
+                  label: 'Name',
+                  controller: _name,
+                  hint: 'Anaphylaxis',
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? 'Give the protocol a name.'
+                      : null,
+                  onChanged: edited,
+                ),
+                CruTextField(
+                  label: 'Steps',
+                  controller: _steps,
+                  maxLines: 10,
+                  help: 'One step per line.',
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: (v) =>
+                      _split(v ?? '').isEmpty ? 'Add at least one step.' : null,
+                  onChanged: edited,
+                ),
+                CruTextField(
+                  label: 'Drugs and doses',
+                  optional: true,
+                  controller: _drugs,
+                  maxLines: 5,
+                  help: 'One per line, with dose and route.',
+                  onChanged: edited,
+                ),
+              ],
             ),
-          ),
-          if (widget.existing != null)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: CruLink(label: 'Delete protocol', onPressed: _delete),
+            Padding(
+              padding: const EdgeInsets.only(bottom: CruSpace.s16),
+              child: Text(
+                'A clinician should check the steps and doses against your '
+                'guideline before this is used with patients.',
+                style: CruType.caption.tint(c.label3),
+              ),
             ),
-        ],
+            if (widget.existing != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: CruLink(label: 'Delete protocol', onPressed: _delete),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -35,6 +35,10 @@ class PhoneAuthSheet extends StatefulWidget {
 class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
+  final _form = GlobalKey<FormState>();
+
+  /// The last code sent for checking on its own, so each is tried once.
+  String? _autoTried;
 
   final String _countryCode = '+91';
   String? _verificationId;
@@ -76,8 +80,9 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   Future<void> _sendOTP({bool resend = false}) async {
     if (_isLoading) return;
     final phone = _phoneController.text.trim();
-    if (phone.length != 10) {
-      setState(() => _errorText = 'Enter your 10-digit mobile number.');
+    if (_phoneError(phone) != null) {
+      setState(() => _errorText = null);
+      _form.currentState?.validate();
       return;
     }
 
@@ -97,6 +102,7 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
             _resendToken = resendToken;
             _otpSent = true;
             _isLoading = false;
+            _autoTried = null;
           });
           _startResendTimer();
         },
@@ -145,7 +151,8 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorText = "Couldn't send the code. Check the connection and try again.";
+        _errorText =
+            "Couldn't send the code. Check the connection and try again.";
         _isLoading = false;
       });
     }
@@ -154,8 +161,9 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
   Future<void> _verifyOTP() async {
     if (_isLoading || _verifying) return;
     final code = _otpController.text.trim();
-    if (code.length != 6) {
-      setState(() => _errorText = 'Enter the 6-digit code.');
+    if (_codeError(code) != null) {
+      setState(() => _errorText = null);
+      _form.currentState?.validate();
       return;
     }
 
@@ -196,12 +204,29 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
     }
   }
 
+  String? _phoneError(String? value) => (value ?? '').trim().length != 10
+      ? 'Enter your 10-digit mobile number.'
+      : null;
+
+  String? _codeError(String? value) =>
+      (value ?? '').trim().length != 6 ? 'Enter the 6-digit code.' : null;
+
+  /// Checks the code as soon as it is complete; Verify stays as the
+  /// fallback.
+  void _onCodeChanged(String code) {
+    if (code.length != 6 || code == _autoTried) return;
+    if (_isLoading || _verifying) return;
+    _autoTried = code;
+    _verifyOTP();
+  }
+
   void _changeNumber() => setState(() {
     _resendTimer?.cancel();
     _resendCountdown = 0;
     _otpSent = false;
     _verificationId = null;
     _otpController.clear();
+    _autoTried = null;
     _errorText = null;
   });
 
@@ -238,104 +263,110 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
               CruSpace.s20,
               CruSpace.s20,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: _kHandleWidth,
-                    height: _kHandleHeight,
-                    decoration: ShapeDecoration(
-                      color: c.separator,
-                      shape: const StadiumBorder(),
+            child: Form(
+              key: _form,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: _kHandleWidth,
+                      height: _kHandleHeight,
+                      decoration: ShapeDecoration(
+                        color: c.separator,
+                        shape: const StadiumBorder(),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: CruSpace.s20),
-                Semantics(
-                  header: true,
-                  child: Text(title, style: CruType.title.tint(c.label)),
-                ),
-                const SizedBox(height: CruSpace.s4),
-                Text(lead, style: CruType.text.tabular.tint(c.label2)),
-                const SizedBox(height: CruSpace.s20),
-                if (!_otpSent)
-                  CruTextField(
-                    key: const ValueKey('phone'),
-                    label: 'Phone number',
-                    controller: _phoneController,
-                    prefix: _countryCode,
-                    keyboardType: TextInputType.phone,
-                    tabular: true,
-                    autofocus: true,
-                    autofillHints: const [
-                      AutofillHints.telephoneNumberNational,
-                    ],
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _isLoading ? null : _sendOTP(),
-                  )
-                else ...[
-                  CruTextField(
-                    key: const ValueKey('code'),
-                    label: 'Code',
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
-                    tabular: true,
-                    autofocus: true,
-                    autofillHints: const [AutofillHints.oneTimeCode],
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
-                    ],
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _isLoading ? null : _verifyOTP(),
+                  const SizedBox(height: CruSpace.s20),
+                  Semantics(
+                    header: true,
+                    child: Text(title, style: CruType.title.tint(c.label)),
                   ),
-                  const SizedBox(height: CruSpace.s8),
-                  Row(
-                    children: [
-                      if (_resendCountdown > 0)
-                        Text(
-                          'Resend in ${_resendCountdown}s',
-                          style: CruType.text.tabular.tint(c.label3),
-                        )
-                      else
+                  const SizedBox(height: CruSpace.s4),
+                  Text(lead, style: CruType.text.tabular.tint(c.label2)),
+                  const SizedBox(height: CruSpace.s20),
+                  if (!_otpSent)
+                    CruTextField(
+                      key: const ValueKey('phone'),
+                      label: 'Phone number',
+                      controller: _phoneController,
+                      prefix: _countryCode,
+                      keyboardType: TextInputType.phone,
+                      tabular: true,
+                      autofocus: true,
+                      autofillHints: const [
+                        AutofillHints.telephoneNumberNational,
+                      ],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(10),
+                      ],
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _isLoading ? null : _sendOTP(),
+                      validator: _phoneError,
+                    )
+                  else ...[
+                    CruTextField(
+                      key: const ValueKey('code'),
+                      label: 'Code',
+                      controller: _otpController,
+                      keyboardType: TextInputType.number,
+                      tabular: true,
+                      autofocus: true,
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      textInputAction: TextInputAction.done,
+                      onChanged: _onCodeChanged,
+                      onSubmitted: (_) => _isLoading ? null : _verifyOTP(),
+                      validator: _codeError,
+                    ),
+                    const SizedBox(height: CruSpace.s8),
+                    Row(
+                      children: [
+                        if (_resendCountdown > 0)
+                          Text(
+                            'Resend in ${_resendCountdown}s',
+                            style: CruType.text.tabular.tint(c.label3),
+                          )
+                        else
+                          CruLink(
+                            label: 'Resend code',
+                            onPressed: _isLoading
+                                ? null
+                                : () => _sendOTP(resend: true),
+                          ),
+                        const Spacer(),
                         CruLink(
-                          label: 'Resend code',
-                          onPressed: _isLoading
-                              ? null
-                              : () => _sendOTP(resend: true),
+                          label: 'Change number',
+                          onPressed: _changeNumber,
                         ),
-                      const Spacer(),
-                      CruLink(
-                        label: 'Change number',
-                        onPressed: _changeNumber,
-                      ),
-                    ],
+                      ],
+                    ),
+                  ],
+                  if (_errorText != null) ...[
+                    const SizedBox(height: CruSpace.s12),
+                    Text(_errorText!, style: CruType.text.tint(c.label)),
+                  ],
+                  const SizedBox(height: CruSpace.s20),
+                  CruButton(
+                    label: _isLoading
+                        ? (_otpSent ? 'Checking…' : 'Sending…')
+                        : (_otpSent ? 'Verify' : 'Send code'),
+                    large: true,
+                    expand: true,
+                    onPressed: _isLoading
+                        ? null
+                        : _otpSent
+                        ? _verifyOTP
+                        : _sendOTP,
                   ),
                 ],
-                if (_errorText != null) ...[
-                  const SizedBox(height: CruSpace.s12),
-                  Text(_errorText!, style: CruType.text.tint(c.label)),
-                ],
-                const SizedBox(height: CruSpace.s20),
-                CruButton(
-                  label: _isLoading
-                      ? (_otpSent ? 'Checking…' : 'Sending…')
-                      : (_otpSent ? 'Verify' : 'Send code'),
-                  large: true,
-                  expand: true,
-                  onPressed: _isLoading
-                      ? null
-                      : _otpSent
-                      ? _verifyOTP
-                      : _sendOTP,
-                ),
-              ],
+              ),
             ),
           ),
         ),

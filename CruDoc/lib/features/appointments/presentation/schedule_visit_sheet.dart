@@ -401,13 +401,19 @@ class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
-              CruTextField(
+              CruMoreFields(
                 label: 'Google Maps link',
-                optional: true,
-                controller: _mapsLinkController,
-                enabled: !_isSaving,
-                keyboardType: TextInputType.url,
-                hint: 'https://maps.google.com/...',
+                open: _mapsLinkController.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Google Maps link',
+                    optional: true,
+                    controller: _mapsLinkController,
+                    enabled: !_isSaving,
+                    keyboardType: TextInputType.url,
+                    hint: 'https://maps.google.com/...',
+                  ),
+                ],
               ),
             ],
             if (_errorText != null) CruFieldError(_errorText!),

@@ -1189,7 +1189,6 @@ class _HomeopathyCaseTakingSheetState
               _category == HomeopathyCaseSheetCategory.femaleEndocrine)
             _buildAccordionCard(
               title: 'B. Chief complaint & description',
-              subtitle: 'Location, sensation, onset, progression',
               isComplete: _sheet.chiefComplaint.isCompleted,
               icon: HomeopathyIcons.target,
               children: [
@@ -1280,7 +1279,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'C. Modalities (< aggravations & > ameliorations)',
-              subtitle: 'Time, position, weather, temperature, motion',
               isComplete: _sheet.modalities.isCompleted,
               icon: HomeopathyIcons.sliders,
               children: [
@@ -1353,7 +1351,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'D. General symptoms & thermal state',
-              subtitle: 'Thermal reaction, cravings, aversions, thirst, sleep',
               isComplete: _sheet.generalSymptoms.isCompleted,
               icon: HomeopathyIcons.thermometer,
               children: [
@@ -1638,7 +1635,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'E. Physical symptoms by systems',
-              subtitle: 'Joints, respiratory, ENT, headaches, fever, pain',
               isComplete: _sheet.physicalSymptoms.isCompleted,
               icon: HomeopathyIcons.pulse,
               children: [
@@ -1790,7 +1786,6 @@ class _HomeopathyCaseTakingSheetState
                   _category == HomeopathyCaseSheetCategory.femaleEndocrine))
             _buildAccordionCard(
               title: 'F. Female / reproductive history',
-              subtitle: 'Menstrual cycle, menopause, leucorrhoea',
               isComplete: _sheet.femaleReproductive.isCompleted,
               icon: HomeopathyIcons.female,
               children: [
@@ -1867,7 +1862,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'G. Mental & emotional state',
-              subtitle: 'Disposition, fears, anxiety, consolation, aetiology',
               isComplete: _sheet.mentalEmotional.isCompleted,
               icon: HomeopathyIcons.heart,
               children: [
@@ -2143,7 +2137,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'H. Dreams & sleep profile',
-              subtitle: 'Sleep quality, disturbances, recurring dreams',
               isComplete: _sheet.dreamsSleep.isCompleted,
               icon: HomeopathyIcons.moon,
               children: [
@@ -2260,7 +2253,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'I. Sexual history (privacy protected)',
-              subtitle: 'Desire level, complaints, sensitive concerns',
               isComplete: _sheet.sexualHistory.isCompleted,
               icon: HomeopathyIcons.lock,
               children: [
@@ -2307,7 +2299,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'J. Past medical & family history',
-              subtitle: 'Illnesses, surgeries, medications, allergies, family',
               isComplete: _sheet.medicalHistory.isCompleted,
               icon: HomeopathyIcons.history,
               children: [
@@ -2363,7 +2354,6 @@ class _HomeopathyCaseTakingSheetState
           // Section K: Physical Examination
           _buildAccordionCard(
             title: 'K. Physical examination',
-            subtitle: 'Tongue, constitution, pulse, BP, tender spots',
             isComplete: _sheet.physicalExamination.isCompleted,
             icon: HomeopathyIcons.stethoscope,
             children: [
@@ -2406,7 +2396,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category != HomeopathyCaseSheetCategory.acute)
             _buildAccordionCard(
               title: 'L. Investigations & lab reports',
-              subtitle: 'Blood tests, imaging, scan findings',
               isComplete: _sheet.investigations.isCompleted,
               icon: HomeopathyIcons.flask,
               children: [
@@ -2430,7 +2419,6 @@ class _HomeopathyCaseTakingSheetState
           if (_category == HomeopathyCaseSheetCategory.general)
             _buildAccordionCard(
               title: 'M. Strange, rare & peculiar (SRP) symptoms',
-              subtitle: 'Unusual symptom patterns, keynotes, idiosyncrasies',
               isComplete: _sheet.peculiarSymptoms.isCompleted,
               icon: HomeopathyIcons.star,
               children: [
@@ -2455,7 +2443,6 @@ class _HomeopathyCaseTakingSheetState
           // Section N: Prescription, Repertorization & Advice
           _buildAccordionCard(
             title: 'N. Repertorization & prescribed remedy',
-            subtitle: 'Miasm, Simillimum remedy, potency, regimen',
             isComplete: _sheet.prescriptionNotes.isCompleted,
             icon: HomeopathyIcons.pill,
             initiallyExpanded: true,
@@ -2545,8 +2532,6 @@ class _HomeopathyCaseTakingSheetState
           // Section O: Follow-Up & Second Prescription
           _buildAccordionCard(
             title: 'O. Follow-up & second prescription',
-            subtitle:
-                'Clinical response, direction of cure, next prescription plan',
             isComplete: _sheet.followUp.isCompleted,
             icon: HomeopathyIcons.refresh,
             children: [
@@ -2723,7 +2708,7 @@ class _HomeopathyCaseTakingSheetState
 
   Widget _buildAccordionCard({
     required String title,
-    required String subtitle,
+    String? subtitle,
     required bool isComplete,
     required CruIconData icon,
     required List<Widget> children,

@@ -6,6 +6,10 @@ import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/abdm/data/abdm_api.dart';
+import 'package:doctor_management_app/features/abdm/domain/abha_input.dart';
+import 'package:doctor_management_app/features/abdm/presentation/abha_flow_dialog.dart';
+import 'package:doctor_management_app/features/abdm/presentation/abha_linked_dialog.dart';
 import 'package:doctor_management_app/features/voice/domain/medical_conditions.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
@@ -82,13 +86,11 @@ class _DesktopAddEditPatientDialogState
   late final PatientRepository _repository =
       widget.repository ?? PatientRepository();
 
-  late final TextEditingController _firstName;
-  late final TextEditingController _lastName;
+  late final TextEditingController _name;
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late final TextEditingController _age;
   late final TextEditingController _notes;
-  late final TextEditingController _balance;
 
   String? _sex;
   DateTime? _dateOfBirth;
@@ -96,25 +98,21 @@ class _DesktopAddEditPatientDialogState
   /// True when [_dateOfBirth] was worked out from a typed age.
   bool _dobFromAge = false;
 
-  int _revealFirstName = 0;
-  int _revealLastName = 0;
+  int _revealName = 0;
   int _revealDob = 0;
   int _revealAge = 0;
   int _revealPhone = 0;
   int _revealEmail = 0;
   int _revealConditions = 0;
   int _revealNotes = 0;
-  int _revealBalance = 0;
 
-  bool _pendingFirstName = false;
-  bool _pendingLastName = false;
+  bool _pendingName = false;
   bool _pendingDob = false;
   bool _pendingAge = false;
   bool _pendingPhone = false;
   bool _pendingEmail = false;
   bool _pendingConditions = false;
   bool _pendingNotes = false;
-  bool _pendingBalance = false;
 
   late List<String> _conditions;
   List<String> _baseConditions = const [];
@@ -123,6 +121,11 @@ class _DesktopAddEditPatientDialogState
   bool _saving = false;
   bool _submitted = false;
   String? _notice;
+
+  AbhaResult? _abhaResult;
+  bool _lockName = false;
+  bool _lockSex = false;
+  bool _lockDob = false;
 
   bool get _isEditing => widget.patient != null;
 
@@ -136,16 +139,10 @@ class _DesktopAddEditPatientDialogState
   void initState() {
     super.initState();
     final p = widget.patient;
-    _firstName = TextEditingController(text: p?.firstName ?? '');
-    _lastName = TextEditingController(text: p?.lastName ?? '');
+    _name = TextEditingController(text: p?.fullName.trim() ?? '');
     _phone = TextEditingController(text: p?.phone ?? '');
     _email = TextEditingController(text: p?.email ?? '');
     _notes = TextEditingController(text: p?.notes ?? '');
-    _balance = TextEditingController(
-      text: p != null && p.packageBalance > 0
-          ? p.packageBalance.toStringAsFixed(0)
-          : '',
-    );
     _dateOfBirth = p?.dateOfBirth;
     final age = _ageOn(_dateOfBirth);
     _age = TextEditingController(text: age == null ? '' : '$age');
@@ -157,13 +154,11 @@ class _DesktopAddEditPatientDialogState
 
   @override
   void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
+    _name.dispose();
     _phone.dispose();
     _email.dispose();
     _age.dispose();
     _notes.dispose();
-    _balance.dispose();
     super.dispose();
   }
 
@@ -178,8 +173,77 @@ class _DesktopAddEditPatientDialogState
     return age < 0 ? 0 : age;
   }
 
-  String get _fullName =>
-      '${_firstName.text.trim()} ${_lastName.text.trim()}'.trim();
+  String get _fullName => _name.text.trim();
+
+  static String? _mapAbdmGender(String raw) {
+    switch (raw.trim().toUpperCase()) {
+      case 'M':
+      case 'MALE':
+        return 'Male';
+      case 'F':
+      case 'FEMALE':
+        return 'Female';
+      case 'O':
+      case 'OTHER':
+      case 'T':
+        return 'Other';
+      default:
+        return null;
+    }
+  }
+
+  Future<void> _fillFromAbha() async {
+    final res = await showAbhaFlowDialog(context);
+    if (res == null || !mounted) return;
+
+    if (res.existingPatientId != null && res.existingPatientId!.isNotEmpty) {
+      final existingList =
+          ref.read(patientsStreamProvider).value ?? const <Patient>[];
+      final existing = existingList
+          .where((p) => p.id == res.existingPatientId)
+          .firstOrNull;
+      final openExisting = await showAbhaLinkedDialog(
+        context,
+        profile: res.profile,
+        patientId: res.existingPatientId!,
+        existing: existing,
+      );
+      if (!mounted) return;
+      if (openExisting == true) {
+        widget.onCreated?.call(res.existingPatientId!);
+        Navigator.of(context).pop(true);
+      }
+      return;
+    }
+
+    setState(() {
+      _abhaResult = res;
+      _dirty = true;
+      _notice = null;
+      _lockName = false;
+      _lockSex = false;
+      _lockDob = false;
+      if (res.profile.name.isNotEmpty) {
+        _name.text = res.profile.name;
+        _lockName = true;
+      }
+      final mappedSex = _mapAbdmGender(res.profile.gender);
+      if (mappedSex != null) {
+        _sex = mappedSex;
+        _lockSex = true;
+      }
+      if (res.profile.dateOfBirth != null) {
+        _dateOfBirth = res.profile.dateOfBirth;
+        _dobFromAge = false;
+        _age.text = '${_ageOn(_dateOfBirth)}';
+        _lockDob = true;
+      }
+      final rawMobile = res.unmaskedMobile ?? res.profile.mobile;
+      if (!rawMobile.contains('*') && isValidMobile(rawMobile)) {
+        _phone.text = digitsOnly(rawMobile);
+      }
+    });
+  }
 
   void _edited([Object? _]) {
     setState(() {
@@ -224,8 +288,7 @@ class _DesktopAddEditPatientDialogState
               raw.contains('patient') ||
               raw.contains('mr ') ||
               raw.contains('mrs '))) {
-        if (_firstName.text.isEmpty) _pendingFirstName = true;
-        if (_lastName.text.isEmpty) _pendingLastName = true;
+        if (_name.text.isEmpty) _pendingName = true;
       }
 
       if (f.dateOfBirth == null &&
@@ -275,15 +338,6 @@ class _DesktopAddEditPatientDialogState
         _pendingNotes = true;
       }
 
-      if (f.balance == null &&
-          (raw.contains('balance') ||
-              raw.contains('package') ||
-              raw.contains('advance') ||
-              raw.contains('paid') ||
-              raw.contains('rupees'))) {
-        if (_balance.text.isEmpty) _pendingBalance = true;
-      }
-
       // 2. LIVE PROGRESSIVE FIELD POPULATION (Emergence while user is STILL speaking):
       // As soon as ANY field value is recognized, populate it immediately! Do NOT wait for key-up!
       // But for names, wait until the user finishes speaking or moves past the name
@@ -297,7 +351,6 @@ class _DesktopAddEditPatientDialogState
           f.email != null ||
           f.conditions.isNotEmpty ||
           f.notes != null ||
-          f.balance != null ||
           raw.contains('years') ||
           raw.contains('year old') ||
           raw.contains('age') ||
@@ -313,20 +366,15 @@ class _DesktopAddEditPatientDialogState
           raw.contains('diagnos') ||
           raw.contains('suffer');
 
-      if (movedPastName) {
-        if (f.firstName != null &&
-            f.firstName!.isNotEmpty &&
-            _firstName.text != f.firstName!) {
-          _firstName.text = f.firstName!;
-          _pendingFirstName = false;
-          _revealFirstName++;
-        }
-        if (f.lastName != null &&
-            f.lastName!.isNotEmpty &&
-            _lastName.text != f.lastName!) {
-          _lastName.text = f.lastName!;
-          _pendingLastName = false;
-          _revealLastName++;
+      if (!_lockName && movedPastName) {
+        final spokenName = [f.firstName, f.lastName]
+            .where((s) => s != null && s.trim().isNotEmpty)
+            .map((s) => s!.trim())
+            .join(' ');
+        if (spokenName.isNotEmpty && _name.text != spokenName) {
+          _name.text = spokenName;
+          _pendingName = false;
+          _revealName++;
         }
       }
       if (f.phone != null && f.phone!.isNotEmpty && _phone.text != f.phone!) {
@@ -340,10 +388,15 @@ class _DesktopAddEditPatientDialogState
         _revealEmail++;
       }
       // Sex is toggled directly without blur or disappearing animation
-      if (f.gender != null && _sexes.contains(f.gender) && _sex != f.gender) {
+      if (!_lockSex &&
+          f.gender != null &&
+          _sexes.contains(f.gender) &&
+          _sex != f.gender) {
         _sex = f.gender;
       }
-      if (f.dateOfBirth != null && _dateOfBirth != f.dateOfBirth) {
+      if (!_lockDob &&
+          f.dateOfBirth != null &&
+          _dateOfBirth != f.dateOfBirth) {
         _dateOfBirth = f.dateOfBirth;
         _dobFromAge = false;
         _pendingDob = false;
@@ -354,7 +407,7 @@ class _DesktopAddEditPatientDialogState
           _pendingAge = false;
           _revealAge++;
         }
-      } else if (f.age != null && _age.text != '${f.age}') {
+      } else if (!_lockDob && f.age != null && _age.text != '${f.age}') {
         _age.text = '${f.age}';
         _onAgeChanged(_age.text);
         _pendingAge = false;
@@ -410,26 +463,15 @@ class _DesktopAddEditPatientDialogState
           _revealNotes++;
         }
       }
-      if (f.balance != null) {
-        final balStr = f.balance!.toStringAsFixed(0);
-        if (_balance.text != balStr) {
-          _balance.text = balStr;
-          _pendingBalance = false;
-          _revealBalance++;
-        }
-      }
-
       // 3. FINAL CLEANUP (When spacebar is finally released):
       if (f.isFinal) {
-        _pendingFirstName = false;
-        _pendingLastName = false;
+        _pendingName = false;
         _pendingDob = false;
         _pendingAge = false;
         _pendingPhone = false;
         _pendingEmail = false;
         _pendingConditions = false;
         _pendingNotes = false;
-        _pendingBalance = false;
       }
     });
     _edited();
@@ -443,10 +485,8 @@ class _DesktopAddEditPatientDialogState
 
   @override
   List<String> voiceMissing() => [
-    if (_firstName.text.trim().isEmpty) 'first name',
-    if (_lastName.text.trim().isEmpty) 'last name',
+    if (_name.text.trim().isEmpty) 'name',
     if (_sex == null) 'sex',
-    if (_dateOfBirth == null) 'age',
     if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) 'mobile',
   ];
 
@@ -513,11 +553,38 @@ class _DesktopAddEditPatientDialogState
     return (n == null || n > 120) ? 'Enter an age up to 120.' : null;
   }
 
+  /// Never throws: the patient is already saved, so a failed link must not
+  /// make Save create them twice.
+  Future<void> _linkAbha(String id, AbhaResult abha) async {
+    String? problem;
+    try {
+      final r = await AbdmApi.instance.link(flowId: abha.flowId, patientId: id);
+      if (r.linked) {
+        await _repository.updatePatient(id, {
+          'abhaNumber': abha.profile.abhaNumber,
+          'abhaAddress': abha.profile.abhaAddress,
+          'abhaVerifiedAt': DateTime.now(),
+        });
+      } else {
+        problem = 'This ABHA is already linked to another patient.';
+      }
+    } on AbdmException catch (e) {
+      problem = e.message;
+    } catch (_) {
+      problem = "Couldn't link the ABHA.";
+    }
+    if (problem != null && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text('Patient saved. $problem')),
+      );
+    }
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     setState(() => _submitted = true);
     final fieldsOk = _formKey.currentState!.validate();
-    if (!fieldsOk || _sex == null || _dateOfBirth == null) return;
+    if (!fieldsOk || _sex == null) return;
 
     setState(() {
       _saving = true;
@@ -525,22 +592,24 @@ class _DesktopAddEditPatientDialogState
     });
 
     final now = DateTime.now();
-    final balance =
-        double.tryParse(_balance.text.replaceAll(RegExp(r'[₹,\s]'), '')) ?? 0;
+    final nameParts = _name.text.trim().split(RegExp(r'\s+'));
+    final firstName = nameParts.first;
+    final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+    final dob =
+        _dateOfBirth ?? (_isEditing ? widget.patient!.dateOfBirth : now);
     final phone = _phone.text.trim();
 
     try {
       if (_isEditing) {
         await _repository.updatePatient(widget.patient!.id, {
-          'firstName': _firstName.text.trim(),
-          'lastName': _lastName.text.trim(),
+          'firstName': firstName,
+          'lastName': lastName,
           'phone': phone,
           'email': _email.text.trim(),
           'gender': _sex,
-          'dateOfBirth': _dateOfBirth,
+          'dateOfBirth': dob,
           'diagnosis': List<String>.from(_conditions),
           'notes': _notes.text.trim(),
-          'packageBalance': balance,
         });
       } else {
         if (phone.isNotEmpty) {
@@ -564,6 +633,22 @@ class _DesktopAddEditPatientDialogState
             );
             if (!mounted) return;
             if (useExisting == true) {
+              if (_abhaResult != null) {
+                final existingNum = digitsOnly(dup.abhaNumber);
+                final newNum = digitsOnly(_abhaResult!.profile.abhaNumber);
+                if (existingNum.isNotEmpty && existingNum != newNum) {
+                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'That patient already has a different ABHA.',
+                      ),
+                    ),
+                  );
+                } else {
+                  await _linkAbha(dup.id, _abhaResult!);
+                }
+              }
+              if (!mounted) return;
               widget.onCreated?.call(dup.id);
               Navigator.of(context).pop(true);
               return;
@@ -574,20 +659,23 @@ class _DesktopAddEditPatientDialogState
         final id = await _repository.createPatient(
           Patient(
             id: '',
-            firstName: _firstName.text.trim(),
-            lastName: _lastName.text.trim(),
+            firstName: firstName,
+            lastName: lastName,
             phone: phone,
             email: _email.text.trim(),
             gender: _sex!,
-            dateOfBirth: _dateOfBirth!,
+            dateOfBirth: dob,
             diagnosis: List.unmodifiable(_conditions),
             notes: _notes.text.trim(),
-            packageBalance: balance,
+            packageBalance: 0,
             isArchived: false,
             createdAt: now,
             updatedAt: now,
           ),
         );
+        if (_abhaResult != null) {
+          await _linkAbha(id, _abhaResult!);
+        }
         widget.onCreated?.call(id);
       }
       if (!mounted) return;
@@ -608,9 +696,7 @@ class _DesktopAddEditPatientDialogState
     final name = _fullName;
     return CruFormDialog(
       title: _isEditing ? 'Edit patient' : 'New patient',
-      subtitle: _isEditing
-          ? widget.patient!.fullName
-          : 'Add them to your patient list',
+      subtitle: _isEditing ? widget.patient!.fullName : null,
       leading: name.isEmpty
           ? const CruIconTile(
               icon: CruIcons.userPlus,
@@ -622,7 +708,6 @@ class _DesktopAddEditPatientDialogState
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _formKey,
         autovalidateMode: _submitted
@@ -631,44 +716,43 @@ class _DesktopAddEditPatientDialogState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (!_isEditing)
+            if (!_isEditing) ...[
               Padding(
-                padding: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: PatientVoiceFillBar(
                   onFill: _applyVoiceFill,
                   service: widget.voiceFillService,
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: CruButton(
+                    label: _abhaResult == null
+                        ? 'Fill from ABHA'
+                        : 'ABHA: ${_abhaResult!.profile.abhaNumber}',
+                    kind: CruButtonKind.secondary,
+                    onPressed: _saving ? null : _fillFromAbha,
+                  ),
+                ),
+              ),
+            ],
             CruFormSection(
               first: true,
               title: 'Patient',
-              description: 'As it will appear on the record and on bills.',
               children: [
-                CruFieldRow(
-                  children: [
-                    CruTextField(
-                      label: 'First name',
-                      hint: 'e.g. Maya',
-                      controller: _firstName,
-                      autofocus: !_isEditing,
-                      textCapitalization: TextCapitalization.words,
-                      validator: (v) => _required(v, 'Add a first name.'),
-                      onChanged: _edited,
-                      aiRevealKey: _revealFirstName,
-                      aiPending: _pendingFirstName,
-                    ),
-                    CruTextField(
-                      label: 'Last name',
-                      hint: 'e.g. Patel',
-                      controller: _lastName,
-                      textCapitalization: TextCapitalization.words,
-                      validator: (v) => _required(v, 'Add a last name.'),
-                      onChanged: _edited,
-                      aiRevealKey: _revealLastName,
-                      aiPending: _pendingLastName,
-                      aiStagger: const Duration(milliseconds: 60),
-                    ),
-                  ],
+                CruTextField(
+                  label: 'Name',
+                  hint: 'e.g. Maya Patel',
+                  controller: _name,
+                  enabled: !_lockName,
+                  autofocus: !_isEditing,
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) => _required(v, 'Add a name.'),
+                  onChanged: _edited,
+                  aiRevealKey: _revealName,
+                  aiPending: _pendingName,
                 ),
                 CruFieldFrame(
                   label: 'Sex',
@@ -677,9 +761,13 @@ class _DesktopAddEditPatientDialogState
                     alignment: Alignment.centerLeft,
                     child: CruSegmentedControl<String?>(
                       semanticLabel: 'Sex',
-                      segments: [for (final s in _sexes) CruSegment(s, s)],
+                      segments: [
+                        for (final s in _sexes)
+                          CruSegment(s, s, enabled: !_lockSex || s == _sex),
+                      ],
                       selected: _sex,
                       onChanged: (v) {
+                        if (_lockSex) return;
                         _sex = v;
                         _edited();
                       },
@@ -691,6 +779,7 @@ class _DesktopAddEditPatientDialogState
                   children: [
                     CruPickerField(
                       label: 'Date of birth',
+                      optional: true,
                       icon: CruIcons.calendar,
                       value: _dateOfBirth == null || _dobFromAge
                           ? null
@@ -698,16 +787,17 @@ class _DesktopAddEditPatientDialogState
                       placeholder: _dobFromAge
                           ? 'Not known, using age'
                           : 'Pick a date',
-                      onTap: _pickDateOfBirth,
-                      error: _submitted && _dateOfBirth == null
-                          ? 'Add a date of birth or an age.'
-                          : null,
+                      onTap: () {
+                        if (!_lockDob) _pickDateOfBirth();
+                      },
                       aiRevealKey: _revealDob,
                       aiPending: _pendingDob,
                     ),
                     CruTextField(
                       label: 'Age',
+                      optional: true,
                       controller: _age,
+                      enabled: !_lockDob,
                       hint: 'Years',
                       tabular: true,
                       keyboardType: TextInputType.number,
@@ -727,27 +817,29 @@ class _DesktopAddEditPatientDialogState
             ),
             CruFormSection(
               title: 'Contact',
-              description: 'Used for visit reminders and WhatsApp.',
               children: [
-                CruFieldRow(
+                CruTextField(
+                  label: 'Mobile',
+                  controller: _phone,
+                  icon: CruIcons.phone,
+                  hint: '98765 43210',
+                  tabular: true,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
+                    LengthLimitingTextInputFormatter(16),
+                  ],
+                  validator: _validatePhone,
+                  onChanged: _edited,
+                  aiRevealKey: _revealPhone,
+                  aiPending: _pendingPhone,
+                  aiStagger: const Duration(milliseconds: 240),
+                ),
+                _ReminderNotice(patientId: widget.patient?.id),
+                CruMoreFields(
+                  label: 'Email',
+                  open: _email.text.isNotEmpty || _pendingEmail,
                   children: [
-                    CruTextField(
-                      label: 'Mobile',
-                      controller: _phone,
-                      icon: CruIcons.phone,
-                      hint: '98765 43210',
-                      tabular: true,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
-                        LengthLimitingTextInputFormatter(16),
-                      ],
-                      validator: _validatePhone,
-                      onChanged: _edited,
-                      aiRevealKey: _revealPhone,
-                      aiPending: _pendingPhone,
-                      aiStagger: const Duration(milliseconds: 240),
-                    ),
                     CruTextField(
                       label: 'Email',
                       optional: true,
@@ -762,13 +854,11 @@ class _DesktopAddEditPatientDialogState
                     ),
                   ],
                 ),
-                _ReminderNotice(patientId: widget.patient?.id),
               ],
             ),
             if (_showsClinical)
               CruFormSection(
                 title: 'Clinical',
-                description: 'Shown on the profile and at every visit.',
                 children: [
                   CruTagField(
                     label: 'Conditions',
@@ -786,51 +876,26 @@ class _DesktopAddEditPatientDialogState
                     aiPending: _pendingConditions,
                     aiStagger: const Duration(milliseconds: 360),
                   ),
-                  CruTextField(
+                  CruMoreFields(
                     label: 'Notes',
-                    optional: true,
-                    controller: _notes,
-                    maxLines: 4,
-                    hint: 'Allergies, regular medicines, past surgeries…',
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: _edited,
-                    aiRevealKey: _revealNotes,
-                    aiPending: _pendingNotes,
-                    aiStagger: const Duration(milliseconds: 420),
+                    open: _notes.text.isNotEmpty || _pendingNotes,
+                    children: [
+                      CruTextField(
+                        label: 'Notes',
+                        optional: true,
+                        controller: _notes,
+                        maxLines: 4,
+                        hint: 'Allergies, regular medicines, past surgeries…',
+                        textCapitalization: TextCapitalization.sentences,
+                        onChanged: _edited,
+                        aiRevealKey: _revealNotes,
+                        aiPending: _pendingNotes,
+                        aiStagger: const Duration(milliseconds: 420),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            CruFormSection(
-              title: 'Account',
-              description: 'Prepaid package or advance paid by the patient.',
-              children: [
-                CruFieldRow(
-                  children: [
-                    CruTextField(
-                      label: 'Package balance',
-                      optional: true,
-                      controller: _balance,
-                      prefix: '₹',
-                      hint: '0',
-                      tabular: true,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                      ],
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _save(),
-                      onChanged: _edited,
-                      aiRevealKey: _revealBalance,
-                      aiPending: _pendingBalance,
-                      aiStagger: const Duration(milliseconds: 480),
-                    ),
-                    const SizedBox.shrink(),
-                  ],
-                ),
-              ],
-            ),
           ],
         ),
       ),

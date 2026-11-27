@@ -563,7 +563,6 @@ void main() {
       find.textContaining('Read offline with PaddleOCR (no internet'),
       findsOneWidget,
     );
-    expect(find.textContaining('Read by PaddleOCR'), findsOneWidget);
   });
 
   testWidgets('an unreadable bill offers the form instead', (tester) async {

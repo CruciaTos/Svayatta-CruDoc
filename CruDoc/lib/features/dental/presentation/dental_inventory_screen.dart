@@ -62,6 +62,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
     String unit = 'Cartridges';
 
     final c = context.cru;
+    final form = GlobalKey<FormState>();
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -69,83 +70,77 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: c.surface,
-              title: Text('Add Dental Consumable', style: TextStyle(color: c.label)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: nameController,
-                      autofocus: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Consumable Name *',
-                        hintText: 'e.g. Lidocaine 2% Cartridge, Composite A2',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: category,
-                      decoration: const InputDecoration(labelText: 'Category'),
-                      items: _dentalCategories
-                          .map(
-                            (c) => DropdownMenuItem(value: c, child: Text(c)),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) setDialogState(() => category = val);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: unit,
-                      decoration: const InputDecoration(
-                        labelText: 'Packaging Unit',
-                      ),
-                      items: _dentalUnits
-                          .map(
-                            (u) => DropdownMenuItem(value: u, child: Text(u)),
-                          )
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) setDialogState(() => unit = val);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+              title: Text(
+                'Add Dental Consumable',
+                style: TextStyle(color: c.label),
+              ),
+              // A fixed width: AlertDialog must not measure the fields.
+              content: SizedBox(
+                width: CruSize.dialog,
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: form,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: stockController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Initial Stock *',
-                            ),
-                          ),
+                        CruTextField(
+                          label: 'Consumable Name *',
+                          controller: nameController,
+                          autofocus: true,
+                          hint: 'e.g. Lidocaine 2% Cartridge, Composite A2',
+                          validator: (v) =>
+                              (v ?? '').trim().isEmpty ? 'Enter a name.' : null,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: thresholdController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Low Alert Limit',
+                        const SizedBox(height: CruSpace.s12),
+                        CruDropdownField<String>(
+                          label: 'Category',
+                          value: category,
+                          items: _dentalCategories,
+                          itemLabel: (v) => v,
+                          onChanged: (val) =>
+                              setDialogState(() => category = val),
+                        ),
+                        const SizedBox(height: CruSpace.s12),
+                        CruDropdownField<String>(
+                          label: 'Packaging Unit',
+                          value: unit,
+                          items: _dentalUnits,
+                          itemLabel: (v) => v,
+                          onChanged: (val) => setDialogState(() => unit = val),
+                        ),
+                        const SizedBox(height: CruSpace.s12),
+                        CruFieldRow(
+                          children: [
+                            CruTextField(
+                              label: 'Initial Stock *',
+                              controller: stockController,
+                              keyboardType: TextInputType.number,
+                              tabular: true,
                             ),
+                            CruTextField(
+                              label: 'Low Alert Limit',
+                              controller: thresholdController,
+                              keyboardType: TextInputType.number,
+                              tabular: true,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: CruSpace.s12),
+                        CruTextField(
+                          label: 'Unit Cost (₹)',
+                          optional: true,
+                          controller: priceController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
+                          tabular: true,
+                          hint: 'e.g. 150',
+                          textInputAction: TextInputAction.done,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Unit Cost (₹) (Optional)',
-                        hintText: 'e.g. 150',
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               actions: [
@@ -156,12 +151,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                 FilledButton(
                   style: FilledButton.styleFrom(backgroundColor: _accentTeal),
                   onPressed: () {
-                    if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showIsland(
-                        const SnackBar(content: Text('Name is required')),
-                      );
-                      return;
-                    }
+                    if (!(form.currentState?.validate() ?? false)) return;
                     Navigator.pop(ctx, true);
                   },
                   child: const Text('Save'),
@@ -232,7 +222,10 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
           builder: (context, setDlgState) {
             return AlertDialog(
               backgroundColor: c.surface,
-              title: Text('Adjust ${med.name}', style: TextStyle(color: c.label)),
+              title: Text(
+                'Adjust ${med.name}',
+                style: TextStyle(color: c.label),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -371,10 +364,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                             const SizedBox(height: 2),
                             Text(
                               '${med.category} • ${med.unit}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: c.label2,
-                              ),
+                              style: TextStyle(fontSize: 13, color: c.label2),
                             ),
                           ],
                         ),
@@ -420,18 +410,12 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: med.isLowStock
-                                        ? c.redText
-                                        : c.label,
+                                    color: med.isLowStock ? c.redText : c.label,
                                   ),
                                 ),
                               ],
                             ),
-                            Container(
-                              width: 1,
-                              height: 32,
-                              color: c.separator,
-                            ),
+                            Container(width: 1, height: 32, color: c.separator),
                             Column(
                               children: [
                                 Text(
@@ -498,7 +482,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                              color: const Color(
+                                0xFF2563EB,
+                              ).withValues(alpha: 0.25),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
@@ -659,7 +645,10 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(
-        title: Text('Dental Consumables & Stock', style: TextStyle(color: c.label)),
+        title: Text(
+          'Dental Consumables & Stock',
+          style: TextStyle(color: c.label),
+        ),
         backgroundColor: c.surface,
         foregroundColor: c.label,
         elevation: 0,

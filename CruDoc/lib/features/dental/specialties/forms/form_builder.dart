@@ -132,6 +132,7 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   late List<FormFieldSpec> _fields;
+  final _form = GlobalKey<FormState>();
   bool _busy = false;
 
   @override
@@ -195,11 +196,8 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
   }
 
   Future<void> _save() async {
+    if (!(_form.currentState?.validate() ?? false)) return;
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) {
-      recToast(context, 'Please enter a form name');
-      return;
-    }
     if (_fields.isEmpty) {
       recToast(context, 'Add at least one question to the form');
       return;
@@ -247,121 +245,135 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
       title: widget.initialTemplate == null
           ? 'Create Form Template'
           : 'Edit Form Template',
-      subtitle: 'Design custom clinical questionnaire with live preview',
       width: 980,
       busy: _busy,
       submitLabel: widget.initialTemplate == null
           ? 'Save template'
           : 'Save changes',
       onSubmit: _save,
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left: Builder Editor
-          Expanded(
-            flex: 5,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                CruTextField(
-                  label: 'Form name',
-                  controller: _nameCtrl,
-                  hint: 'e.g. Burning Mouth Symptom Questionnaire',
-                ),
-                const SizedBox(height: CruSpace.s12),
-
-                CruTextField(
-                  label: 'Description / Instructions (optional)',
-                  controller: _descCtrl,
-                  hint: 'Patient-facing or clinician instructions',
-                ),
-                const SizedBox(height: CruSpace.s16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Questions (${_fields.length})',
-                      style: CruType.callout.w600.tint(c.label),
-                    ),
-                    CruCapsuleButton(
-                      label: 'Add question',
-                      icon: CruIcons.plus,
-                      onPressed: _addField,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s10),
-
-                for (var i = 0; i < _fields.length; i++)
-                  _FieldEditorCard(
-                    index: i,
-                    spec: _fields[i],
-                    total: _fields.length,
-                    onMoveUp: () => _moveUp(i),
-                    onMoveDown: () => _moveDown(i),
-                    onDelete: () => _removeField(i),
-                    onChanged: () => setState(() {}),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: CruSpace.s20),
-
-          // Right: Live Preview
-          Expanded(
-            flex: 4,
-            child: Container(
-              padding: const EdgeInsets.all(CruSpace.s16),
-              decoration: BoxDecoration(
-                color: c.surface,
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                border: Border.all(color: c.hairline),
-              ),
+      body: Form(
+        key: _form,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left: Builder Editor
+            Expanded(
+              flex: 5,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
+                  CruTextField(
+                    label: 'Form name',
+                    controller: _nameCtrl,
+                    hint: 'e.g. Burning Mouth Symptom Questionnaire',
+                    validator: (v) =>
+                        (v ?? '').trim().isEmpty ? 'Enter a form name.' : null,
+                  ),
+                  const SizedBox(height: CruSpace.s12),
+
+                  CruMoreFields(
+                    label: 'Description, instructions',
+                    open: _descCtrl.text.isNotEmpty,
                     children: [
-                      CruIcon(CruIcons.box, size: 16, color: c.accent),
-                      const SizedBox(width: CruSpace.s8),
-                      Text(
-                        'LIVE PREVIEW',
-                        style: CruType.micro.w600.tint(c.accent),
+                      CruTextField(
+                        label: 'Description / Instructions',
+                        optional: true,
+                        controller: _descCtrl,
+                        hint: 'Patient-facing or clinician instructions',
                       ),
                     ],
                   ),
-                  const SizedBox(height: CruSpace.s8),
-                  Text(
-                    _nameCtrl.text.isNotEmpty ? _nameCtrl.text : 'Form Title',
-                    style: CruType.title2.tint(c.label),
-                  ),
-                  if (_descCtrl.text.isNotEmpty) ...[
-                    const SizedBox(height: CruSpace.s4),
-                    Text(_descCtrl.text, style: CruType.caption.tint(c.label2)),
-                  ],
-                  const SizedBox(height: CruSpace.s12),
-                  const CruSeparator(),
-                  const SizedBox(height: CruSpace.s12),
+                  const SizedBox(height: CruSpace.s16),
 
-                  if (_fields.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(CruSpace.s24),
-                        child: Text(
-                          'Add questions on the left to preview form layout.',
-                          style: CruType.caption.tint(c.label3),
-                        ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Questions (${_fields.length})',
+                        style: CruType.callout.w600.tint(c.label),
                       ),
-                    )
-                  else
-                    for (var i = 0; i < _fields.length; i++)
-                      _FieldPreviewItem(index: i, spec: _fields[i]),
+                      CruCapsuleButton(
+                        label: 'Add question',
+                        icon: CruIcons.plus,
+                        onPressed: _addField,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: CruSpace.s10),
+
+                  for (var i = 0; i < _fields.length; i++)
+                    _FieldEditorCard(
+                      index: i,
+                      spec: _fields[i],
+                      total: _fields.length,
+                      onMoveUp: () => _moveUp(i),
+                      onMoveDown: () => _moveDown(i),
+                      onDelete: () => _removeField(i),
+                      onChanged: () => setState(() {}),
+                    ),
                 ],
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: CruSpace.s20),
+
+            // Right: Live Preview
+            Expanded(
+              flex: 4,
+              child: Container(
+                padding: const EdgeInsets.all(CruSpace.s16),
+                decoration: BoxDecoration(
+                  color: c.surface,
+                  borderRadius: BorderRadius.circular(CruRadius.control),
+                  border: Border.all(color: c.hairline),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        CruIcon(CruIcons.box, size: 16, color: c.accent),
+                        const SizedBox(width: CruSpace.s8),
+                        Text(
+                          'LIVE PREVIEW',
+                          style: CruType.micro.w600.tint(c.accent),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: CruSpace.s8),
+                    Text(
+                      _nameCtrl.text.isNotEmpty ? _nameCtrl.text : 'Form Title',
+                      style: CruType.title2.tint(c.label),
+                    ),
+                    if (_descCtrl.text.isNotEmpty) ...[
+                      const SizedBox(height: CruSpace.s4),
+                      Text(
+                        _descCtrl.text,
+                        style: CruType.caption.tint(c.label2),
+                      ),
+                    ],
+                    const SizedBox(height: CruSpace.s12),
+                    const CruSeparator(),
+                    const SizedBox(height: CruSpace.s12),
+
+                    if (_fields.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(CruSpace.s24),
+                          child: Text(
+                            'Add questions on the left to preview form layout.',
+                            style: CruType.caption.tint(c.label3),
+                          ),
+                        ),
+                      )
+                    else
+                      for (var i = 0; i < _fields.length; i++)
+                        _FieldPreviewItem(index: i, spec: _fields[i]),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

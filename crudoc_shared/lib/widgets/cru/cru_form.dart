@@ -1,8 +1,7 @@
-
-
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'package:crudoc_shared/widgets/ai_blur_reveal.dart';
@@ -162,16 +161,22 @@ class CruFormDialog extends StatelessWidget {
                       // Thumb-sized: both actions share the width.
                       ? Row(
                           children: [
-                            Expanded(
-                              child: CruButton(
-                                label: cancelLabel,
-                                kind: CruButtonKind.secondary,
-                                large: true,
-                                expand: true,
-                                onPressed: busy ? null : () => _close(context),
+                            // "Cancel" only repeats the header's close
+                            // button; any other label is its own action.
+                            if (cancelLabel != 'Cancel') ...[
+                              Expanded(
+                                child: CruButton(
+                                  label: cancelLabel,
+                                  kind: CruButtonKind.secondary,
+                                  large: true,
+                                  expand: true,
+                                  onPressed: busy
+                                      ? null
+                                      : () => _close(context),
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: CruSpace.s10),
+                              const SizedBox(width: CruSpace.s10),
+                            ],
                             Expanded(
                               flex: 2,
                               child: CruButton(
@@ -299,11 +304,6 @@ class _DiscardDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Discard changes?', style: CruType.title2.tint(c.label)),
-              const SizedBox(height: CruSpace.s8),
-              Text(
-                'What you typed in this form will be lost.',
-                style: CruType.text.tint(c.label2),
-              ),
               const SizedBox(height: CruSpace.s24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -333,13 +333,15 @@ class _DiscardDialog extends StatelessWidget {
 class CruFormSection extends StatelessWidget {
   const CruFormSection({
     super.key,
-    required this.title,
     required this.children,
+    this.title,
     this.description,
     this.first = false,
   });
 
-  final String title;
+  /// Null when the dialog title already says it: the fields take the
+  /// full width.
+  final String? title;
   final String? description;
   final List<Widget> children;
   final bool first;
@@ -363,14 +365,31 @@ class CruFormSection extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(title, style: CruType.headline.tint(c.label)),
-                if (description != null) ...[
-                  const SizedBox(height: CruSpace.s2),
-                  Text(description!, style: CruType.caption.tint(c.label3)),
+                if (title != null) ...[
+                  Text(title!, style: CruType.headline.tint(c.label)),
+                  if (description != null) ...[
+                    const SizedBox(height: CruSpace.s2),
+                    Text(description!, style: CruType.caption.tint(c.label3)),
+                  ],
+                  const SizedBox(height: CruSpace.s14),
                 ],
-                const SizedBox(height: CruSpace.s14),
                 ...fields,
               ],
+            ),
+          ),
+        ],
+      );
+    }
+    if (title == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!first) const CruSeparator(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: CruSpace.s20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: fields,
             ),
           ),
         ],
@@ -390,7 +409,7 @@ class CruFormSection extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: CruType.callout.tint(c.label)),
+                    Text(title!, style: CruType.callout.tint(c.label)),
                     if (description != null) ...[
                       const SizedBox(height: CruSpace.s4),
                       Text(description!, style: CruType.caption.tint(c.label3)),
@@ -402,12 +421,7 @@ class CruFormSection extends StatelessWidget {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < children.length; i++) ...[
-                      if (i > 0) const SizedBox(height: CruSpace.s16),
-                      children[i],
-                    ],
-                  ],
+                  children: fields,
                 ),
               ),
             ],
@@ -447,6 +461,96 @@ class CruFieldRow extends StatelessWidget {
           Expanded(flex: flex?[i] ?? 1, child: children[i]),
         ],
       ],
+    );
+  }
+}
+
+/// Optional fields behind one "+" line, so a form opens short. It opens on
+/// tap, or by itself when [open] (a value is already there, or voice is
+/// filling one), and then stays open.
+class CruMoreFields extends StatefulWidget {
+  const CruMoreFields({
+    super.key,
+    required this.label,
+    required this.children,
+    this.open = false,
+  });
+
+  /// Names what is inside, e.g. "Email, notes".
+  final String label;
+  final List<Widget> children;
+  final bool open;
+
+  static final _mounted = <_CruMoreFieldsState>{};
+
+  /// Opens every closed one on the screen in front, before something reads
+  /// the form (voice fill). True when any opened: its fields exist from the
+  /// next frame.
+  static bool openAll() {
+    var opened = false;
+    for (final s in _mounted) {
+      if (s._open || !(ModalRoute.of(s.context)?.isCurrent ?? true)) continue;
+      s._show();
+      opened = true;
+    }
+    return opened;
+  }
+
+  @override
+  State<CruMoreFields> createState() => _CruMoreFieldsState();
+}
+
+class _CruMoreFieldsState extends State<CruMoreFields> {
+  late bool _open = widget.open;
+
+  void _show() => setState(() => _open = true);
+
+  @override
+  void initState() {
+    super.initState();
+    CruMoreFields._mounted.add(this);
+  }
+
+  @override
+  void dispose() {
+    CruMoreFields._mounted.remove(this);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(CruMoreFields oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.open) _open = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      duration: CruMotion.of(context, CruMotion.fast),
+      curve: CruMotion.curve,
+      alignment: Alignment.topCenter,
+      child: _open
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < widget.children.length; i++) ...[
+                  if (i > 0) const SizedBox(height: CruSpace.s16),
+                  widget.children[i],
+                ],
+              ],
+            )
+          : Align(
+              alignment: Alignment.centerLeft,
+              child: IntrinsicWidth(
+                child: CruCapsuleButton(
+                  label: widget.label,
+                  icon: CruIcons.plus,
+                  height: CruSize.control,
+                  onPressed: _show,
+                ),
+              ),
+            ),
     );
   }
 }
@@ -545,6 +649,11 @@ class CruFieldError extends StatelessWidget {
 ///
 /// Focus draws a 1.5 px accent ring on a surface fill; an error draws an
 /// amber ring and the message below.
+///
+/// With a [validator] the field answers as the user goes: a green tick as
+/// soon as what they typed is good, the error when they leave it wrong (or
+/// submit), and the error goes the moment it is fixed. An empty field is
+/// only called out on submit, which also jumps to the first wrong one.
 class CruTextField extends StatefulWidget {
   const CruTextField({
     super.key,
@@ -563,12 +672,15 @@ class CruTextField extends StatefulWidget {
     this.textCapitalization = TextCapitalization.none,
     this.inputFormatters,
     this.validator,
+    this.showValid = true,
     this.onChanged,
     this.onSubmitted,
     this.focusNode,
     this.tabular = false,
     this.enabled = true,
     this.obscureText = false,
+    this.enableSuggestions = true,
+    this.autocorrect = true,
     this.autofillHints,
     this.aiRevealKey,
     this.aiPending = false,
@@ -604,6 +716,9 @@ class CruTextField extends StatefulWidget {
   final TextCapitalization textCapitalization;
   final List<TextInputFormatter>? inputFormatters;
   final FormFieldValidator<String>? validator;
+
+  /// The green tick on a good value. Off for narrow fields in a grid.
+  final bool showValid;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
   final FocusNode? focusNode;
@@ -616,6 +731,8 @@ class CruTextField extends StatefulWidget {
 
   /// Password fields: the text is hidden.
   final bool obscureText;
+  final bool enableSuggestions;
+  final bool autocorrect;
   final Iterable<String>? autofillHints;
 
   @override
@@ -629,6 +746,44 @@ class _CruTextFieldState extends State<CruTextField> {
   late String _lastKnownText;
   String? _outgoingText;
   Object? _lastRevealKey;
+
+  /// Typed or filled here, so a good value earns its tick. Records opened
+  /// for editing stay unmarked.
+  bool _edited = false;
+
+  /// Left once with a wrong value: the error now follows every keystroke
+  /// until it is fixed.
+  bool _flagged = false;
+
+  /// One submit jumps to one field: the first wrong one claims it.
+  static bool _jumpClaimed = false;
+
+  bool get _filled => widget.controller.text.trim().isNotEmpty;
+
+  /// What [Form.validate] calls. Called from a tap or key (not while
+  /// building, as autovalidate does) it brings the first wrong field into
+  /// view and focuses it.
+  String? _check() {
+    final error = widget.validator!(widget.controller.text);
+    final fromEvent =
+        SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle;
+    if (error != null && fromEvent && !_jumpClaimed) {
+      _jumpClaimed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _jumpClaimed = false;
+        if (!mounted) return;
+        _focus.requestFocus();
+        Scrollable.ensureVisible(
+          context,
+          alignment: 0.2,
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+        );
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
+    }
+    return error;
+  }
 
   @override
   void initState() {
@@ -663,6 +818,7 @@ class _CruTextFieldState extends State<CruTextField> {
       _lastKnownText = widget.controller.text;
       _lastRevealKey = widget.aiRevealKey;
       _outgoingText = null;
+      _edited = true;
     } else if (!widget.aiPending && oldWidget.aiPending) {
       _outgoingText = null;
     }
@@ -675,7 +831,17 @@ class _CruTextFieldState extends State<CruTextField> {
     super.dispose();
   }
 
-  void _onFocus() => setState(() {});
+  void _onFocus() {
+    if (!mounted) return;
+    setState(() {
+      if (!_focus.hasFocus &&
+          _edited &&
+          _filled &&
+          widget.validator?.call(widget.controller.text) != null) {
+        _flagged = true;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -683,12 +849,22 @@ class _CruTextFieldState extends State<CruTextField> {
     final multiline = widget.maxLines > 1;
     return FormField<String>(
       initialValue: widget.controller.text,
-      validator: widget.validator == null
-          ? null
-          : (_) => widget.validator!(widget.controller.text),
+      validator: widget.validator == null ? null : (_) => _check(),
       builder: (field) {
         final focused = _focus.hasFocus;
-        final ring = field.hasError
+        // Judged on what is in the box now, so a fix clears at once.
+        final live = widget.validator?.call(widget.controller.text);
+        // A box cleared after being left wrong (say, once its entry was
+        // added) goes quiet again until the next submit.
+        final error = field.hasError || (_flagged && _filled) ? live : null;
+        final good =
+            widget.showValid &&
+            !multiline &&
+            widget.validator != null &&
+            _edited &&
+            _filled &&
+            live == null;
+        final ring = error != null
             ? BorderSide(color: c.amber, width: 1.5)
             : focused
             ? BorderSide(color: c.accent, width: 1.5)
@@ -715,7 +891,7 @@ class _CruTextFieldState extends State<CruTextField> {
           optional: widget.optional,
           trailing: widget.trailing,
           help: widget.help,
-          error: field.errorText,
+          error: error,
           child: AnimatedContainer(
             duration: CruMotion.of(context, CruMotion.fast),
             curve: CruMotion.curve,
@@ -774,11 +950,14 @@ class _CruTextFieldState extends State<CruTextField> {
                       textCapitalization: widget.textCapitalization,
                       inputFormatters: widget.inputFormatters,
                       obscureText: widget.obscureText,
+                      enableSuggestions: widget.enableSuggestions,
+                      autocorrect: widget.autocorrect,
                       autofillHints: widget.autofillHints,
                       cursorColor: c.accent,
                       style: widget.tabular ? base.tabular : base,
                       onChanged: (v) {
                         _lastKnownText = v;
+                        _edited = true;
                         field.didChange(v);
                         widget.onChanged?.call(v);
                       },
@@ -794,6 +973,15 @@ class _CruTextFieldState extends State<CruTextField> {
                     ),
                   ),
                 ),
+                if (good) ...[
+                  const SizedBox(width: CruSpace.s8),
+                  CruIcon(
+                    CruIcons.check,
+                    size: 16,
+                    strokeWidth: 2.4,
+                    color: c.greenText,
+                  ),
+                ],
               ],
             ),
           ),
@@ -1068,7 +1256,12 @@ class _CruDropdownFieldState<T> extends State<CruDropdownField<T>> {
           child: Row(
             children: [
               if (widget.icon != null) ...[
-                CruIcon(widget.icon!, size: 17, strokeWidth: 2, color: c.label3),
+                CruIcon(
+                  widget.icon!,
+                  size: 17,
+                  strokeWidth: 2,
+                  color: c.label3,
+                ),
                 const SizedBox(width: CruSpace.s10),
               ],
               Expanded(
@@ -1252,10 +1445,12 @@ class _CruTagFieldState extends State<CruTagField> {
     return CruFieldFrame(
       label: widget.label,
       optional: widget.optional,
-      trailing: Text(
-        '${widget.values.length} of ${widget.max}',
-        style: CruType.caption.tabular.tint(c.label3),
-      ),
+      trailing: _full
+          ? Text(
+              '${widget.values.length} of ${widget.max}',
+              style: CruType.caption.tabular.tint(c.label3),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

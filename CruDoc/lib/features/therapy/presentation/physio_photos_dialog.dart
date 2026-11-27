@@ -78,10 +78,17 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
               const SizedBox(height: CruSpace.s16),
               CruTextField(label: 'Session label', controller: labelCtrl),
               const SizedBox(height: CruSpace.s12),
-              CruTextField(
-                label: 'Session notes / clinical focus (optional)',
-                controller: notesCtrl,
-                maxLines: 2,
+              CruMoreFields(
+                label: 'Notes, clinical focus',
+                open: notesCtrl.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Session notes / clinical focus',
+                    optional: true,
+                    controller: notesCtrl,
+                    maxLines: 2,
+                  ),
+                ],
               ),
             ],
           ),
@@ -278,7 +285,9 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
       ),
       error: (e, _) {
         debugPrint('load photos failed: $e');
-        return const Center(child: Text("Couldn't load the photos. Try again."));
+        return const Center(
+          child: Text("Couldn't load the photos. Try again."),
+        );
       },
       data: (records) {
         final sets = records.map(PhysioPhotoSet.fromRecord).toList()

@@ -470,11 +470,17 @@ class _QuadrantDialogState extends State<_QuadrantDialog> {
             hint: 'Lidocaine 2% 1 cartridge',
           ),
           const SizedBox(height: CruSpace.s16),
-          CruTextField(
+          CruMoreFields(
             label: 'Notes',
-            optional: true,
-            controller: _notes,
-            maxLines: 2,
+            open: _notes.text.isNotEmpty,
+            children: [
+              CruTextField(
+                label: 'Notes',
+                optional: true,
+                controller: _notes,
+                maxLines: 2,
+              ),
+            ],
           ),
         ],
       ),

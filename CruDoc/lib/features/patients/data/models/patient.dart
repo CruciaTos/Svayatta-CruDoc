@@ -36,6 +36,9 @@ class Patient {
   /// matched back to the right patient reliably. Empty for a patient added
   /// in CruDoc itself.
   final String oldId;
+  final String abhaNumber;
+  final String abhaAddress;
+  final DateTime? abhaVerifiedAt;
 
   final double packageBalance;
   final bool isArchived;
@@ -67,6 +70,9 @@ class Patient {
     required this.diagnosis,
     this.notes = '',
     this.oldId = '',
+    this.abhaNumber = '',
+    this.abhaAddress = '',
+    this.abhaVerifiedAt,
     required this.packageBalance,
     required this.isArchived,
     required this.createdAt,
@@ -113,6 +119,9 @@ class Patient {
       diagnosis: diagnosisFromStored(map['diagnosis']),
       notes: map['notes'] as String? ?? '',
       oldId: map['oldId'] as String? ?? '',
+      abhaNumber: map['abhaNumber'] as String? ?? '',
+      abhaAddress: map['abhaAddress'] as String? ?? '',
+      abhaVerifiedAt: _nullableTimestampToDate(map['abhaVerifiedAt']),
       packageBalance: (map['packageBalance'] as num?)?.toDouble() ?? 0.0,
       isArchived: map['isArchived'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
@@ -167,6 +176,11 @@ class Patient {
       'diagnosis': diagnosisToStored(diagnosis),
       'notes': notes,
       'oldId': oldId,
+      'abhaNumber': abhaNumber,
+      'abhaAddress': abhaAddress,
+      'abhaVerifiedAt': abhaVerifiedAt != null
+          ? Timestamp.fromDate(abhaVerifiedAt!)
+          : null,
       'packageBalance': packageBalance,
       'isArchived': isArchived,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -185,6 +199,9 @@ class Patient {
     List<String>? diagnosis,
     String? notes,
     String? oldId,
+    String? abhaNumber,
+    String? abhaAddress,
+    DateTime? abhaVerifiedAt,
     double? packageBalance,
     bool? isArchived,
     DateTime? createdAt,
@@ -204,6 +221,9 @@ class Patient {
       diagnosis: diagnosis ?? this.diagnosis,
       notes: notes ?? this.notes,
       oldId: oldId ?? this.oldId,
+      abhaNumber: abhaNumber ?? this.abhaNumber,
+      abhaAddress: abhaAddress ?? this.abhaAddress,
+      abhaVerifiedAt: abhaVerifiedAt ?? this.abhaVerifiedAt,
       packageBalance: packageBalance ?? this.packageBalance,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
@@ -215,6 +235,13 @@ class Patient {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return DateTime.now();
+  }
+
+  static DateTime? _nullableTimestampToDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    return null;
   }
 
   /// Serializes a diagnosis list into the single TEXT value stored in the

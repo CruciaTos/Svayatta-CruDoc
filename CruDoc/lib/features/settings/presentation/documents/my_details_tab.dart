@@ -584,7 +584,6 @@ class _MyDetailsTabState extends ConsumerState<MyDetailsTab> {
                   prefix: '₹',
                   tabular: true,
                   keyboardType: TextInputType.number,
-                  help: 'Prefills a consultation line on every new bill.',
                 ),
               ),
             ],

@@ -114,7 +114,6 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: widget.existing == null ? 'Add referrer' : 'Edit referrer',
-      subtitle: 'A dentist or clinic that sends scans to you',
       leading: const CruIconTile(
         icon: RadIcons.referrer,
         tone: CruTileTone.accent,
@@ -124,7 +123,6 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -135,54 +133,17 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
           children: [
             CruFormSection(
               first: true,
-              title: 'Who',
-              description: 'Printed on reports and statements.',
               children: [
-                CruFieldRow(
-                  children: [
-                    CruTextField(
-                      label: 'Name',
-                      controller: _name,
-                      autofocus: widget.existing == null,
-                      hint: 'Dr. Anjali Shah',
-                      textCapitalization: TextCapitalization.words,
-                      validator: (v) =>
-                          (v ?? '').trim().isEmpty ? 'Add their name.' : null,
-                      onChanged: (_) => _edited(),
-                    ),
-                    CruTextField(
-                      label: 'Clinic',
-                      optional: true,
-                      controller: _clinic,
-                      hint: 'Smile Dental Care',
-                      textCapitalization: TextCapitalization.words,
-                      onChanged: (_) => _edited(),
-                    ),
-                  ],
+                CruTextField(
+                  label: 'Name',
+                  controller: _name,
+                  autofocus: widget.existing == null,
+                  hint: 'Dr. Anjali Shah',
+                  textCapitalization: TextCapitalization.words,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Add their name.' : null,
+                  onChanged: (_) => _edited(),
                 ),
-                CruFieldRow(
-                  children: [
-                    CruTextField(
-                      label: 'City',
-                      optional: true,
-                      controller: _city,
-                      textCapitalization: TextCapitalization.words,
-                      onChanged: (_) => _edited(),
-                    ),
-                    CruTextField(
-                      label: 'Registration no.',
-                      optional: true,
-                      controller: _reg,
-                      onChanged: (_) => _edited(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            CruFormSection(
-              title: 'Contact',
-              description: 'Where reports and urgent findings go.',
-              children: [
                 CruFieldRow(
                   children: [
                     CruTextField(
@@ -212,14 +173,49 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
                     ),
                   ],
                 ),
-                CruTextField(
-                  label: 'Notes',
-                  optional: true,
-                  controller: _notes,
-                  maxLines: 2,
-                  hint: 'Prefers reports on WhatsApp',
-                  textCapitalization: TextCapitalization.sentences,
-                  onChanged: (_) => _edited(),
+                CruMoreFields(
+                  label: 'Clinic, city, registration, notes',
+                  open:
+                      _clinic.text.isNotEmpty ||
+                      _city.text.isNotEmpty ||
+                      _reg.text.isNotEmpty ||
+                      _notes.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Clinic',
+                      optional: true,
+                      controller: _clinic,
+                      hint: 'Smile Dental Care',
+                      textCapitalization: TextCapitalization.words,
+                      onChanged: (_) => _edited(),
+                    ),
+                    CruFieldRow(
+                      children: [
+                        CruTextField(
+                          label: 'City',
+                          optional: true,
+                          controller: _city,
+                          textCapitalization: TextCapitalization.words,
+                          onChanged: (_) => _edited(),
+                        ),
+                        CruTextField(
+                          label: 'Registration no.',
+                          optional: true,
+                          controller: _reg,
+                          onChanged: (_) => _edited(),
+                        ),
+                      ],
+                    ),
+                    CruTextField(
+                      label: 'Notes',
+                      optional: true,
+                      controller: _notes,
+                      maxLines: 2,
+                      hint: 'Prefers reports on WhatsApp',
+                      textCapitalization: TextCapitalization.sentences,
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
                 ),
                 if (widget.existing != null)
                   Align(
@@ -248,11 +244,8 @@ Future<RadReferrer?> pickRadReferrer(
   String subtitle = 'Pick the dentist who sent this scan',
 }) => showDialog<RadReferrer>(
   context: context,
-  builder: (_) => _ReferrerPicker(
-    selectedId: selectedId,
-    title: title,
-    subtitle: subtitle,
-  ),
+  builder: (_) =>
+      _ReferrerPicker(selectedId: selectedId, title: title, subtitle: subtitle),
 );
 
 class _ReferrerPicker extends ConsumerStatefulWidget {
@@ -320,13 +313,9 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
               q.isEmpty)
             DentalListRow(
               semanticLabel: 'No referrer',
-              onTap: () => Navigator.of(context).pop(
-                RadReferrer(
-                  id: '',
-                  name: '',
-                  createdAt: DateTime.now(),
-                ),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).pop(RadReferrer(id: '', name: '', createdAt: DateTime.now())),
               minHeight: 44,
               child: Row(
                 children: [
@@ -602,7 +591,6 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
     final fees = ref.watch(radFeesProvider).value;
     return DentalPanelDialog(
       title: 'Reading fees',
-      subtitle: 'Filled in when a study is added; you can change it per study',
       leading: const CruIconTile(
         icon: CruIcons.rupee,
         tone: CruTileTone.neutral,

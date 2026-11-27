@@ -186,9 +186,7 @@ class _TodoDialogState extends ConsumerState<_TodoDialog> {
     final now = DateTime.now();
     return CruFormDialog(
       title: e == null ? 'New task' : 'Task',
-      subtitle: due == null
-          ? 'A to-do or reminder'
-          : 'Due ${todoWhen(due, now)}',
+      subtitle: due == null ? null : 'Due ${todoWhen(due, now)}',
       leading: const CruIconTile(
         icon: TodoIcons.check,
         tone: CruTileTone.accent,
@@ -198,7 +196,6 @@ class _TodoDialogState extends ConsumerState<_TodoDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -209,8 +206,6 @@ class _TodoDialogState extends ConsumerState<_TodoDialog> {
           children: [
             CruFormSection(
               first: true,
-              title: 'Task',
-              description: 'What needs doing.',
               children: [
                 CruTextField(
                   label: 'Title',
@@ -225,40 +220,6 @@ class _TodoDialogState extends ConsumerState<_TodoDialog> {
                   },
                   onChanged: (_) => _edited(),
                 ),
-                CruTextField(
-                  label: 'Note',
-                  optional: true,
-                  controller: _note,
-                  maxLines: 3,
-                  hint: 'Account number, amount, who to call',
-                  textCapitalization: TextCapitalization.sentences,
-                  validator: (v) => (v ?? '').length > 2000
-                      ? 'Keep the note under 2000 characters.'
-                      : null,
-                  onChanged: (_) => _edited(),
-                ),
-                if (people.length > 1)
-                  CruDropdownField<_Person>(
-                    label: 'Assign to',
-                    icon: CruIcons.user,
-                    value: people.where((p) => p.uid == _assignee).firstOrNull,
-                    items: people,
-                    itemLabel: (p) => p.uid == _uid
-                        ? 'Me${p.name.isEmpty ? '' : ' (${p.name})'}'
-                        : (p.name.isEmpty ? 'Colleague' : p.name),
-                    onChanged: (p) {
-                      setState(() => _assignee = p.uid);
-                      _edited();
-                    },
-                  ),
-              ],
-            ),
-            CruFormSection(
-              title: 'When',
-              description: due == null
-                  ? 'Add a date to get a reminder.'
-                  : 'You get a notification on this device, even when CruDoc is closed.',
-              children: [
                 CruFieldRow(
                   children: [
                     CruPickerField(
@@ -314,21 +275,49 @@ class _TodoDialogState extends ConsumerState<_TodoDialog> {
                     ),
                   ),
                 ],
-              ],
-            ),
-            CruFormSection(
-              title: 'Pin',
-              children: [
-                CruSwitchRow(
-                  title: 'Pin to the top',
-                  subtitle:
-                      'Only for you. Pinned tasks stay first in your list.',
-                  value: _pinned,
-                  onChanged: (v) {
-                    setState(() => _pinned = v);
-                    _edited();
-                  },
+                CruMoreFields(
+                  label: people.length > 1 ? 'Note, assign, pin' : 'Note, pin',
+                  open: _note.text.isNotEmpty || _assignee != _uid || _pinned,
+                  children: [
+                    CruTextField(
+                      label: 'Note',
+                      optional: true,
+                      controller: _note,
+                      maxLines: 3,
+                      hint: 'Account number, amount, who to call',
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: (v) => (v ?? '').length > 2000
+                          ? 'Keep the note under 2000 characters.'
+                          : null,
+                      onChanged: (_) => _edited(),
+                    ),
+                    if (people.length > 1)
+                      CruDropdownField<_Person>(
+                        label: 'Assign to',
+                        icon: CruIcons.user,
+                        value: people
+                            .where((p) => p.uid == _assignee)
+                            .firstOrNull,
+                        items: people,
+                        itemLabel: (p) => p.uid == _uid
+                            ? 'Me${p.name.isEmpty ? '' : ' (${p.name})'}'
+                            : (p.name.isEmpty ? 'Colleague' : p.name),
+                        onChanged: (p) {
+                          setState(() => _assignee = p.uid);
+                          _edited();
+                        },
+                      ),
+                    CruSwitchRow(
+                      title: 'Pin to the top',
+                      value: _pinned,
+                      onChanged: (v) {
+                        setState(() => _pinned = v);
+                        _edited();
+                      },
+                    ),
+                  ],
                 ),
+                // Deleting stays in sight when editing your own task.
                 if (e != null && e.createdBy == _uid)
                   Align(
                     alignment: Alignment.centerLeft,

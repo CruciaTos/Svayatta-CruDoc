@@ -29,7 +29,6 @@ class ChildhoodHistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Childhood history (Q25)',
-      subtitle: 'Nature, habits, fears, dreams & relationships in childhood',
       isComplete: isComplete,
       icon: HomeopathyIcons.child,
       children: [
@@ -124,7 +123,6 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Detailed personality & mental state (Q1–Q18)',
-      subtitle: 'Triggers, fears, coping, anger, joys & griefs',
       isComplete: isComplete,
       icon: HomeopathyIcons.person,
       children: [
@@ -317,8 +315,6 @@ class ChildrenPediatricFormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Pediatric case sheet (questions 1–27)',
-      subtitle:
-          'Temperament, school, milestones, birth & developmental history',
       isComplete: isComplete,
       icon: HomeopathyIcons.child,
       initiallyExpanded: true,
@@ -586,8 +582,6 @@ class FemaleEndocrineFormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Female & endocrine questionnaire',
-      subtitle:
-          'Thyroid, hormonal etiology, lifecycle stages & systemic symptoms',
       isComplete: isComplete,
       icon: HomeopathyIcons.female,
       initiallyExpanded: true,
@@ -737,8 +731,6 @@ class AcuteCaseSheetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Acute presentation questionnaire',
-      subtitle:
-          'Onset, modalities, fever stages, thirst, posture & acute totality',
       isComplete: isComplete,
       icon: HomeopathyIcons.bolt,
       initiallyExpanded: true,

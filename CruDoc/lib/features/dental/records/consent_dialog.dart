@@ -467,8 +467,7 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
                   title: 'Treatment information',
                   body: content.treatmentInfo!,
                 ),
-              if (content.risks.isNotEmpty)
-                _ConsentRisks(items: content.risks),
+              if (content.risks.isNotEmpty) _ConsentRisks(items: content.risks),
             ],
           ),
           CruFormSection(
@@ -489,7 +488,6 @@ class _ConsentDialogState extends ConsumerState<_ConsentDialog> {
           ),
           CruFormSection(
             title: 'Agreement',
-            description: 'Tick each to confirm',
             children: [
               for (var i = 0; i < content.statements.length; i++)
                 _ConsentCheck(
@@ -594,9 +592,7 @@ class _ConsentRisks extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('•  ', style: CruType.subhead.tint(c.label2)),
-                Expanded(
-                  child: Text(r, style: CruType.subhead.tint(c.label2)),
-                ),
+                Expanded(child: Text(r, style: CruType.subhead.tint(c.label2))),
               ],
             ),
           ),

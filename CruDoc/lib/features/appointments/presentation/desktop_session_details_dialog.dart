@@ -84,9 +84,9 @@ class _DesktopSessionDetailsDialogState
     } catch (e) {
       debugPrint('Couldnt save the note. Try again.: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showIsland(SnackBar(content: Text("Couldn't save the note. Try again.")));
+      ScaffoldMessenger.of(context).showIsland(
+        SnackBar(content: Text("Couldn't save the note. Try again.")),
+      );
     } finally {
       if (mounted) setState(() => _savingNote = false);
     }
@@ -126,9 +126,9 @@ class _DesktopSessionDetailsDialogState
     } catch (e) {
       debugPrint('Couldnt update the status. Try again.: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showIsland(SnackBar(content: Text("Couldn't update the status. Try again.")));
+      ScaffoldMessenger.of(context).showIsland(
+        SnackBar(content: Text("Couldn't update the status. Try again.")),
+      );
     } finally {
       if (mounted) setState(() => _updatingStatus = false);
     }
@@ -147,9 +147,9 @@ class _DesktopSessionDetailsDialogState
     } catch (e) {
       debugPrint('Couldnt check in to the queue. Try again: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showIsland(SnackBar(content: Text("Couldn't check in to the queue. Try again.")));
+      ScaffoldMessenger.of(context).showIsland(
+        SnackBar(content: Text("Couldn't check in to the queue. Try again.")),
+      );
     } finally {
       if (mounted) setState(() => _checkingIntoQueue = false);
     }
@@ -178,9 +178,9 @@ class _DesktopSessionDetailsDialogState
     } catch (e) {
       debugPrint('Couldnt delete the appointment. Try agai: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showIsland(SnackBar(content: Text("Couldn't delete the appointment. Try again.")));
+      ScaffoldMessenger.of(context).showIsland(
+        SnackBar(content: Text("Couldn't delete the appointment. Try again.")),
+      );
     }
   }
 
@@ -543,10 +543,10 @@ class _DesktopSessionDetailsDialogState
   Widget _queuePanel(QueueEntryWithPatient? entry) {
     final c = context.cru;
     final String title;
-    final String detail;
+    final String? detail;
     if (entry == null) {
       title = 'Not checked in';
-      detail = 'Check in to give a token and add them to the waiting list.';
+      detail = null;
     } else {
       title = entry.entry.tokenNumber > 0
           ? 'Token ${entry.entry.tokenNumber}'
@@ -560,8 +560,10 @@ class _DesktopSessionDetailsDialogState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: CruType.callout.tabular.tint(c.label)),
-              const SizedBox(height: CruSpace.s2),
-              Text(detail, style: CruType.subhead.tint(c.label2)),
+              if (detail != null) ...[
+                const SizedBox(height: CruSpace.s2),
+                Text(detail, style: CruType.subhead.tint(c.label2)),
+              ],
             ],
           ),
         ),

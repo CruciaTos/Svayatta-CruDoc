@@ -94,7 +94,6 @@ class _TemplateManager extends ConsumerWidget {
     }
     return DentalPanelDialog(
       title: 'Report templates',
-      subtitle: 'The headings and normal wording each report starts from',
       leading: const CruIconTile(
         icon: RadIcons.template,
         tone: CruTileTone.accent,
@@ -355,9 +354,6 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
     final c = context.cru;
     return CruFormDialog(
       title: widget.isNew ? 'New template' : 'Edit template',
-      subtitle: widget.template.builtIn
-          ? 'Built-in: your changes are kept, and the original can be restored'
-          : null,
       leading: const CruIconTile(
         icon: RadIcons.template,
         tone: CruTileTone.accent,
@@ -367,7 +363,6 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
       busy: _busy,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -379,7 +374,6 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
             CruFormSection(
               first: true,
               title: 'Template',
-              description: 'A new report of this study type starts from it.',
               children: [
                 CruTextField(
                   label: 'Name',
@@ -417,9 +411,6 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
             ),
             CruFormSection(
               title: 'Sections',
-              description:
-                  'One heading each, with the wording for a normal finding. '
-                  'The doctor edits it in the report.',
               children: [
                 for (var i = 0; i < _sections.length; i++)
                   Container(
@@ -507,7 +498,6 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
             ),
             CruFormSection(
               title: 'Impression',
-              description: 'The summary a normal study gets.',
               children: [
                 CruTextField(
                   label: 'Impression',

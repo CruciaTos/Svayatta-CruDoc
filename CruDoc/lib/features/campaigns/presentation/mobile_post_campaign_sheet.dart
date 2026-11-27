@@ -67,6 +67,7 @@ class _MobilePostCampaignSheetState
   int _currentStep = 0; // 0: Compose, 1: Audience, 2: Preview, 3: Dispatching
 
   // Step 1: Content
+  final _composeForm = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _messageController = TextEditingController();
   final _mediaUrlController = TextEditingController();
@@ -200,6 +201,8 @@ class _MobilePostCampaignSheetState
     } else {
       _messageController.text = '$text $token';
     }
+    // The field's check reads the new text.
+    setState(() {});
   }
 
   @override
@@ -336,152 +339,108 @@ class _MobilePostCampaignSheetState
   // STEP 1: COMPOSE
   // ===========================================================================
   Widget _buildStep1Compose(CruColors c) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Campaign Category', style: CruType.subhead.w700.tint(c.label)),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: CampaignCategory.values.map((category) {
-                final isSelected = _selectedCategory == category;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedCategory = category),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected ? c.accentTint : c.surface,
-                        borderRadius: BorderRadius.circular(CruRadius.full),
-                        border: Border.all(
-                          color: isSelected ? Colors.transparent : c.hairline,
+    return Form(
+      key: _composeForm,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Campaign Category',
+              style: CruType.subhead.w700.tint(c.label),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: CampaignCategory.values.map((category) {
+                  final isSelected = _selectedCategory == category;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedCategory = category),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected ? c.accentTint : c.surface,
+                          borderRadius: BorderRadius.circular(CruRadius.full),
+                          border: Border.all(
+                            color: isSelected ? Colors.transparent : c.hairline,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              category.icon,
+                              size: 14,
+                              color: isSelected ? c.accentText : c.label2,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              category.label,
+                              style: CruType.caption.w600.tint(
+                                isSelected ? c.accentText : c.label,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            category.icon,
-                            size: 14,
-                            color: isSelected ? c.accentText : c.label2,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            category.label,
-                            style: CruType.caption.w600.tint(
-                              isSelected ? c.accentText : c.label,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          Text('Campaign Title *', style: CruType.subhead.w700.tint(c.label)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _titleController,
-            style: CruType.text.tint(c.label),
-            decoration: InputDecoration(
-              hintText: 'e.g. Free Diabetes Screening & Checkup Camp',
-              hintStyle: CruType.text.tint(c.label2),
-              filled: true,
-              fillColor: c.inset,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                borderSide: BorderSide(color: c.accent, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 13,
+                  );
+                }).toList(),
               ),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 18),
 
-          Row(
-            children: [
-              Text('Message Body *', style: CruType.subhead.w700.tint(c.label)),
-              const Spacer(),
-              _buildTagChip(c, '+ Patient', '{{patient_name}}'),
-              const SizedBox(width: 5),
-              _buildTagChip(c, '+ Clinic', '{{clinic_name}}'),
-              const SizedBox(width: 5),
-              _buildTagChip(c, '+ Doctor', '{{doctor_name}}'),
-            ],
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _messageController,
-            maxLines: 5,
-            style: CruType.text.tint(c.label),
-            decoration: InputDecoration(
-              hintText:
+            CruTextField(
+              label: 'Campaign Title *',
+              controller: _titleController,
+              hint: 'e.g. Free Diabetes Screening & Checkup Camp',
+              textInputAction: TextInputAction.done,
+              validator: (v) =>
+                  (v ?? '').trim().isEmpty ? 'Enter a campaign title.' : null,
+            ),
+            const SizedBox(height: 18),
+
+            CruTextField(
+              label: 'Message Body *',
+              controller: _messageController,
+              maxLines: 5,
+              hint:
                   'Dear {{patient_name}},\n\nWe are hosting a free health checkup camp at {{clinic_name}} this Sunday.\n\nBest regards,\n{{doctor_name}}',
-              hintStyle: CruType.text.tint(c.label2),
-              filled: true,
-              fillColor: c.inset,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                borderSide: BorderSide.none,
+              validator: (v) =>
+                  (v ?? '').trim().isEmpty ? 'Write the message.' : null,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildTagChip(c, '+ Patient', '{{patient_name}}'),
+                  const SizedBox(width: 5),
+                  _buildTagChip(c, '+ Clinic', '{{clinic_name}}'),
+                  const SizedBox(width: 5),
+                  _buildTagChip(c, '+ Doctor', '{{doctor_name}}'),
+                ],
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                borderSide: BorderSide(color: c.accent, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.all(16),
             ),
-          ),
-          const SizedBox(height: 18),
+            const SizedBox(height: 18),
 
-          Text(
-            'Banner Image URL (Optional)',
-            style: CruType.subhead.w700.tint(c.label),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _mediaUrlController,
-            style: CruType.text.tint(c.label),
-            decoration: InputDecoration(
-              hintText: 'https://example.com/clinic-camp.jpg',
-              hintStyle: CruType.text.tint(c.label2),
-              prefixIcon: Icon(Icons.image_outlined, size: 20, color: c.label2),
-              filled: true,
-              fillColor: c.inset,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                borderSide: BorderSide(color: c.accent, width: 1.5),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+            CruTextField(
+              label: 'Banner Image URL',
+              optional: true,
+              controller: _mediaUrlController,
+              hint: 'https://example.com/clinic-camp.jpg',
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.done,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -673,13 +632,14 @@ class _MobilePostCampaignSheetState
                   kWhatsAppCampaignsEnabled ? c.label : c.label3,
                 ),
               ),
-              subtitle: Text(
-                kWhatsAppCampaignsEnabled
-                    ? 'Delivers automatically via WhatsApp Business Cloud API.'
-                    : 'Available once your clinic connects its own WhatsApp '
-                          'number. Use Email for now.',
-                style: CruType.micro.tint(c.label2),
-              ),
+              // Only says why it is off.
+              subtitle: kWhatsAppCampaignsEnabled
+                  ? null
+                  : Text(
+                      'Available once your clinic connects its own WhatsApp '
+                      'number. Use Email for now.',
+                      style: CruType.micro.tint(c.label2),
+                    ),
               onChanged: kWhatsAppCampaignsEnabled
                   ? (v) {
                       if (v == false && !_enableEmail) return;
@@ -1198,16 +1158,10 @@ class _MobilePostCampaignSheetState
           if (_currentStep < 2)
             FilledButton(
               onPressed: () {
+                // Title and message are both needed; the fields say so. The
+                // form isn't built while patients load, so that blocks too.
                 if (_currentStep == 0 &&
-                    (_titleController.text.trim().isEmpty ||
-                        _messageController.text.trim().isEmpty)) {
-                  ScaffoldMessenger.of(context).showIsland(
-                    const SnackBar(
-                      content: Text(
-                        'Please fill out the campaign title and message.',
-                      ),
-                    ),
-                  );
+                    !(_composeForm.currentState?.validate() ?? false)) {
                   return;
                 }
                 setState(() => _currentStep++);

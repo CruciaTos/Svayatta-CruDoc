@@ -43,6 +43,7 @@ class _CertificateDialogState extends State<CertificateDialog> {
   final _diagnosisCtrl = TextEditingController();
   final _remarksCtrl = TextEditingController();
   late final TextEditingController _bodyCtrl;
+  final _form = GlobalKey<FormState>();
 
   bool _manuallyEdited = false;
   bool _busy = false;
@@ -93,7 +94,7 @@ class _CertificateDialogState extends State<CertificateDialog> {
   }
 
   Future<void> _submit() async {
-    if (_bodyCtrl.text.trim().isEmpty) return;
+    if (!(_form.currentState?.validate() ?? false)) return;
     setState(() => _busy = true);
 
     try {
@@ -114,7 +115,9 @@ class _CertificateDialogState extends State<CertificateDialog> {
           fullName: p.fullName,
           phone: p.phone.isNotEmpty ? p.phone : null,
           email: p.email.isNotEmpty ? p.email : null,
-          ageGender: p.gender.isNotEmpty ? '${p.age} Y / ${p.gender}' : '${p.age} Y',
+          ageGender: p.gender.isNotEmpty
+              ? '${p.age} Y / ${p.gender}'
+              : '${p.age} Y',
         ),
       );
 
@@ -131,109 +134,125 @@ class _CertificateDialogState extends State<CertificateDialog> {
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: 'Medical certificate',
-      subtitle: 'Issued for ${widget.patient.fullName}',
+      subtitle: widget.patient.fullName,
       submitLabel: 'Preview',
       busy: _busy,
       onSubmit: _submit,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CruFormSection(
-            first: true,
-            title: 'Certificate type',
-            description: 'Choose template and timeframe.',
-            children: [
-              CruFieldFrame(
-                label: 'Type',
-                child: CruSegmentedControl<String>(
-                  semanticLabel: 'Certificate type',
-                  segments: [for (final t in _types) CruSegment(t, t)],
-                  selected: _selectedType,
-                  onChanged: (t) {
-                    setState(() {
-                      _selectedType = t;
-                      _syncBodyIfUntouched();
-                    });
-                  },
-                ),
-              ),
-              CruFieldRow(
-                children: [
-                  CruPickerField(
-                    label: _selectedType == 'Fitness to resume work'
-                        ? 'Fit from'
-                        : 'Rest from',
-                    icon: CruIcons.calendar,
-                    placeholder: 'Select date',
-                    value: DateFormat('d MMM yyyy').format(_fromDate),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _fromDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _fromDate = picked;
-                          if (_toDate.isBefore(_fromDate)) _toDate = _fromDate;
-                          _syncBodyIfUntouched();
-                        });
-                      }
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CruFormSection(
+              first: true,
+              title: 'Certificate type',
+              children: [
+                CruFieldFrame(
+                  label: 'Type',
+                  child: CruSegmentedControl<String>(
+                    semanticLabel: 'Certificate type',
+                    segments: [for (final t in _types) CruSegment(t, t)],
+                    selected: _selectedType,
+                    onChanged: (t) {
+                      setState(() {
+                        _selectedType = t;
+                        _syncBodyIfUntouched();
+                      });
                     },
                   ),
-                  if (_selectedType == 'Sick leave')
+                ),
+                CruFieldRow(
+                  children: [
                     CruPickerField(
-                      label: 'Rest to',
+                      label: _selectedType == 'Fitness to resume work'
+                          ? 'Fit from'
+                          : 'Rest from',
                       icon: CruIcons.calendar,
                       placeholder: 'Select date',
-                      value: DateFormat('d MMM yyyy').format(_toDate),
+                      value: DateFormat('d MMM yyyy').format(_fromDate),
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: _toDate,
-                          firstDate: _fromDate,
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          initialDate: _fromDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
                         );
                         if (picked != null) {
                           setState(() {
-                            _toDate = picked;
+                            _fromDate = picked;
+                            if (_toDate.isBefore(_fromDate)) {
+                              _toDate = _fromDate;
+                            }
                             _syncBodyIfUntouched();
                           });
                         }
                       },
                     ),
-                ],
-              ),
-              CruTextField(
-                label: 'Diagnosis',
-                optional: true,
-                controller: _diagnosisCtrl,
-                hint: 'e.g. Acute viral gastroenteritis',
-                onChanged: (_) => _syncBodyIfUntouched(),
-              ),
-              CruTextField(
-                label: 'Remarks',
-                optional: true,
-                controller: _remarksCtrl,
-                hint: 'e.g. Advised complete bed rest and hydration',
-                onChanged: (_) => _syncBodyIfUntouched(),
-              ),
-            ],
-          ),
-          CruFormSection(
-            title: 'Certificate text',
-            description: 'You can edit the composed wording directly.',
-            children: [
-              CruTextField(
-                label: 'Body text',
-                controller: _bodyCtrl,
-                maxLines: 5,
-                onChanged: (_) => _manuallyEdited = true,
-              ),
-            ],
-          ),
-        ],
+                    if (_selectedType == 'Sick leave')
+                      CruPickerField(
+                        label: 'Rest to',
+                        icon: CruIcons.calendar,
+                        placeholder: 'Select date',
+                        value: DateFormat('d MMM yyyy').format(_toDate),
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _toDate,
+                            firstDate: _fromDate,
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _toDate = picked;
+                              _syncBodyIfUntouched();
+                            });
+                          }
+                        },
+                      ),
+                  ],
+                ),
+                CruTextField(
+                  label: 'Diagnosis',
+                  optional: true,
+                  controller: _diagnosisCtrl,
+                  hint: 'e.g. Acute viral gastroenteritis',
+                  onChanged: (_) => _syncBodyIfUntouched(),
+                ),
+                CruMoreFields(
+                  label: 'Remarks',
+                  open: _remarksCtrl.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Remarks',
+                      optional: true,
+                      controller: _remarksCtrl,
+                      hint: 'e.g. Advised complete bed rest and hydration',
+                      onChanged: (_) => _syncBodyIfUntouched(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            CruFormSection(
+              title: 'Certificate text',
+              children: [
+                CruTextField(
+                  label: 'Body text',
+                  controller: _bodyCtrl,
+                  maxLines: 5,
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? 'Write the certificate text.'
+                      : null,
+                  onChanged: (_) => _manuallyEdited = true,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

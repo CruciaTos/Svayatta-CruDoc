@@ -69,6 +69,17 @@ class PatientRepository {
     if (out.containsKey('oldId')) {
       out['oldId'] = FieldCipher.encrypt(out['oldId'] as String?);
     }
+    if (out.containsKey('abhaNumber')) {
+      out['abhaNumber'] = FieldCipher.encrypt(out['abhaNumber'] as String?);
+    }
+    if (out.containsKey('abhaAddress')) {
+      out['abhaAddress'] = FieldCipher.encrypt(out['abhaAddress'] as String?);
+    }
+    if (out.containsKey('abhaVerifiedAt') && out['abhaVerifiedAt'] is DateTime) {
+      out['abhaVerifiedAt'] = Timestamp.fromDate(
+        out['abhaVerifiedAt'] as DateTime,
+      );
+    }
     return out;
   }
 
@@ -96,6 +107,12 @@ class PatientRepository {
     }
     if (out['oldId'] is String) {
       out['oldId'] = FieldCipher.decrypt(out['oldId'] as String);
+    }
+    if (out['abhaNumber'] is String) {
+      out['abhaNumber'] = FieldCipher.decrypt(out['abhaNumber'] as String);
+    }
+    if (out['abhaAddress'] is String) {
+      out['abhaAddress'] = FieldCipher.decrypt(out['abhaAddress'] as String);
     }
     return out;
   }
@@ -133,6 +150,9 @@ class PatientRepository {
       diagnosis: patient.diagnosis,
       notes: patient.notes,
       oldId: patient.oldId,
+      abhaNumber: patient.abhaNumber,
+      abhaAddress: patient.abhaAddress,
+      abhaVerifiedAt: patient.abhaVerifiedAt,
       packageBalance: patient.packageBalance,
       isArchived: patient.isArchived,
       createdAt: now,

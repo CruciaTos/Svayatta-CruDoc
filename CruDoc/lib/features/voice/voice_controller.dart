@@ -42,6 +42,7 @@ import 'package:doctor_management_app/features/settings/data/appearance_preferen
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 import 'domain/name_matcher.dart';
 import 'domain/voice_command.dart';
@@ -114,12 +115,16 @@ class VoiceController {
   /// after 30 seconds without an answer.
   Future<bool> _askYesNo(String text) {
     final answer = Completer<bool>();
-    _ask(text, const [
-      VoiceChoice('Yes', words: ['yeah', 'yep', 'confirm', 'okay', 'ok']),
-      VoiceChoice('No', words: ['nope', 'cancel', 'dont', 'stop']),
-    ], (i) async {
-      if (!answer.isCompleted) answer.complete(i == 0);
-    });
+    _ask(
+      text,
+      const [
+        VoiceChoice('Yes', words: ['yeah', 'yep', 'confirm', 'okay', 'ok']),
+        VoiceChoice('No', words: ['nope', 'cancel', 'dont', 'stop']),
+      ],
+      (i) async {
+        if (!answer.isCompleted) answer.complete(i == 0);
+      },
+    );
     final card = asking.value;
     return answer.future.timeout(
       const Duration(seconds: 30),
@@ -485,11 +490,17 @@ class VoiceController {
       return;
     }
 
+    // Fields tucked behind "+" aren't built, so voice couldn't fill them.
+    if (t.isFinal && !_acted && CruMoreFields.openAll()) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
     final form = _otherForm();
     if (form != null &&
         (form.inPopup ||
             (_isUndo(t.text) && _forms.canUndo) ||
-            form.fields.any((f) => VoiceFormFiller.mentions(t.text, f.label)))) {
+            form.fields.any(
+              (f) => VoiceFormFiller.mentions(t.text, f.label),
+            ))) {
       if (t.isFinal && !_acted) {
         _acted = true;
         await _fillOtherForm(form, t.text, cmd);
@@ -2735,7 +2746,8 @@ class VoiceController {
       return;
     }
     if (cmd.intent == VoiceIntent.confirm && words <= 4) {
-      understood.value = "Voice doesn't save this form · check it, then tap Save";
+      understood.value =
+          "Voice doesn't save this form · check it, then tap Save";
       return;
     }
     if (form.blockedReason != null) {

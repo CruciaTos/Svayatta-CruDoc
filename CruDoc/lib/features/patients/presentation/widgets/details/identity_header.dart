@@ -1,4 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/abdm/data/abdm_api.dart';
+import 'package:doctor_management_app/features/abdm/presentation/abha_flow_dialog.dart';
+import 'package:doctor_management_app/features/abdm/presentation/abha_linked_dialog.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/missing_details_dot.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
@@ -6,6 +16,7 @@ import 'package:doctor_management_app/features/patients/domain/quick_patient.dar
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The pinned top of Patient details. First line: the way back, the •••
@@ -148,6 +159,29 @@ class PatientDetailsHeader extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         );
+        final canEditAbha =
+            ClinicSession.instance.access?.can(ClinicPermission.patientsEdit) ??
+            true;
+        final hasAbha = p.abhaNumber.trim().isNotEmpty;
+        final Widget? abhaWidget = hasAbha
+            ? CruPressable(
+                onTap: () => _onSavedAbhaTap(context, p),
+                builder: (context, hovered) => CruInfoPill(
+                  text: 'ABHA ${p.abhaNumber.trim()}',
+                  icon: CruIcons.check,
+                  tone: CruInfoPillTone.outlined,
+                ),
+              )
+            : canEditAbha
+            ? CruPressable(
+                onTap: () => _onAddAbhaTap(context, p),
+                builder: (context, hovered) => const CruInfoPill(
+                  text: 'Add ABHA',
+                  icon: CruIcons.plus,
+                  tone: CruInfoPillTone.outlined,
+                ),
+              )
+            : null;
         if (phone) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -173,9 +207,16 @@ class PatientDetailsHeader extends StatelessWidget {
                   ),
                 ],
               ),
-              if (allergyPill != null) ...[
+              if (allergyPill != null || abhaWidget != null) ...[
                 const SizedBox(height: CruSpace.s10),
-                Align(alignment: Alignment.centerLeft, child: allergyPill),
+                Wrap(
+                  spacing: CruSpace.s8,
+                  runSpacing: CruSpace.s8,
+                  children: [
+                    ?allergyPill,
+                    ?abhaWidget,
+                  ],
+                ),
               ],
               if (tabs != null) ...[
                 const SizedBox(height: CruSpace.s12),
@@ -209,9 +250,16 @@ class PatientDetailsHeader extends StatelessWidget {
                       nameRow,
                       const SizedBox(height: CruSpace.s2),
                       metaText,
-                      if (allergyPill != null) ...[
+                      if (allergyPill != null || abhaWidget != null) ...[
                         const SizedBox(height: CruSpace.s8),
-                        allergyPill,
+                        Wrap(
+                          spacing: CruSpace.s8,
+                          runSpacing: CruSpace.s8,
+                          children: [
+                            ?allergyPill,
+                            ?abhaWidget,
+                          ],
+                        ),
                       ],
                     ],
                   ),
@@ -226,6 +274,158 @@ class PatientDetailsHeader extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _onSavedAbhaTap(BuildContext context, Patient p) async {
+    final verify = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => PatientDialog(
+        title: 'ABHA ${p.abhaNumber.trim()}',
+        body: Text(
+          'Verify ABHA to view or download the card.',
+          style: CruType.text.tint(dCtx.cru.label2),
+        ),
+        cancelLabel: 'Close',
+        confirmLabel: 'View card',
+        onConfirm: () => Navigator.of(dCtx).pop(true),
+      ),
+    );
+    if (verify != true || !context.mounted) return;
+    await showAbhaFlowDialog(context, patient: p);
+  }
+
+  Future<void> _onAddAbhaTap(BuildContext context, Patient p) async {
+    final res = await showAbhaFlowDialog(context, patient: p);
+    if (res == null || !context.mounted) return;
+
+    if (res.existingPatientId != null && res.existingPatientId != p.id) {
+      final openExisting = await showAbhaLinkedDialog(
+        context,
+        profile: res.profile,
+        patientId: res.existingPatientId!,
+      );
+      if (openExisting == true && context.mounted) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                PatientDetailsScreen(patientId: res.existingPatientId!),
+          ),
+        );
+      }
+      return;
+    }
+
+    final abhaName = res.profile.name.trim();
+    final abhaDob = res.profile.dateOfBirth;
+    final nameDiffers =
+        abhaName.isNotEmpty &&
+        abhaName.toLowerCase() != p.fullName.trim().toLowerCase();
+    final dobDiffers =
+        abhaDob != null &&
+        (abhaDob.year != p.dateOfBirth.year ||
+            abhaDob.month != p.dateOfBirth.month ||
+            abhaDob.day != p.dateOfBirth.day);
+
+    var overwriteDemographics = false;
+    if (nameDiffers || dobDiffers) {
+      final fmt = DateFormat('d MMM yyyy');
+      final choice = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dCtx) => PatientDialog(
+          title: 'ABHA details differ from CruDoc',
+          cancelLabel: 'Keep CruDoc details',
+          confirmLabel: 'Update from ABHA',
+          onConfirm: () => Navigator.of(dCtx).pop(true),
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('ABHA', style: CruType.subhead.tint(dCtx.cru.label2)),
+                    const SizedBox(height: CruSpace.s4),
+                    Text(abhaName, style: CruType.text),
+                    Text(
+                      abhaDob != null ? fmt.format(abhaDob) : '—',
+                      style: CruType.caption.tint(dCtx.cru.label2),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: CruSpace.s16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('CruDoc', style: CruType.subhead.tint(dCtx.cru.label2)),
+                    const SizedBox(height: CruSpace.s4),
+                    Text(p.fullName.trim(), style: CruType.text),
+                    Text(
+                      fmt.format(p.dateOfBirth),
+                      style: CruType.caption.tint(dCtx.cru.label2),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (choice == null || !context.mounted) return;
+      overwriteDemographics = choice;
+    }
+
+    try {
+      final linkRes = await AbdmApi.instance.link(
+        flowId: res.flowId,
+        patientId: p.id,
+      );
+      if (!linkRes.linked) {
+        if (context.mounted) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            const SnackBar(
+              content: Text('This ABHA is already linked to another patient.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final updates = <String, dynamic>{
+        'abhaNumber': res.profile.abhaNumber,
+        'abhaAddress': res.profile.abhaAddress,
+        'abhaVerifiedAt': DateTime.now(),
+      };
+      if (overwriteDemographics) {
+        if (nameDiffers) {
+          final parts = abhaName.split(RegExp(r'\s+'));
+          updates['firstName'] = parts.first;
+          updates['lastName'] = parts.length > 1
+              ? parts.sublist(1).join(' ')
+              : '';
+        }
+        if (dobDiffers) {
+          updates['dateOfBirth'] = abhaDob;
+        }
+      }
+      await PatientRepository().updatePatient(p.id, updates);
+    } on AbdmException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text("Couldn't save the ABHA link.")),
+        );
+      }
+    }
   }
 }
 

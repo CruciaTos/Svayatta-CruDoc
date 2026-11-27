@@ -37,3 +37,5 @@ export * from "./blobs";
 export * from "./file_offers";
 export * from "./todos";
 export {onSupportTicketResolved} from "./support_tickets";
+export {abdm} from "./abdm";
+export {abdmCallback, onAbdmShare} from "./abdm/share";

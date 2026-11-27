@@ -533,8 +533,7 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
   List<SterilizationLogModel> get _all =>
       ref.read(clinicSterilizationProvider).value ?? const [];
 
-  SterilizationResult get _auto =>
-      _chemical == 'fail' || _biological == 'fail'
+  SterilizationResult get _auto => _chemical == 'fail' || _biological == 'fail'
       ? SterilizationResult.fail
       : SterilizationResult.pass;
 
@@ -550,8 +549,7 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
         .firstWhere((n) => n.isNotEmpty, orElse: () => '');
     final lastOperator = logs.firstOrNull?.operatorName;
     final me = ref.read(doctorIdentityProvider).fullName;
-    _locked =
-        e != null && !DentalFormat.sameDay(e.createdAt, DateTime.now());
+    _locked = e != null && !DentalFormat.sameDay(e.createdAt, DateTime.now());
     _autoclave = TextEditingController(text: e?.autoclaveName ?? lastMachine);
     _number = TextEditingController(
       text: e == null
@@ -606,8 +604,7 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
     final key = machine.trim().toLowerCase();
     var top = 0;
     for (final l in _all) {
-      if (l.autoclaveName.trim().toLowerCase() == key &&
-          l.cycleNumber > top) {
+      if (l.autoclaveName.trim().toLowerCase() == key && l.cycleNumber > top) {
         top = l.cycleNumber;
       }
     }
@@ -636,11 +633,8 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
     final e = widget.existing;
     final me = ref.read(doctorIdentityProvider).fullName ?? '';
     if (_locked) {
+      if (!(_form.currentState?.validate() ?? false)) return;
       final note = _correction.text.trim();
-      if (note.isEmpty) {
-        setState(() => _notice = 'Write the correction first.');
-        return;
-      }
       final now = DateTime.now();
       final stamp =
           '${DentalFormat.date(now)} ${DentalFormat.time(now)}'
@@ -850,13 +844,15 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
         ),
         CruFormSection(
           title: 'Add a correction',
-          description: 'Dated and kept with the entry. The original stays.',
           children: [
             CruTextField(
               label: 'Correction note',
               controller: _correction,
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
+              validator: (v) => (v ?? '').trim().isEmpty
+                  ? 'Write the correction first.'
+                  : null,
               onChanged: (_) => _edited(),
             ),
           ],
@@ -900,9 +896,8 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: _locked
-          ? _readOnly(c, e!)
+          ? Form(key: _form, child: _readOnly(c, e!))
           : Form(
               key: _form,
               autovalidateMode: _submitted
@@ -914,7 +909,6 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                   CruFormSection(
                     first: true,
                     title: 'Cycle',
-                    description: 'Which autoclave, what program, what went in.',
                     children: [
                       CruFieldRow(
                         children: [
@@ -1024,7 +1018,7 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                     title: 'Indicators and result',
                     description: failed
                         ? "A failed load isn't safe to use. Note what was done with it."
-                        : 'The result follows the indicators.',
+                        : null,
                     children: [
                       _segmented(
                         'Chemical indicator',
@@ -1049,10 +1043,7 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                       ),
                       Row(
                         children: [
-                          Text(
-                            'Result',
-                            style: CruType.subhead.tint(c.label2),
-                          ),
+                          Text('Result', style: CruType.subhead.tint(c.label2)),
                           const SizedBox(width: CruSpace.s12),
                           sterilizationPill(
                             c,

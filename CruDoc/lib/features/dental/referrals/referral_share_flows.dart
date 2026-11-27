@@ -217,7 +217,9 @@ Future<void> sendReferralEmail(
       how = 'Emailed from ${gmail.connectedEmail}';
     } catch (e) {
       debugPrint('send email failed: $e');
-      if (context.mounted) recToast(context, "Couldn't send the email. Try again.");
+      if (context.mounted) {
+        recToast(context, "Couldn't send the email. Try again.");
+      }
       return;
     }
   } else if (_hasShareSheet) {
@@ -498,7 +500,9 @@ Future<Patient?> fileSharedReferral(
       patient = await patients.getPatient(id);
     } catch (e) {
       debugPrint('add patient failed: $e');
-      if (context.mounted) recToast(context, "Couldn't add the patient. Try again.");
+      if (context.mounted) {
+        recToast(context, "Couldn't add the patient. Try again.");
+      }
       return null;
     }
   }
@@ -854,6 +858,7 @@ class _ReplyDialogState extends State<_ReplyDialog> {
   late final TextEditingController _text = TextEditingController(
     text: widget.initial,
   );
+  final _form = GlobalKey<FormState>();
 
   @override
   void dispose() {
@@ -868,18 +873,20 @@ class _ReplyDialogState extends State<_ReplyDialog> {
     width: 500,
     submitLabel: widget.complete ? 'Complete & send' : 'Send reply',
     onSubmit: () {
-      if (_text.text.trim().isEmpty) {
-        recToast(context, 'Write the treatment summary first');
-        return;
-      }
+      if (!(_form.currentState?.validate() ?? false)) return;
       Navigator.of(context).pop(_text.text.trim());
     },
-    body: CruTextField(
-      label: 'Treatment summary & clinical outcome',
-      controller: _text,
-      maxLines: 8,
-      autofocus: true,
-      hint: 'What was done, findings, follow-up advice...',
+    body: Form(
+      key: _form,
+      child: CruTextField(
+        label: 'Treatment summary & clinical outcome',
+        controller: _text,
+        maxLines: 8,
+        autofocus: true,
+        hint: 'What was done, findings, follow-up advice...',
+        validator: (v) =>
+            (v ?? '').trim().isEmpty ? 'Write the treatment summary.' : null,
+      ),
     ),
   );
 }
@@ -1107,7 +1114,6 @@ class _DirectoryProfileDialogState
     if (card.hasValue) _fill(card.value);
     return CruFormDialog(
       title: 'Your CruDoc listing',
-      subtitle: 'How other doctors find you to send referrals',
       width: 480,
       busy: _busy,
       notice: _notice,

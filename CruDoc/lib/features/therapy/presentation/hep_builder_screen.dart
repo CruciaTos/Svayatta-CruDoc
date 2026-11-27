@@ -308,11 +308,17 @@ class _HepBuilderScreenState extends ConsumerState<HepBuilderScreen> {
                     ],
                   ),
                 const SizedBox(height: CruSpace.s12),
-                CruTextField(
+                CruMoreFields(
                   label: 'Note for the patient',
-                  controller: _note,
-                  maxLines: 3,
-                  optional: true,
+                  open: _note.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Note for the patient',
+                      controller: _note,
+                      maxLines: 3,
+                      optional: true,
+                    ),
+                  ],
                 ),
               ],
             ),

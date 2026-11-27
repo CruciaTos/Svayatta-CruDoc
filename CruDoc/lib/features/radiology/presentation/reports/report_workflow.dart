@@ -91,10 +91,6 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final missing =
-        _settings.signatureName.isEmpty ||
-        _settings.qualification.isEmpty ||
-        _settings.regNo.isEmpty;
     return CruFormDialog(
       title: 'Sign & finalise',
       subtitle: 'The report is locked once signed',
@@ -106,7 +102,6 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
       onSubmit: _sign,
       busy: _busy,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to sign',
       width: CruSize.formDialog - 80,
       body: Form(
         key: _form,
@@ -119,9 +114,6 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
             CruFormSection(
               first: true,
               title: 'Signature',
-              description: missing
-                  ? 'Printed under every signed report. Saved for next time.'
-                  : 'Printed under the report. Change it here if needed.',
               children: [
                 CruTextField(
                   label: 'Name as printed',
@@ -196,7 +188,6 @@ class _AddendumDialogState extends State<_AddendumDialog> {
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: 'Add addendum',
-      subtitle: 'Signed reports stay as they are; this is added below',
       leading: const CruIconTile(
         icon: RadReportIcons.addendum,
         tone: CruTileTone.accent,
@@ -204,7 +195,6 @@ class _AddendumDialogState extends State<_AddendumDialog> {
       submitLabel: 'Add addendum',
       dirty: _dirty,
       width: CruSize.formDialog - 80,
-      footerHint: 'Ctrl + Enter to add',
       onSubmit: () {
         if (!(_form.currentState?.validate() ?? false)) return;
         Navigator.of(context).pop(_text.text.trim());
@@ -213,9 +203,6 @@ class _AddendumDialogState extends State<_AddendumDialog> {
         key: _form,
         child: CruFormSection(
           first: true,
-          title: 'Addendum',
-          description:
-              'Dated and signed with your name. Send the report again afterwards.',
           children: [
             CruTextField(
               label: 'What to add',

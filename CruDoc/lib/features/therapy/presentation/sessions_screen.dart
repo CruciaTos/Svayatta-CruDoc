@@ -58,9 +58,10 @@ Future<void> billPackage(
         ? 'Session package'
         : pkg.name.trim(),
     initialTreatmentPrice: pkg.price,
-    initialNotes: '${pkg.total} session package'
+    initialNotes:
+        '${pkg.total} session package'
         '${pkg.validUntil == null ? '' : ', valid until '
-              '${DentalFormat.date(pkg.validUntil!)}'}',
+                  '${DentalFormat.date(pkg.validUntil!)}'}',
   );
   if (invoice == null) return;
   await saveDentalRecord(
@@ -231,11 +232,17 @@ class _PackageSheetState extends State<_PackageSheet> {
                 ],
               ),
               const SizedBox(height: CruSpace.s16),
-              CruTextField(
+              CruMoreFields(
                 label: 'Note',
-                controller: _note,
-                optional: true,
-                textInputAction: TextInputAction.done,
+                open: _note.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Note',
+                    controller: _note,
+                    optional: true,
+                    textInputAction: TextInputAction.done,
+                  ),
+                ],
               ),
               const SizedBox(height: CruSpace.s16),
               CruButton(label: 'Save package', expand: true, onPressed: _save),
@@ -321,10 +328,7 @@ class SessionsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            p.name,
-                            style: CruType.body.w600.tint(c.label),
-                          ),
+                          Text(p.name, style: CruType.body.w600.tint(c.label)),
                           const SizedBox(height: CruSpace.s2),
                           Text(
                             '${p.used.length} of ${p.total} used · started ${DentalFormat.date(p.date)}'

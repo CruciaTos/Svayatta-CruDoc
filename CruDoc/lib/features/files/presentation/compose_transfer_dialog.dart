@@ -140,7 +140,6 @@ class _ComposeDialogState extends ConsumerState<_ComposeDialog> {
           _subject.text.isNotEmpty ||
           _note.text.isNotEmpty ||
           _files.length != widget.files.length,
-      footerHint: 'Direct on clinic Wi-Fi, otherwise over the internet.',
       onSubmit: _send,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

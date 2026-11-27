@@ -559,17 +559,19 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
         // immediately and does not leave the user stuck on "Saving...".
         unawaited(
           RadiologyCloudSync.enqueueStudyImages(
-            ctrl: ctrl,
-            study: study,
-            studyDir: dir.path,
-          ).then((sync) {
-            final notice = sync.notice;
-            if (notice != null) {
-              messenger?.showIsland(SnackBar(content: Text(notice)));
-            }
-          }).catchError((err) {
-            debugPrint('[RadStudyFormDialog] cloud sync failed: $err');
-          }),
+                ctrl: ctrl,
+                study: study,
+                studyDir: dir.path,
+              )
+              .then((sync) {
+                final notice = sync.notice;
+                if (notice != null) {
+                  messenger?.showIsland(SnackBar(content: Text(notice)));
+                }
+              })
+              .catchError((err) {
+                debugPrint('[RadStudyFormDialog] cloud sync failed: $err');
+              }),
         );
       }
       if (mounted) Navigator.of(context).pop(true);
@@ -586,7 +588,6 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final g = widget.group;
     final patients =
         ref.watch(patientsStreamProvider).value ?? const <Patient>[];
@@ -613,7 +614,6 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
         autovalidateMode: _submitted
@@ -625,8 +625,6 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
             CruFormSection(
               first: true,
               title: 'Study',
-              description:
-                  'The type picks the viewer, the report template and the fee.',
               children: [
                 CruFieldFrame(
                   label: 'Type',
@@ -644,31 +642,39 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                     },
                   ),
                 ),
-                CruFieldRow(
+                CruMoreFields(
+                  label: 'Date taken, description',
+                  open:
+                      _description.text.isNotEmpty ||
+                      !DentalFormat.sameDay(_studyDate, DateTime.now()),
                   children: [
-                    CruPickerField(
-                      label: 'Taken on',
-                      icon: CruIcons.calendar,
-                      value: RadFormat.date(_studyDate),
-                      placeholder: 'Pick a date',
-                      onTap: () async {
-                        final d = await pickDentalDate(
-                          context,
-                          initial: _studyDate,
-                          last: DateTime.now(),
-                        );
-                        if (d != null) {
-                          setState(() => _studyDate = d);
-                          _edited();
-                        }
-                      },
-                    ),
-                    CruTextField(
-                      label: 'Description',
-                      optional: true,
-                      controller: _description,
-                      hint: 'Full volume, 16 × 10 cm',
-                      onChanged: (_) => _edited(),
+                    CruFieldRow(
+                      children: [
+                        CruPickerField(
+                          label: 'Taken on',
+                          icon: CruIcons.calendar,
+                          value: RadFormat.date(_studyDate),
+                          placeholder: 'Pick a date',
+                          onTap: () async {
+                            final d = await pickDentalDate(
+                              context,
+                              initial: _studyDate,
+                              last: DateTime.now(),
+                            );
+                            if (d != null) {
+                              setState(() => _studyDate = d);
+                              _edited();
+                            }
+                          },
+                        ),
+                        CruTextField(
+                          label: 'Description',
+                          optional: true,
+                          controller: _description,
+                          hint: 'Full volume, 16 × 10 cm',
+                          onChanged: (_) => _edited(),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -687,7 +693,7 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
               title: 'Patient',
               description: g?.patientName.isNotEmpty == true
                   ? 'The scan says ${g!.patientName}${g.patientExternalId.isNotEmpty ? ' (ID ${g.patientExternalId})' : ''}.'
-                  : 'Who the scan is of.',
+                  : null,
               children: [
                 CruFieldFrame(
                   label: 'Patient record',
@@ -806,7 +812,6 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
             ),
             CruFormSection(
               title: 'Referral',
-              description: 'Who sent it, what they want to know, and how soon.',
               children: [
                 CruPickerField(
                   label: 'Referred by',
@@ -840,7 +845,6 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                   children: [
                     CruFieldFrame(
                       label: 'Priority',
-                      help: 'Sets when the report is due.',
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: CruSegmentedControl<RadPriority>(
@@ -872,11 +876,6 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                     ),
                   ],
                 ),
-                if (_priority == RadPriority.stat)
-                  Text(
-                    'STAT studies go to the top of the worklist.',
-                    style: CruType.caption.tint(c.label2),
-                  ),
               ],
             ),
           ],

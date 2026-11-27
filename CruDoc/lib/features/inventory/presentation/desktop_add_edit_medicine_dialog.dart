@@ -566,14 +566,13 @@ class _DesktopAddEditMedicineDialogState
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: _isEditing ? 'Edit item' : 'New item',
-      subtitle: _isEditing ? widget.medicine!.name : 'Add it to your inventory',
+      subtitle: _isEditing ? widget.medicine!.name : null,
       leading: CruIconTile(icon: _itemIcon, tone: CruTileTone.neutral),
       submitLabel: _isEditing ? 'Save changes' : 'Add item',
       onSubmit: _save,
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _formKey,
         autovalidateMode: _submitted
@@ -585,7 +584,6 @@ class _DesktopAddEditMedicineDialogState
             CruFormSection(
               first: true,
               title: 'Item',
-              description: 'How it shows in your inventory.',
               children: [
                 CruTextField(
                   label: 'Name',
@@ -609,11 +607,10 @@ class _DesktopAddEditMedicineDialogState
                     ),
                     _PresetField(
                       label: 'Unit',
+                      optional: true,
                       controller: _unit,
-                      hint: 'Tablets',
+                      hint: 'Units',
                       presets: _units,
-                      validator: (v) =>
-                          _required(v, 'Add a unit, like Tablets.'),
                       onChanged: _edited,
                       onPick: (v) => _pickPreset(_unit, v),
                     ),
@@ -623,9 +620,6 @@ class _DesktopAddEditMedicineDialogState
             ),
             CruFormSection(
               title: 'Stock and price',
-              description:
-                  'Counted in the unit above. Green at the good level, '
-                  'amber at the alert level, red at a fifth of it.',
               children: [
                 CruFieldRow(
                   children: [
@@ -641,12 +635,12 @@ class _DesktopAddEditMedicineDialogState
                     ),
                     CruTextField(
                       label: 'Alert at',
+                      optional: true,
                       controller: _threshold,
                       hint: '10',
                       tabular: true,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: _validateCount,
                       onChanged: _edited,
                     ),
                   ],
@@ -688,30 +682,7 @@ class _DesktopAddEditMedicineDialogState
             ),
             CruFormSection(
               title: 'Batch and expiry',
-              description:
-                  'For reordering and to catch stock before it '
-                  'expires.',
               children: [
-                CruFieldRow(
-                  children: [
-                    CruTextField(
-                      label: 'Supplier',
-                      optional: true,
-                      controller: _supplier,
-                      hint: 'Distributor name',
-                      textCapitalization: TextCapitalization.words,
-                      onChanged: _edited,
-                    ),
-                    CruTextField(
-                      label: 'Batch number',
-                      optional: true,
-                      controller: _batch,
-                      hint: 'As on the pack',
-                      textCapitalization: TextCapitalization.characters,
-                      onChanged: _edited,
-                    ),
-                  ],
-                ),
                 CruPickerField(
                   label: 'Expiry date',
                   optional: true,
@@ -723,13 +694,36 @@ class _DesktopAddEditMedicineDialogState
                   onTap: _pickExpiryDate,
                   trailing: _expiryTrailing(context),
                 ),
+                CruMoreFields(
+                  label: 'Supplier, batch',
+                  open: _supplier.text.isNotEmpty || _batch.text.isNotEmpty,
+                  children: [
+                    CruFieldRow(
+                      children: [
+                        CruTextField(
+                          label: 'Supplier',
+                          optional: true,
+                          controller: _supplier,
+                          hint: 'Distributor name',
+                          textCapitalization: TextCapitalization.words,
+                          onChanged: _edited,
+                        ),
+                        CruTextField(
+                          label: 'Batch number',
+                          optional: true,
+                          controller: _batch,
+                          hint: 'As on the pack',
+                          textCapitalization: TextCapitalization.characters,
+                          onChanged: _edited,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ],
             ),
             CruFormSection(
               title: 'Bill and photo',
-              description:
-                  'A bill photo fills in what it can read. '
-                  'Check the fields after.',
               children: [
                 _billTile(context),
                 _photoTile(context),
@@ -982,7 +976,6 @@ class _PresetField extends StatelessWidget {
     required this.onPick,
     this.hint,
     this.optional = false,
-    this.validator,
   });
 
   static const _shown = 5;
@@ -994,7 +987,6 @@ class _PresetField extends StatelessWidget {
   final ValueChanged<String> onPick;
   final String? hint;
   final bool optional;
-  final FormFieldValidator<String>? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -1014,7 +1006,6 @@ class _PresetField extends StatelessWidget {
           controller: controller,
           hint: hint,
           textCapitalization: TextCapitalization.words,
-          validator: validator,
           onChanged: onChanged,
         ),
         const SizedBox(height: CruSpace.s8),

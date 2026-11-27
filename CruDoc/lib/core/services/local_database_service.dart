@@ -539,6 +539,9 @@ class LocalDatabaseService extends ChangeNotifier {
         diagnosis TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
         oldId TEXT NOT NULL DEFAULT '',
+        abhaNumber TEXT NOT NULL DEFAULT '',
+        abhaAddress TEXT NOT NULL DEFAULT '',
+        abhaVerifiedAt INTEGER,
         packageBalance REAL NOT NULL DEFAULT 0,
         isArchived INTEGER NOT NULL DEFAULT 0,
         isActive INTEGER NOT NULL DEFAULT 1,
@@ -1107,6 +1110,9 @@ class LocalDatabaseService extends ChangeNotifier {
     // The patient's id in the software the clinic used before CruDoc, kept
     // so imported visit history can be matched to the right patient.
     'oldId': "oldId TEXT NOT NULL DEFAULT ''",
+    'abhaNumber': "abhaNumber TEXT NOT NULL DEFAULT ''",
+    'abhaAddress': "abhaAddress TEXT NOT NULL DEFAULT ''",
+    'abhaVerifiedAt': 'abhaVerifiedAt INTEGER',
     'packageBalance': 'packageBalance REAL NOT NULL DEFAULT 0',
     'isArchived': 'isArchived INTEGER NOT NULL DEFAULT 0',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',

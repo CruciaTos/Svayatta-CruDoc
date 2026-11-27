@@ -294,15 +294,14 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
                 _isNew ? 'Add a goal' : 'Goal',
                 style: CruType.headline.tint(c.label),
               ),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                overdue
-                    ? 'The date on this goal has gone by. Decide where it '
-                          'stands, or move the date.'
-                    : "In the patient's own words — what they want to be "
-                          'able to do again.',
-                style: CruType.caption.tint(overdue ? c.amberText : c.label2),
-              ),
+              if (overdue) ...[
+                const SizedBox(height: CruSpace.s4),
+                Text(
+                  'The date on this goal has gone by. Decide where it '
+                  'stands, or move the date.',
+                  style: CruType.caption.tint(c.amberText),
+                ),
+              ],
               const SizedBox(height: CruSpace.s16),
               CruTextField(
                 label: 'Goal',
@@ -332,12 +331,6 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
                   ],
                 ],
               ),
-              const SizedBox(height: CruSpace.s4),
-              Text(
-                'Without a date the goal still stands, it just never comes '
-                'up for review.',
-                style: CruType.caption.tint(c.label3),
-              ),
               // A goal starts open. Where it ended up is a decision taken
               // later, so the choice only appears once there is a goal to
               // decide about.
@@ -363,13 +356,19 @@ class _GoalSheetState extends ConsumerState<_GoalSheet> {
                 ),
               ],
               const SizedBox(height: CruSpace.s16),
-              CruTextField(
+              CruMoreFields(
                 label: 'Note',
-                controller: _note,
-                hint: 'How it is going, or what got in the way',
-                maxLines: 2,
-                optional: true,
-                textCapitalization: TextCapitalization.sentences,
+                open: _note.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Note',
+                    controller: _note,
+                    hint: 'How it is going, or what got in the way',
+                    maxLines: 2,
+                    optional: true,
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                ],
               ),
               const SizedBox(height: CruSpace.s20),
               CruButton(

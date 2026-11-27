@@ -602,7 +602,6 @@ class _DesktopScheduleVisitDialogState
     final phone = patient.phone.trim();
     final queueOn =
         ref.watch(isQueueFeatureEnabledProvider) && _type == VisitType.clinic;
-    final showAfter = _canWhatsApp || queueOn;
     final start = _start;
 
     final doctorsAsync = ref.watch(clinicDoctorsProvider);
@@ -610,7 +609,8 @@ class _DesktopScheduleVisitDialogState
     if (doctors.length > 1 && _attendingDoctorUid == null) {
       final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
-      _attendingDoctorUid = (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
+      _attendingDoctorUid =
+          (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
           ? currentAuthUid
           : doctors.first.uid;
     }
@@ -626,14 +626,12 @@ class _DesktopScheduleVisitDialogState
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: 'Ctrl + Enter to book',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CruFormSection(
             first: true,
             title: 'When',
-            description: 'Day, start time and how long to keep free.',
             children: [
               CruFieldRow(
                 flex: const [1, 1],
@@ -694,7 +692,10 @@ class _DesktopScheduleVisitDialogState
                   value: _attendingDoctorUid,
                   items: [for (final d in doctors) d.uid],
                   itemLabel: (uid) => doctors
-                      .firstWhere((d) => d.uid == uid, orElse: () => doctors.first)
+                      .firstWhere(
+                        (d) => d.uid == uid,
+                        orElse: () => doctors.first,
+                      )
                       .name,
                   onChanged: (v) => setState(() {
                     _attendingDoctorUid = v;
@@ -710,7 +711,6 @@ class _DesktopScheduleVisitDialogState
               PlanModules.instance.isOn('home_visits'))
             CruFormSection(
               title: 'Where',
-              description: 'At the clinic or at the patient’s home.',
               children: [
                 CruFieldFrame(
                   label: 'Place',
@@ -737,67 +737,32 @@ class _DesktopScheduleVisitDialogState
                     onPlaceSelected: (lat, lng) {
                       _lat = lat;
                       _lng = lng;
-                      _mapsLink.text = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+                      _mapsLink.text =
+                          'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
                       _edited();
                     },
                     aiRevealKey: _revealAddress,
                     aiPending: _pendingAddress,
                   ),
-                  CruTextField(
+                  CruMoreFields(
                     label: 'Google Maps link',
-                    optional: true,
-                    controller: _mapsLink,
-                    hint: 'https://maps.app.goo.gl/…',
-                    keyboardType: TextInputType.url,
-                    onChanged: _edited,
+                    open: _mapsLink.text.isNotEmpty,
+                    children: [
+                      CruTextField(
+                        label: 'Google Maps link',
+                        optional: true,
+                        controller: _mapsLink,
+                        hint: 'https://maps.app.goo.gl/…',
+                        keyboardType: TextInputType.url,
+                        onChanged: _edited,
+                      ),
+                    ],
                   ),
                 ],
               ],
             ),
           CruFormSection(
-            title: 'Seen together',
-            description:
-                'A couple or family in the same slot. Each gets '
-                'their own visit and history.',
-            children: [
-              for (var i = 0; i < _others.length; i++)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: CruTextField(
-                        label: 'Reason for ${_others[i].$1.fullName}',
-                        optional: true,
-                        controller: _others[i].$2,
-                        hint: 'Knee pain, follow-up…',
-                        onChanged: (_) => _edited(),
-                      ),
-                    ),
-                    const SizedBox(width: CruSpace.s8),
-                    CruSquareButton(
-                      icon: CruIcons.close,
-                      semanticLabel: 'Remove ${_others[i].$1.firstName}',
-                      tooltip: 'Remove ${_others[i].$1.firstName}',
-                      onPressed: () => _removeOther(i),
-                    ),
-                  ],
-                ),
-              if (_others.length + 1 < kMaxGroupPatients)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: CruCapsuleButton(
-                    label: _others.isEmpty
-                        ? 'Add another patient'
-                        : 'Add one more',
-                    icon: CruIcons.userPlus,
-                    onPressed: _addOther,
-                  ),
-                ),
-            ],
-          ),
-          CruFormSection(
             title: 'Visit',
-            description: 'Why they’re coming and anything to prepare.',
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -835,47 +800,81 @@ class _DesktopScheduleVisitDialogState
                   ),
                 ],
               ),
-              CruTextField(
-                label: 'Notes',
-                optional: true,
-                controller: _notes,
-                maxLines: 3,
-                hint: 'Complaints, equipment to bring, preparation…',
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: _edited,
-                aiRevealKey: _revealNotes,
-                aiPending: _pendingNotes,
-                aiStagger: const Duration(milliseconds: 180),
+              if (_canWhatsApp)
+                _OptionRow(
+                  title: 'Send confirmation on WhatsApp',
+                  value: _sendWhatsApp,
+                  onChanged: (v) {
+                    _sendWhatsApp = v;
+                    _edited();
+                  },
+                ),
+              if (queueOn)
+                _OptionRow(
+                  title: 'Add to the queue',
+                  value: _addToQueue,
+                  onChanged: (v) {
+                    _addToQueue = v;
+                    _edited();
+                  },
+                ),
+              CruMoreFields(
+                label: 'Notes, more patients',
+                open:
+                    _notes.text.isNotEmpty ||
+                    _pendingNotes ||
+                    _others.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Notes',
+                    optional: true,
+                    controller: _notes,
+                    maxLines: 3,
+                    hint: 'Complaints, equipment to bring, preparation…',
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: _edited,
+                    aiRevealKey: _revealNotes,
+                    aiPending: _pendingNotes,
+                    aiStagger: const Duration(milliseconds: 180),
+                  ),
+                  // Others seen in the same slot.
+                  for (var i = 0; i < _others.length; i++)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: CruTextField(
+                            label: 'Reason for ${_others[i].$1.fullName}',
+                            optional: true,
+                            controller: _others[i].$2,
+                            hint: 'Knee pain, follow-up…',
+                            onChanged: (_) => _edited(),
+                          ),
+                        ),
+                        const SizedBox(width: CruSpace.s8),
+                        CruSquareButton(
+                          icon: CruIcons.close,
+                          semanticLabel: 'Remove ${_others[i].$1.firstName}',
+                          tooltip: 'Remove ${_others[i].$1.firstName}',
+                          onPressed: () => _removeOther(i),
+                        ),
+                      ],
+                    ),
+                  if (_others.length + 1 < kMaxGroupPatients)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: CruCapsuleButton(
+                        label: _others.isEmpty
+                            ? 'Add another patient'
+                            : 'Add one more',
+                        icon: CruIcons.userPlus,
+                        onPressed: _addOther,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
-          if (showAfter)
-            CruFormSection(
-              title: 'After booking',
-              description: 'What happens once the visit is saved.',
-              children: [
-                if (_canWhatsApp)
-                  _OptionRow(
-                    title: 'Send confirmation on WhatsApp',
-                    detail: 'Opens WhatsApp with the visit details for $phone.',
-                    value: _sendWhatsApp,
-                    onChanged: (v) {
-                      _sendWhatsApp = v;
-                      _edited();
-                    },
-                  ),
-                if (queueOn)
-                  _OptionRow(
-                    title: 'Add to the queue',
-                    detail: 'Gives them a token in today’s clinic queue.',
-                    value: _addToQueue,
-                    onChanged: (v) {
-                      _addToQueue = v;
-                      _edited();
-                    },
-                  ),
-              ],
-            ),
         ],
       ),
     );
@@ -985,21 +984,13 @@ class _AddressFieldState extends ConsumerState<_AddressField> {
   Widget build(BuildContext context) {
     final c = context.cru;
     // Watching starts finding where the doctor is while they type.
-    final origin = ref.watch(addressSearchOriginProvider);
-    final from = origin.value;
+    ref.watch(addressSearchOriginProvider);
     final noKey = ref.watch(mapsKeyProvider).value?.isEmpty ?? false;
     final help = noKey
         ? "Address search isn't set up yet. Type the full address."
         : _noMatch
         ? 'No matching places. Keep typing, or enter the full address.'
-        : from != null
-        ? 'Nearest to ${from.fromYou ? 'you' : 'the clinic'} first. '
-              'Pick one to pin it on the map.'
-        : origin.isLoading
-        ? 'Pick a suggestion to pin it on the map.'
-        : 'Pick a suggestion to pin it on the map. Turn on '
-              'location, or add the clinic address in Settings, '
-              'to see nearby places first.';
+        : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -1114,17 +1105,15 @@ class _Suggestion extends StatelessWidget {
   }
 }
 
-/// A checkbox with a title and a line of detail.
+/// A checkbox with a title.
 class _OptionRow extends StatelessWidget {
   const _OptionRow({
     required this.title,
-    required this.detail,
     required this.value,
     required this.onChanged,
   });
 
   final String title;
-  final String detail;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -1138,7 +1127,6 @@ class _OptionRow extends StatelessWidget {
         semanticLabel: title,
         scaleOnPress: false,
         builder: (context, hovered) => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AnimatedContainer(
               duration: CruMotion.of(context, CruMotion.fast),
@@ -1167,15 +1155,7 @@ class _OptionRow extends StatelessWidget {
             ),
             const SizedBox(width: CruSpace.s12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title, style: CruType.text.w500.tint(c.label)),
-                  const SizedBox(height: CruSpace.s2),
-                  Text(detail, style: CruType.caption.tabular.tint(c.label3)),
-                ],
-              ),
+              child: Text(title, style: CruType.text.w500.tint(c.label)),
             ),
           ],
         ),

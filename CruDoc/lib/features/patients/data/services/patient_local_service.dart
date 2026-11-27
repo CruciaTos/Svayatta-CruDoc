@@ -225,6 +225,11 @@ class PatientLocalService {
       'diagnosis': Patient.diagnosisToStored(patient.diagnosis),
       'notes': patient.notes,
       'oldId': patient.oldId,
+      'abhaNumber': patient.abhaNumber,
+      'abhaAddress': patient.abhaAddress,
+      'abhaVerifiedAt': patient.abhaVerifiedAt != null
+          ? _dateTimeToMillis(patient.abhaVerifiedAt!)
+          : null,
       'packageBalance': patient.packageBalance,
       'isArchived': patient.isArchived ? 1 : 0,
       'isActive': pendingDelete ? 0 : 1,
@@ -252,6 +257,15 @@ class PatientLocalService {
             row[entry.key] = entry.value;
           }
           break;
+        case 'abhaVerifiedAt':
+          if (entry.value == null) {
+            row[entry.key] = null;
+          } else if (entry.value is DateTime) {
+            row[entry.key] = _dateTimeToMillis(entry.value as DateTime);
+          } else if (entry.value is int) {
+            row[entry.key] = entry.value;
+          }
+          break;
         case 'isArchived':
         case 'isActive':
           if (entry.value is bool) {
@@ -267,6 +281,8 @@ class PatientLocalService {
         case 'gender':
         case 'notes':
         case 'oldId':
+        case 'abhaNumber':
+        case 'abhaAddress':
           row[entry.key] = entry.value;
           break;
         case 'diagnosis':
@@ -304,6 +320,11 @@ class PatientLocalService {
       diagnosis: Patient.diagnosisFromStored(row['diagnosis'] as String?),
       notes: row['notes'] as String? ?? '',
       oldId: row['oldId'] as String? ?? '',
+      abhaNumber: row['abhaNumber'] as String? ?? '',
+      abhaAddress: row['abhaAddress'] as String? ?? '',
+      abhaVerifiedAt: row['abhaVerifiedAt'] is int
+          ? _millisToDateTime(row['abhaVerifiedAt'])
+          : null,
       packageBalance: (row['packageBalance'] as num?)?.toDouble() ?? 0,
       isArchived: row['isArchived'] == 1,
       createdAt: _millisToDateTime(row['createdAt']),

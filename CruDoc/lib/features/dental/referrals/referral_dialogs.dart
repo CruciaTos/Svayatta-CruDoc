@@ -51,7 +51,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
   List<String> _attachments = [];
 
   bool _busy = false;
-  String? _teethError;
+  final _form = GlobalKey<FormState>();
 
   /// The patient agreed to their details going to the other doctor.
   bool _consent = false;
@@ -102,6 +102,15 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
       }
     }
     return tokens;
+  }
+
+  String? _checkTeeth(String? raw) {
+    try {
+      _parseAndValidateTeeth(raw ?? '');
+      return null;
+    } on FormatException catch (e) {
+      return e.message;
+    }
   }
 
   Future<void> _pickPatient() async {
@@ -179,10 +188,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
       recToast(context, 'Please select a patient');
       return;
     }
-    if (_reason.text.trim().isEmpty) {
-      recToast(context, 'Please enter a reason for referral');
-      return;
-    }
+    if (!(_form.currentState?.validate() ?? false)) return;
     if (_sendsInCruDoc && !_consent) {
       recToast(
         context,
@@ -191,14 +197,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
       return;
     }
 
-    List<String> parsedTeeth = [];
-    try {
-      parsedTeeth = _parseAndValidateTeeth(_teeth.text);
-      _teethError = null;
-    } catch (e) {
-      setState(() => _teethError = e.toString());
-      return;
-    }
+    final parsedTeeth = _parseAndValidateTeeth(_teeth.text);
 
     setState(() => _busy = true);
 
@@ -378,9 +377,6 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
     return CruFormDialog(
       title: widget.initialReferral == null ? 'New referral' : 'Edit referral',
-      subtitle: _direction == ReferralDirection.out
-          ? 'Referring to specialist'
-          : 'Referred to this clinic',
       width: 580,
       busy: _busy,
       submitLabel: _sendsInCruDoc
@@ -389,217 +385,236 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
                 ? 'Create referral'
                 : 'Save changes'),
       onSubmit: _save,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Direction segment
-          CruSegmentedControl<ReferralDirection>(
-            semanticLabel: 'Referral direction',
-            segments: [
-              CruSegment(
-                ReferralDirection.out,
-                ReferralDirection.out.formLabel,
-              ),
-              CruSegment(
-                ReferralDirection.inbound,
-                ReferralDirection.inbound.formLabel,
-              ),
-            ],
-            selected: _direction,
-            onChanged: (d) => setState(() => _direction = d),
-          ),
-          const SizedBox(height: CruSpace.s16),
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Direction segment
+            CruSegmentedControl<ReferralDirection>(
+              semanticLabel: 'Referral direction',
+              segments: [
+                CruSegment(
+                  ReferralDirection.out,
+                  ReferralDirection.out.formLabel,
+                ),
+                CruSegment(
+                  ReferralDirection.inbound,
+                  ReferralDirection.inbound.formLabel,
+                ),
+              ],
+              selected: _direction,
+              onChanged: (d) => setState(() => _direction = d),
+            ),
+            const SizedBox(height: CruSpace.s16),
 
-          // Patient selector
-          CruFieldFrame(
-            label: 'Patient',
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _patient != null
-                        ? '${_patient!.fullName} (${_patient!.age}y, ${_patient!.gender.toUpperCase()})'
-                        : 'No patient selected',
-                    style: CruType.body.tint(
-                      _patient != null ? c.label : c.label3,
+            // Patient selector
+            CruFieldFrame(
+              label: 'Patient',
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _patient != null
+                          ? '${_patient!.fullName} (${_patient!.age}y, ${_patient!.gender.toUpperCase()})'
+                          : 'No patient selected',
+                      style: CruType.body.tint(
+                        _patient != null ? c.label : c.label3,
+                      ),
                     ),
                   ),
-                ),
-                CruCapsuleButton(
-                  label: _patient != null ? 'Change' : 'Pick patient',
-                  icon: CruIcons.search,
-                  onPressed: _pickPatient,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Contact selector
-          CruFieldFrame(
-            label: _direction == ReferralDirection.out
-                ? 'Referring to'
-                : 'Referred by',
-            // A phone has no room for the buttons beside the list.
-            child: cruIsPhone(context)
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      contactDropdown,
-                      const SizedBox(height: CruSpace.s8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: contactButtons,
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(child: contactDropdown),
-                      const SizedBox(width: CruSpace.s8),
-                      ...contactButtons,
-                    ],
+                  CruCapsuleButton(
+                    label: _patient != null ? 'Change' : 'Pick patient',
+                    icon: CruIcons.search,
+                    onPressed: _pickPatient,
                   ),
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Reason
-          CruTextField(
-            label: 'Reason for referral',
-            controller: _reason,
-            hint: dental
-                ? 'e.g. Retreatment 36, Apicoectomy, Orthodontic consult'
-                : 'e.g. Further examination of persistent knee pain',
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Teeth (FDI): dental practices only.
-          if (dental || _teeth.text.isNotEmpty) ...[
-            CruTextField(
-              label: 'Teeth (FDI, comma-separated)',
-              controller: _teeth,
-              hint: 'e.g. 16, 26, 36 (always stored as FDI)',
-              help: _teethError,
-              onChanged: (_) {
-                if (_teethError != null) setState(() => _teethError = null);
-              },
+                ],
+              ),
             ),
             const SizedBox(height: CruSpace.s12),
-          ],
 
-          // Findings
-          CruTextField(
-            label: 'Clinical findings & history',
-            controller: _findings,
-            maxLines: 4,
-            hint:
-                'Relevant symptoms, examination and test findings, prior '
-                'treatment...',
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Specific Question
-          CruTextField(
-            label: 'Specific question or requested procedure',
-            controller: _question,
-            maxLines: 4,
-            hint: dental
-                ? 'e.g. Please evaluate for surgical extraction vs endodontic retreat'
-                : 'e.g. Please assess for ligament injury; MRI if needed',
-          ),
-          const SizedBox(height: CruSpace.s12),
-
-          // Urgency
-          CruFieldFrame(
-            label: 'Urgency',
-            child: CruSegmentedControl<ReferralUrgency>(
-              semanticLabel: 'Urgency',
-              segments: [
-                for (final u in ReferralUrgency.values) CruSegment(u, u.label),
-              ],
-              selected: _urgency,
-              onChanged: (u) => setState(() => _urgency = u),
-            ),
-          ),
-          const SizedBox(height: CruSpace.s16),
-
-          // Attachments
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Attachments (${_attachments.length})',
-                style: CruType.callout.w600.tint(c.label),
-              ),
-              CruCapsuleButton(
-                label: 'Add files',
-                icon: CruIcons.plus,
-                onPressed: _addAttachment,
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s8),
-          if (_attachments.isEmpty)
-            Text(
-              'No files attached yet (radiographs, photos, lab reports).',
-              style: CruType.caption.tint(c.label3),
-            )
-          else
-            for (final path in _attachments)
-              Padding(
-                padding: const EdgeInsets.only(bottom: CruSpace.s4),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s12,
-                    vertical: CruSpace.s6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
-                  ),
-                  child: Row(
-                    children: [
-                      CruIcon(CruIcons.box, size: 16, color: c.label2),
-                      const SizedBox(width: CruSpace.s8),
-                      Expanded(
-                        child: Text(
-                          p.basename(path),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: CruType.note.tint(c.label),
+            // Contact selector
+            CruFieldFrame(
+              label: _direction == ReferralDirection.out
+                  ? 'Referring to'
+                  : 'Referred by',
+              // A phone has no room for the buttons beside the list.
+              child: cruIsPhone(context)
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        contactDropdown,
+                        const SizedBox(height: CruSpace.s8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: contactButtons,
                         ),
-                      ),
-                      CruIconButton(
-                        icon: CruIcons.arrowUpRight,
-                        size: CruSize.squareButton,
-                        semanticLabel: 'Open file',
-                        tooltip: 'Open file',
-                        onPressed: () => launchUrl(Uri.file(path)),
-                      ),
-                      CruIconButton(
-                        icon: CruIcons.close,
-                        size: CruSize.squareButton,
-                        semanticLabel: 'Remove file',
-                        tooltip: 'Remove',
-                        onPressed: () =>
-                            setState(() => _attachments.remove(path)),
-                      ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: contactDropdown),
+                        const SizedBox(width: CruSpace.s8),
+                        ...contactButtons,
+                      ],
+                    ),
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Reason
+            CruTextField(
+              label: 'Reason for referral',
+              controller: _reason,
+              hint: dental
+                  ? 'e.g. Retreatment 36, Apicoectomy, Orthodontic consult'
+                  : 'e.g. Further examination of persistent knee pain',
+              validator: (v) => (v ?? '').trim().isEmpty
+                  ? 'Enter a reason for referral.'
+                  : null,
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Teeth (FDI): dental practices only.
+            if (dental || _teeth.text.isNotEmpty) ...[
+              CruTextField(
+                label: 'Teeth (FDI, comma-separated)',
+                controller: _teeth,
+                hint: 'e.g. 16, 26, 36 (always stored as FDI)',
+                validator: _checkTeeth,
+              ),
+              const SizedBox(height: CruSpace.s12),
+            ],
+
+            // Findings
+            CruTextField(
+              label: 'Clinical findings & history',
+              controller: _findings,
+              maxLines: 4,
+              hint:
+                  'Relevant symptoms, examination and test findings, prior '
+                  'treatment...',
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Specific Question
+            CruTextField(
+              label: 'Specific question or requested procedure',
+              controller: _question,
+              maxLines: 4,
+              hint: dental
+                  ? 'e.g. Please evaluate for surgical extraction vs endodontic retreat'
+                  : 'e.g. Please assess for ligament injury; MRI if needed',
+            ),
+            const SizedBox(height: CruSpace.s12),
+
+            // Urgency
+            CruFieldFrame(
+              label: 'Urgency',
+              child: CruSegmentedControl<ReferralUrgency>(
+                semanticLabel: 'Urgency',
+                segments: [
+                  for (final u in ReferralUrgency.values)
+                    CruSegment(u, u.label),
+                ],
+                selected: _urgency,
+                onChanged: (u) => setState(() => _urgency = u),
+              ),
+            ),
+            const SizedBox(height: CruSpace.s16),
+
+            // Attachments
+            CruMoreFields(
+              label: 'Attachments',
+              open: _attachments.isNotEmpty,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Attachments (${_attachments.length})',
+                      style: CruType.callout.w600.tint(c.label),
+                    ),
+                    CruCapsuleButton(
+                      label: 'Add files',
+                      icon: CruIcons.plus,
+                      onPressed: _addAttachment,
+                    ),
+                  ],
+                ),
+                if (_attachments.isEmpty)
+                  Text(
+                    'No files attached yet (radiographs, photos, lab reports).',
+                    style: CruType.caption.tint(c.label3),
+                  )
+                else
+                  Column(
+                    children: [
+                      for (final path in _attachments)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: CruSpace.s4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: CruSpace.s12,
+                              vertical: CruSpace.s6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: c.surface,
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.control,
+                              ),
+                              border: Border.all(color: c.hairline),
+                            ),
+                            child: Row(
+                              children: [
+                                CruIcon(
+                                  CruIcons.box,
+                                  size: 16,
+                                  color: c.label2,
+                                ),
+                                const SizedBox(width: CruSpace.s8),
+                                Expanded(
+                                  child: Text(
+                                    p.basename(path),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: CruType.note.tint(c.label),
+                                  ),
+                                ),
+                                CruIconButton(
+                                  icon: CruIcons.arrowUpRight,
+                                  size: CruSize.squareButton,
+                                  semanticLabel: 'Open file',
+                                  tooltip: 'Open file',
+                                  onPressed: () => launchUrl(Uri.file(path)),
+                                ),
+                                CruIconButton(
+                                  icon: CruIcons.close,
+                                  size: CruSize.squareButton,
+                                  semanticLabel: 'Remove file',
+                                  tooltip: 'Remove',
+                                  onPressed: () =>
+                                      setState(() => _attachments.remove(path)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-              ),
-          const SizedBox(height: CruSpace.s20),
-
-          // How this referral reaches the other doctor.
-          if (_direction == ReferralDirection.out)
-            _CruDocNotice(
-              contact: _selectedContact,
-              shared: shared,
-              consent: _consent,
-              onConsent: (v) => setState(() => _consent = v),
+              ],
             ),
-        ],
+            const SizedBox(height: CruSpace.s20),
+
+            // How this referral reaches the other doctor.
+            if (_direction == ReferralDirection.out)
+              _CruDocNotice(
+                contact: _selectedContact,
+                shared: shared,
+                consent: _consent,
+                onConsent: (v) => setState(() => _consent = v),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -633,6 +648,7 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
   late final TextEditingController _city;
   late final TextEditingController _notes;
   late final TextEditingController _turnaround;
+  final _form = GlobalKey<FormState>();
   bool _busy = false;
 
   /// Linked CruDoc account (uid, name, specialty), and whether it was
@@ -707,10 +723,7 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) {
-      recToast(context, 'Please enter a contact name');
-      return;
-    }
+    if (!(_form.currentState?.validate() ?? false)) return;
 
     setState(() => _busy = true);
     try {
@@ -806,53 +819,71 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
       busy: _busy,
       submitLabel: 'Save contact',
       onSubmit: _save,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _CruDocLinkRow(
-            doctor: _crudoc,
-            byHand: _linkedByHand,
-            crudocId: _crudocId,
-            onFind: _findOnCruDoc,
-            onUnlink: () => setState(() {
-              _crudoc = null;
-              _crudocId = '';
-              _linkedByHand = false;
-            }),
-          ),
-          const SizedBox(height: CruSpace.s16),
-          CruTextField(label: 'Doctor / Contact name', controller: _name),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Clinic / Hospital', controller: _clinic),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Specialty',
-            controller: _specialty,
-            hint: 'e.g. Endodontist, Dental lab, OMFS',
-          ),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Phone (WhatsApp, and finding them on CruDoc)',
-            controller: _phone,
-            keyboardType: TextInputType.phone,
-          ),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Email',
-            controller: _email,
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'City', controller: _city),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Standard turnaround (days)',
-            controller: _turnaround,
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Notes', controller: _notes, maxLines: 4),
-        ],
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _CruDocLinkRow(
+              doctor: _crudoc,
+              byHand: _linkedByHand,
+              crudocId: _crudocId,
+              onFind: _findOnCruDoc,
+              onUnlink: () => setState(() {
+                _crudoc = null;
+                _crudocId = '';
+                _linkedByHand = false;
+              }),
+            ),
+            const SizedBox(height: CruSpace.s16),
+            CruTextField(
+              label: 'Doctor / Contact name',
+              controller: _name,
+              validator: (v) =>
+                  (v ?? '').trim().isEmpty ? 'Enter a contact name.' : null,
+            ),
+            const SizedBox(height: CruSpace.s12),
+            CruTextField(
+              label: 'Specialty',
+              controller: _specialty,
+              hint: 'e.g. Endodontist, Dental lab, OMFS',
+            ),
+            const SizedBox(height: CruSpace.s12),
+            CruTextField(
+              label: 'Phone (WhatsApp, and finding them on CruDoc)',
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: CruSpace.s12),
+            CruTextField(
+              label: 'Email',
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: CruSpace.s12),
+            CruMoreFields(
+              label: 'Clinic, city, turnaround, notes',
+              // A lab's turnaround sets the due date, so labs open with it.
+              open:
+                  widget.initialSpecialty == 'Dental lab' ||
+                  widget.contact?.specialty == 'Dental lab' ||
+                  _clinic.text.isNotEmpty ||
+                  _city.text.isNotEmpty ||
+                  _turnaround.text.isNotEmpty ||
+                  _notes.text.isNotEmpty,
+              children: [
+                CruTextField(label: 'Clinic / Hospital', controller: _clinic),
+                CruTextField(label: 'City', controller: _city),
+                CruTextField(
+                  label: 'Standard turnaround (days)',
+                  controller: _turnaround,
+                  keyboardType: TextInputType.number,
+                ),
+                CruTextField(label: 'Notes', controller: _notes, maxLines: 4),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1077,6 +1108,7 @@ class WriteReplyDialog extends ConsumerStatefulWidget {
 
 class _WriteReplyDialogState extends ConsumerState<WriteReplyDialog> {
   late final TextEditingController _reply;
+  final _form = GlobalKey<FormState>();
   bool _busy = false;
 
   @override
@@ -1092,11 +1124,8 @@ class _WriteReplyDialogState extends ConsumerState<WriteReplyDialog> {
   }
 
   Future<void> _save() async {
+    if (!(_form.currentState?.validate() ?? false)) return;
     final text = _reply.text.trim();
-    if (text.isEmpty) {
-      recToast(context, 'Please enter treatment summary text');
-      return;
-    }
     setState(() => _busy = true);
     try {
       final now = DateTime.now();
@@ -1137,17 +1166,23 @@ class _WriteReplyDialogState extends ConsumerState<WriteReplyDialog> {
       busy: _busy,
       submitLabel: 'Save & complete',
       onSubmit: _save,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CruTextField(
-            label: 'Treatment summary & clinical outcome',
-            controller: _reply,
-            maxLines: 8,
-            hint:
-                'Summary of procedures performed, findings, post-op instructions, recommendations...',
-          ),
-        ],
+      body: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CruTextField(
+              label: 'Treatment summary & clinical outcome',
+              controller: _reply,
+              maxLines: 8,
+              hint:
+                  'Summary of procedures performed, findings, post-op instructions, recommendations...',
+              validator: (v) => (v ?? '').trim().isEmpty
+                  ? 'Enter the treatment summary.'
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -55,6 +55,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _passwordFocus = FocusNode();
+  final _form = GlobalKey<FormState>();
+
+  /// Loose shape check (name@domain.tld): allows plus addresses and long
+  /// endings like .health or .clinic. Firebase does the real check.
+  static final _emailShape = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$');
 
   @override
   void initState() {
@@ -108,6 +114,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -549,10 +556,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       return;
     }
 
-    // Loose shape check (name@domain.tld): allows plus addresses and long
-    // endings like .health or .clinic. Firebase does the real check.
-    final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@.]{2,}$');
-    if (!emailRegex.hasMatch(email)) {
+    if (!_emailShape.hasMatch(email)) {
       _showError('Please enter a valid email address');
       return;
     }
@@ -580,7 +584,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       _showError(
-        authErrorMessage(e, fallback: "Couldn't create the account. Try again."),
+        authErrorMessage(
+          e,
+          fallback: "Couldn't create the account. Try again.",
+        ),
       );
     } catch (e) {
       debugPrint('signup failed: $e');
@@ -717,7 +724,37 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _notice = null;
   });
 
-  void _submit() => _isLogin ? _handleEmailLogin() : _handleEmailSignup();
+  void _submit() {
+    if (_isLoading) return;
+    // What is missing is said on the field itself.
+    if (!(_form.currentState?.validate() ?? false)) {
+      setState(() => _notice = null);
+      return;
+    }
+    _isLogin ? _handleEmailLogin() : _handleEmailSignup();
+  }
+
+  // The same checks the two handlers make. Signing in asks only that
+  // something was typed: the backend judges the rest.
+  String? _emailError(String? value) {
+    final v = value ?? '';
+    if (_isLogin) {
+      return _sanitizeAuthInput(v).isEmpty ? 'Enter your email.' : null;
+    }
+    if (v.trim().isEmpty) return 'Enter your email.';
+    return _emailShape.hasMatch(v.trim())
+        ? null
+        : 'Enter a valid email address.';
+  }
+
+  String? _passwordError(String? value) {
+    final v = value ?? '';
+    if (_isLogin) {
+      return _sanitizeAuthInput(v).isEmpty ? 'Enter your password.' : null;
+    }
+    if (v.trim().isEmpty) return 'Enter a password.';
+    return v.trim().length < 6 ? 'Use at least 6 characters.' : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -726,6 +763,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     // Sign in and then switch to Create account.
     if (_getStarted == null) return Scaffold(backgroundColor: c.canvas);
     final login = _isLogin;
+    // On a phone the keyboard would cover the Google and phone buttons.
+    final typeAtOnce = !cruIsPhone(context);
     final busy = _isLoading;
     return Scaffold(
       backgroundColor: c.canvas,
@@ -760,75 +799,95 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ),
                     const SizedBox(height: CruSpace.s24),
                     CruCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (!login) ...[
+                      child: Form(
+                        key: _form,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Keyed, by mode where the rules differ, so
+                            // switching starts the fields clean.
+                            if (!login) ...[
+                              CruTextField(
+                                key: const ValueKey('name'),
+                                label: 'Your name',
+                                controller: _nameController,
+                                autofocus: typeAtOnce,
+                                textCapitalization: TextCapitalization.words,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [AutofillHints.name],
+                              ),
+                              const SizedBox(height: CruSpace.s16),
+                            ],
                             CruTextField(
-                              label: 'Your name',
-                              controller: _nameController,
-                              textCapitalization: TextCapitalization.words,
-                              autofillHints: const [AutofillHints.name],
+                              key: ValueKey('email-${_mobileMode.name}'),
+                              label: 'Email',
+                              controller: _emailController,
+                              autofocus: typeAtOnce && login,
+                              keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.email],
+                              textInputAction: TextInputAction.next,
+                              // Past the Show link, to the password.
+                              onSubmitted: (_) => _passwordFocus.requestFocus(),
+                              validator: _emailError,
+                              showValid: !login,
                             ),
                             const SizedBox(height: CruSpace.s16),
-                          ],
-                          CruTextField(
-                            label: 'Email',
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            autofillHints: const [AutofillHints.email],
-                          ),
-                          const SizedBox(height: CruSpace.s16),
-                          CruTextField(
-                            label: 'Password',
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            autofillHints: [
-                              login
-                                  ? AutofillHints.password
-                                  : AutofillHints.newPassword,
+                            CruTextField(
+                              key: ValueKey('password-${_mobileMode.name}'),
+                              label: 'Password',
+                              controller: _passwordController,
+                              focusNode: _passwordFocus,
+                              obscureText: _obscurePassword,
+                              keyboardType: TextInputType.visiblePassword,
+                              autofillHints: [
+                                login
+                                    ? AutofillHints.password
+                                    : AutofillHints.newPassword,
+                              ],
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => _submit(),
+                              validator: _passwordError,
+                              showValid: !login,
+                              trailing: CruLink(
+                                label: _obscurePassword ? 'Show' : 'Hide',
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                              ),
+                            ),
+                            if (login)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: CruSpace.s8,
+                                  ),
+                                  child: CruLink(
+                                    label: 'Forgot password?',
+                                    onPressed: _handleForgotPassword,
+                                  ),
+                                ),
+                              ),
+                            if (_notice != null) ...[
+                              const SizedBox(height: CruSpace.s12),
+                              Text(
+                                _notice!,
+                                style: CruType.text.tint(
+                                  _noticeIsError ? c.label : c.greenText,
+                                ),
+                              ),
                             ],
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _submit(),
-                            trailing: CruLink(
-                              label: _obscurePassword ? 'Show' : 'Hide',
-                              onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              ),
-                            ),
-                          ),
-                          if (login)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Padding(
-                                padding: const EdgeInsets.only(
-                                  top: CruSpace.s8,
-                                ),
-                                child: CruLink(
-                                  label: 'Forgot password?',
-                                  onPressed: _handleForgotPassword,
-                                ),
-                              ),
-                            ),
-                          if (_notice != null) ...[
-                            const SizedBox(height: CruSpace.s12),
-                            Text(
-                              _notice!,
-                              style: CruType.text.tint(
-                                _noticeIsError ? c.label : c.greenText,
-                              ),
+                            const SizedBox(height: CruSpace.s20),
+                            CruButton(
+                              label: busy
+                                  ? 'Please wait…'
+                                  : (login ? 'Sign in' : 'Create account'),
+                              large: true,
+                              expand: true,
+                              onPressed: busy ? null : _submit,
                             ),
                           ],
-                          const SizedBox(height: CruSpace.s20),
-                          CruButton(
-                            label: busy
-                                ? 'Please wait…'
-                                : (login ? 'Sign in' : 'Create account'),
-                            large: true,
-                            expand: true,
-                            onPressed: busy ? null : _submit,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: CruSpace.s20),

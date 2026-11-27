@@ -276,12 +276,15 @@ class ExerciseDetailScreen extends ConsumerWidget {
               tooltip: 'Delete exercise',
               icon: Icon(Icons.delete_outline, color: c.label2),
               onPressed: () async {
-                final rec = (ref
-                            .read(clinicRecordsProvider(RecKind.physioExercise))
-                            .value ??
-                        const <DentalRecord>[])
-                    .where((r) => r.id == e.recordId)
-                    .firstOrNull;
+                final rec =
+                    (ref
+                                .read(
+                                  clinicRecordsProvider(RecKind.physioExercise),
+                                )
+                                .value ??
+                            const <DentalRecord>[])
+                        .where((r) => r.id == e.recordId)
+                        .firstOrNull;
                 if (rec == null) return;
                 final ok = await confirmDental(
                   context,
@@ -386,6 +389,7 @@ class _CustomExerciseScreenState extends ConsumerState<_CustomExerciseScreen> {
   final _perDay = TextEditingController(text: '1');
   ExerciseRegion _region = ExerciseRegion.core;
   ExerciseLevel _level = ExerciseLevel.easy;
+  final _form = GlobalKey<FormState>();
   bool _saving = false;
 
   @override
@@ -409,11 +413,8 @@ class _CustomExerciseScreenState extends ConsumerState<_CustomExerciseScreen> {
       int.tryParse(t.text.trim()) ?? fallback;
 
   Future<void> _save() async {
+    if (!(_form.currentState?.validate() ?? false)) return;
     final name = _name.text.trim();
-    if (name.isEmpty) {
-      recToast(context, 'Give the exercise a name');
-      return;
-    }
     setState(() => _saving = true);
     await saveCustomExercise(
       ref,
@@ -452,73 +453,97 @@ class _CustomExerciseScreenState extends ConsumerState<_CustomExerciseScreen> {
     return Scaffold(
       backgroundColor: c.canvas,
       appBar: AppBar(title: const Text('New exercise')),
-      body: ListView(
-        padding: const EdgeInsets.all(CruSpace.s16),
-        children: [
-          CruTextField(label: 'Name', controller: _name, autofocus: true),
-          const SizedBox(height: CruSpace.s12),
-          Text('BODY REGION', style: CruType.micro.w600.tint(c.label2)),
-          const SizedBox(height: CruSpace.s8),
-          Wrap(
-            spacing: CruSpace.s8,
-            runSpacing: CruSpace.s8,
+      // Not a lazy list: the name must stay mounted to be validated.
+      body: Form(
+        key: _form,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(CruSpace.s16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final r in ExerciseRegion.values)
-                DentalChoiceChip(
-                  label: r.label,
-                  selected: _region == r,
-                  onTap: () => setState(() => _region = r),
-                ),
+              CruTextField(
+                label: 'Name',
+                controller: _name,
+                autofocus: true,
+                validator: (v) => (v ?? '').trim().isEmpty
+                    ? 'Give the exercise a name.'
+                    : null,
+              ),
+              const SizedBox(height: CruSpace.s12),
+              Text('BODY REGION', style: CruType.micro.w600.tint(c.label2)),
+              const SizedBox(height: CruSpace.s8),
+              Wrap(
+                spacing: CruSpace.s8,
+                runSpacing: CruSpace.s8,
+                children: [
+                  for (final r in ExerciseRegion.values)
+                    DentalChoiceChip(
+                      label: r.label,
+                      selected: _region == r,
+                      onTap: () => setState(() => _region = r),
+                    ),
+                ],
+              ),
+              const SizedBox(height: CruSpace.s12),
+              Text('DIFFICULTY', style: CruType.micro.w600.tint(c.label2)),
+              const SizedBox(height: CruSpace.s8),
+              Wrap(
+                spacing: CruSpace.s8,
+                children: [
+                  for (final l in ExerciseLevel.values)
+                    DentalChoiceChip(
+                      label: l.label,
+                      selected: _level == l,
+                      onTap: () => setState(() => _level = l),
+                    ),
+                ],
+              ),
+              const SizedBox(height: CruSpace.s12),
+              CruMoreFields(
+                label: 'Goal',
+                open: _goal.text.isNotEmpty,
+                children: [
+                  CruTextField(
+                    label: 'Goal',
+                    controller: _goal,
+                    optional: true,
+                  ),
+                ],
+              ),
+              const SizedBox(height: CruSpace.s12),
+              CruTextField(
+                label: 'Steps (one per line)',
+                controller: _steps,
+                maxLines: 5,
+              ),
+              const SizedBox(height: CruSpace.s12),
+              CruTextField(
+                label: 'Mistakes and when to stop',
+                controller: _cautions,
+                maxLines: 2,
+                optional: true,
+              ),
+              const SizedBox(height: CruSpace.s12),
+              Row(
+                children: [
+                  _num('Sets', _sets),
+                  const SizedBox(width: CruSpace.s8),
+                  _num('Reps', _reps),
+                  const SizedBox(width: CruSpace.s8),
+                  _num('Hold (s)', _hold),
+                  const SizedBox(width: CruSpace.s8),
+                  _num('Per day', _perDay),
+                ],
+              ),
+              const SizedBox(height: CruSpace.s24),
+              CruButton(
+                label: 'Save exercise',
+                expand: true,
+                onPressed: _saving ? null : _save,
+              ),
             ],
           ),
-          const SizedBox(height: CruSpace.s12),
-          Text('DIFFICULTY', style: CruType.micro.w600.tint(c.label2)),
-          const SizedBox(height: CruSpace.s8),
-          Wrap(
-            spacing: CruSpace.s8,
-            children: [
-              for (final l in ExerciseLevel.values)
-                DentalChoiceChip(
-                  label: l.label,
-                  selected: _level == l,
-                  onTap: () => setState(() => _level = l),
-                ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Goal', controller: _goal, optional: true),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Steps (one per line)',
-            controller: _steps,
-            maxLines: 5,
-          ),
-          const SizedBox(height: CruSpace.s12),
-          CruTextField(
-            label: 'Mistakes and when to stop',
-            controller: _cautions,
-            maxLines: 2,
-            optional: true,
-          ),
-          const SizedBox(height: CruSpace.s12),
-          Row(
-            children: [
-              _num('Sets', _sets),
-              const SizedBox(width: CruSpace.s8),
-              _num('Reps', _reps),
-              const SizedBox(width: CruSpace.s8),
-              _num('Hold (s)', _hold),
-              const SizedBox(width: CruSpace.s8),
-              _num('Per day', _perDay),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s24),
-          CruButton(
-            label: 'Save exercise',
-            expand: true,
-            onPressed: _saving ? null : _save,
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -338,12 +338,6 @@ class _HomeopathyVoiceDictationSheetState
             ],
           ),
         ),
-        const SizedBox(height: CruSpace.s10),
-        Text(
-          'Speak symptoms, modalities or mental rubrics clearly.',
-          style: CruType.caption.tint(c.label2),
-          textAlign: TextAlign.center,
-        ),
         const SizedBox(height: CruSpace.s20),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -402,7 +396,8 @@ class _HomeopathyVoiceDictationSheetState
               const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Text(
-                  _errorMessage ?? 'Something went wrong while writing it down.',
+                  _errorMessage ??
+                      'Something went wrong while writing it down.',
                   style: CruType.text.tint(c.label),
                 ),
               ),
@@ -434,10 +429,7 @@ class _HomeopathyVoiceDictationSheetState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'What was heard',
-          style: CruType.caption.w600.tint(c.label2),
-        ),
+        Text('What was heard', style: CruType.caption.w600.tint(c.label2)),
         const SizedBox(height: CruSpace.s8),
         TextField(
           controller: _textController,

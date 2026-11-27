@@ -337,7 +337,17 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                     ),
                   ),
                 const SizedBox(height: CruSpace.s4),
-                CruTextField(label: 'Note', controller: _note, optional: true),
+                CruMoreFields(
+                  label: 'Note',
+                  open: _note.text.isNotEmpty,
+                  children: [
+                    CruTextField(
+                      label: 'Note',
+                      controller: _note,
+                      optional: true,
+                    ),
+                  ],
+                ),
                 if (history.isNotEmpty) ...[
                   const SizedBox(height: CruSpace.s24),
                   Text(
@@ -365,25 +375,25 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
                                 ),
                                 onTap: () => _load(a),
                                 child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    DentalFormat.date(a.date),
-                                    style: CruType.body.w600.tint(c.label),
-                                  ),
-                                  const SizedBox(height: CruSpace.s4),
-                                  for (final r in a.rows)
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      _rowText(r),
-                                      style: CruType.caption.tint(c.label2),
+                                      DentalFormat.date(a.date),
+                                      style: CruType.body.w600.tint(c.label),
                                     ),
-                                  if (a.note.isNotEmpty)
-                                    Text(
-                                      a.note,
-                                      style: CruType.caption.tint(c.label2),
-                                    ),
-                                ],
-                              ),
+                                    const SizedBox(height: CruSpace.s4),
+                                    for (final r in a.rows)
+                                      Text(
+                                        _rowText(r),
+                                        style: CruType.caption.tint(c.label2),
+                                      ),
+                                    if (a.note.isNotEmpty)
+                                      Text(
+                                        a.note,
+                                        style: CruType.caption.tint(c.label2),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                             IconButton(
@@ -421,7 +431,9 @@ class _RomRegionScreenState extends ConsumerState<RomRegionScreen> {
             child: Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
               child: CruButton(
-                label: _editing != null ? 'Update assessment' : 'Save assessment',
+                label: _editing != null
+                    ? 'Update assessment'
+                    : 'Save assessment',
                 expand: true,
                 onPressed: _busy ? null : _save,
               ),

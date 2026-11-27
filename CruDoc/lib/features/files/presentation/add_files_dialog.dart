@@ -199,10 +199,7 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
       onSubmit: _save,
       busy: _saving,
       dirty:
-          _removedAny ||
-          _items.any(
-            (i) => i.patient?.id != widget.patientId,
-          ),
+          _removedAny || _items.any((i) => i.patient?.id != widget.patientId),
       notice: _notice,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -210,9 +207,6 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
           CruFormSection(
             first: true,
             title: 'Files',
-            description:
-                'Assign files to a patient, or leave unassigned to save '
-                'under your doctor account.',
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -421,15 +421,21 @@ class _ScaleSheetState extends ConsumerState<_ScaleSheet> {
                       ),
                     ],
                     const SizedBox(height: CruSpace.s12),
-                    CruTextField(
+                    CruMoreFields(
                       label: 'Note',
-                      controller: _note,
-                      hint: scale.isQuestionnaire
-                          ? 'Anything that affected the answers'
-                          : 'Walking aid, rests, why it stopped early',
-                      optional: true,
-                      maxLines: 2,
-                      textCapitalization: TextCapitalization.sentences,
+                      open: _note.text.isNotEmpty,
+                      children: [
+                        CruTextField(
+                          label: 'Note',
+                          controller: _note,
+                          hint: scale.isQuestionnaire
+                              ? 'Anything that affected the answers'
+                              : 'Walking aid, rests, why it stopped early',
+                          optional: true,
+                          maxLines: 2,
+                          textCapitalization: TextCapitalization.sentences,
+                        ),
+                      ],
                     ),
                   ],
                 ),

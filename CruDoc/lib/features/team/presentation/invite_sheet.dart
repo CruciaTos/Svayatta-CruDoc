@@ -117,7 +117,8 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
     final phone = _byId ? null : invitePhoneE164(_phone.text);
     if (!_byId && phone == null) {
       setState(
-        () => _notice = 'Enter a 10-digit mobile number, or the full number '
+        () => _notice =
+            'Enter a 10-digit mobile number, or the full number '
             'starting with +.',
       );
       return;
@@ -177,7 +178,10 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
   Future<void> _open(String url) async {
     var ok = false;
     try {
-      ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
     } catch (_) {}
     if (!ok && mounted) {
       setState(() => _notice = "Couldn't open that app on this device.");
@@ -284,8 +288,6 @@ class _InviteDialogState extends ConsumerState<InviteDialog> {
 
     return CruFormDialog(
       title: 'Add a person',
-      subtitle: 'Invite them by phone number or CruDoc ID. They join from '
-          'CruDoc on their phone.',
       submitLabel: _busy ? 'Sending…' : 'Send invite',
       busy: _busy,
       notice: _notice,
